@@ -8,7 +8,7 @@ from fastapi.routing import APIRoute
 
 from unicon_backend.constants import CORS_REGEX_WHITELIST, FRONTEND_URL
 from unicon_backend.logger import setup_rich_logger
-from unicon_backend.routers import auth, group, organisation, problem, project, role
+from unicon_backend.routers import auth, file, group, organisation, problem, project, role
 from unicon_backend.workers.consumer import task_results_consumer
 from unicon_backend.workers.publisher import task_publisher
 
@@ -44,6 +44,7 @@ app.include_router(organisation.router)
 app.include_router(project.router)
 app.include_router(role.router)
 app.include_router(group.router)
+app.include_router(file.router)
 
 # Set `operation_id` for all routes to the same as the `name`
 # This is done to make the generated OpenAPI documentation more readable

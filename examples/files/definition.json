@@ -1,39 +1,35 @@
 {
-  "name": "Linear Regression (Sine Approximation)",
-  "description": "Using PyTorch to perform linear regression with backpropagation",
+  "name": "Read image.",
+  "description": "Example of reading an image in a folder.",
   "restricted": false,
-  "published": true,
   "tasks": [
     {
       "id": 0,
       "type": "PROGRAMMING_TASK",
-      "title": "Implement Linear Regression with Backpropagation",
+      "question": "Read an image.",
       "order_index": 0,
       "environment": {
         "language": "PYTHON",
         "extra_options": {
           "version": "3.12.8",
-          "requirements": ["torch", "numpy"]
+          "requirements": "pillow"
         },
-        "slurm": true,
-        "slurm_options": ["--gpus=a100-80"],
+        "slurm_options": [],
         "time_limit_secs": 120,
-        "memory_limit_mb": 30000
+        "memory_limit_mb": 3000
       },
       "required_inputs": [
         {
-          "id": "__LR_GPU_FILE__",
-          "label": "lr code",
+          "id": "__READER_FILE__",
           "data": {
-            "path": "lr_gpu.py",
-            "content": "def lr_gpu(x):\n\traise NotImplememented()"
+            "path": "read.py",
+            "content": "def read(file_path): -> str:\n\tfrom PIL import Image\n\tim = Image.open(filepath)\n\treturn f'{im.format}, {im.size}, {im.mode}'"
           }
         }
       ],
       "testcases": [
         {
-          "id": "__TESTCASE_1__",
-          "order_index": 0,
+          "id": 0,
           "nodes": [
             {
               "id": "__USER_INPUT__",
@@ -41,8 +37,8 @@
               "is_user": true,
               "outputs": [
                 {
-                  "id": "__LR_GPU_FILE__",
-                  "label": "ADD_FILE"
+                  "id": "__READER_FILE__",
+                  "label": "READER_FILE"
                 }
               ]
             },
@@ -51,32 +47,41 @@
               "type": "INPUT_STEP",
               "outputs": [
                 {
-                  "id": "__X__",
-                  "label": "x in sin(x)",
-                  "data": 3.14159
+                  "id": "__IMAGE_FILE__",
+                  "label": "IMAGE_FILE",
+                  "data": {
+                    "path": "folder/ohno.png",
+                    "content": "",
+                    "on_minio": true,
+                    "key": "ohno.png"
+                  }
                 }
               ]
             },
             {
-              "id": "__PY_RUN_LR__",
+              "id": "__PY_RUN_IMAGE_READ__",
               "type": "PY_RUN_FUNCTION_STEP",
-              "function_identifier": "lr",
+              "function_identifier": "read",
               "inputs": [
                 {
                   "id": "__MODULE__",
                   "import_as_module": true
                 },
                 {
-                  "id": "__X__",
+                  "id": "__FILEPATH__",
                   "arg_metadata": {
                     "position": 0
+                  },
+                  "data": {
+                    "path": "read.py",
+                    "content": "placeholder"
                   }
                 }
               ],
               "outputs": [
                 {
                   "id": "__RESULT__",
-                  "label": "sin(x) result"
+                  "label": "image size"
                 }
               ]
             },
@@ -96,20 +101,20 @@
             {
               "id": "1",
               "from_node_id": "__USER_INPUT__",
-              "from_socket_id": "__LR_GPU_FILE__",
-              "to_node_id": "__PY_RUN_LR__",
+              "from_socket_id": "__READER_FILE__",
+              "to_node_id": "__PY_RUN_IMAGE_READ__",
               "to_socket_id": "__MODULE__"
             },
             {
               "id": "2",
               "from_node_id": "__INPUT__",
-              "from_socket_id": "__X__",
-              "to_node_id": "__PY_RUN_LR__",
-              "to_socket_id": "__X__"
+              "from_socket_id": "__IMAGE_FILE__",
+              "to_node_id": "__PY_RUN_IMAGE_READ__",
+              "to_socket_id": "__FILEPATH__"
             },
             {
               "id": "3",
-              "from_node_id": "__PY_RUN_LR__",
+              "from_node_id": "__PY_RUN_IMAGE_READ__",
               "from_socket_id": "__RESULT__",
               "to_node_id": "__OUTPUT__",
               "to_socket_id": "__OUT__"

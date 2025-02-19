@@ -29,3 +29,8 @@ AMQP_CONN_NAME: Final[str] = _get_env_var("AMQP_CONN_NAME", "unicon-backend")
 PERMIFY_HOST: Final[str] = _get_env_var("PERMIFY_HOST", "http://localhost:3476")
 PERMIFY_SCHEMA_VERSION: Final[str | None] = _get_env_var("PERMIFY_SCHEMA_VERSION", required=False)
 PERMIFY_TENANT_ID: Final[str] = _get_env_var("PERMIFY_TENANT_ID", "t1")
+
+MINIO_HOST: Final[str] = _get_env_var("MINIO_HOST", "localhost:9000")
+MINIO_ACCESS_KEY: Final[str] = _get_env_var("MINIO_ACCESS_KEY")
+MINIO_SECRET_KEY: Final[str] = _get_env_var("MINIO_SECRET_KEY")
+MINIO_BUCKET = _get_env_var("MINIO_BUCKET", "unicon")

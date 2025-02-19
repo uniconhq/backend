@@ -80,7 +80,7 @@
           "id": "__TREE_SEARCH_FILE__",
           "label": "tree_search.py",
           "data": {
-            "name": "tree_search.py",
+            "path": "tree_search.py",
             "content": "import queue\n\ndef mnc_tree_search(m, c):\n\traise NotImplememented()"
           }
         }

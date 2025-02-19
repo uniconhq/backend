@@ -22,7 +22,7 @@
           "id": "__ADD_PY_FILE__",
           "label": "add.py",
           "data": {
-            "name": "add.py",
+            "path": "add.py",
             "content": "def add(a, b):\n\traise NotImplememented()"
           }
         }

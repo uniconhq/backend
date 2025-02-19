@@ -15,7 +15,14 @@ from unicon_backend.evaluator.tasks.programming.steps import (
     StepType,
 )
 from unicon_backend.lib.common import CustomSQLModel
-from unicon_backend.runner import ComputeContext, JobId, ProgramResult, RunnerJob, RunnerProgram
+from unicon_backend.runner import (
+    ComputeContext,
+    JobId,
+    ProgramResult,
+    RunnerFile,
+    RunnerJob,
+    RunnerProgram,
+)
 from unicon_backend.workers.publisher import task_publisher
 
 logger = getLogger(__name__)
@@ -75,6 +82,7 @@ class Testcase(ComputeGraph):
 class ProgrammingTask(Task[list[RequiredInput], JobId]):
     type: Literal[TaskType.PROGRAMMING]
     environment: ComputeContext
+    # Required inputs are files submitted by the normal user. Template files are shown here.
     required_inputs: list[RequiredInput]
     testcases: list[Testcase]
 
@@ -91,10 +99,12 @@ class ProgrammingTask(Task[list[RequiredInput], JobId]):
 
             logger.debug(f"Assembled Program:\n{assembled_program}")
 
-            graph_files: list[File] = []
+            graph_files: list[RunnerFile] = []
             for node in filter(lambda node: node.type == StepType.INPUT, testcase.nodes):
                 graph_files.extend(
-                    output.data for output in node.outputs if isinstance(output.data, File)
+                    RunnerFile.from_file(output.data)
+                    for output in node.outputs
+                    if isinstance(output.data, File)
                 )
 
             runner_programs.append(
@@ -106,7 +116,9 @@ class ProgrammingTask(Task[list[RequiredInput], JobId]):
                     # to let ComputeGraph derive all the files needed to run the testcase
                     files=[
                         *graph_files,
-                        File(name="__entrypoint.py", content=assembled_program.code),
+                        RunnerFile.from_file(
+                            File(path="__entrypoint.py", content=assembled_program.code)
+                        ),
                     ],
                 )
             )
@@ -117,4 +129,15 @@ class ProgrammingTask(Task[list[RequiredInput], JobId]):
         return TaskEvalResult(task_id=self.id, status=TaskEvalStatus.PENDING, result=runner_job.id)
 
     def validate_user_input(self, user_input: Any) -> list[RequiredInput]:
+        if type(user_input) is not list:
+            raise ValueError("User input must be a list of required inputs")
+
+        # insert the path back into the File object
+        id_to_path = {
+            file.id: file.data.path for file in self.required_inputs if isinstance(file.data, File)
+        }
+        for required_input in user_input:
+            if required_input["id"] in id_to_path:
+                required_input["data"]["path"] = id_to_path[required_input["id"]]
+
         return RootModel[list[RequiredInput]].model_validate(user_input).root

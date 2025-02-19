@@ -1,10 +1,13 @@
+import base64
 from enum import Enum
 from typing import NewType, Self
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, ConfigDict, model_validator
 
+from unicon_backend.constants import MINIO_BUCKET
 from unicon_backend.evaluator.tasks.programming.artifact import File
+from unicon_backend.lib.file import download_file
 
 JobId = NewType("JobId", UUID)
 
@@ -89,9 +92,25 @@ class JobResult(BaseModel):
     id: JobId
 
 
+class RunnerFile(File):
+    path: str
+    # If file is binary, this will be base64 encoded.
+    content: str
+    is_binary: bool
+
+    @classmethod
+    def from_file(cls, file: File) -> "RunnerFile":
+        if not file.on_minio or not file.key:
+            return RunnerFile(path=file.path, content=file.content, is_binary=False)
+
+        file_bytes = download_file(MINIO_BUCKET, file.key)
+        encoded = base64.b64encode(file_bytes).decode("ascii")
+        return RunnerFile(path=file.path, content=encoded, is_binary=True)
+
+
 class RunnerProgram(BaseModel):
     entrypoint: str
-    files: list[File]
+    files: list[RunnerFile]
 
     # Tracking fields
     id: str  # Corresponds to the testcase id of the problem
@@ -99,7 +118,7 @@ class RunnerProgram(BaseModel):
 
     @model_validator(mode="after")
     def check_entrypoint_exists_in_files(self) -> Self:
-        if not any(file.name == self.entrypoint for file in self.files):
+        if not any(file.path == self.entrypoint for file in self.files):
             raise ValueError(f"Entrypoint {self.entrypoint} not found in program files")
         return self
 

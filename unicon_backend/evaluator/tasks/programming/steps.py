@@ -245,6 +245,18 @@ class InputStep(Step[StepSocket]):
                 )
             )
 
+        for socket in filter(lambda s: isinstance(s.data, File), self.data_out):
+            program.append(
+                cst.Assign(
+                    targets=[cst.AssignTarget(graph.get_link_var(self, socket))],
+                    value=_parse(
+                        # The prepended `src/` is the directory unicon-runner would create the file in.
+                        # This is necessary because the working directory is the folder containing `src/`
+                        "src/" + cast(File, socket.data).path,
+                    ),
+                )
+            )
+
         return program
 
 
@@ -331,7 +343,12 @@ class StringMatchStep(Step[StepSocket]):
     ) -> ProgramFragment:
         def get_match_op(s: StepSocket) -> cst.BaseExpression:
             assert not isinstance(s.data, File)  # TODO: More robust validation for data type
-            if ret_expr := in_vars.get(s.id, cst_expr(s.data) if s.data else None):
+            if ret_expr := in_vars.get(
+                s.id,
+                cst_expr(cast(PrimitiveData, s.data))
+                if isinstance(s.data, str | bool | int | float)
+                else None,
+            ):
                 return ret_expr
             raise ValueError(f"Missing data for socket {self.id}:{s.id}")
 
@@ -426,8 +443,13 @@ class PyRunFunctionStep(Step[PyRunFunctionSocket]):
             return in_vars.get(s.id, s.data) is not None
 
         def get_param_expr(s: StepSocket) -> cst.BaseExpression:
-            assert not isinstance(s.data, File)  # TODO: More robust validation for data type
-            if ret_expr := in_vars.get(s.id, cst_expr(s.data) if s.data else None):
+            # TODO: More robust validation for data type
+            data = s.data
+            # If the data is a file, we pass the file path directly to the function
+            if isinstance(data, File):
+                if result := in_vars.get(s.id):
+                    return result
+            elif ret_expr := in_vars.get(s.id, cst_expr(data) if data else None):
                 return ret_expr
             raise ValueError(f"Missing data for socket {self.id}:{s.id}")
 
@@ -437,7 +459,7 @@ class PyRunFunctionStep(Step[PyRunFunctionSocket]):
             raise ValueError("Missing module file!")
 
         # NOTE: Assume that the program file is always a Python file
-        module_name = module_file.name.split(".py")[0]
+        module_name = module_file.path.split(".py")[0].replace("/", ".")
 
         func_var = cst_var(self.function_identifier)
         args = [cst.Arg(get_param_expr(s)) for s in self.args if has_data(s)]
@@ -624,10 +646,10 @@ class ComputeGraph(Graph[StepClasses, GraphEdge[str]]):  # type: ignore
                     continue
 
                 if from_s.data is not None and isinstance(from_s.data, File):
-                    # NOTE: File objects are passed directly to the next step and not serialized as a variable
+                    # NOTE: File objects are passed directly to the next step *AND* serialized as a variable (as a filepath)
                     in_files[to_s.id] = from_s.data
-                else:
-                    in_vars[to_s.id] = self.get_link_var(from_n, from_s)
+
+                in_vars[to_s.id] = self.get_link_var(from_n, from_s)
 
             curr_node._debug = debug
             program_body.extend(
