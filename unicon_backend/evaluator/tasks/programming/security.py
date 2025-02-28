@@ -62,6 +62,9 @@ def call_function_unsafe(file_name, function_name, allow_error, *args, **kwargs)
         except Exception as e:
             result = None
             err = e
+    if not allow_error and err is not None:
+        print(json.dumps({"file_name": file_name, "function_name": function_name, "error": str(err)}))
+        sys.exit(1)
     return result, stdout, stderr, err
 """)
 
