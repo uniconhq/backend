@@ -10,15 +10,24 @@ def call_function_from_file(file_name, function_name, *args, **kwargs):
         module_name = file_name.replace(".py", "")
         module = importlib.import_module(module_name)
         func = getattr(module, function_name)
-        return func(*args, **kwargs), stdout.getvalue(), stderr.getvalue()
+        error = None
+        try:
+            result = func(*args, **kwargs)
+        except Exception as e:
+            error = e
+        return func(*args, **kwargs), stdout.getvalue(), stderr.getvalue(), error
                                    
 def run_code_from_file(file_name, **variables):
     spec = importlib.util.find_spec(file_name)
     module = importlib.util.module_from_spec(spec)
     module.__dict__.update(variables)
     with redirect_stdout(io.StringIO()) as stdout, redirect_stderr(io.StringIO()) as stderr: 
-        spec.loader.exec_module(module)
-    return None, stdout.getvalue(), stderr.getvalue()
+        error = None
+        try:
+            spec.loader.exec_module(module)
+        except Exception as e:
+            error = e
+    return None, stdout.getvalue(), stderr.getvalue(), error
 
 
 def worker(task_queue, result_queue):
@@ -28,14 +37,12 @@ def worker(task_queue, result_queue):
             break
 
         file_name, function_name, args, kwargs = task
-        try:
-            if function_name:
-                result, stdout, stderr = call_function_from_file(file_name, function_name, *args, **kwargs)
-            else:
-                result, stdout, stderr = run_code_from_file(file_name, **kwargs)           
-            result_queue.put((result, stdout, stderr, None))
-        except Exception as e:
-            result_queue.put((None, None, None, e))
+    
+        if function_name:
+            result, stdout, stderr, error = call_function_from_file(file_name, function_name, *args, **kwargs)
+        else:
+            result, stdout, stderr, error = run_code_from_file(file_name, **kwargs)           
+        result_queue.put((result, stdout, stderr, error))
 """)
 
 MPI_CLEANUP_TEMPLATE = cst.parse_module("""
