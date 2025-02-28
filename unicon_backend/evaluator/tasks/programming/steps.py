@@ -326,7 +326,10 @@ class OutputStep(Step[OutputSocket]):
                         cst.Arg(
                             cst.Call(
                                 func=cst.Attribute(value=cst_var("json"), attr=cst_var("dumps")),
-                                args=[cst.Arg(result_dict)],
+                                args=[
+                                    cst.Arg(result_dict),
+                                    cst.Arg(cst_var("str"), keyword=cst_var("default")),
+                                ],
                             )
                         )
                     ],
