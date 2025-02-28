@@ -11,6 +11,14 @@ def call_function_from_file(file_name, function_name, *args, **kwargs):
         module = importlib.import_module(module_name)
         func = getattr(module, function_name)
         return func(*args, **kwargs), stdout.getvalue(), stderr.getvalue()
+                                   
+def run_code_from_file(file_name, **variables):
+    spec = importlib.util.find_spec(file_name)
+    module = importlib.util.module_from_spec(spec)
+    module.__dict__.update(variables)
+    with redirect_stdout(io.StringIO()) as stdout, redirect_stderr(io.StringIO()) as stderr: 
+        spec.loader.exec_module(module)
+    return None, stdout.getvalue(), stderr.getvalue()
 
 
 def worker(task_queue, result_queue):
@@ -21,7 +29,10 @@ def worker(task_queue, result_queue):
 
         file_name, function_name, args, kwargs = task
         try:
-            result, stdout, stderr = call_function_from_file(file_name, function_name, *args, **kwargs)
+            if function_name:
+                result, stdout, stderr = call_function_from_file(file_name, function_name, *args, **kwargs)
+            else:
+                result, stdout, stderr = run_code_from_file(file_name, **kwargs)           
             result_queue.put((result, stdout, stderr, None))
         except Exception as e:
             result_queue.put((None, None, None, e))
@@ -53,11 +64,17 @@ def call_function_safe(file_name, function_name, allow_error, *args, **kwargs):
         print(json.dumps({"file_name": file_name, "function_name": function_name, "error": str(err)}))
         sys.exit(1)
     return result, stdout, stderr, err
-                                       
-def call_function_unsafe(file_name, function_name, allow_error, *args, **kwargs):
+
+def run_code_unsafe(file_name, allow_error, **variables):
+    spec = importlib.util.find_spec(file_name)
+    module = importlib.util.module_from_spec(spec)
+    module.__dict__.update(variables)
+    spec.loader.exec_module(module)
+
+def call_function_unsafe(file_name, function, allow_error, *args, **kwargs):
     with redirect_stdout(io.StringIO()) as stdout, redirect_stderr(io.StringIO()) as stderr: 
         try:
-            result = function_name(*args, **kwargs)
+            result = function(*args, **kwargs) if function else run_code_unsafe(file_name, allow_error, **kwargs)
             err = None
         except Exception as e:
             result = None

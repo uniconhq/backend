@@ -427,7 +427,8 @@ class PyRunFunctionSocket(StepSocket):
 class PyRunFunctionStep(Step[PyRunFunctionSocket]):
     required_data_io: ClassVar[tuple[Range, Range]] = ((1, -1), (1, 4))
 
-    function_identifier: str
+    # If function_identifier is None, we just run the module. Result doesn't make sense in this scenario.
+    function_identifier: str | None = None
     allow_error: bool = False
     propagate_stdout: bool = False
     propagate_stderr: bool = False
@@ -490,7 +491,12 @@ class PyRunFunctionStep(Step[PyRunFunctionSocket]):
         kwargs = [cst.Arg(get_param_expr(s), keyword=cst_var(cast(str, s.kwarg_name))) for s in self.kwargs if has_data(s)]  # fmt: skip
 
         out_var = next(
-            (graph.get_link_var(self, s) for s in self.data_out if not s.handles_error), UNUSED_VAR
+            (
+                graph.get_link_var(self, s)
+                for s in self.data_out
+                if not s.handles_error and not s.handles_stdout and not s.handles_stderr
+            ),
+            UNUSED_VAR,
         )
         if not out_var:
             raise ValueError("Missing result socket")
@@ -524,7 +530,11 @@ class PyRunFunctionStep(Step[PyRunFunctionSocket]):
                     else cst_var("call_function_unsafe"),
                     [
                         cst.Arg(cst_str(module_name)),
-                        cst.Arg(cst_str(self.function_identifier)),
+                        cst.Arg(
+                            cst_str(self.function_identifier)
+                            if self.function_identifier
+                            else cst_var("None")
+                        ),
                         cst.Arg(cst_var(self.allow_error)),
                         *args,
                         *kwargs,
