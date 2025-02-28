@@ -24,7 +24,7 @@ def worker(task_queue, result_queue):
             result, stdout, stderr = call_function_from_file(file_name, function_name, *args, **kwargs)
             result_queue.put((result, stdout, stderr, None))
         except Exception as e:
-            result_queue.put((None, e))
+            result_queue.put((None, None, None, e))
 """)
 
 MPI_CLEANUP_TEMPLATE = cst.parse_module("""
