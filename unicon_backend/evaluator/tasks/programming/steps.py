@@ -525,9 +525,9 @@ class PyRunFunctionStep(Step[PyRunFunctionSocket]):
                     )
                 ],
                 cst.Call(
-                    cst_var("call_function_safe")
+                    cst_var("call_function_unsafe")
                     if module_file.trusted
-                    else cst_var("call_function_unsafe"),
+                    else cst_var("call_function_safe"),
                     [
                         cst.Arg(cst_str(module_name)),
                         cst.Arg(
