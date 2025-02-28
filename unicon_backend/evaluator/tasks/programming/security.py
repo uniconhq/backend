@@ -53,6 +53,16 @@ def call_function_safe(file_name, function_name, allow_error, *args, **kwargs):
         print(json.dumps({"file_name": file_name, "function_name": function_name, "error": str(err)}))
         sys.exit(1)
     return result, stdout, stderr, err
+                                       
+def call_function_unsafe(file_name, function_name, allow_error, *args, **kwargs):
+    with redirect_stdout(io.StringIO()) as stdout, redirect_stderr(io.StringIO()) as stderr: 
+        try:
+            result = function_name(*args, **kwargs)
+            err = None
+        except Exception as e:
+            result = None
+            err = e
+    return result, stdout, stderr, err
 """)
 
 

@@ -21,7 +21,6 @@ from unicon_backend.lib.cst import (
     ProgramVariable,
     assemble_fragment,
     cst_expr,
-    cst_module,
     cst_str,
     cst_var,
     hoist_imports,
@@ -484,7 +483,6 @@ class PyRunFunctionStep(Step[PyRunFunctionSocket]):
         # NOTE: Assume that the program file is always a Python file
         module_name = module_file.path.split(".py")[0].replace("/", ".")
 
-        func_var = cst_var(self.function_identifier)
         args = [cst.Arg(get_param_expr(s)) for s in self.args if has_data(s)]
         kwargs = [cst.Arg(get_param_expr(s), keyword=cst_var(cast(str, s.kwarg_name))) for s in self.kwargs if has_data(s)]  # fmt: skip
 
@@ -503,40 +501,34 @@ class PyRunFunctionStep(Step[PyRunFunctionSocket]):
             (graph.get_link_var(self, s) for s in self.data_out if s.handles_stderr), UNUSED_VAR
         )
 
-        return (
-            [
-                cst.Assign(
-                    [
-                        cst.AssignTarget(
-                            cst.Tuple(
-                                [
-                                    cst.Element(out_var),
-                                    cst.Element(stdout_var),
-                                    cst.Element(stderr_var),
-                                    cst.Element(error_var),
-                                ]
-                            )
+        return [
+            cst.Assign(
+                [
+                    cst.AssignTarget(
+                        cst.Tuple(
+                            [
+                                cst.Element(out_var),
+                                cst.Element(stdout_var),
+                                cst.Element(stderr_var),
+                                cst.Element(error_var),
+                            ]
                         )
+                    )
+                ],
+                cst.Call(
+                    cst_var("call_function_safe")
+                    if module_file.trusted
+                    else cst_var("call_function_unsafe"),
+                    [
+                        cst.Arg(cst_str(module_name)),
+                        cst.Arg(cst_str(self.function_identifier)),
+                        cst.Arg(cst_var(self.allow_error)),
+                        *args,
+                        *kwargs,
                     ],
-                    cst.Call(
-                        cst_var("call_function_safe"),
-                        [
-                            cst.Arg(cst_str(module_name)),
-                            cst.Arg(cst_str(self.function_identifier)),
-                            cst.Arg(cst_var(self.allow_error)),
-                            *args,
-                            *kwargs,
-                        ],
-                    ),
-                )
-            ]
-            # TODO: how do i make stdout/stderr work here? does it even work for errors?
-            if not module_file.trusted
-            else [
-                cst.ImportFrom(cst_module(module_name), [cst.ImportAlias(func_var)]),
-                cst.Assign([cst.AssignTarget(out_var)], cst.Call(func_var, args + kwargs)),
-            ]
-        )
+                ),
+            )
+        ]
 
 
 class LoopStep(Step[StepSocket]):
