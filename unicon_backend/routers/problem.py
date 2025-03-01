@@ -402,6 +402,7 @@ def get_problem_task_attempt_results(
         .where(TaskAttemptORM.user_id == user.id)
         .options(selectinload(TaskAttemptORM.task_results))
         .options(selectinload(TaskAttemptORM.task))
+        .order_by(col(TaskAttemptORM.id))
     ).all()
 
     db_session.close()

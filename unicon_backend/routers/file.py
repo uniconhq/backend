@@ -19,7 +19,7 @@ router = APIRouter(prefix="/files", tags=["file"], dependencies=[Depends(get_cur
 
 @router.post("", response_model=str)
 async def create_file(file: UploadFile):
-    return upload_fastapi_file(file)
+    return await upload_fastapi_file(file)
 
 
 @router.get("/{file_id}")

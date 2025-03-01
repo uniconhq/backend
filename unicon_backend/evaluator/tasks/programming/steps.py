@@ -21,7 +21,6 @@ from unicon_backend.lib.cst import (
     ProgramVariable,
     assemble_fragment,
     cst_expr,
-    cst_module,
     cst_str,
     cst_var,
     hoist_imports,
@@ -327,7 +326,10 @@ class OutputStep(Step[OutputSocket]):
                         cst.Arg(
                             cst.Call(
                                 func=cst.Attribute(value=cst_var("json"), attr=cst_var("dumps")),
-                                args=[cst.Arg(result_dict)],
+                                args=[
+                                    cst.Arg(result_dict),
+                                    cst.Arg(cst_var("str"), keyword=cst_var("default")),
+                                ],
                             )
                         )
                     ],
@@ -397,19 +399,39 @@ class ArgMetadata(BaseModel):
 
 
 class PyRunFunctionSocket(StepSocket):
+    """
+    For every field in this class, only one of the fields is truthy at a time.
+
+    Function Input:
+    import_as_module: true --> the file we are importing from
+    arg_metadata: true --> its an argument
+    kwarg_name: true --> its a keyword argument. (no function will use this too to inject variables)
+
+    Function Output:
+    Everything below is falsy: --> the result of the function.
+    handles_error: true --> error of the output. It is actually not safe to use this as an output because it is not serializable.
+    handles_stdout: true --> stdout from running the function.
+    handles_stderr: true --> stderr from running the function.
+    """
+
     import_as_module: bool = False
 
     arg_metadata: ArgMetadata | None = None
     kwarg_name: str | None = None
 
     handles_error: bool = False
+    handles_stdout: bool = False
+    handles_stderr: bool = False
 
 
 class PyRunFunctionStep(Step[PyRunFunctionSocket]):
-    required_data_io: ClassVar[tuple[Range, Range]] = ((1, -1), (1, 2))
+    required_data_io: ClassVar[tuple[Range, Range]] = ((1, -1), (1, 4))
 
-    function_identifier: str
+    # If function_identifier is None, we just run the module. Result doesn't make sense in this scenario.
+    function_identifier: str | None = None
     allow_error: bool = False
+    propagate_stdout: bool = False
+    propagate_stderr: bool = False
 
     @model_validator(mode="after")
     def check_module_file_input(self) -> Self:
@@ -465,39 +487,61 @@ class PyRunFunctionStep(Step[PyRunFunctionSocket]):
         # NOTE: Assume that the program file is always a Python file
         module_name = module_file.path.split(".py")[0].replace("/", ".")
 
-        func_var = cst_var(self.function_identifier)
         args = [cst.Arg(get_param_expr(s)) for s in self.args if has_data(s)]
         kwargs = [cst.Arg(get_param_expr(s), keyword=cst_var(cast(str, s.kwarg_name))) for s in self.kwargs if has_data(s)]  # fmt: skip
 
-        if error_s := next((s for s in self.data_out if s.handles_error), None):
-            out_var = graph.get_link_var(self, next(s for s in self.data_out if s.id != error_s.id))
-            error_var = graph.get_link_var(self, error_s)
-        else:
-            out_var = graph.get_link_var(self, self.data_out[0])
-            error_var = UNUSED_VAR
-
-        return (
-            [
-                cst.Assign(
-                    [cst.AssignTarget(cst.Tuple([cst.Element(out_var), cst.Element(error_var)]))],
-                    cst.Call(
-                        cst_var("call_function_safe"),
-                        [
-                            cst.Arg(cst_str(module_name)),
-                            cst.Arg(cst_str(self.function_identifier)),
-                            cst.Arg(cst_var(self.allow_error)),
-                            *args,
-                            *kwargs,
-                        ],
-                    ),
-                )
-            ]
-            if not module_file.trusted
-            else [
-                cst.ImportFrom(cst_module(module_name), [cst.ImportAlias(func_var)]),
-                cst.Assign([cst.AssignTarget(out_var)], cst.Call(func_var, args + kwargs)),
-            ]
+        out_var = next(
+            (
+                graph.get_link_var(self, s)
+                for s in self.data_out
+                if not s.handles_error and not s.handles_stdout and not s.handles_stderr
+            ),
+            UNUSED_VAR,
         )
+        if not out_var:
+            raise ValueError("Missing result socket")
+        error_var = next(
+            (graph.get_link_var(self, s) for s in self.data_out if s.handles_error), UNUSED_VAR
+        )
+        stdout_var = next(
+            (graph.get_link_var(self, s) for s in self.data_out if s.handles_stdout), UNUSED_VAR
+        )
+        stderr_var = next(
+            (graph.get_link_var(self, s) for s in self.data_out if s.handles_stderr), UNUSED_VAR
+        )
+
+        return [
+            cst.Assign(
+                [
+                    cst.AssignTarget(
+                        cst.Tuple(
+                            [
+                                cst.Element(out_var),
+                                cst.Element(stdout_var),
+                                cst.Element(stderr_var),
+                                cst.Element(error_var),
+                            ]
+                        )
+                    )
+                ],
+                cst.Call(
+                    cst_var("call_function_unsafe")
+                    if module_file.trusted
+                    else cst_var("call_function_safe"),
+                    [
+                        cst.Arg(cst_str(module_name)),
+                        cst.Arg(
+                            cst_str(self.function_identifier)
+                            if self.function_identifier
+                            else cst_var("None")
+                        ),
+                        cst.Arg(cst_var(self.allow_error)),
+                        *args,
+                        *kwargs,
+                    ],
+                ),
+            )
+        ]
 
 
 class LoopStep(Step[StepSocket]):

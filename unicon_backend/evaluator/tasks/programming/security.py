@@ -2,15 +2,32 @@ import libcst as cst
 
 WORKER_TEMPLATE = cst.parse_module("""
 import os
-from contextlib import redirect_stdout
+import io
+from contextlib import redirect_stdout, redirect_stderr                                   
 
 def call_function_from_file(file_name, function_name, *args, **kwargs):
-    with open(os.devnull, "w") as f:
-        with redirect_stdout(f):  
-            module_name = file_name.replace(".py", "")
-            module = importlib.import_module(module_name)
-            func = getattr(module, function_name)
-            return func(*args, **kwargs)
+    with redirect_stdout(io.StringIO()) as stdout, redirect_stderr(io.StringIO()) as stderr:  
+        module_name = file_name.replace(".py", "")
+        module = importlib.import_module(module_name)
+        func = getattr(module, function_name)
+        error = None
+        try:
+            result = func(*args, **kwargs)
+        except Exception as e:
+            error = e
+        return func(*args, **kwargs), stdout.getvalue(), stderr.getvalue(), error
+                                   
+def run_code_from_file(file_name, **variables):
+    spec = importlib.util.find_spec(file_name)
+    module = importlib.util.module_from_spec(spec)
+    module.__dict__.update(variables)
+    with redirect_stdout(io.StringIO()) as stdout, redirect_stderr(io.StringIO()) as stderr: 
+        error = None
+        try:
+            spec.loader.exec_module(module)
+        except Exception as e:
+            error = e
+    return None, stdout.getvalue(), stderr.getvalue(), error
 
 
 def worker(task_queue, result_queue):
@@ -20,11 +37,12 @@ def worker(task_queue, result_queue):
             break
 
         file_name, function_name, args, kwargs = task
-        try:
-            result = call_function_from_file(file_name, function_name, *args, **kwargs)
-            result_queue.put((result, None))
-        except Exception as e:
-            result_queue.put((None, e))
+    
+        if function_name:
+            result, stdout, stderr, error = call_function_from_file(file_name, function_name, *args, **kwargs)
+        else:
+            result, stdout, stderr, error = run_code_from_file(file_name, **kwargs)           
+        result_queue.put((result, stdout, stderr, error))
 """)
 
 MPI_CLEANUP_TEMPLATE = cst.parse_module("""
@@ -48,11 +66,30 @@ process.start()
 
 def call_function_safe(file_name, function_name, allow_error, *args, **kwargs):
     task_queue.put((file_name, function_name, args, kwargs))
-    result, err = result_queue.get()
+    result, stdout, stderr, err = result_queue.get()
     if not allow_error and err is not None:
         print(json.dumps({"file_name": file_name, "function_name": function_name, "error": str(err)}))
         sys.exit(1)
-    return result, err
+    return result, stdout, stderr, err
+
+def run_code_unsafe(file_name, allow_error, **variables):
+    spec = importlib.util.find_spec(file_name)
+    module = importlib.util.module_from_spec(spec)
+    module.__dict__.update(variables)
+    spec.loader.exec_module(module)
+
+def call_function_unsafe(file_name, function, allow_error, *args, **kwargs):
+    with redirect_stdout(io.StringIO()) as stdout, redirect_stderr(io.StringIO()) as stderr: 
+        try:
+            result = function(*args, **kwargs) if function else run_code_unsafe(file_name, allow_error, **kwargs)
+            err = None
+        except Exception as e:
+            result = None
+            err = e
+    if not allow_error and err is not None:
+        print(json.dumps({"file_name": file_name, "function_name": function_name, "error": str(err)}))
+        sys.exit(1)
+    return result, stdout.getvalue(), stderr.getvalue(), err
 """)
 
 
