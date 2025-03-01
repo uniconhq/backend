@@ -448,12 +448,17 @@ def _create_organisation_member(
 
 
 def _create_project(project: Project) -> tuple[list[p.Tuple], list[p.Attribute]]:
-    project_organisation_link = _make_tuple(
+    project_to_organisation_link = _make_tuple(
         _make_entity("project", str(project.id)),
         "org",
         _make_entity("organisation", str(project.organisation_id)),
     )
-    return [project_organisation_link], []
+    organisation_to_project_link = _make_tuple(
+        _make_entity("organisation", str(project.organisation_id)),
+        "project",
+        _make_entity("project", str(project.id)),
+    )
+    return [project_to_organisation_link, organisation_to_project_link], []
 
 
 def _create_role(role: Role) -> tuple[list[p.Tuple], list[p.Attribute]]:
