@@ -33,6 +33,11 @@ class ProblemBaseWithPermissions(ProblemBase):
     edit: bool
 
 
+class MiniOrganisationPublic(CustomSQLModel):
+    id: int
+    name: str
+
+
 class OrganisationCreate(OrganisationBase):
     pass
 
@@ -43,11 +48,13 @@ class OrganisationUpdate(OrganisationBase):
 
 class OrganisationPublic(OrganisationBase):
     id: int
+    edit: bool
+    edit_roles: bool
+    delete: bool
 
 
 class OrganisationPublicWithProjects(OrganisationPublic):
     projects: list["ProjectPublic"]
-    delete: bool
 
 
 class OrganisationMemberPublic(CustomSQLModel):
@@ -117,6 +124,8 @@ class ProjectPublic(ProjectBase):
     create_groups: bool
     edit_groups: bool
     delete_groups: bool
+
+    organisation: MiniOrganisationPublic
 
 
 class ProjectPublicWithProblems(ProjectPublic):
