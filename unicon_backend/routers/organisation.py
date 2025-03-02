@@ -48,7 +48,7 @@ def get_all_organisations(
     db_session: Annotated[Session, Depends(get_db_session)],
     user: Annotated[UserORM, Depends(get_current_user)],
 ):
-    accessible_organisation_ids = permission_lookup(Organisation, "view", user)
+    accessible_organisation_ids = permission_lookup(Organisation, "view_basic", user)
     organisations = db_session.exec(
         select(Organisation).where(col(Organisation.id).in_(accessible_organisation_ids))
     ).all()
@@ -108,13 +108,14 @@ def get_organisation(
     organisation: Annotated[Organisation, Depends(get_organisation_by_id)],
     user: Annotated[UserORM, Depends(get_current_user)],
 ):
-    if not permission_check(organisation, "view", user):
+    if not permission_check(organisation, "view_basic", user):
         raise HTTPException(HTTPStatus.FORBIDDEN, "Permission denied")
 
     projects = []
     for project in organisation.projects:
         permissions = permission_list_for_subject(project, user)
-        projects.append(ProjectPublic.model_validate(project, update=permissions))
+        if permissions["view"]:
+            projects.append(ProjectPublic.model_validate(project, update=permissions))
 
     permissions = permission_list_for_subject(organisation, user)
     return OrganisationPublicWithProjects.model_validate(

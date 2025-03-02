@@ -5,15 +5,18 @@ entity role {
 }
 
 entity organisation {
-    relation owner @user
+    relation project @project
 
+    relation owner @user
     relation admin @user
     relation observer @user
 
     action edit_roles = owner
     action delete = owner
     action edit = delete or admin
+    // e.g. members or the org
     action view = edit or observer
+    action view_basic = view or project.view
 } 
 
 entity project {
