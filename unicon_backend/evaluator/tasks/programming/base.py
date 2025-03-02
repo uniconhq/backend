@@ -57,6 +57,10 @@ class Testcase(ComputeGraph):
     is_private: bool = Field(default=False)
     name: str = Field(default="")
 
+    # if is_private is set to True, the testcase will not be shown to the user
+    # so the value of this won't matter
+    show_node_graph: bool = Field(default=True)
+
     @model_validator(mode="after")
     def check_exactly_one_output_step(self) -> Self:
         num_output_steps: int = len([node for node in self.nodes if node.type == StepType.OUTPUT])
@@ -82,13 +86,22 @@ class Testcase(ComputeGraph):
             )
 
     def redact_private_fields(self) -> None:
-        # We redact private fields and the edges pointing to them.
-        private_fields = [socket.id for socket in self.output_step.data_in if not socket.public]
-        self.edges = [
-            edge
-            for edge in self.edges
-            if not (edge.to_node_id == self.output_step.id and edge.to_socket_id in private_fields)
-        ]
+        if self.show_node_graph:
+            # We redact private fields of the output socket and the edges pointing to them.
+            private_fields = [socket.id for socket in self.output_step.data_in if not socket.public]
+            self.edges = [
+                edge
+                for edge in self.edges
+                if not (
+                    edge.to_node_id == self.output_step.id and edge.to_socket_id in private_fields
+                )
+            ]
+        else:
+            # We redact all nodes and edges except the output node.
+            output_nodes = [self.output_step]
+            self.edges = []
+            self.nodes = output_nodes
+
         self.output_step.redact_private_fields()
 
 
