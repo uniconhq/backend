@@ -80,6 +80,8 @@ class StepSocket(NodeSocket[str]):
     # The data that the socket holds
     data: PrimitiveData | File | None = None
 
+    # TODO: maybe a type string here?
+
     _dir: SocketDir = PrivateAttr()
 
     @property
@@ -475,7 +477,7 @@ class PyRunFunctionStep(Step[PyRunFunctionSocket]):
             if isinstance(data, File):
                 if result := in_vars.get(s.id):
                     return result
-            elif ret_expr := in_vars.get(s.id, cst_expr(data) if data else None):
+            elif ret_expr := in_vars.get(s.id, cst_expr(data) if data is not None else None):
                 return ret_expr
             raise ValueError(f"Missing data for socket {self.id}:{s.id}")
 
