@@ -78,10 +78,15 @@ def run_code_unsafe(file_name, allow_error, **variables):
     module.__dict__.update(variables)
     spec.loader.exec_module(module)
 
-def call_function_unsafe(file_name, function, allow_error, *args, **kwargs):
+def call_function_unsafe(file_name, function_name, allow_error, *args, **kwargs):
     with redirect_stdout(io.StringIO()) as stdout, redirect_stderr(io.StringIO()) as stderr: 
         try:
-            result = function(*args, **kwargs) if function else run_code_unsafe(file_name, allow_error, **kwargs)
+            if function_name:
+                module = importlib.import_module(file_name)
+                func = getattr(module, function_name)
+                result = func(*args, **kwargs) 
+            else:
+                run_code_unsafe(file_name, allow_error, **kwargs)
             err = None
         except Exception as e:
             result = None
