@@ -9,7 +9,7 @@ from itertools import count
 from typing import TYPE_CHECKING, Any, ClassVar, Self, cast
 
 import libcst as cst
-from pydantic import BaseModel, PrivateAttr, model_validator
+from pydantic import BaseModel, Field, PrivateAttr, model_validator
 
 from unicon_backend.evaluator.tasks.programming.artifact import File, PrimitiveData
 from unicon_backend.lib.common import CustomBaseModel, CustomSQLModel
@@ -212,10 +212,14 @@ class Step[SocketT: StepSocket](
     ) -> ProgramFragment: ...
 
 
-class InputStep(Step[StepSocket]):
+class InputSocket(StepSocket):
+    public: bool = Field(default=True)
+
+
+class InputStep(Step[InputSocket]):
     required_data_io: ClassVar[tuple[Range, Range]] = ((0, 0), (1, -1))
 
-    inputs: list[StepSocket] = []
+    inputs: list[InputSocket] = []
     is_user: bool = False  # Whether the input is provided by the user
 
     @model_validator(mode="after")
@@ -260,6 +264,11 @@ class InputStep(Step[StepSocket]):
             )
 
         return program
+
+    def redact_private_fields(self) -> None:
+        for socket in self.outputs:
+            if not socket.public:
+                socket.data = None
 
 
 class Operator(StrEnum):
