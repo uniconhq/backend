@@ -87,8 +87,18 @@ class Testcase(ComputeGraph):
 
     def redact_private_fields(self) -> None:
         if self.show_node_graph:
-            # We redact private fields of the output socket and the edges pointing to them.
-            private_fields = [socket.id for socket in self.output_step.data_in if not socket.public]
+            input_steps = cast(
+                list[InputStep], list(filter(lambda node: node.type == StepType.INPUT, self.nodes))
+            )
+            # We redact private fields of the input and output sockets and the edges pointing to them.
+            private_fields = [
+                socket.id for socket in self.output_step.data_in if not socket.public
+            ] + [
+                socket.id
+                for input_step in input_steps
+                for socket in input_step.outputs
+                if not socket.public
+            ]
             self.edges = [
                 edge
                 for edge in self.edges
@@ -96,6 +106,9 @@ class Testcase(ComputeGraph):
                     edge.to_node_id == self.output_step.id and edge.to_socket_id in private_fields
                 )
             ]
+
+            for input_step in input_steps:
+                input_step.redact_private_fields()
         else:
             # We redact all nodes and edges except the output node.
             output_nodes = [self.output_step]

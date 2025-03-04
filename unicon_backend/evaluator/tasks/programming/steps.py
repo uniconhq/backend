@@ -265,6 +265,11 @@ class InputStep(Step[InputSocket]):
 
         return program
 
+    def redact_private_fields(self) -> None:
+        for socket in self.outputs:
+            if not socket.public:
+                socket.data = None
+
 
 class Operator(StrEnum):
     LESS_THAN = "<"
