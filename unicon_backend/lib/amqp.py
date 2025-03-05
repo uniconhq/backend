@@ -210,7 +210,9 @@ class AsyncMQPublisher(AsyncMQBase):
         if self._chan:
             self._chan.confirm_delivery(self._on_delivery_confirmation)
 
-    def _on_delivery_confirmation(self, frame: Method[Basic.Ack | Basic.Nack]):
+    def _on_delivery_confirmation(self, frame: Method):
+        assert isinstance(frame.method, Basic.Ack | Basic.Nack)
+
         confirmation_type = frame.method.NAME.split(".")[1].lower()
         ack_multiple = frame.method.multiple
         delivery_tag = frame.method.delivery_tag

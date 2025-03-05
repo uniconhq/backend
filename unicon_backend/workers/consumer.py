@@ -54,7 +54,8 @@ class TaskResultsConsumer(AsyncMQConsumer):
             if task_result_db is None:
                 # We have received a result a task that we are not aware of
                 # TODO: We should either logged this somewhere or sent to a dead-letter exchange
-                return
+                # NOTE: For now, we just ignore it and ACK accordingly
+                return AsyncMQConsumeMessageResult(success=True, requeue=False)
 
             task = cast(ProgrammingTask, task_result_db.task_attempt.task.to_task())
             testcases: list[Testcase] = sorted(task.testcases, key=attrgetter("order_index"))
