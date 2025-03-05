@@ -21,7 +21,7 @@ from unicon_backend.evaluator.tasks.programming.base import (
     TaskEvalStatus,
     TestcaseResult,
 )
-from unicon_backend.lib.amqp import AsyncConsumer
+from unicon_backend.lib.amqp import AsyncMQConsumeMessageResult, AsyncMQConsumer
 from unicon_backend.models.problem import TaskResultORM
 from unicon_backend.runner import JobResult, ProgramResult, Status
 
@@ -32,19 +32,19 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class TaskResultsConsumer(AsyncConsumer):
+class TaskResultsConsumer(AsyncMQConsumer):
     def __init__(self):
         super().__init__(
+            f"{AMQP_CONN_NAME}::consumer",
             AMQP_URL,
             AMQP_EXCHANGE_NAME,
             ExchangeType.topic,
             AMQP_RESULT_QUEUE_NAME,
-            f"{AMQP_CONN_NAME}::consumer",
         )
 
-    def message_callback(
+    def _message_callback(
         self, _basic_deliver: Basic.Deliver, _properties: pika.BasicProperties, body: bytes
-    ):
+    ) -> AsyncMQConsumeMessageResult:
         response: JobResult = JobResult.model_validate_json(body)
         with SessionLocal() as db_session:
             task_result_db = db_session.scalar(
@@ -102,6 +102,8 @@ class TaskResultsConsumer(AsyncConsumer):
 
             db_session.add(task_result_db)
             db_session.commit()
+
+        return AsyncMQConsumeMessageResult(success=True, requeue=False)
 
 
 task_results_consumer = TaskResultsConsumer()
