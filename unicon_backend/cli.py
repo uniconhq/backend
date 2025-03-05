@@ -1,8 +1,6 @@
-import copy
 import json
 from datetime import datetime, timedelta
 from typing import Annotated
-from uuid import uuid4
 
 import typer
 from rich.console import Console
@@ -10,8 +8,6 @@ from rich.syntax import Syntax
 from rich.table import Table
 from sqlalchemy import select
 from sqlmodel import col
-
-from unicon_backend.evaluator.tasks.base import TaskType
 
 rich_console = Console()
 
@@ -221,131 +217,6 @@ def assemble(defn_file: Annotated[typer.FileText, typer.Option("--defn", mode="r
             table.add_row(str(testcase.id), syntax_highlighted_code)
 
         rich_console.print(table)
-
-
-@app.command(name="migrate-file-format")
-def migrate_file_format():
-    from unicon_backend.database import SessionLocal
-    from unicon_backend.models.problem import TaskAttemptORM, TaskORM
-
-    db_session = SessionLocal()
-    # Query all tasks
-
-    tasks = db_session.scalars(select(TaskORM).where(TaskORM.type == TaskType.PROGRAMMING)).all()
-
-    path_to_file_map = {}
-
-    def fix_file(old_file: dict, lookup=True):
-        path = old_file.get("name")
-        if path in path_to_file_map and lookup:
-            return path_to_file_map[path]
-
-        new_file = old_file.copy()
-        if not new_file.get("id"):
-            new_file["id"] = str(uuid4())
-        if not new_file.get("path"):
-            new_file["path"] = path
-
-        path_to_file_map[new_file["path"]] = new_file
-        return new_file
-
-    def is_probably_file(data):
-        """This is a guess. I assume that if the data has a key 'data' and the value is a dictionary with a key 'name', then it is a file."""
-        return type(data) == dict and "name" in data
-
-    corrected = 0
-    has_files_field = 0
-    has_something_looking_updated = 0
-    had_no_files = 0
-    for task in tasks:
-        has_files = False
-        other_fields = copy.deepcopy(task.other_fields)
-        # We do a brief check on the task. If the files field isn't empty or if the required_inputs field already has "path" instead of "name",
-        # we skip the task as the format seems to have already been updated.
-        files = other_fields.get("files", [])
-        if files:
-            has_files_field += 1
-            continue
-
-        has_updated_file_format = False
-        for required_input in other_fields.get("required_inputs"):
-            if (
-                "data" in required_input
-                and type(required_input["data"]) == dict
-                and "path" in required_input["data"]
-            ):
-                has_updated_file_format = True
-                has_files = True
-                has_something_looking_updated += 1
-                break
-
-        if has_updated_file_format:
-            continue
-
-        # Manipulate task.other_fields
-        # files
-        # required_file_inputs
-        for required_input in other_fields.get("required_inputs"):
-            # If data is a file, transform it.
-            if (
-                "data" in required_input
-                and type(required_input["data"]) == dict
-                and "name" in required_input["data"]
-            ):
-                has_files = True
-                required_input["data"] = fix_file(required_input["data"])
-
-        # For files field in tasks - populate with existing files
-        testcases = other_fields.get("testcases")
-        assert type(testcases) == list, "Testcases should be a list"
-        for testcase in testcases:
-            for node in testcase.get("nodes"):
-                assert type(node) == dict, "Node should be a dictionary"
-                if node["type"] != "INPUT_STEP":
-                    continue
-                for output in node.get("outputs"):
-                    if is_probably_file(output["data"]):
-                        output["data"] = fix_file(output["data"])
-                        files.append(output["data"])
-
-        other_fields["files"] = files
-        rich_console.print(task)
-        if has_files:
-            corrected += 1
-            task.other_fields = other_fields
-            db_session.add(task)
-        else:
-            had_no_files += 1
-
-    rich_console.print(f"Corrected {corrected} out of {len(tasks)} tasks")
-    rich_console.print(f"Skipped {has_files_field} tasks with non-empty files field.")
-    rich_console.print(f"Skipped {has_something_looking_updated} tasks with updated file format")
-    rich_console.print(f"Skipped {had_no_files} tasks with no files")
-
-    # Query all TaskAttempts
-    task_attempts = db_session.scalars(
-        select(TaskAttemptORM).where(TaskAttemptORM.task_type == TaskType.PROGRAMMING)
-    ).all()
-
-    corrected_task_attempts = 0
-    for task_attempt in task_attempts:
-        assert type(task_attempt.other_fields.get("user_input")) == list, (
-            "TaskAttempt.other_fields['user_input'] should be a list"
-            + repr(task_attempt.other_fields.get("user_input"))
-        )
-
-        other_fields = copy.deepcopy(task_attempt.other_fields)
-        for user_input in other_fields.get("user_input"):
-            if is_probably_file(user_input["data"]) and "path" not in user_input["data"]:
-                user_input["data"] = fix_file(user_input["data"], lookup=False)
-                corrected_task_attempts += 1
-                task_attempt.other_fields = other_fields
-                db_session.add(task_attempt)
-
-    rich_console.print(
-        f"Corrected {corrected_task_attempts} out of {len(task_attempts)} task attempts"
-    )
-    db_session.commit()
 
 
 if __name__ == "__main__":
