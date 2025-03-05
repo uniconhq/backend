@@ -1,7 +1,7 @@
 import json
 import logging
 from operator import attrgetter
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, Final, cast, final
 
 import pika
 from pika.exchange_type import ExchangeType
@@ -10,8 +10,8 @@ from sqlmodel import func, select
 
 from unicon_backend.constants import (
     AMQP_CONN_NAME,
-    AMQP_EXCHANGE_NAME,
-    AMQP_RESULT_QUEUE_NAME,
+    AMQP_DEFAULT_EXCHANGE,
+    AMQP_RESULT_QUEUE,
     AMQP_URL,
 )
 from unicon_backend.database import SessionLocal
@@ -32,14 +32,15 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+@final
 class TaskResultsConsumer(AsyncMQConsumer):
     def __init__(self):
         super().__init__(
             f"{AMQP_CONN_NAME}::consumer",
             AMQP_URL,
-            AMQP_EXCHANGE_NAME,
+            AMQP_DEFAULT_EXCHANGE,
             ExchangeType.topic,
-            AMQP_RESULT_QUEUE_NAME,
+            AMQP_RESULT_QUEUE,
         )
 
     def _message_callback(
@@ -107,4 +108,4 @@ class TaskResultsConsumer(AsyncMQConsumer):
         return AsyncMQConsumeMessageResult(success=True, requeue=False)
 
 
-task_results_consumer = TaskResultsConsumer()
+task_result_consumer: Final[TaskResultsConsumer] = TaskResultsConsumer()

@@ -23,6 +23,8 @@ class AsyncMQBase(abc.ABC):
         ex_type: ExchangeType,
         q_name: str,
         routing_key: str | None = None,
+        dlx_name: str | None = None,
+        dlx_routing_key: str | None = None,
     ):
         self._conn_params = pika.URLParameters(amqp_url)
         self._conn_params.client_properties = {"connection_name": conn_name}
@@ -32,6 +34,8 @@ class AsyncMQBase(abc.ABC):
 
         self.q_name = q_name
         self.routing_key = routing_key or q_name
+        self.dlx_name = dlx_name
+        self.dlx_routing_key = dlx_routing_key
 
         # Connection state
         self._conn: AsyncioConnection | None = None
@@ -92,7 +96,14 @@ class AsyncMQBase(abc.ABC):
 
     def _setup_queue(self):
         if self._chan:
-            self._chan.queue_declare(self.q_name, callback=self._on_queue_declare_ok, durable=True)
+            queue_args: dict[str, str] = {}
+            if self.dlx_name and self.dlx_routing_key:
+                queue_args["x-dead-letter-exchange"] = self.dlx_name
+                queue_args["x-dead-letter-routing-key"] = self.dlx_routing_key
+
+            self._chan.queue_declare(
+                self.q_name, callback=self._on_queue_declare_ok, durable=True, arguments=queue_args
+            )
 
     def _on_queue_declare_ok(self, _frame: Method):
         if self._chan:
@@ -124,8 +135,12 @@ class AsyncMQConsumer(AsyncMQBase):
         ex_type: ExchangeType,
         q_name: str,
         routing_key: str | None = None,
+        dlx_name: str | None = None,
+        dlx_routing_key: str | None = None,
     ):
-        super().__init__(conn_name, amqp_url, ex_name, ex_type, q_name, routing_key)
+        super().__init__(
+            conn_name, amqp_url, ex_name, ex_type, q_name, routing_key, dlx_name, dlx_routing_key
+        )
 
         self._consume_tag: str | None = None
         self._consuming: bool = False
@@ -198,8 +213,12 @@ class AsyncMQPublisher(AsyncMQBase):
         ex_type: ExchangeType,
         q_name: str,
         routing_key: str | None = None,
+        dlx_name: str | None = None,
+        dlx_routing_key: str | None = None,
     ):
-        super().__init__(conn_name, amqp_url, ex_name, ex_type, q_name, routing_key)
+        super().__init__(
+            conn_name, amqp_url, ex_name, ex_type, q_name, routing_key, dlx_name, dlx_routing_key
+        )
 
         self._deliveries: dict[int, Literal[True]] = {}
         self._acked: int = 0  # Number of messages acknowledged

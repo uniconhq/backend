@@ -1,27 +1,30 @@
-import logging
+from typing import Final, final
 
 from pika.exchange_type import ExchangeType
 
 from unicon_backend.constants import (
     AMQP_CONN_NAME,
-    AMQP_EXCHANGE_NAME,
-    AMQP_TASK_QUEUE_NAME,
+    AMQP_DEAD_TASK_QUEUE,
+    AMQP_DEFAULT_EXCHANGE,
+    AMQP_DLX,
+    AMQP_TASK_QUEUE,
     AMQP_URL,
 )
 from unicon_backend.lib.amqp import AsyncMQPublisher
 
-logger = logging.getLogger(__name__)
 
-
+@final
 class TaskPublisher(AsyncMQPublisher):
     def __init__(self):
         super().__init__(
             f"{AMQP_CONN_NAME}::publisher",
             AMQP_URL,
-            AMQP_EXCHANGE_NAME,
+            AMQP_DEFAULT_EXCHANGE,
             ExchangeType.topic,
-            AMQP_TASK_QUEUE_NAME,
+            AMQP_TASK_QUEUE,
+            dlx_name=AMQP_DLX,
+            dlx_routing_key=AMQP_DEAD_TASK_QUEUE,
         )
 
 
-task_publisher = TaskPublisher()
+task_publisher: Final[TaskPublisher] = TaskPublisher()
