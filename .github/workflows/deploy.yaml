@@ -9,7 +9,7 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  build:
+  build-image:
     runs-on: ubuntu-latest
 
     # Sets the permissions granted to the `GITHUB_TOKEN` for the actions in this job.
@@ -52,3 +52,27 @@ jobs:
           subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME}}
           subject-digest: ${{ steps.push.outputs.digest }}
           push-to-registry: true
+
+  upgrade-deployment:
+    runs-on: ubuntu-latest
+    needs: build-image
+    steps:
+      - name: Trigger `watchtower` update service
+        id: watchtower-trigger
+        run: |
+          response=$(curl -s -w "\n%{http_code}" -H "Authorization: Bearer ${{ secrets.NUS_SOC_WATCHTOWER_AUTH_TOKEN }}" \
+            "${{ secrets.NUS_SOC_WATCHTOWER_UPDATE_URL }}?image=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }})"
+          
+          status_code=$(echo "$response" | tail -n1)
+          response_body=$(echo "$response" | sed '$d')
+          
+          echo "Response body: $response_body"
+          echo "Status code: $status_code"
+          
+          if [[ "$status_code" -ge 200 && "$status_code" -lt 300 ]]; then
+            echo "Watchtower trigger successful"
+            exit 0
+          else
+            echo "Watchtower trigger failed with status code: $status_code"
+            exit 1
+          fi 
