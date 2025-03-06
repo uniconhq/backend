@@ -23,6 +23,8 @@ SECRET_KEY: Final[str] = _get_env_var("SECRET_KEY", "")
 AMQP_URL: Final[str] = _get_env_var("AMQP_URL")
 AMQP_DEFAULT_EXCHANGE: Final[str] = _get_env_var("AMQP_DEFAULT_EXCHANGE", "unicon")
 AMQP_TASK_QUEUE: Final[str] = _get_env_var("AMQP_TASK_QUEUE", "unicon.tasks")
+_task_q_ttl_str: Final[str | None] = _get_env_var("AMQP_TASK_QUEUE_MSG_TTL_SECS", required=False)
+AMQP_TASK_QUEUE_MSG_TTL_SECS: Final[int | None] = int(_task_q_ttl_str) if _task_q_ttl_str else None
 AMQP_RESULT_QUEUE: Final[str] = _get_env_var("AMQP_RESULT_QUEUE", "unicon.results")
 AMQP_CONN_NAME: Final[str] = _get_env_var("AMQP_CONN_NAME", "unicon-backend")
 

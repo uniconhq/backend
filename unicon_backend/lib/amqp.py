@@ -22,7 +22,7 @@ class AsyncMQBase(abc.ABC):
         ex_name: str,
         ex_type: ExchangeType,
         q_name: str,
-        routing_key: str | None = None,
+        q_msg_ttl_secs: int | None = None,
         dlx_name: str | None = None,
         dlx_routing_key: str | None = None,
     ):
@@ -33,7 +33,7 @@ class AsyncMQBase(abc.ABC):
         self.ex_type = ex_type
 
         self.q_name = q_name
-        self.routing_key = routing_key or q_name
+        self.q_msg_ttl_secs = q_msg_ttl_secs
         self.dlx_name = dlx_name
         self.dlx_routing_key = dlx_routing_key
 
@@ -96,10 +96,17 @@ class AsyncMQBase(abc.ABC):
 
     def _setup_queue(self):
         if self._chan:
-            queue_args: dict[str, str] = {}
+            queue_args: dict[str, str | int] = {}
+
             if self.dlx_name and self.dlx_routing_key:
+                # Set dead-letter exchange arguments only if both are provided
+                # This is to ensure the dead messages are routed a queue that is explicitly specified
+                # and not just the default one
                 queue_args["x-dead-letter-exchange"] = self.dlx_name
                 queue_args["x-dead-letter-routing-key"] = self.dlx_routing_key
+
+            if self.q_msg_ttl_secs:
+                queue_args["x-message-ttl"] = self.q_msg_ttl_secs * 1000  # Convert to milliseconds
 
             self._chan.queue_declare(
                 self.q_name, callback=self._on_queue_declare_ok, durable=True, arguments=queue_args
@@ -108,7 +115,7 @@ class AsyncMQBase(abc.ABC):
     def _on_queue_declare_ok(self, _frame: Method):
         if self._chan:
             self._chan.queue_bind(
-                self.q_name, self.ex_name, self.routing_key, callback=self._on_queue_bind_ok
+                self.q_name, self.ex_name, self.q_name, callback=self._on_queue_bind_ok
             )
 
     @abc.abstractmethod
@@ -134,12 +141,12 @@ class AsyncMQConsumer(AsyncMQBase):
         ex_name: str,
         ex_type: ExchangeType,
         q_name: str,
-        routing_key: str | None = None,
+        q_msg_ttl_secs: int | None = None,
         dlx_name: str | None = None,
         dlx_routing_key: str | None = None,
     ):
         super().__init__(
-            conn_name, amqp_url, ex_name, ex_type, q_name, routing_key, dlx_name, dlx_routing_key
+            conn_name, amqp_url, ex_name, ex_type, q_name, q_msg_ttl_secs, dlx_name, dlx_routing_key
         )
 
         self._consume_tag: str | None = None
@@ -212,12 +219,12 @@ class AsyncMQPublisher(AsyncMQBase):
         ex_name: str,
         ex_type: ExchangeType,
         q_name: str,
-        routing_key: str | None = None,
+        q_msg_ttl_secs: int | None = None,
         dlx_name: str | None = None,
         dlx_routing_key: str | None = None,
     ):
         super().__init__(
-            conn_name, amqp_url, ex_name, ex_type, q_name, routing_key, dlx_name, dlx_routing_key
+            conn_name, amqp_url, ex_name, ex_type, q_name, q_msg_ttl_secs, dlx_name, dlx_routing_key
         )
 
         self._deliveries: dict[int, Literal[True]] = {}
@@ -250,7 +257,7 @@ class AsyncMQPublisher(AsyncMQBase):
         if self._chan:
             self._chan.basic_publish(
                 self.ex_name,
-                self.routing_key,
+                self.q_name,
                 payload,
                 properties=BasicProperties(
                     content_type=content_type, delivery_mode=DeliveryMode.Persistent
