@@ -83,7 +83,8 @@
             "id": "__TREE_SEARCH_FILE__",
             "path": "tree_search.py",
             "content": "import queue\n\ndef mnc_tree_search(m, c):\n\traise NotImplememented()"
-          }
+          },
+          "data_type": "UniconFile"
         }
       ],
       "files": [],
@@ -99,7 +100,13 @@
               "outputs": [
                 {
                   "id": "__TREE_SEARCH_FILE__",
-                  "label": "TREE_SEARCH"
+                  "label": "TREE_SEARCH",
+                  "data": {
+                    "id": "__TREE_SEARCH_FILE__",
+                    "path": "tree_search.py",
+                    "content": "import queue\n\ndef mnc_tree_search(m, c):\n\traise NotImplememented()"
+                  },
+                  "data_type": "null"
                 }
               ]
             },
@@ -110,7 +117,8 @@
                 {
                   "id": "__EXPECTED_RESULT__",
                   "label": "EXPECTED_RESULT",
-                  "data": "((2, 0), (1, 0), (1, 1))"
+                  "data": "((2, 0), (1, 0), (1, 1))",
+                  "data_type": "null"
                 }
               ]
             },
@@ -121,27 +129,43 @@
               "inputs": [
                 {
                   "id": "__MODULE__",
-                  "import_as_module": true
+                  "import_as_module": true,
+                  "data_type": "UniconFile",
+                  "label": "Module"
                 },
                 {
                   "id": "__ARG_0__",
                   "arg_metadata": {
                     "position": 0
                   },
-                  "data": 2
+                  "data": 2,
+                  "label": "m",
+                  "data_type": "PythonObject",
+                  "data_type_metadata": {
+                    "name": "Any"
+                  }
                 },
                 {
                   "id": "__ARG_1__",
                   "arg_metadata": {
                     "position": 1
                   },
-                  "data": 1
+                  "data": 1,
+                  "label": "c",
+                  "data_type": "PythonObject",
+                  "data_type_metadata": {
+                    "name": "Any"
+                  }
                 }
               ],
               "outputs": [
                 {
                   "id": "__RESULT__",
-                  "label": "TREE_SEARCH_RESULT"
+                  "label": "TREE_SEARCH_RESULT",
+                  "data_type": "PythonObject",
+                  "data_type_metadata": {
+                    "name": "Any"
+                  }
                 }
               ]
             },
@@ -151,17 +175,20 @@
               "inputs": [
                 {
                   "id": "__1__",
-                  "label": "Operand 1"
+                  "label": "Operand 1",
+                  "data_type": "unknown"
                 },
                 {
                   "id": "__2__",
-                  "label": "Operand 2"
+                  "label": "Operand 2",
+                  "data_type": "unknown"
                 }
               ],
               "outputs": [
                 {
                   "id": "__MATCH_RESULT__",
-                  "label": "Does it match?"
+                  "label": "Does it match?",
+                  "data_type": "boolean"
                 }
               ]
             },

@@ -25,7 +25,8 @@
             "id": "__ADD_PY_FILE__",
             "path": "add.py",
             "content": "def add(a, b):\n\traise NotImplememented()"
-          }
+          },
+          "data_type": "UniconFile"
         }
       ],
       "files": [
@@ -49,7 +50,13 @@
               "outputs": [
                 {
                   "id": "__ADD_PY_FILE__",
-                  "label": "ADD_FILE"
+                  "label": "ADD_FILE",
+                  "data": {
+                    "id": "__ADD_PY_FILE__",
+                    "path": "add.py",
+                    "content": "def add(a, b):\n\traise NotImplememented()"
+                  },
+                  "data_type": "null"
                 }
               ]
             },
@@ -60,12 +67,14 @@
                 {
                   "id": "__ARG_A__",
                   "label": "ARG_A",
-                  "data": 2
+                  "data": 2,
+                  "data_type": "null"
                 },
                 {
                   "id": "__ARG_B__",
                   "label": "ARG_B",
-                  "data": 1
+                  "data": 1,
+                  "data_type": "null"
                 },
                 {
                   "id": "__UTILS_MODULE__",
@@ -75,7 +84,8 @@
                     "path": "utils.py",
                     "content": "def error_string(err):\n\treturn f'Error: {err}'",
                     "trusted": true
-                  }
+                  },
+                  "data_type": "null"
                 }
               ]
             },
@@ -87,29 +97,49 @@
               "inputs": [
                 {
                   "id": "__MODULE__",
-                  "import_as_module": true
+                  "import_as_module": true,
+                  "data_type": "UniconFile",
+                  "label": "Module"
                 },
                 {
                   "id": "__ARG_0__",
                   "arg_metadata": {
                     "position": 0
+                  },
+                  "label": "a",
+                  "data_type": "PythonObject",
+                  "data_type_metadata": {
+                    "name": "Any"
                   }
                 },
                 {
                   "id": "__ARG_1__",
                   "arg_metadata": {
                     "position": 1
+                  },
+                  "label": "b",
+                  "data_type": "PythonObject",
+                  "data_type_metadata": {
+                    "name": "Any"
                   }
                 }
               ],
               "outputs": [
                 {
                   "id": "__RESULT__",
-                  "label": "RESULT"
+                  "label": "RESULT",
+                  "data_type": "PythonObject",
+                  "data_type_metadata": {
+                    "name": "Any"
+                  }
                 },
                 {
                   "id": "__ERROR__",
-                  "handles_error": true
+                  "handles_error": true,
+                  "data_type": "PythonObject",
+                  "data_type_metadata": {
+                    "name": "Exception"
+                  }
                 }
               ]
             },
@@ -144,19 +174,30 @@
               "inputs": [
                 {
                   "id": "__MODULE__",
-                  "import_as_module": true
+                  "import_as_module": true,
+                  "data_type": "UniconFile",
+                  "label": "Module"
                 },
                 {
                   "id": "__ARG_0__",
                   "arg_metadata": {
                     "position": 0
+                  },
+                  "label": "err",
+                  "data_type": "PythonObject",
+                  "data_type_metadata": {
+                    "name": "Any"
                   }
                 }
               ],
               "outputs": [
                 {
                   "id": "__RESULT_ERR_STR__",
-                  "label": "Error String"
+                  "label": "Error String",
+                  "data_type": "PythonObject",
+                  "data_type_metadata": {
+                    "name": "Any"
+                  }
                 }
               ]
             }
