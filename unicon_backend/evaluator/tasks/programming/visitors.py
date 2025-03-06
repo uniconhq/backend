@@ -1,9 +1,12 @@
 import libcst as cst
 from pydantic import BaseModel
 
+from unicon_backend.lib.cst import cst_var
+
 
 class Arg(BaseModel):
     name: str
+    type: str | None
     default: str | None
 
 
@@ -13,6 +16,23 @@ class ParsedFunction(BaseModel):
     kwargs: list[Arg]
     star_args: bool
     star_kwargs: bool
+    return_type: str | None
+
+
+def get_default(param: cst.Param) -> str | None:
+    return cst.Module([]).code_for_node(param.default) if param.default is not None else None
+
+
+def get_type_annotation(annotation: cst.Annotation | None) -> str:
+    if not annotation:
+        return "Any"
+
+    return (
+        cst.Module([])
+        .code_for_node(cst.Param(name=cst_var("placeholder"), annotation=annotation, star=""))
+        .split(":", 1)[1]
+        .strip()
+    )
 
 
 class TypingCollector(cst.CSTVisitor):
@@ -41,16 +61,17 @@ class TypingCollector(cst.CSTVisitor):
         # Remove any past declaration of the function, since this would overwrite it
         self.results = [result for result in self.results if result.name != name]
 
-        def get_default(param: cst.Param) -> str | None:
-            return (
-                cst.Module([]).code_for_node(param.default) if param.default is not None else None
-            )
-
         self.results.append(
             ParsedFunction(
                 name=name,
                 args=[
-                    Arg.model_validate({"name": param.name.value, "default": get_default(param)})
+                    Arg.model_validate(
+                        {
+                            "name": param.name.value,
+                            "default": get_default(param),
+                            "type": get_type_annotation(param.annotation),
+                        }
+                    )
                     for param in node.params.params
                 ],
                 kwargs=[
@@ -58,12 +79,14 @@ class TypingCollector(cst.CSTVisitor):
                         {
                             "name": param.name.value,
                             "default": get_default(param),
+                            "type": get_type_annotation(param.annotation),
                         }
                     )
                     for param in node.params.kwonly_params
                 ],
                 star_args=isinstance(node.params.star_arg, cst.Param),
                 star_kwargs=node.params.star_kwarg is not None,
+                return_type=get_type_annotation(node.returns),
             )
         )
         # Stop traversal (don't support inner functions)
