@@ -63,7 +63,7 @@
                     "path": "lr_gpu.py",
                     "content": "def lr_gpu(x):\n\traise NotImplememented()"
                   },
-                  "data_type": "null"
+                  "data_type": "UniconFile"
                 }
               ]
             },
@@ -75,7 +75,7 @@
                   "id": "__X__",
                   "label": "x in sin(x)",
                   "data": 3.14159,
-                  "data_type": "null"
+                  "data_type": "number"
                 }
               ]
             },

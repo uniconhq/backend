@@ -106,7 +106,7 @@
                     "path": "tree_search.py",
                     "content": "import queue\n\ndef mnc_tree_search(m, c):\n\traise NotImplememented()"
                   },
-                  "data_type": "null"
+                  "data_type": "UniconFile"
                 }
               ]
             },
@@ -118,7 +118,7 @@
                   "id": "__EXPECTED_RESULT__",
                   "label": "EXPECTED_RESULT",
                   "data": "((2, 0), (1, 0), (1, 1))",
-                  "data_type": "null"
+                  "data_type": "text"
                 }
               ]
             },
