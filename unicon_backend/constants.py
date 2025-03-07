@@ -21,10 +21,15 @@ CORS_REGEX_WHITELIST: Final[str | None] = _get_env_var("CORS_REGEX_WHITELIST", r
 SECRET_KEY: Final[str] = _get_env_var("SECRET_KEY", "")
 
 AMQP_URL: Final[str] = _get_env_var("AMQP_URL")
-AMQP_EXCHANGE_NAME: Final[str] = _get_env_var("AMQP_EXCHANGE_NAME", "unicon")
-AMQP_TASK_QUEUE_NAME: Final[str] = _get_env_var("AMQP_TASK_QUEUE_NAME", "unicon.tasks")
-AMQP_RESULT_QUEUE_NAME: Final[str] = _get_env_var("AMQP_RESULT_QUEUE_NAME", "unicon.results")
+AMQP_DEFAULT_EXCHANGE: Final[str] = _get_env_var("AMQP_DEFAULT_EXCHANGE", "unicon")
+AMQP_TASK_QUEUE: Final[str] = _get_env_var("AMQP_TASK_QUEUE", "unicon.tasks")
+_task_q_ttl_str: Final[str | None] = _get_env_var("AMQP_TASK_QUEUE_MSG_TTL_SECS", required=False)
+AMQP_TASK_QUEUE_MSG_TTL_SECS: Final[int | None] = int(_task_q_ttl_str) if _task_q_ttl_str else None
+AMQP_RESULT_QUEUE: Final[str] = _get_env_var("AMQP_RESULT_QUEUE", "unicon.results")
 AMQP_CONN_NAME: Final[str] = _get_env_var("AMQP_CONN_NAME", "unicon-backend")
+
+AMQP_DLX: Final[str] = _get_env_var("AMQP_DLX", "unicon.dlx")
+AMQP_DEAD_TASK_QUEUE: Final[str] = _get_env_var("AMQP_DEAD_TASK_QUEUE", "unicon.tasks.dead")
 
 PERMIFY_HOST: Final[str] = _get_env_var("PERMIFY_HOST", "http://localhost:3476")
 PERMIFY_SCHEMA_VERSION: Final[str | None] = _get_env_var("PERMIFY_SCHEMA_VERSION", required=False)

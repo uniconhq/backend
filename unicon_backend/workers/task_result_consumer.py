@@ -1,7 +1,7 @@
 import json
 import logging
 from operator import attrgetter
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, Final, cast, final
 
 import pika
 from pika.exchange_type import ExchangeType
@@ -10,8 +10,8 @@ from sqlmodel import func, select
 
 from unicon_backend.constants import (
     AMQP_CONN_NAME,
-    AMQP_EXCHANGE_NAME,
-    AMQP_RESULT_QUEUE_NAME,
+    AMQP_DEFAULT_EXCHANGE,
+    AMQP_RESULT_QUEUE,
     AMQP_URL,
 )
 from unicon_backend.database import SessionLocal
@@ -21,7 +21,7 @@ from unicon_backend.evaluator.tasks.programming.base import (
     TaskEvalStatus,
     TestcaseResult,
 )
-from unicon_backend.lib.amqp import AsyncConsumer
+from unicon_backend.lib.amqp import AsyncMQConsumeMessageResult, AsyncMQConsumer
 from unicon_backend.models.problem import TaskResultORM
 from unicon_backend.runner import JobResult, ProgramResult, Status
 
@@ -32,19 +32,20 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class TaskResultsConsumer(AsyncConsumer):
+@final
+class TaskResultsConsumer(AsyncMQConsumer):
     def __init__(self):
         super().__init__(
-            AMQP_URL,
-            AMQP_EXCHANGE_NAME,
-            ExchangeType.topic,
-            AMQP_RESULT_QUEUE_NAME,
             f"{AMQP_CONN_NAME}::consumer",
+            AMQP_URL,
+            AMQP_DEFAULT_EXCHANGE,
+            ExchangeType.topic,
+            AMQP_RESULT_QUEUE,
         )
 
-    def message_callback(
+    def _message_callback(
         self, _basic_deliver: Basic.Deliver, _properties: pika.BasicProperties, body: bytes
-    ):
+    ) -> AsyncMQConsumeMessageResult:
         response: JobResult = JobResult.model_validate_json(body)
         with SessionLocal() as db_session:
             task_result_db = db_session.scalar(
@@ -54,7 +55,8 @@ class TaskResultsConsumer(AsyncConsumer):
             if task_result_db is None:
                 # We have received a result a task that we are not aware of
                 # TODO: We should either logged this somewhere or sent to a dead-letter exchange
-                return
+                # NOTE: For now, we just ignore it and ACK accordingly
+                return AsyncMQConsumeMessageResult(success=True, requeue=False)
 
             task = cast(ProgrammingTask, task_result_db.task_attempt.task.to_task())
             testcases: list[Testcase] = sorted(task.testcases, key=attrgetter("order_index"))
@@ -103,5 +105,7 @@ class TaskResultsConsumer(AsyncConsumer):
             db_session.add(task_result_db)
             db_session.commit()
 
+        return AsyncMQConsumeMessageResult(success=True, requeue=False)
 
-task_results_consumer = TaskResultsConsumer()
+
+task_result_consumer: Final[TaskResultsConsumer] = TaskResultsConsumer()

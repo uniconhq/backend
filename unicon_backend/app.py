@@ -9,8 +9,9 @@ from fastapi.routing import APIRoute
 from unicon_backend.constants import CORS_REGEX_WHITELIST, FRONTEND_URL
 from unicon_backend.logger import setup_rich_logger
 from unicon_backend.routers import auth, file, group, organisation, problem, project, role
-from unicon_backend.workers.consumer import task_results_consumer
-from unicon_backend.workers.publisher import task_publisher
+from unicon_backend.workers.dead_task_consumer import dead_task_consumer
+from unicon_backend.workers.task_publisher import task_publisher
+from unicon_backend.workers.task_result_consumer import task_result_consumer
 
 setup_rich_logger()
 logging.getLogger("pika").setLevel(logging.WARNING)
@@ -19,13 +20,15 @@ logging.getLogger("pika").setLevel(logging.WARNING)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     _event_loop = asyncio.get_event_loop()
-    task_results_consumer.run(event_loop=_event_loop)
-    task_publisher.run(event_loop=_event_loop)
+    dead_task_consumer.run(_event_loop)
+    task_result_consumer.run(_event_loop)
+    task_publisher.run(_event_loop)
 
     yield
 
     task_publisher.stop()
-    task_results_consumer.stop()
+    task_result_consumer.stop()
+    dead_task_consumer.stop()
 
 
 app = FastAPI(title="Unicon 🦄 Backend", lifespan=lifespan, separate_input_output_schemas=False)

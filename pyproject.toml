@@ -42,6 +42,9 @@ dev-dependencies = [
 line-length = 100
 lint.select = ["I", "F", "UP", "B", "SIM", "TCH"]
 
+[tool.mypy]
+check_untyped_defs = true
+
 [dependency-groups]
 cli = [
     "typer>=0.15.1",

@@ -24,7 +24,7 @@ from unicon_backend.runner import (
     RunnerJob,
     RunnerProgram,
 )
-from unicon_backend.workers.publisher import task_publisher
+from unicon_backend.workers.task_publisher import task_publisher
 
 logger = getLogger(__name__)
 
