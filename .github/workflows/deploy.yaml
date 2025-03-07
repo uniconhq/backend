@@ -63,7 +63,7 @@ jobs:
         id: watchtower-trigger
         run: |
           response=$(curl -s -w "\n%{http_code}" -H "Authorization: Bearer ${{ secrets.NUS_SOC_WATCHTOWER_AUTH_TOKEN }}" \
-            "${{ secrets.NUS_SOC_WATCHTOWER_UPDATE_URL }}?image=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }})"
+            "${{ secrets.NUS_SOC_WATCHTOWER_UPDATE_URL }}?image=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}")
           
           status_code=$(echo "$response" | tail -n1)
           response_body=$(echo "$response" | sed '$d')
