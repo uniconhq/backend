@@ -329,7 +329,10 @@ class OutputStep(Step[OutputSocket]):
     ) -> ProgramFragment:
         result_dict = cst.Dict(
             [
-                cst.DictElement(key=cst_str(socket.id), value=in_vars[socket.id])
+                cst.DictElement(
+                    key=cst_str(socket.id),
+                    value=in_vars[socket.id] if socket.id in in_vars else cst_var("None"),
+                )
                 for socket in self.data_in
             ]
         )
