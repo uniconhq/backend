@@ -129,6 +129,8 @@ class TaskORM(CustomSQLModel, table=True):
         back_populates="task", cascade_delete=True
     )
 
+    max_attempts: int | None = Field(nullable=True, default=None)
+
     @classmethod
     def from_task(cls, task: "Task") -> "TaskORM":
         def _convert_task_to_orm(
