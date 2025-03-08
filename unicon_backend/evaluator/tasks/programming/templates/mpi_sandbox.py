@@ -24,15 +24,16 @@ def call_function_from_file(file_name: str, function_name: str, *args, **kwargs)
 
 def run_code_from_file(file_name: str, **variables):
     spec = importlib_util.find_spec(file_name)
-    module = importlib_util.module_from_spec(spec)
-    module.__dict__.update(variables)
-    with redirect_stdout(io.StringIO()) as stdout, redirect_stderr(io.StringIO()) as stderr:
-        error = None
-        try:
-            spec.loader.exec_module(module)
-        except Exception as e:
-            error = e
-    return None, stdout.getvalue(), stderr.getvalue(), error
+    if spec and spec.loader:
+        module = importlib_util.module_from_spec(spec)
+        module.__dict__.update(variables)
+        with redirect_stdout(io.StringIO()) as stdout, redirect_stderr(io.StringIO()) as stderr:
+            error = None
+            try:
+                spec.loader.exec_module(module)
+            except Exception as e:
+                error = e
+        return None, stdout.getvalue(), stderr.getvalue(), error
 
 
 def worker(task_queue: multiprocessing.Queue, result_queue: multiprocessing.Queue):
@@ -54,8 +55,9 @@ def worker(task_queue: multiprocessing.Queue, result_queue: multiprocessing.Queu
 
 multiprocessing.freeze_support()
 multiprocessing.set_start_method("spawn")
-task_queue = multiprocessing.Queue()
-result_queue = multiprocessing.Queue()
+
+task_queue: multiprocessing.Queue = multiprocessing.Queue()
+result_queue: multiprocessing.Queue = multiprocessing.Queue()
 
 process = multiprocessing.Process(target=worker, args=(task_queue, result_queue))
 process.start()
@@ -72,11 +74,12 @@ def call_function_safe(file_name: str, function_name: str, allow_error: bool, *a
     return result, stdout, stderr, err
 
 
-def run_code_unsafe(file_name: str, allow_error: bool, **variables):
+def run_code_unsafe(file_name: str, **variables):
     spec = importlib_util.find_spec(file_name)
-    module = importlib_util.module_from_spec(spec)
-    module.__dict__.update(variables)
-    spec.loader.exec_module(module)
+    if spec and spec.loader:
+        module = importlib_util.module_from_spec(spec)
+        module.__dict__.update(variables)
+        spec.loader.exec_module(module)
 
 
 def call_function_unsafe(file_name: str, function_name: str, allow_error: bool, *args, **kwargs):
@@ -87,7 +90,7 @@ def call_function_unsafe(file_name: str, function_name: str, allow_error: bool, 
                 func = getattr(module, function_name)
                 result = func(*args, **kwargs)
             else:
-                run_code_unsafe(file_name, allow_error, **kwargs)
+                run_code_unsafe(file_name, **kwargs)
             err = None
         except Exception as e:
             result = None

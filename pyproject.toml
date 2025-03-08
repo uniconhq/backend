@@ -45,7 +45,6 @@ lint.unfixable = ["T20"]
 
 [tool.mypy]
 check_untyped_defs = true
-exclude="unicon_backend/evaluator/tasks/programming/templates/"
 
 [dependency-groups]
 cli = [
