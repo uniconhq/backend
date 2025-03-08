@@ -10,15 +10,16 @@ from contextlib import redirect_stderr, redirect_stdout
 
 def call_function_from_file(file_name: str, function_name: str, *args, **kwargs):
     with redirect_stdout(io.StringIO()) as stdout, redirect_stderr(io.StringIO()) as stderr:
-        module_name = file_name.replace(".py", "")
-        module = importlib.import_module(module_name)
-        func = getattr(module, function_name)
+        error = result = None
         error = None
         try:
-            func(*args, **kwargs)
+            module_name = file_name.replace(".py", "")
+            module = importlib.import_module(module_name)
+            func = getattr(module, function_name)
+            result = func(*args, **kwargs)
         except Exception as e:
             error = e
-        return func(*args, **kwargs), stdout.getvalue(), stderr.getvalue(), error
+        return result, stdout.getvalue(), stderr.getvalue(), error
 
 
 def run_code_from_file(file_name: str, **variables):
