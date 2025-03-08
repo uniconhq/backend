@@ -594,7 +594,7 @@ class LoopStep(Step[StepSocket]):
 
 
 class IfElseStep(Step[StepSocket]):
-    _pred_socket_alias: ClassVar[str] = "CONTROL.IN.PREDICATE"
+    _pred_socket_alias: ClassVar[str] = "DATA.IN.PREDICATE"
     _if_socket_alias: ClassVar[str] = "CONTROL.OUT.IF"
     _else_socket_alias: ClassVar[str] = "CONTROL.OUT.ELSE"
 
@@ -603,8 +603,8 @@ class IfElseStep(Step[StepSocket]):
         _if_socket_alias,
         _else_socket_alias,
     }
-    required_control_io: ClassVar[tuple[Range, Range]] = ((1, 2), (2, 3))
-    required_data_io: ClassVar[tuple[Range, Range]] = ((0, 0), (0, 0))
+    required_control_io: ClassVar[tuple[Range, Range]] = ((0, 1), (2, 3))
+    required_data_io: ClassVar[tuple[Range, Range]] = ((1, 1), (0, 0))
 
     def run(
         self, graph: "ComputeGraph", in_vars: dict[SocketId, ProgramVariable], *_
@@ -655,17 +655,21 @@ class ComputeGraph(Graph[StepClasses, GraphEdge[str]]):  # type: ignore
         return cst.Name(var_name_str.lower())
 
     def link_type(self, edge: GraphEdge[str]) -> SocketType:
-        def get_step_socket(step_id: str, socket_id: str) -> StepSocket | None:
-            node = self.node_index.get(step_id)
-            return node.get_socket(socket_id) if node else None
+        def get_socket_type(step: Step, socket: StepSocket) -> SocketType:
+            # NOTE: Predicate sockets for `IfElseStep` take in data but are treated as control sockets
+            if step.type == StepType.IF_ELSE and socket.alias == IfElseStep._pred_socket_alias:
+                return SocketType.CONTROL
+            return socket.type
 
-        from_socket = get_step_socket(edge.from_node_id, edge.from_socket_id)
-        to_socket = get_step_socket(edge.to_node_id, edge.to_socket_id)
-        assert from_socket is not None and to_socket is not None
+        from_node, to_node = self.node_index.get(edge.from_node_id), self.node_index.get(edge.to_node_id)  # fmt: skip
+        from_socket = from_node.get_socket(edge.from_socket_id) if from_node else None
+        to_socket = to_node.get_socket(edge.to_socket_id) if to_node else None
+        assert from_node and from_socket and to_node and to_socket
 
+        from_socket_t, to_socket_t = get_socket_type(from_node, from_socket), get_socket_type(to_node, to_socket)  # fmt: skip
         # NOTE: As long as one of the sockets is a control socket, the link is considered a control link
         # This is because there can be a data socket connected to a control socket
-        is_control = any(map(lambda t: t == SocketType.CONTROL, [from_socket.type, to_socket.type]))
+        is_control = any(map(lambda t: t == SocketType.CONTROL, [from_socket_t, to_socket_t]))
         if from_socket._dir != to_socket._dir:
             return SocketType.CONTROL if is_control else SocketType.DATA
         raise ValueError(f"Invalid link: {from_socket.id} -> {to_socket.id}")

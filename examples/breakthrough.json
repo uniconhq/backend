@@ -3,6 +3,7 @@
   "description": "Done with PS3, but want to improve on your AI further?",
   "restricted": false,
   "published": true,
+  "started_at": "1970-01-01T00:00:00.000Z",
   "tasks": [
     {
       "id": 0,
@@ -201,7 +202,7 @@
               "from_node_id": "__STRING_MATCH_CHECK_TURN__",
               "from_socket_id": "__MATCH__",
               "to_node_id": "__IF_ELSE__",
-              "to_socket_id": "__CONTROL_PRED__"
+              "to_socket_id": "__DATA_PRED__"
             },
             {
               "id": "18",
@@ -483,8 +484,7 @@
                   "type": "CONTROL"
                 },
                 {
-                  "id": "__CONTROL_PRED__",
-                  "type": "CONTROL",
+                  "id": "__DATA_PRED__",
                   "label": "PREDICATE"
                 }
               ],

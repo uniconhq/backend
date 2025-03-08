@@ -40,7 +40,8 @@ dev-dependencies = [
 
 [tool.ruff]
 line-length = 100
-lint.select = ["I", "F", "UP", "B", "SIM", "TCH"]
+lint.select = ["I", "F", "UP", "B", "SIM", "TCH", "T20"]
+lint.unfixable = ["T20"]
 
 [tool.mypy]
 check_untyped_defs = true
