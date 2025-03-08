@@ -29,4 +29,4 @@ def mpi_sandbox(program: cst.Module) -> cst.Module:
 
 
 def gbl_except_hook(program: cst.Module) -> cst.Module:
-    return cst.Module([*GBL_EXCEPT_HANDLER.body, cst.Newline(), *program.body])
+    return cst.Module([*GBL_EXCEPT_HANDLER.body, cst.Newline(), *program.body])  # type: ignore

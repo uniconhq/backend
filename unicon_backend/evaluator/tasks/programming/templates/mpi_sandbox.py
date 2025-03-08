@@ -64,7 +64,7 @@ def call_function_safe(file_name: str, function_name: str, allow_error: bool, *a
     task_queue.put((file_name, function_name, args, kwargs))
     result, stdout, stderr, err = result_queue.get()
     if not allow_error and err is not None:
-        print(
+        print(  # noqa: T201
             json.dumps({"file_name": file_name, "function_name": function_name, "error": str(err)})
         )
         sys.exit(1)
@@ -92,7 +92,7 @@ def call_function_unsafe(file_name: str, function_name: str, allow_error: bool, 
             result = None
             err = e
     if not allow_error and err is not None:
-        print(
+        print(  # noqa: T201
             json.dumps({"file_name": file_name, "function_name": function_name, "error": str(err)})
         )
         sys.exit(1)

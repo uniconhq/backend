@@ -1,12 +1,15 @@
 import io
+import logging
 import mimetypes
 import pathlib
 import uuid
 
 from fastapi import UploadFile
-from minio import Minio, S3Error  # type: ignore
+from minio import Minio, S3Error
 
 from unicon_backend.constants import MINIO_ACCESS_KEY, MINIO_BUCKET, MINIO_HOST, MINIO_SECRET_KEY
+
+logger = logging.getLogger(__name__)
 
 _client = Minio(MINIO_HOST, access_key=MINIO_ACCESS_KEY, secret_key=MINIO_SECRET_KEY, secure=False)
 
@@ -60,7 +63,7 @@ def upload_file(bucket_name: str, object_name: str, data: bytes, content_type: s
     found = _client.bucket_exists(bucket_name)
     if not found:
         _client.make_bucket(bucket_name)
-        print(f"Bucket {bucket_name} created")
+        logger.info(f"Bucket {bucket_name} created")
 
     _client.put_object(
         bucket_name,
