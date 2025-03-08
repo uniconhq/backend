@@ -603,8 +603,8 @@ class IfElseStep(Step[StepSocket]):
         _if_socket_alias,
         _else_socket_alias,
     }
-    required_control_io: ClassVar[tuple[Range, Range]] = ((1, 2), (2, 3))
-    required_data_io: ClassVar[tuple[Range, Range]] = ((0, 0), (0, 0))
+    required_control_io: ClassVar[tuple[Range, Range]] = ((0, 1), (2, 3))
+    required_data_io: ClassVar[tuple[Range, Range]] = ((1, 1), (0, 0))
 
     def run(
         self, graph: "ComputeGraph", in_vars: dict[SocketId, ProgramVariable], *_
