@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field, RootModel, model_validator
 
 from unicon_backend.evaluator.tasks import Task, TaskEvalResult, TaskEvalStatus, TaskType
 from unicon_backend.evaluator.tasks.programming.artifact import File, PrimitiveData
-from unicon_backend.evaluator.tasks.programming.security import mpi_sandbox
+from unicon_backend.evaluator.tasks.programming.harness import gbl_except_hook, mpi_sandbox
 from unicon_backend.evaluator.tasks.programming.steps import (
     ComputeGraph,
     InputStep,
@@ -141,7 +141,7 @@ class ProgrammingTask(Task[list[RequiredInput], JobId]):
         runner_programs: list[RunnerProgram] = []
         for testcase in sorted(self.testcases, key=attrgetter("order_index")):
             testcase.attach_user_inputs(user_inputs)
-            assembled_program = mpi_sandbox(testcase.run())
+            assembled_program = gbl_except_hook(mpi_sandbox(testcase.run()))
 
             logger.debug(f"Assembled Program:\n{assembled_program}")
 
