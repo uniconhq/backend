@@ -12,6 +12,7 @@ import libcst as cst
 from pydantic import BaseModel, Field, PrivateAttr, model_validator
 
 from unicon_backend.evaluator.tasks.programming.artifact import File, PrimitiveData
+from unicon_backend.evaluator.tasks.programming.types import UniconType
 from unicon_backend.lib.common import CustomBaseModel, CustomSQLModel
 from unicon_backend.lib.cst import (
     UNUSED_VAR,
@@ -80,7 +81,11 @@ class StepSocket(NodeSocket[str]):
     # The data that the socket holds
     data: PrimitiveData | File | None = None
 
-    # TODO: maybe a type string here?
+    data_type: UniconType | None = None
+
+    # for PythonObject
+    # {"name": "PythonTypeName"}
+    data_type_metadata: dict[str, Any] | None = None
 
     _dir: SocketDir = PrivateAttr()
 
@@ -324,7 +329,10 @@ class OutputStep(Step[OutputSocket]):
     ) -> ProgramFragment:
         result_dict = cst.Dict(
             [
-                cst.DictElement(key=cst_str(socket.id), value=in_vars[socket.id])
+                cst.DictElement(
+                    key=cst_str(socket.id),
+                    value=in_vars[socket.id] if socket.id in in_vars else cst_var("None"),
+                )
                 for socket in self.data_in
             ]
         )

@@ -7,15 +7,15 @@ from contextlib import redirect_stdout, redirect_stderr
 
 def call_function_from_file(file_name, function_name, *args, **kwargs):
     with redirect_stdout(io.StringIO()) as stdout, redirect_stderr(io.StringIO()) as stderr:  
-        module_name = file_name.replace(".py", "")
-        module = importlib.import_module(module_name)
-        func = getattr(module, function_name)
-        error = None
+        error = result = None
         try:
+            module_name = file_name.replace(".py", "")
+            module = importlib.import_module(module_name)
+            func = getattr(module, function_name)   
             result = func(*args, **kwargs)
         except Exception as e:
             error = e
-        return func(*args, **kwargs), stdout.getvalue(), stderr.getvalue(), error
+        return result, stdout.getvalue(), stderr.getvalue(), error
                                    
 def run_code_from_file(file_name, **variables):
     spec = importlib.util.find_spec(file_name)

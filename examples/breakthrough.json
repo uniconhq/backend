@@ -8,13 +8,15 @@
       "id": 0,
       "type": "PROGRAMMING_TASK",
       "title": "Breakthrough Match",
-      "description": "Breakthrough is an abstract strategy board game invented by Dan Troyka in 2000 and made available as a Zillions of Games file (ZRF). It won the 2001 8x8 Game Design Competition, even though the game was originally played on a 7x7 board, as it is trivially extensible to larger board sizes.\n\nRules:\n\n1. Choose a player to go first; then play alternates, with each player moving one piece per turn.\n\n2. A piece may move one space straight or diagonally forward if the target square is empty. \n\n3. A piece may move into a square containing an opponent's piece if and only if that square is one step diagonally forward. The opponent's piece is removed and the player's piece replaces it\n\n4. The first player to reach the opponent's home row — the one farthest from the player — is the winner. If all the pieces of a player are captured, that player loses. A draw is impossible because pieces can only move ahead (or be captured), and the piece closest to the opponent's home row always has at least one forward diagonal move available.\n\nReference: https://en.wikipedia.org/wiki/Breakthrough_(board_game)",
+      "description": "Breakthrough is an abstract strategy board game invented by Dan Troyka in 2000 and made available as a Zillions of Games file (ZRF). It won the 2001 8x8 Game Design Competition, even though the game was originally played on a 7x7 board, as it is trivially extensible to larger board sizes.\n\nRules:\n\n1. Choose a player to go first; then play alternates, with each player moving one piece per turn.\n\n2. A piece may move one space straight or diagonally forward if the target square is empty. \n\n3. A piece may move into a square containing an opponent's piece if and only if that square is one step diagonally forward. The opponent's piece is removed and the player's piece replaces it\n\n4. The first player to reach the opponent's home row \u2014 the one farthest from the player \u2014 is the winner. If all the pieces of a player are captured, that player loses. A draw is impossible because pieces can only move ahead (or be captured), and the piece closest to the opponent's home row always has at least one forward diagonal move available.\n\nReference: https://en.wikipedia.org/wiki/Breakthrough_(board_game)",
       "order_index": 0,
       "environment": {
         "language": "PYTHON",
         "extra_options": {
           "version": "3.12.8",
-          "requirements": ["timeout_decorator"]
+          "requirements": [
+            "timeout_decorator"
+          ]
         },
         "time_limit_secs": 100,
         "memory_limit_mb": 500
@@ -27,7 +29,8 @@
             "id": "__AGENT_0__",
             "path": "agent_1.py",
             "content": "# Add your implementation here"
-          }
+          },
+          "data_type": "UniconFile"
         },
         {
           "id": "__AGENT_1__",
@@ -36,7 +39,8 @@
             "id": "__AGENT_1__",
             "path": "agent_2.py",
             "content": "# Add your implementation here"
-          }
+          },
+          "data_type": "UniconFile"
         }
       ],
       "files": [
@@ -299,11 +303,23 @@
               "outputs": [
                 {
                   "id": "__AGENT_0__",
-                  "label": "Agent 0"
+                  "label": "Agent 0",
+                  "data": {
+                    "id": "__AGENT_0__",
+                    "path": "agent_1.py",
+                    "content": "# Add your implementation here"
+                  },
+                  "data_type": "UniconFile"
                 },
                 {
                   "id": "__AGENT_1__",
-                  "label": "Agent 1"
+                  "label": "Agent 1",
+                  "data": {
+                    "id": "__AGENT_1__",
+                    "path": "agent_2.py",
+                    "content": "# Add your implementation here"
+                  },
+                  "data_type": "UniconFile"
                 }
               ]
             },
@@ -319,7 +335,8 @@
                     "path": "utils.py",
                     "content": "import copy\nimport multiprocessing\nimport sys\nimport os\nimport time\nimport timeout_decorator\nimport functools\nfrom threading import Thread\n\n# board row and column -> these are constant\nROW, COL = 6, 6\n\n\n# generates initial state\ndef generate_init_state():\n    state = [\n        ['B'] * COL,\n        ['B'] * COL,  # 2 black rows\n        ['_'] * COL,\n        ['_'] * COL,  # 2 empty rows\n        ['W'] * COL,\n        ['W'] * COL,  # 2 white rows\n    ]\n    return {'board': state, 'move': 'B'}\n\n\n# prints board\ndef print_state(board):\n    horizontal_rule = '+' + ('-' * 5 + '+') * COL\n    for i in range(len(board)):\n        print(horizontal_rule)\n        print(\n            '|  '\n            + '  |  '.join(' ' if board[i][j] == '_' else board[i][j] for j in range(COL))\n            + '  |'\n        )\n    print(horizontal_rule)\n\n\n# inverts board by modifying board state, or returning a new board with updated board state\ndef invert_board(curr_board, in_place=True):\n    '''Inverts the board by modifying existing values if in_place is set to True, or creating a new board with updated values if in_place is set to False'''\n    board = curr_board\n    if not in_place:\n        board = copy.deepcopy(curr_board)\n    board.reverse()\n    for i in range(len(board)):\n        for j in range(len(board[i])):\n            if board[i][j] == 'W':\n                board[i][j] = 'B'\n            elif board[i][j] == 'B':\n                board[i][j] = 'W'\n    return board\n\n\n# checks if a move made for black is valid or not. Move source: from_ [row, col], move destination: to_ [row, col]\ndef is_valid_move(board, from_, to_):\n    if board[from_[0]][from_[1]] != 'B':  # if move not made for black\n        return False\n    elif (to_[0] < 0 or to_[0] >= ROW) or (\n        to_[1] < 0 or to_[1] >= COL\n    ):  # if move takes pawn outside the board\n        return False\n    elif to_[0] != (from_[0] + 1):  # if move takes more than one step forward\n        return False\n    elif to_[1] > (from_[1] + 1) or to_[1] < (\n        from_[1] - 1\n    ):  # if move takes beyond left/ right diagonal\n        return False\n    elif (\n        to_[1] == from_[1] and board[to_[0]][to_[1]] != '_'\n    ):  # if pawn to the front, but still move forward\n        return False\n    elif ((to_[1] == from_[1] + 1) or (to_[1] == from_[1] - 1)) and board[to_[0]][\n        to_[1]\n    ] == 'B':  # if black pawn to the diagonal or front, but still move forward\n        return False\n    else:\n        return True\n\n\n# generates the first available valid move for black\ndef generate_rand_move(board):\n    from_, to_ = [0, 0], [0, 0]\n    for i in range(len(board)):\n        for j in range(len(board[i])):\n            if board[i][j] == 'B':\n                from_[0], from_[1] = i, j\n                to_[0] = from_[0] + 1\n                to_[1] = from_[1]\n                if is_valid_move(board, from_, to_):\n                    return from_, to_\n                to_[1] = from_[1] + 1\n                if is_valid_move(board, from_, to_):\n                    return from_, to_\n                to_[1] = from_[1] - 1\n                if is_valid_move(board, from_, to_):\n                    return from_, to_\n\n\n# makes a move effective on the board by modifying board state, or returning a new board with updated board state\ndef state_change_modified(state, move, in_place=True):\n    curr_board = state['board']\n\n    from_, to_ = move\n    '''Updates the board configuration by modifying existing values if in_place is set to True, or creating a new board with updated values if in_place is set to False'''\n    board = curr_board\n    if not in_place:\n        board = copy.deepcopy(curr_board)\n    if is_valid_move(board, from_, to_):\n        board[from_[0]][from_[1]] = '_'\n        board[to_[0]][to_[1]] = 'B'\n\n    state['board'] = curr_board\n    state['move'] = 'W' if state['move'] == 'B' else 'B'\n\n\ndef state_change(curr_board, from_, to_, in_place=True):\n    '''Updates the board configuration by modifying existing values if in_place is set to True, or creating a new board with updated values if in_place is set to False'''\n    board = curr_board\n    if not in_place:\n        board = copy.deepcopy(curr_board)\n    if is_valid_move(board, from_, to_):\n        board[from_[0]][from_[1]] = '_'\n        board[to_[0]][to_[1]] = 'B'\n    return board\n\n\n# checks if game is over\ndef is_game_over(board):\n    '''Returns True if game is over'''\n    flag = any(board[ROW - 1][i] == 'B' or board[0][i] == 'W' for i in range(COL))\n\n    wcount, bcount = 0, 0\n    for i in range(ROW):\n        for j in range(COL):\n            if board[i][j] == 'B':\n                bcount += 1\n            elif board[i][j] == 'W':\n                wcount += 1\n\n    if wcount == 0 or bcount == 0:\n        flag = True\n\n    return flag\n\n\n#############################################\n# Utils function for game playing framework #\n# ############################################\n\n\n# move making function for game playing\ndef make_move_job_func(player, board, queue):\n    # disable stdout and stderr to prevent prints\n    sys.stdout = open(os.devnull, 'w')\n    sys.stderr = open(os.devnull, 'w')\n    try:\n        src, dst = player.make_move(\n            board\n        )  # returns [i1, j1], [i2, j2] -> pawn moves from position [i1, j1] to [i2, j2]\n        queue.put((src, dst))\n    except KeyboardInterrupt:\n        exit()\n    except Exception as e:\n        queue.put(e)\n        exit(1)\n    finally:\n        # reenable stdout and stderr\n        sys.stdout = sys.__stdout__\n        sys.stderr = sys.__stderr__\n    return\n\n\n# game playing function. Takes in the initial board\ndef play(playerAI_A, playerAI_B, board):\n    COLOURS = [BLACK, WHITE] = 'Black(Student agent)', 'White(Test agent)'\n    TIMEOUT = 3\n    random_moves = 0\n    PLAYERS = []\n    move = 0\n\n    # disable stdout for people who leave print statements in their code, disable stderr\n    old_stdout = sys.stdout\n    old_stderr = sys.stderr\n    sys.stdout = open(os.devnull, 'w')\n    sys.stderr = open(os.devnull, 'w')\n    try:\n        PLAYERS.append(playerAI_A)\n    except KeyboardInterrupt:\n        exit()\n    except:\n        return f'{BLACK} failed to initialise'\n    finally:\n        # reenable stdout and stderr\n        sys.stdout = old_stdout\n        sys.stderr = old_stderr\n\n    # disable stdout for people who leave print statements in their code, disable stderr\n    old_stdout = sys.stdout\n    old_stderr = sys.stderr\n    sys.stdout = open(os.devnull, 'w')\n    sys.stderr = open(os.devnull, 'w')\n    try:\n        PLAYERS.append(playerAI_B)\n    except KeyboardInterrupt:\n        exit()\n    except:\n        return f'{WHITE} failed to initialise'\n    finally:\n        # reenable stdout and stderr\n        sys.stdout = old_stdout\n        sys.stderr = old_stderr\n\n    # game starts\n    while not is_game_over(board):\n        player = PLAYERS[move % 2]\n        colour = COLOURS[move % 2]\n        src, dst = -1, -1\n        if colour == WHITE:\n            invert_board(board)\n            src, dst = player.make_move(board)\n        else:  # BLACK\n            board_copy = copy.deepcopy(board)\n            start_time = time.time()\n            src, dst = player.make_move(board_copy)\n            end_time = time.time()\n\n            isValid = False\n            try:\n                isValid = is_valid_move(board, src, dst) and end_time - start_time <= TIMEOUT\n            except KeyboardInterrupt:\n                exit()\n            except Exception:\n                isValid = False\n            if not isValid:  # if move is invalid or time is exceeded, then we give a random move\n                random_moves += 1\n                src, dst = generate_rand_move(board)\n\n        state_change(board, src, dst)  # makes the move effective on the board\n        if colour == WHITE:\n            invert_board(board)\n        move += 1\n\n    return f'{colour} win; Random move made by {BLACK}: {random_moves};'\n\n\n# decorator for first three public test cases\ndef wrap_test(func):\n    def inner(*args, **kwargs):\n        try:\n            return func(*args, **kwargs)\n        except Exception as e:\n            return f'FAILED, reason: {str(e)}'\n\n    return inner\n\n\nTIME_LIMIT = 3.05\n\n\nclass TimeoutException(Exception):\n    pass\n\n\ndef timeout(timeout):\n    def deco(func):\n        @functools.wraps(func)\n        def wrapper(*args, **kwargs):\n            res = [\n                TimeoutException(\n                    'Function [%s] exceeded timeout of [%s seconds]' % (func.__name__, timeout)\n                )\n            ]\n\n            def newFunc():\n                try:\n                    res[0] = func(*args, **kwargs)\n                except Exception as e:\n                    res[0] = e\n\n            t = Thread(target=newFunc)\n            t.daemon = True\n            try:\n                t.start()\n                t.join(timeout)\n            except Exception as je:\n                print('Error starting thread')\n                raise je\n            ret = res[0]\n            if isinstance(ret, BaseException):\n                raise ret\n            return ret\n\n        return wrapper\n\n    return deco\n\n\n@wrap_test\n@timeout_decorator.timeout(TIME_LIMIT)\ndef test(board, playerAI):\n    board_copy = copy.deepcopy(board)\n    start = time.time()\n    src, dst = playerAI.make_move(board_copy)\n    end = time.time()\n    move_time = end - start\n    valid = is_valid_move(board, src, dst)\n    return valid and move_time <= 3\n\n\n@wrap_test\n@timeout(TIME_LIMIT)\ndef test_windows(board, playerAI):\n    board_copy = copy.deepcopy(board)\n    start = time.time()\n    src, dst = playerAI.make_move(board_copy)\n    end = time.time()\n    move_time = end - start\n    valid = is_valid_move(board, src, dst)\n    return valid and move_time <= 3\n\n\nif os.name == 'nt':\n    test = test_windows\n",
                     "trusted": true
-                  }
+                  },
+                  "data_type": "UniconFile"
                 }
               ]
             },
@@ -330,13 +347,19 @@
               "inputs": [
                 {
                   "id": "__MODULE__",
-                  "import_as_module": true
+                  "import_as_module": true,
+                  "data_type": "UniconFile",
+                  "label": "Module"
                 }
               ],
               "outputs": [
                 {
                   "id": "__STATE__",
-                  "label": "game state"
+                  "label": "game state",
+                  "data_type": "PythonObject",
+                  "data_type_metadata": {
+                    "name": "Any"
+                  }
                 }
               ]
             },
@@ -347,13 +370,21 @@
               "inputs": [
                 {
                   "id": "__OBJ__",
-                  "label": "Game state"
+                  "label": "Game state",
+                  "data_type": "PythonObject",
+                  "data_type_metadata": {
+                    "name": "dict"
+                  }
                 }
               ],
               "outputs": [
                 {
                   "id": "__BOARD__",
-                  "label": "Board"
+                  "label": "Board",
+                  "data_type": "PythonObject",
+                  "data_type_metadata": {
+                    "name": "Any"
+                  }
                 },
                 {
                   "id": "__CONTROL_OUT__",
@@ -372,12 +403,19 @@
                 },
                 {
                   "id": "__MODULE__",
-                  "import_as_module": true
+                  "import_as_module": true,
+                  "data_type": "UniconFile",
+                  "label": "Module"
                 },
                 {
                   "id": "__BOARD__",
                   "arg_metadata": {
                     "position": 0
+                  },
+                  "label": "board",
+                  "data_type": "PythonObject",
+                  "data_type_metadata": {
+                    "name": "Any"
                   }
                 }
               ],
@@ -388,7 +426,11 @@
                 },
                 {
                   "id": "__GAME_OVER__",
-                  "label": "Game over"
+                  "label": "Game over",
+                  "data_type": "PythonObject",
+                  "data_type_metadata": {
+                    "name": "Any"
+                  }
                 }
               ]
             },
@@ -474,7 +516,9 @@
                 },
                 {
                   "id": "__MODULE__",
-                  "import_as_module": true
+                  "import_as_module": true,
+                  "data_type": "UniconFile",
+                  "label": "Module"
                 },
                 {
                   "id": "__BOARD__",
@@ -490,7 +534,11 @@
                 },
                 {
                   "id": "__MOVE__",
-                  "label": "A0 move"
+                  "label": "A0 move",
+                  "data_type": "PythonObject",
+                  "data_type_metadata": {
+                    "name": "Any"
+                  }
                 }
               ]
             },
@@ -505,25 +553,41 @@
                 },
                 {
                   "id": "__MODULE__",
-                  "import_as_module": true
+                  "import_as_module": true,
+                  "data_type": "UniconFile",
+                  "label": "Module"
                 },
                 {
                   "id": "__STATE__",
                   "arg_metadata": {
                     "position": 0
+                  },
+                  "label": "state",
+                  "data_type": "PythonObject",
+                  "data_type_metadata": {
+                    "name": "Any"
                   }
                 },
                 {
                   "id": "__MOVE__",
                   "arg_metadata": {
                     "position": 1
+                  },
+                  "label": "move",
+                  "data_type": "PythonObject",
+                  "data_type_metadata": {
+                    "name": "Any"
                   }
                 }
               ],
               "outputs": [
                 {
                   "id": "__NEW_STATE__",
-                  "label": "A0 after move state"
+                  "label": "A0 after move state",
+                  "data_type": "PythonObject",
+                  "data_type_metadata": {
+                    "name": "Any"
+                  }
                 }
               ]
             },
@@ -538,7 +602,9 @@
                 },
                 {
                   "id": "__MODULE__",
-                  "import_as_module": true
+                  "import_as_module": true,
+                  "data_type": "UniconFile",
+                  "label": "Module"
                 },
                 {
                   "id": "__BOARD__",
@@ -554,7 +620,11 @@
                 },
                 {
                   "id": "__MOVE__",
-                  "label": "A1 move"
+                  "label": "A1 move",
+                  "data_type": "PythonObject",
+                  "data_type_metadata": {
+                    "name": "Any"
+                  }
                 }
               ]
             },
@@ -569,18 +639,30 @@
                 },
                 {
                   "id": "__MODULE__",
-                  "import_as_module": true
+                  "import_as_module": true,
+                  "data_type": "UniconFile",
+                  "label": "Module"
                 },
                 {
                   "id": "__STATE__",
                   "arg_metadata": {
                     "position": 0
+                  },
+                  "label": "state",
+                  "data_type": "PythonObject",
+                  "data_type_metadata": {
+                    "name": "Any"
                   }
                 },
                 {
                   "id": "__MOVE__",
                   "arg_metadata": {
                     "position": 1
+                  },
+                  "label": "move",
+                  "data_type": "PythonObject",
+                  "data_type_metadata": {
+                    "name": "Any"
                   }
                 }
               ],
@@ -591,7 +673,11 @@
                 },
                 {
                   "id": "__NEW_STATE__",
-                  "label": "A1 after move state"
+                  "label": "A1 after move state",
+                  "data_type": "PythonObject",
+                  "data_type_metadata": {
+                    "name": "Any"
+                  }
                 }
               ]
             },
@@ -606,12 +692,19 @@
                 },
                 {
                   "id": "__MODULE__",
-                  "import_as_module": true
+                  "import_as_module": true,
+                  "data_type": "UniconFile",
+                  "label": "Module"
                 },
                 {
                   "id": "__BOARD__",
                   "arg_metadata": {
                     "position": 0
+                  },
+                  "label": "curr_board",
+                  "data_type": "PythonObject",
+                  "data_type_metadata": {
+                    "name": "Any"
                   }
                 }
               ],
@@ -622,7 +715,11 @@
                 },
                 {
                   "id": "__INV_BOARD__",
-                  "label": "Inverted board"
+                  "label": "Inverted board",
+                  "data_type": "PythonObject",
+                  "data_type_metadata": {
+                    "name": "Any"
+                  }
                 }
               ]
             },
@@ -637,12 +734,19 @@
                 },
                 {
                   "id": "__MODULE__",
-                  "import_as_module": true
+                  "import_as_module": true,
+                  "data_type": "UniconFile",
+                  "label": "Module"
                 },
                 {
                   "id": "__BOARD__",
                   "arg_metadata": {
                     "position": 0
+                  },
+                  "label": "curr_board",
+                  "data_type": "PythonObject",
+                  "data_type_metadata": {
+                    "name": "Any"
                   }
                 }
               ],
@@ -653,7 +757,11 @@
                 },
                 {
                   "id": "__INV_BOARD__",
-                  "label": "Inverted board"
+                  "label": "Inverted board",
+                  "data_type": "PythonObject",
+                  "data_type_metadata": {
+                    "name": "Any"
+                  }
                 }
               ]
             },
@@ -668,7 +776,11 @@
                 },
                 {
                   "id": "__OBJ__",
-                  "label": "Game state"
+                  "label": "Game state",
+                  "data_type": "PythonObject",
+                  "data_type_metadata": {
+                    "name": "dict"
+                  }
                 }
               ],
               "outputs": [
@@ -678,7 +790,11 @@
                 },
                 {
                   "id": "__STATE_TURN__",
-                  "label": "Turn"
+                  "label": "Turn",
+                  "data_type": "PythonObject",
+                  "data_type_metadata": {
+                    "name": "Any"
+                  }
                 }
               ]
             },
@@ -692,12 +808,14 @@
                 },
                 {
                   "id": "__TEST_STRING__",
-                  "label": "turn"
+                  "label": "turn",
+                  "data_type": "unknown"
                 },
                 {
                   "id": "__TARGET_STRING__",
                   "label": "Expected turn",
-                  "data": "W"
+                  "data": "W",
+                  "data_type": "unknown"
                 }
               ],
               "outputs": [
@@ -707,7 +825,8 @@
                 },
                 {
                   "id": "__MATCH__",
-                  "label": "Is A0 move"
+                  "label": "Is A0 move",
+                  "data_type": "boolean"
                 }
               ]
             }
