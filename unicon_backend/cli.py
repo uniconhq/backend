@@ -190,8 +190,8 @@ def seed(username: str, password: str, problem_defns: list[typer.FileText]):
 @app.command(name="assemble")
 def assemble(defn_file: Annotated[typer.FileText, typer.Option("--defn", mode="r")]):
     """Assemble all programming tasks in provided problem definition"""
-    from unicon_backend.evaluator.problem import Problem, ProgrammingTask
-    from unicon_backend.models.problem import TaskType
+    from unicon_backend.models.problem import TaskType  # noqa: I001
+    from unicon_backend.evaluator.problem import Problem, ProgrammingTask  # noqa: I001
 
     defn = Problem.model_validate_json(defn_file.read())
     for task in defn.tasks:
