@@ -17,6 +17,7 @@ class ProblemPublic(Problem):
 
     edit: bool
     make_submission: bool
+    make_submission_without_limit: bool
     view_hidden_details: bool
 
 

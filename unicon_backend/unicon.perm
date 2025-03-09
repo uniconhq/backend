@@ -97,7 +97,8 @@ entity problem {
     action edit = (project.edit_restricted_problems) or (project.edit_unrestricted_problems not restricted)
     action delete = (project.delete_restricted_problems) or (project.delete_unrestricted_problems not restricted)
 
-    permission make_submission = ((view and in_submission_date_range(started_at, closed_at)) or edit) and project.make_submission 
+    permission make_submission_without_limit = edit and project.make_submission
+    permission make_submission = ((view and in_submission_date_range(started_at, closed_at)) or make_submission_without_limit) and project.make_submission 
     permission view_own_submission = view and project.view_own_submission
     permission view_others_submission = view and project.view_others_submission
     permission view_supervised_submission = view and project.view_supervised_submission

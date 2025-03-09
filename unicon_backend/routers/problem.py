@@ -313,6 +313,30 @@ def submit_problem_task_attempt(
             detail="User does not have permission to submit task attempt",
         )
 
+    task = next((task for task in problem_orm.tasks if task.id == task_id), None)
+    if not task:
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND, detail="Task not found in problem definition"
+        )
+
+    can_submit_without_limit = permission_check(problem_orm, "make_submission_without_limit", user)
+    if not can_submit_without_limit:
+        attempt_count_query = (
+            select(func.count())
+            .select_from(TaskAttemptORM)
+            .where(
+                (TaskAttemptORM.user_id == user.id)
+                & (TaskAttemptORM.problem_id == problem_orm.id)
+                & (TaskAttemptORM.task_id == task_id)
+            )
+        )
+        attempt_count = db_session.scalar(attempt_count_query) or 0
+        if task.max_attempts is not None and attempt_count >= task.max_attempts:
+            raise HTTPException(
+                status_code=HTTPStatus.FORBIDDEN,
+                detail="User has reached the maximum number of attempts for this task",
+            )
+
     problem: Problem = problem_orm.to_problem()
     if task_id not in problem.task_index:
         raise HTTPException(
