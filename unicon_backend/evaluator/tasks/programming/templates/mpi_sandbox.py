@@ -11,7 +11,6 @@ from contextlib import redirect_stderr, redirect_stdout
 def call_function_from_file(file_name: str, function_name: str, *args, **kwargs):
     with redirect_stdout(io.StringIO()) as stdout, redirect_stderr(io.StringIO()) as stderr:
         error = result = None
-        error = None
         try:
             module_name = file_name.replace(".py", "")
             module = importlib.import_module(module_name)
@@ -53,14 +52,19 @@ def worker(task_queue: multiprocessing.Queue, result_queue: multiprocessing.Queu
         result_queue.put((result, stdout, stderr, error))
 
 
-multiprocessing.freeze_support()
-multiprocessing.set_start_method("spawn")
+if __name__ == "__main__":
+    multiprocessing.freeze_support()
+    multiprocessing.set_start_method("spawn")
+    task_queue: multiprocessing.Queue = multiprocessing.Queue()
+    result_queue: multiprocessing.Queue = multiprocessing.Queue()
+    process = multiprocessing.Process(target=worker, args=(task_queue, result_queue))
+    process.start()
 
-task_queue: multiprocessing.Queue = multiprocessing.Queue()
-result_queue: multiprocessing.Queue = multiprocessing.Queue()
+    def cleanup():
+        task_queue.put("STOP")
+        process.join()
 
-process = multiprocessing.Process(target=worker, args=(task_queue, result_queue))
-process.start()
+    atexit.register(cleanup)
 
 
 def call_function_safe(file_name: str, function_name: str, allow_error: bool, *args, **kwargs):
@@ -101,11 +105,3 @@ def call_function_unsafe(file_name: str, function_name: str, allow_error: bool, 
         )
         sys.exit(1)
     return result, stdout.getvalue(), stderr.getvalue(), err
-
-
-def cleanup():
-    task_queue.put("STOP")
-    process.join()
-
-
-atexit.register(cleanup)
