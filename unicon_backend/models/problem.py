@@ -129,6 +129,8 @@ class TaskORM(CustomSQLModel, table=True):
         back_populates="task", cascade_delete=True
     )
 
+    max_attempts: int | None = Field(nullable=True, default=None)
+
     @classmethod
     def from_task(cls, task: "Task") -> "TaskORM":
         def _convert_task_to_orm(
@@ -138,6 +140,7 @@ class TaskORM(CustomSQLModel, table=True):
             description: str | None,
             autograde: bool,
             order_index: int,
+            max_attempts: int | None,
             **other_fields,
         ):
             return TaskORM(
@@ -147,6 +150,7 @@ class TaskORM(CustomSQLModel, table=True):
                 description=description,
                 autograde=autograde,
                 order_index=order_index,
+                max_attempts=max_attempts,
                 other_fields=other_fields,
             )
 
@@ -162,6 +166,7 @@ class TaskORM(CustomSQLModel, table=True):
                 "autograde": self.autograde,
                 "order_index": self.order_index,
                 "problem_id": self.problem_id,
+                "max_attempts": self.max_attempts,
                 "updated_version_id": self.updated_version_id,
                 **self.other_fields,
             }
