@@ -62,7 +62,6 @@ class ProblemORM(CustomSQLModel, table=True):
         cascade_delete=True,
     )
     supporting_files: sa_orm.Mapped[list["FileORM"]] = Relationship(
-        passive_deletes=True,
         sa_relationship_kwargs={
             "backref": "problem",
             "primaryjoin": "and_(foreign(ProblemORM.id) == FileORM.parent_id, FileORM.parent_type == 'problem')",
