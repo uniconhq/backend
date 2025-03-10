@@ -6,7 +6,7 @@ from collections.abc import Mapping, Sequence
 from enum import Enum, StrEnum
 from functools import cached_property
 from itertools import count
-from typing import TYPE_CHECKING, Any, ClassVar, Self, cast
+from typing import TYPE_CHECKING, Any, ClassVar, Final, Self, cast
 
 import libcst as cst
 from pydantic import BaseModel, Field, PrivateAttr, model_validator
@@ -443,6 +443,11 @@ class PyRunFunctionSocket(StepSocket):
     handles_stderr: bool = False
 
 
+# NOTE: These function ids should align with harnesses defined in `templates/mpi_sandbox.py`
+CALL_FUNCTION_SAFE_FUNC_ID: Final[str] = "__call_function_safe"
+CALL_FUNCTION_UNSAFE_FUNC_ID: Final[str] = "__call_function_unsafe"
+
+
 class PyRunFunctionStep(Step[PyRunFunctionSocket]):
     required_data_io: ClassVar[tuple[Range, Range]] = ((1, -1), (1, 4))
 
@@ -544,9 +549,9 @@ class PyRunFunctionStep(Step[PyRunFunctionSocket]):
                     )
                 ],
                 cst.Call(
-                    cst_var("call_function_unsafe")
+                    cst_var(CALL_FUNCTION_UNSAFE_FUNC_ID)
                     if module_file.trusted
-                    else cst_var("call_function_safe"),
+                    else cst_var(CALL_FUNCTION_SAFE_FUNC_ID),
                     [
                         cst.Arg(cst_str(module_name)),
                         cst.Arg(

@@ -1,6 +1,6 @@
 import importlib.resources
 import importlib.resources.abc
-from typing import Final
+from typing import Final, cast
 
 import libcst as cst
 
@@ -17,15 +17,20 @@ GBL_EXCEPT_HANDLER: Final[cst.Module] = cst.parse_module(
 
 
 def mpi_sandbox(program: cst.Module) -> cst.Module:
-    return cst.Module(
-        [
-            *MPI_SANDBOX_MODULE.body,
-            cst.If(
-                test=cst.parse_expression("__name__ == '__main__'"),
-                body=cst.IndentedBlock([*program.body]),
-            ),
-        ]
+    """
+    Adds the program body to the MPI sandbox module's main block.
+
+    Assumes that the last element in MPI_SANDBOX_MODULE.body is the
+    `if __name__ == "__main__":` block.
+    """
+    sandbox_preamble = MPI_SANDBOX_MODULE.body[:-1]
+    main_block = cast(cst.If, MPI_SANDBOX_MODULE.body[-1])
+    updated_main_block = main_block.with_changes(
+        body=main_block.body.with_changes(
+            body=[*main_block.body.body, cst.Newline(), *program.body]
+        )
     )
+    return MPI_SANDBOX_MODULE.with_changes(body=[*sandbox_preamble, updated_main_block])
 
 
 def gbl_except_hook(program: cst.Module) -> cst.Module:
