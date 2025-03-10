@@ -68,6 +68,7 @@ class Status(str, Enum):
     TLE = "TLE"
     RTE = "RTE"
     WA = "WA"
+    UKN = "UKN"
 
 
 class ProgramResult(BaseModel):
