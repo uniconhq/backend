@@ -90,8 +90,12 @@ def add_task_to_problem(
             detail="User does not have permission to add task to problem",
         )
 
+    new_task_id = (
+        db_session.scalar(select(func.max(TaskORM.id)).where(TaskORM.problem_id == problem_orm.id))
+        or 0
+    ) + 1
     taskOrm = TaskORM.from_task(task)
-    taskOrm.id = max((task.id for task in problem_orm.tasks), default=-1) + 1
+    taskOrm.id = new_task_id
     taskOrm.order_index = max((task.order_index for task in problem_orm.tasks), default=-1) + 1
 
     problem_orm.tasks.append(taskOrm)
