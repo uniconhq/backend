@@ -52,7 +52,9 @@ def login(
         select(UserORM).where(UserORM.username == username)
     ).first()
     if user is None or not AUTH_PWD_CONTEXT.verify(password, user.password):
-        raise HTTPException(status_code=400, detail="Incorrect username or password.")
+        raise HTTPException(
+            status_code=HTTPStatus.UNAUTHORIZED, detail="Incorrect username or password."
+        )
 
     return create_token(user, response)
 
