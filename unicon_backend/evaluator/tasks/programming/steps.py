@@ -143,7 +143,15 @@ class Step[SocketT: StepSocket](GraphNode[str, SocketT], abc.ABC):
             strict=True,
         ):
             if not satisfies_required(expected, got):
-                raise ValueError(f"Step {self.id} requires {expected} {label} sockets, found {got}")
+                min_expected, max_expected = expected
+                expected_range = (
+                    f"exactly {min_expected}"
+                    if min_expected == max_expected
+                    else f"between {min_expected} and {max_expected}"
+                )
+                raise ValueError(
+                    f"{self.type.value} requires {expected_range} {label} sockets, found {got}"
+                )
 
         return self
 
