@@ -6,14 +6,14 @@ from collections.abc import Mapping, Sequence
 from enum import Enum, StrEnum
 from functools import cached_property
 from itertools import count
-from typing import TYPE_CHECKING, Any, ClassVar, Final, Self, cast
+from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Final, Literal, Self, cast
 
 import libcst as cst
 from pydantic import BaseModel, Field, PrivateAttr, model_validator
 
 from unicon_backend.evaluator.tasks.programming.artifact import File, PrimitiveData
 from unicon_backend.evaluator.tasks.programming.types import UniconType
-from unicon_backend.lib.common import CustomBaseModel, CustomSQLModel
+from unicon_backend.lib.common import CustomSQLModel
 from unicon_backend.lib.cst import (
     UNUSED_VAR,
     Program,
@@ -97,9 +97,7 @@ class StepSocket(NodeSocket[str]):
 Range = tuple[int, int]
 
 
-class Step[SocketT: StepSocket](
-    CustomBaseModel, GraphNode[str, SocketT], abc.ABC, polymorphic=True
-):
+class Step[SocketT: StepSocket](GraphNode[str, SocketT], abc.ABC):
     type: StepType
 
     _debug: bool = False
@@ -145,7 +143,15 @@ class Step[SocketT: StepSocket](
             strict=True,
         ):
             if not satisfies_required(expected, got):
-                raise ValueError(f"Step {self.id} requires {expected} {label} sockets, found {got}")
+                min_expected, max_expected = expected
+                expected_range = (
+                    f"exactly {min_expected}"
+                    if min_expected == max_expected
+                    else f"between {min_expected} and {max_expected}"
+                )
+                raise ValueError(
+                    f"{self.type.value} requires {expected_range} {label} sockets, found {got}"
+                )
 
         return self
 
@@ -222,6 +228,8 @@ class InputSocket(StepSocket):
 
 
 class InputStep(Step[InputSocket]):
+    type: Literal[StepType.INPUT]
+
     required_data_io: ClassVar[tuple[Range, Range]] = ((0, 0), (1, -1))
 
     inputs: list[InputSocket] = []
@@ -320,6 +328,8 @@ class OutputSocket(StepSocket):
 
 
 class OutputStep(Step[OutputSocket]):
+    type: Literal[StepType.OUTPUT]
+
     required_data_io: ClassVar[tuple[Range, Range]] = ((1, -1), (0, 0))
 
     outputs: list[OutputSocket] = []
@@ -361,6 +371,8 @@ class OutputStep(Step[OutputSocket]):
 
 
 class StringMatchStep(Step[StepSocket]):
+    type: Literal[StepType.STRING_MATCH]
+
     required_data_io: ClassVar[tuple[Range, Range]] = ((2, 2), (1, 1))
 
     def run(
@@ -394,6 +406,8 @@ class StringMatchStep(Step[StepSocket]):
 
 
 class ObjectAccessStep(Step[StepSocket]):
+    type: Literal[StepType.OBJECT_ACCESS]
+
     required_data_io: ClassVar[tuple[Range, Range]] = ((1, 1), (1, 1))
 
     key: str
@@ -449,6 +463,8 @@ CALL_FUNCTION_UNSAFE_FUNC_ID: Final[str] = "__call_function_unsafe"
 
 
 class PyRunFunctionStep(Step[PyRunFunctionSocket]):
+    type: Literal[StepType.PY_RUN_FUNCTION]
+
     required_data_io: ClassVar[tuple[Range, Range]] = ((1, -1), (1, 4))
 
     # If function_identifier is None, we just run the module. Result doesn't make sense in this scenario.
@@ -569,6 +585,8 @@ class PyRunFunctionStep(Step[PyRunFunctionSocket]):
 
 
 class LoopStep(Step[StepSocket]):
+    type: Literal[StepType.LOOP]
+
     _pred_socket_alias: ClassVar[str] = "CONTROL.IN.PREDICATE"
     _body_socket_alias: ClassVar[str] = "CONTROL.OUT.BODY"
 
@@ -599,6 +617,8 @@ class LoopStep(Step[StepSocket]):
 
 
 class IfElseStep(Step[StepSocket]):
+    type: Literal[StepType.IF_ELSE]
+
     _pred_socket_alias: ClassVar[str] = "DATA.IN.PREDICATE"
     _if_socket_alias: ClassVar[str] = "CONTROL.OUT.IF"
     _else_socket_alias: ClassVar[str] = "CONTROL.OUT.ELSE"
@@ -628,17 +648,19 @@ class IfElseStep(Step[StepSocket]):
 
 
 StepClasses = (
-    OutputStep
-    | InputStep
+    InputStep
+    | OutputStep
     | PyRunFunctionStep
-    | LoopStep
-    | IfElseStep
     | StringMatchStep
     | ObjectAccessStep
+    | LoopStep
+    | IfElseStep
 )
 
 
 class ComputeGraph(Graph[StepClasses, GraphEdge[str]]):  # type: ignore
+    nodes: Sequence[Annotated[StepClasses, Field(discriminator="type")]]
+
     VAR_PREFIX: ClassVar[str] = "var_"
 
     _var_node_id_gen = PrivateAttr(default=count())

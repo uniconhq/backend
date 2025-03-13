@@ -21,7 +21,10 @@ class UserInput(BaseModel):
     value: Any
 
 
-Task = ProgrammingTask | MultipleChoiceTask | MultipleResponseTask | ShortAnswerTask
+Task = Annotated[
+    ProgrammingTask | MultipleChoiceTask | MultipleResponseTask | ShortAnswerTask,
+    Field(discriminator="type"),
+]
 
 
 class Problem(CustomSQLModel):
@@ -33,7 +36,7 @@ class Problem(CustomSQLModel):
     published: bool = Field(default=False)
     description: str
     supporting_files: list[FileORM] = Field(default_factory=list)
-    tasks: list[Annotated[Task, Field(discriminator="type")]]
+    tasks: list[Task]
     started_at: datetime
     ended_at: datetime | None = Field(default=None)
     closed_at: datetime | None = Field(default=None)
@@ -46,9 +49,7 @@ class Problem(CustomSQLModel):
         # NOTE: It is safe to ignore type checking here because the type of task is determined by the "type" field
         # As long as the "type" field is set correctly, the type of task will be inferred correctly
         task = self.task_index[task_id]
-        return task.run(
-            task.validate_user_input(input),  # type: ignore
-        )
+        return task.run(task.validate_user_input(input))  # type: ignore
 
     def run(
         self,
