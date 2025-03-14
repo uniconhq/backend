@@ -48,12 +48,15 @@ class OrganisationUpdate(OrganisationBase):
 
 class OrganisationPublic(OrganisationBase):
     id: int
+
+
+class OrganisationPublicWithAllPermissions(OrganisationPublic):
     edit: bool
     edit_roles: bool
     delete: bool
 
 
-class OrganisationPublicWithProjects(OrganisationPublic):
+class OrganisationPublicWithProjects(OrganisationPublicWithAllPermissions):
     projects: list["ProjectPublic"]
 
 
