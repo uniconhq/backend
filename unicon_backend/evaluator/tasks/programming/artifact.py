@@ -4,7 +4,7 @@ from typing import Annotated, cast
 from pydantic import BaseModel, Field, model_validator
 
 from unicon_backend.constants import MINIO_BUCKET
-from unicon_backend.lib.file import get_file_size
+from unicon_backend.lib.file import BYTES_IN_KB, get_file_size
 
 PrimitiveData = str | int | float | bool
 
@@ -47,6 +47,6 @@ class File(BaseModel):
     @property
     def size_in_kb(self) -> float:
         if self.on_minio:
-            return get_file_size(MINIO_BUCKET, cast(str, self.key)) / 1024
+            return get_file_size(MINIO_BUCKET, cast(str, self.key)) / BYTES_IN_KB
         else:
-            return len(self.content.encode("utf-8")) / 1024
+            return len(self.content.encode("utf-8")) / BYTES_IN_KB
