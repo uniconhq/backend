@@ -168,7 +168,7 @@ class TaskORM(CustomSQLModel, table=True):
                 "max_attempts": self.max_attempts,
                 "updated_version_id": self.updated_version_id,
                 **self.other_fields,
-            }
+            },
         )
 
 
