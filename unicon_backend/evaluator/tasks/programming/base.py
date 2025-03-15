@@ -167,6 +167,7 @@ class ProgrammingTask(Task[list[RequiredInput], JobId]):
                                 id=str(uuid4()),
                                 path="__entrypoint.py",
                                 content=assembled_program.code,
+                                size_limit=0,
                             )
                         ),
                     ],
@@ -178,20 +179,33 @@ class ProgrammingTask(Task[list[RequiredInput], JobId]):
 
         return TaskEvalResult(task_id=self.id, status=TaskEvalStatus.PENDING, result=runner_job.id)
 
-    def validate_user_input(self, user_input: Any) -> list[RequiredInput]:
-        if type(user_input) is not list:
+    def validate_user_input(self, user_inputs: Any) -> list[RequiredInput]:
+        if type(user_inputs) is not list:
             raise ValueError("User input must be a list of required inputs")
 
-        # insert the path back into the File object
-        id_to_path = {
-            file.id: file.data.path for file in self.required_inputs if isinstance(file.data, File)
-        }
-        id_to_file_id = {
-            file.id: file.data.id for file in self.required_inputs if isinstance(file.data, File)
-        }
-        for required_input in user_input:
-            if required_input["id"] in id_to_path:
-                required_input["data"]["path"] = id_to_path[required_input["id"]]
-                required_input["data"]["id"] = id_to_file_id[required_input["id"]]
+        parsed_user_inputs = RootModel[list[RequiredInput]].model_validate(user_inputs).root
 
-        return RootModel[list[RequiredInput]].model_validate(user_input).root
+        # insert the path back into the File object
+        id_to_file = {
+            file.id: file.data for file in self.required_inputs if isinstance(file.data, File)
+        }
+
+        for user_input in parsed_user_inputs:
+            if user_input.id not in id_to_file:
+                continue
+
+            if not isinstance(user_input.data, File):
+                raise ValueError(f"Expected File for input {user_input.id}")
+
+            user_file = user_input.data
+            task_file = id_to_file[user_input.id]
+            user_file.path = task_file.path
+            user_file.id = task_file.id
+
+            # if the size_limit != 0, enforce it
+            if task_file.size_limit and task_file.size_limit < user_input.data.size_in_kb:
+                raise ValueError(
+                    f"File {task_file.path} exceeds size limit. ({task_file.size_limit} KB)"
+                )
+
+        return parsed_user_inputs

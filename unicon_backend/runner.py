@@ -102,11 +102,19 @@ class RunnerFile(File):
     @classmethod
     def from_file(cls, file: File) -> "RunnerFile":
         if not file.on_minio or not file.key:
-            return RunnerFile(id=file.id, path=file.path, content=file.content, is_binary=False)
+            return RunnerFile(
+                id=file.id,
+                path=file.path,
+                content=file.content,
+                is_binary=False,
+                size_limit=file.size_limit,
+            )
 
         file_bytes = download_file(MINIO_BUCKET, file.key)
         encoded = base64.b64encode(file_bytes).decode("ascii")
-        return RunnerFile(id=file.id, path=file.path, content=encoded, is_binary=True)
+        return RunnerFile(
+            id=file.id, path=file.path, content=encoded, is_binary=True, size_limit=file.size_limit
+        )
 
 
 class RunnerProgram(BaseModel):

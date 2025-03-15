@@ -1,6 +1,10 @@
 from pathlib import Path
+from typing import Annotated, cast
 
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel, Field, model_validator
+
+from unicon_backend.constants import MINIO_BUCKET
+from unicon_backend.lib.file import BYTES_IN_KB, get_file_size
 
 PrimitiveData = str | int | float | bool
 
@@ -12,6 +16,9 @@ class File(BaseModel):
 
     on_minio: bool = False
     key: str | None = None
+
+    # File size in KB. if 0, no limit
+    size_limit: Annotated[int, Field(default=0, min=0)]
 
     trusted: bool = False
 
@@ -36,3 +43,10 @@ class File(BaseModel):
             if not v.key:
                 raise ValueError("Key should be present for minio files")
         return v
+
+    @property
+    def size_in_kb(self) -> float:
+        if self.on_minio:
+            return get_file_size(MINIO_BUCKET, cast(str, self.key)) / BYTES_IN_KB
+        else:
+            return len(self.content.encode("utf-8")) / BYTES_IN_KB
