@@ -1,6 +1,7 @@
 from pathlib import Path
+from typing import Annotated
 
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel, Field, model_validator
 
 PrimitiveData = str | int | float | bool
 
@@ -12,6 +13,9 @@ class File(BaseModel):
 
     on_minio: bool = False
     key: str | None = None
+
+    # File size in MB. if 0, no limit
+    size_limit: Annotated[int, Field(default=0, min=0)]
 
     trusted: bool = False
 
