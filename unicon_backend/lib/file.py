@@ -13,6 +13,8 @@ logger = logging.getLogger(__name__)
 
 _client = Minio(MINIO_HOST, access_key=MINIO_ACCESS_KEY, secret_key=MINIO_SECRET_KEY, secure=False)
 
+BYTES_IN_KB = 1024
+
 
 async def upload_fastapi_file(file: UploadFile) -> str:
     """
@@ -80,3 +82,10 @@ def download_file(bucket_name: str, object_name: str) -> bytes:
     response.close()
     response.release_conn()
     return data
+
+
+def get_file_size(bucket_name: str, object_name: str) -> int:
+    size = _client.stat_object(bucket_name, object_name).size
+    if size is None:
+        raise ValueError("Size of the file is None")
+    return size

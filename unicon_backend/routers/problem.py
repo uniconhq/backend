@@ -357,7 +357,11 @@ def submit_problem_task_attempt(
         other_fields={"user_input": user_input.value},
     )
 
-    task_result: TaskEvalResult = problem.run_task(task_id, user_input.value)
+    try:
+        task_result: TaskEvalResult = problem.run_task(task_id, user_input.value)
+    except ValueError as e:
+        raise HTTPException(status_code=HTTPStatus.BAD_REQUEST, detail=str(e)) from e
+
     task_result_orm: TaskResultORM = TaskResultORM.from_task_eval_result(
         task_result, attempt_id=task_attempt_orm.id, task_type=task_type
     )
