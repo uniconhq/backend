@@ -49,6 +49,8 @@ entity project {
     action create_problems = org.edit or create_problems_access
     
     action view = view_restricted_problems or view_unrestricted_problems
+    action edit = org.edit
+    action delete = org.edit
 
     action view_restricted_problems = org.view or view_restricted_problems_access
     action view_unrestricted_problems = view_restricted_problems or view_problems_access 
