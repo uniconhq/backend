@@ -30,8 +30,11 @@ class IORedirect:
 
 def __exec_func(module_name: str, func_name: str, *args, **kwargs):
     module = importlib.import_module(module_name)
-    func = getattr(module, func_name)
-    return func(*args, **kwargs)
+    parts = func_name.split(".")
+    attr = module
+    for part in parts:
+        attr = getattr(attr, part)
+    return attr(*args, **kwargs)  # type: ignore
 
 
 def __exec_module(file_name: str, **globals):
