@@ -95,7 +95,7 @@ def get_project(
     return result
 
 
-@router.put("/{id}", summary="Update a project", response_model=ProjectPublic)
+@router.put("/{id}", summary="Update a project")
 def update_project(
     db_session: Annotated[Session, Depends(get_db_session)],
     update_data: ProjectUpdate,
@@ -109,7 +109,24 @@ def update_project(
     db_session.commit()
     db_session.refresh(project)
 
-    return project
+    return
+
+
+@router.delete("/{id}", summary="Delete a project")
+def delete_project(
+    id: int,
+    db_session: Annotated[Session, Depends(get_db_session)],
+    user: Annotated[UserORM, Depends(get_current_user)],
+):
+    project = db_session.get(Project, id)
+    if not project:
+        raise HTTPException(HTTPStatus.NOT_FOUND, "Project not found")
+    if not permission_check(project, "delete", user):
+        raise HTTPException(HTTPStatus.FORBIDDEN, "Permission denied")
+
+    db_session.delete(project)
+    db_session.commit()
+    return
 
 
 @router.get(

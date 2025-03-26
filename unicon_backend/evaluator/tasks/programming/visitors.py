@@ -42,20 +42,22 @@ class TypingCollector(cst.CSTVisitor):
 
     def visit_ClassDef(self, node: cst.ClassDef):
         self.stack.append(node.name.value)
-        return False
 
     def leave_ClassDef(self, _: cst.ClassDef) -> None:
         self.stack.pop()
 
     def visit_FunctionDef(self, node: cst.FunctionDef) -> bool | None:
         function_name = node.name.value
-        is_method = len(self.stack) > 0
         self.stack.append(function_name)
+
+        # NOTE: Assume that if the function definition is nested, it is a class method
+        # We can safey do this since we do not support nested function definitions (e.g. function inside a function)
+        is_class_init_method = len(self.stack) > 0 and function_name == "__init__"
 
         name = ".".join(
             [n for n in self.stack][:-1]
             # If it's a Class's __init__ method, use the Class directly as the function name
-            + ([function_name] if not is_method or function_name != "__init__" else [])
+            + ([function_name] if not is_class_init_method else [])
         )
 
         # Remove any past declaration of the function, since this would overwrite it
@@ -72,7 +74,9 @@ class TypingCollector(cst.CSTVisitor):
                             "type": get_type_annotation(param.annotation),
                         }
                     )
-                    for param in node.params.params
+                    for param in (
+                        node.params.params if not is_class_init_method else node.params.params[1:]
+                    )
                 ],
                 kwargs=[
                     Arg.model_validate(
