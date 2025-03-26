@@ -195,7 +195,7 @@
               "from_node_id": "__PY_RUN_IS_GAME_OVER__",
               "from_socket_id": "__GAME_OVER__",
               "to_node_id": "__LOOP__",
-              "to_socket_id": "__CONTROL_PRED__"
+              "to_socket_id": "__DATA_PRED__"
             },
             {
               "id": "400",
@@ -444,8 +444,7 @@
                   "type": "CONTROL"
                 },
                 {
-                  "id": "__CONTROL_PRED__",
-                  "type": "CONTROL",
+                  "id": "__DATA_PRED__",
                   "label": "PREDICATE"
                 }
               ],
