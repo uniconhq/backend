@@ -53,6 +53,7 @@ class ProblemORM(CustomSQLModel, table=True):
     closed_at: datetime | None = Field(sa_column=_timestamp_column(nullable=True, default=False))
 
     published: bool = Field(default=False, sa_column_kwargs={"server_default": "false"})
+    leaderboard_enabled: bool = Field(default=False, sa_column_kwargs={"server_default": "false"})
 
     project_id: int = Field(foreign_key="project.id")
 
@@ -129,6 +130,8 @@ class TaskORM(CustomSQLModel, table=True):
     )
 
     max_attempts: int | None = Field(nullable=True, default=None)
+
+    min_score_to_pass: int | None = Field(nullable=True, default=None)
 
     @classmethod
     def from_task(cls, task: "Task") -> "TaskORM":
