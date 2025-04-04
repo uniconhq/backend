@@ -129,6 +129,10 @@ class ProgrammingTask(Task[list[RequiredInput], JobId]):
     testcases: list[Testcase]
     files: list[File]
 
+    @property
+    def max_score(self) -> int:
+        return sum(testcase.score for testcase in self.testcases)
+
     def redact_private_fields(self):
         self.testcases = [testcase for testcase in self.testcases if not testcase.is_private]
         self.files = []

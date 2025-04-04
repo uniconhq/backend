@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 from http import HTTPStatus
 from itertools import groupby
 from typing import TYPE_CHECKING, Annotated, cast
@@ -32,7 +32,7 @@ from unicon_backend.models import (
     SubmissionORM,
     TaskResultORM,
 )
-from unicon_backend.models.file import FileORM
+from unicon_backend.models.file import SGT, FileORM
 from unicon_backend.models.links import GroupMember
 from unicon_backend.models.problem import (
     SubmissionPublic,
@@ -44,6 +44,7 @@ from unicon_backend.models.problem import (
 from unicon_backend.models.user import UserORM
 from unicon_backend.runner import PythonVersion, Status
 from unicon_backend.schemas.problem import (
+    Leaderboard,
     LeaderboardUser,
     LeaderboardUserTaskResult,
     ParseRequest,
@@ -84,7 +85,6 @@ def get_problem(
 
 
 def calculate_score(task: ProgrammingTask, attempt: TaskAttemptORM):
-    """Similar to codeforces, attempts that are after the attempt with maximum score do not count to the attempt total."""
     result = attempt.task_results[-1]
     id_to_testcase = {testcase.id: testcase for testcase in task.testcases}
     score = 0
@@ -99,7 +99,7 @@ def calculate_score(task: ProgrammingTask, attempt: TaskAttemptORM):
 @router.get(
     "/{id}/leaderboard",
     summary="Get leaderboard for a problem",
-    response_model=list[LeaderboardUser],
+    response_model=Leaderboard,
 )
 def get_problem_leaderboard(
     problem_orm: Annotated[ProblemORM, Depends(get_problem_by_id)],
@@ -139,10 +139,10 @@ def get_problem_leaderboard(
     for user_id, user_attempts_iter in groupby(task_attempts, lambda attempt: attempt.user_id):
         user_result: list[LeaderboardUserTaskResult] = []
         user_attempts = list(user_attempts_iter)
-        username = task_attempts[0].user.username
+        username = user_attempts[0].user.username
         for task_id, task_attempts_iter in groupby(user_attempts, lambda attempt: attempt.task_id):
             task_attempts = list(task_attempts_iter)
-            score, attempts, date = 0, 0, None
+            score, attempts, date = None, 0, None
             task = task_id_to_programming_task[task_id]
             for index, attempt in enumerate(task_attempts):
                 if not attempt.task_results or all(
@@ -151,10 +151,12 @@ def get_problem_leaderboard(
                     continue
 
                 attempt_score = calculate_score(task, attempt)
-                if attempt_score > score:
+                # Similar to codeforces, attempts that are after the attempt with maximum score do not count to the attempt total.
+                if score is None or attempt_score > score:
                     score = attempt_score
                     attempts = index + 1
                     date = attempt.submitted_at
+            score = score if score is not None else 0
 
             user_result.append(
                 LeaderboardUserTaskResult(
@@ -162,30 +164,52 @@ def get_problem_leaderboard(
                     score=score,
                     attempts=attempts,
                     latest_attempt_date=date,
-                    passed=task.min_score_to_pass <= score if task.min_score_to_pass else True,
+                    passed=(
+                        task.min_score_to_pass
+                        if task.min_score_to_pass is not None
+                        else task.max_score
+                    )
+                    <= score,
                 )
             )
+        missing_task_ids = set(task_id_to_programming_task.keys()) - set(
+            task_attempt.task_id for task_attempt in user_attempts
+        )
+        for task_id in missing_task_ids:
+            user_result.append(
+                LeaderboardUserTaskResult(
+                    task_id=task_id,
+                    score=0,
+                    attempts=0,
+                    passed=False,
+                )
+            )
+
+        user_result.sort(key=lambda result: result.task_id)
 
         leaderboard.append(
             LeaderboardUser(
                 id=user_id,
                 username=username,
                 task_results=user_result,
+                solved=sum(result.passed for result in user_result),
             )
         )
 
-    # 3 . Sort by score, then by attempts, then by datetime, then by username
+    # 3. Sort by total tasks solved, total points earned, then by datetime, then username
+    min_datetime = datetime.min.replace(tzinfo=UTC).astimezone(SGT)
     leaderboard.sort(
         key=lambda user_result: (
+            -user_result.solved,
             -sum(result.score for result in user_result.task_results),
-            sum(result.attempts for result in user_result.task_results),
             max(
-                (result.latest_attempt_date or datetime.min for result in user_result.task_results),
-                default=datetime.min,
+                (result.latest_attempt_date or min_datetime for result in user_result.task_results),
+                default=min_datetime,
             ),
+            user_result.username,
         ),
     )
-    return leaderboard
+    return Leaderboard(tasks=list(task_id_to_programming_task.values()), results=leaderboard)
 
 
 @router.post("/{id}/tasks", summary="Add a task to a problem")

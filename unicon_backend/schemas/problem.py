@@ -3,6 +3,7 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict
 
 from unicon_backend.evaluator.problem import Problem, Task
+from unicon_backend.evaluator.tasks.programming.base import ProgrammingTask
 
 
 class MiniProblemPublic(BaseModel):
@@ -50,10 +51,11 @@ class LeaderboardUser(BaseModel):
     id: int
     username: str
     task_results: list[LeaderboardUserTaskResult]
+    solved: int
 
 
 class Leaderboard(BaseModel):
-    tasks: list[Task]
+    tasks: list[ProgrammingTask]
     results: list[LeaderboardUser]
 
 
