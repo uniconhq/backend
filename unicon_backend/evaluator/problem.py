@@ -34,6 +34,7 @@ class Problem(CustomSQLModel):
     name: str
     restricted: bool
     published: bool = Field(default=False)
+    leaderboard_enabled: bool = Field(default=False)
     description: str
     supporting_files: list[FileORM] = Field(default_factory=list)
     tasks: list[Task]

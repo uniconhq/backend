@@ -8,7 +8,7 @@ from unicon_backend.models.links import GroupMember, UserRole
 
 if TYPE_CHECKING:
     from unicon_backend.models.organisation import Organisation, OrganisationMember, Role
-    from unicon_backend.models.problem import SubmissionORM
+    from unicon_backend.models.problem import SubmissionORM, TaskAttemptORM
 
 
 class UserORM(CustomSQLModel, table=True):
@@ -25,3 +25,4 @@ class UserORM(CustomSQLModel, table=True):
     submissions: sa_orm.Mapped[list["SubmissionORM"]] = Relationship(back_populates="user")
 
     group_members: sa_orm.Mapped[list["GroupMember"]] = Relationship(back_populates="user")
+    task_attempts: sa_orm.Mapped[list["TaskAttemptORM"]] = Relationship(back_populates="user")

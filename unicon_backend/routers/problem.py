@@ -1,7 +1,10 @@
+from datetime import UTC, datetime
 from http import HTTPStatus
-from typing import TYPE_CHECKING, Annotated
+from itertools import groupby
+from typing import TYPE_CHECKING, Annotated, cast
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
+from pydantic import RootModel
 from sqlalchemy.orm import selectinload
 from sqlmodel import Session, col, func, select
 
@@ -14,6 +17,7 @@ from unicon_backend.dependencies.problem import (
 )
 from unicon_backend.evaluator.problem import Problem, Task, UserInput
 from unicon_backend.evaluator.tasks.base import TaskType
+from unicon_backend.evaluator.tasks.programming.base import ProgrammingTask, TestcaseResult
 from unicon_backend.evaluator.tasks.programming.visitors import ParsedFunction
 from unicon_backend.lib.file import delete_file, upload_fastapi_file
 from unicon_backend.lib.permissions import (
@@ -28,7 +32,7 @@ from unicon_backend.models import (
     SubmissionORM,
     TaskResultORM,
 )
-from unicon_backend.models.file import FileORM
+from unicon_backend.models.file import SGT, FileORM
 from unicon_backend.models.links import GroupMember
 from unicon_backend.models.problem import (
     SubmissionPublic,
@@ -38,8 +42,11 @@ from unicon_backend.models.problem import (
     TaskORM,
 )
 from unicon_backend.models.user import UserORM
-from unicon_backend.runner import PythonVersion
+from unicon_backend.runner import PythonVersion, Status
 from unicon_backend.schemas.problem import (
+    Leaderboard,
+    LeaderboardUser,
+    LeaderboardUserTaskResult,
     ParseRequest,
     ProblemPublic,
     ProblemUpdate,
@@ -75,6 +82,134 @@ def get_problem(
         # Set autoflush of the db_session to false if we ever do that.
         problem.redact_private_fields()
     return ProblemPublic.model_validate(problem, update=permissions)
+
+
+def calculate_score(task: ProgrammingTask, attempt: TaskAttemptORM):
+    result = attempt.task_results[-1]
+    id_to_testcase = {testcase.id: testcase for testcase in task.testcases}
+    score = 0
+    testcase_results = RootModel[list[TestcaseResult]].model_validate(result.result).root
+    for testcase_result in testcase_results:
+        if testcase_result.status == Status.OK:
+            testcase_score = id_to_testcase[testcase_result.id].score
+            score += testcase_score
+    return score
+
+
+@router.get(
+    "/{id}/leaderboard",
+    summary="Get leaderboard for a problem",
+    response_model=Leaderboard,
+)
+def get_problem_leaderboard(
+    problem_orm: Annotated[ProblemORM, Depends(get_problem_by_id)],
+    db_session: Annotated[Session, Depends(get_db_session)],
+    user: Annotated[UserORM, Depends(get_current_user)],
+):
+    if not permission_check(problem_orm, "view", user):
+        raise HTTPException(
+            status_code=HTTPStatus.FORBIDDEN,
+            detail="User does not have permission to view problem",
+        )
+
+    if not problem_orm.leaderboard_enabled:
+        raise HTTPException(
+            status_code=HTTPStatus.FORBIDDEN,
+            detail="Leaderboard is not enabled for this problem",
+        )
+
+    # 1. Query all attempts
+    tasks = problem_orm.tasks
+    task_ids = [task.id for task in tasks if task.type == TaskType.PROGRAMMING]
+    task_id_to_programming_task = {
+        task.id: cast(ProgrammingTask, task.to_task())
+        for task in tasks
+        if task.type == TaskType.PROGRAMMING
+    }
+    task_attempts = db_session.scalars(
+        select(TaskAttemptORM)
+        .where(TaskAttemptORM.problem_id == problem_orm.id)
+        .where(col(TaskAttemptORM.task_id).in_(task_ids))
+        .options(selectinload(TaskAttemptORM.task_results), selectinload(TaskAttemptORM.user))
+        .order_by(col(TaskAttemptORM.user_id), col(TaskAttemptORM.task_id), col(TaskAttemptORM.id))
+    ).all()
+
+    # 2. Tally score per user per task (score, attempts, datetime of last included attempt)
+    leaderboard: list[LeaderboardUser] = []
+    for user_id, user_attempts_iter in groupby(task_attempts, lambda attempt: attempt.user_id):
+        user_result: list[LeaderboardUserTaskResult] = []
+        user_attempts = list(user_attempts_iter)
+        username = user_attempts[0].user.username
+        for task_id, task_attempts_iter in groupby(user_attempts, lambda attempt: attempt.task_id):
+            task_attempts = list(task_attempts_iter)
+            score, attempts, date = None, 0, None
+            task = task_id_to_programming_task[task_id]
+            for index, attempt in enumerate(task_attempts):
+                if not attempt.task_results or all(
+                    result.status != "SUCCESS" for result in attempt.task_results
+                ):
+                    continue
+
+                attempt_score = calculate_score(task, attempt)
+                # Similar to codeforces, attempts that are after the attempt with maximum score do not count to the attempt total.
+                if score is None or attempt_score > score:
+                    score = attempt_score
+                    attempts = index + 1
+                    date = attempt.submitted_at
+            score = score if score is not None else 0
+
+            user_result.append(
+                LeaderboardUserTaskResult(
+                    task_id=task_id,
+                    score=score,
+                    attempts=attempts,
+                    latest_attempt_date=date,
+                    passed=(
+                        task.min_score_to_pass
+                        if task.min_score_to_pass is not None
+                        else task.max_score
+                    )
+                    <= score,
+                )
+            )
+        missing_task_ids = set(task_id_to_programming_task.keys()) - set(
+            task_attempt.task_id for task_attempt in user_attempts
+        )
+        for task_id in missing_task_ids:
+            user_result.append(
+                LeaderboardUserTaskResult(
+                    task_id=task_id,
+                    score=0,
+                    attempts=0,
+                    passed=False,
+                )
+            )
+
+        user_result.sort(key=lambda result: result.task_id)
+
+        leaderboard.append(
+            LeaderboardUser(
+                id=user_id,
+                username=username,
+                task_results=user_result,
+                solved=sum(result.passed for result in user_result),
+            )
+        )
+
+    # 3. Sort by total tasks solved, total points earned, then by datetime, then username
+    min_datetime = datetime.min.replace(tzinfo=UTC).astimezone(SGT)
+    leaderboard.sort(
+        key=lambda user_result: (
+            -user_result.solved,
+            -sum(result.score for result in user_result.task_results),
+            max(
+                (result.latest_attempt_date or min_datetime for result in user_result.task_results),
+                default=min_datetime,
+            ),
+            user_result.username,
+        ),
+    )
+    return Leaderboard(tasks=list(task_id_to_programming_task.values()), results=leaderboard)
 
 
 @router.post("/{id}/tasks", summary="Add a task to a problem")
@@ -192,6 +327,7 @@ def update_problem(
     existing_problem_orm.started_at = new_problem.started_at
     existing_problem_orm.ended_at = new_problem.ended_at
     existing_problem_orm.closed_at = new_problem.closed_at
+    existing_problem_orm.leaderboard_enabled = new_problem.leaderboard_enabled
 
     # Update task order
     if not set(task_order.id for task_order in new_problem.task_order) == set(
