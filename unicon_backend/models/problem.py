@@ -85,6 +85,7 @@ class ProblemORM(CustomSQLModel, table=True):
             description=problem.description,
             tasks=tasks_orm,
             restricted=problem.restricted,
+            leaderboard_enabled=problem.leaderboard_enabled,
             published=problem.published,
             started_at=problem.started_at,
             ended_at=problem.ended_at,
@@ -96,6 +97,7 @@ class ProblemORM(CustomSQLModel, table=True):
             {
                 "id": self.id,
                 "restricted": self.restricted,
+                "leaderboard_enabled": self.leaderboard_enabled,
                 "name": self.name,
                 "description": self.description,
                 "tasks": [task_orm.to_task() for task_orm in self.tasks],
@@ -143,6 +145,7 @@ class TaskORM(CustomSQLModel, table=True):
             autograde: bool,
             order_index: int,
             max_attempts: int | None,
+            min_score_to_pass: int | None,
             **other_fields,
         ):
             return TaskORM(
@@ -153,6 +156,7 @@ class TaskORM(CustomSQLModel, table=True):
                 autograde=autograde,
                 order_index=order_index,
                 max_attempts=max_attempts,
+                min_score_to_pass=min_score_to_pass,
                 other_fields=other_fields,
             )
 
@@ -170,6 +174,7 @@ class TaskORM(CustomSQLModel, table=True):
                 "problem_id": self.problem_id,
                 "max_attempts": self.max_attempts,
                 "updated_version_id": self.updated_version_id,
+                "min_score_to_pass": self.min_score_to_pass,
                 **self.other_fields,
             },
         )
@@ -252,6 +257,7 @@ class TaskAttemptORM(CustomSQLModel, table=True):
     task_results: sa_orm.Mapped[list["TaskResultORM"]] = Relationship(
         back_populates="task_attempt", cascade_delete=True
     )
+    user: sa_orm.Mapped["UserORM"] = Relationship(back_populates="task_attempts")
 
     def clone(self, new_task_id: int) -> "TaskAttemptORM":
         return TaskAttemptORM(

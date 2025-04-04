@@ -37,6 +37,7 @@ class Task(BaseModel, abc.ABC, Generic[TaskUserInput, TaskResult]):
     autograde: bool = True
     order_index: int
     max_attempts: int | None = None
+    min_score_to_pass: int | None = None
 
     @abc.abstractmethod
     def run(self, user_input: TaskUserInput) -> TaskEvalResult[TaskResult]:

@@ -58,7 +58,7 @@ class Testcase(ComputeGraph):
     name: str = Field(default="")
 
     # Awarded score for getting AC on this testcase
-    score: int = Field(default=0)
+    score: int = Field(default=1)
 
     # if is_private is set to True, the testcase will not be shown to the user
     # so the value of this won't matter
