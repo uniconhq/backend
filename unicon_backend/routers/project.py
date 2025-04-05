@@ -181,6 +181,32 @@ def get_project_users(
     ).all()
 
 
+@router.delete("/{id}/users/{user_id}", summary="Remove user from project")
+def remove_user_from_project(
+    id: int,
+    user_id: int,
+    db_session: Annotated[Session, Depends(get_db_session)],
+    project: Annotated[Project, Depends(get_project_by_id)],
+    user: Annotated[UserORM, Depends(get_current_user)],
+):
+    if user_id != user.id and not permission_check(project, "edit_roles", user):
+        raise HTTPException(HTTPStatus.FORBIDDEN, "Permission denied")
+
+    user_role = db_session.scalar(
+        select(UserRole)
+        .where(col(UserRole.user_id) == user_id)
+        .where(col(UserRole.role_id).in_(select(Role.id).where(Role.project_id == id)))
+    )
+
+    if not user_role:
+        raise HTTPException(HTTPStatus.NOT_FOUND, "User not found in project")
+
+    db_session.delete(user_role)
+    db_session.commit()
+    permission_delete(user_role)
+    return
+
+
 @router.get("/{id}/groups", summary="Get all groups in a project", response_model=list[GroupPublic])
 def get_project_groups(
     id: int,
