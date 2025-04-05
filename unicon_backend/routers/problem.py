@@ -282,7 +282,9 @@ def update_task(
     old_task_orm.updated_version_id = new_task_orm.id
     new_task_orm.order_index = old_task_orm.order_index
     new_task_orm.task_attempts = [
-        task_attempt.clone(new_task_orm.id) for task_attempt in old_task_orm.task_attempts
+        task_attempt.clone(new_task_orm.id)
+        # NOTE: Ensure that the order of task attempts is preserved
+        for task_attempt in sorted(old_task_orm.task_attempts, key=lambda attempt: attempt.id)
     ]
 
     # If code below this throws an error, ensure that the old task will at least be hidden
