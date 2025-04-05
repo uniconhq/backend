@@ -122,7 +122,7 @@ def get_problem_leaderboard(
     tasks = problem_orm.tasks
     task_ids = [task.id for task in tasks if task.type == TaskType.PROGRAMMING]
     task_id_to_programming_task = {
-        task.id: cast(ProgrammingTask, task.to_task())
+        task.id: cast("ProgrammingTask", task.to_task())
         for task in tasks
         if task.type == TaskType.PROGRAMMING
     }

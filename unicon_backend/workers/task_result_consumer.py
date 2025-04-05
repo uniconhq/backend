@@ -58,7 +58,7 @@ class TaskResultsConsumer(AsyncMQConsumer):
                 # NOTE: For now, we just ignore it and ACK accordingly
                 return AsyncMQConsumeMessageResult(success=True, requeue=False)
 
-            task = cast(ProgrammingTask, task_result_db.task_attempt.task.to_task())
+            task = cast("ProgrammingTask", task_result_db.task_attempt.task.to_task())
             testcases: list[Testcase] = sorted(task.testcases, key=attrgetter("order_index"))
             eval_results: list[ProgramResult] = sorted(
                 response.results, key=attrgetter("order_index")

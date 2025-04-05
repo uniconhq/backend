@@ -260,7 +260,7 @@ class InputStep(Step[InputSocket]):
             program.append(
                 cst.Assign(
                     targets=[cst.AssignTarget(graph.get_link_var(self, socket))],
-                    value=_parse(cast(PrimitiveData, socket.data)),
+                    value=_parse(cast("PrimitiveData", socket.data)),
                 )
             )
 
@@ -271,7 +271,7 @@ class InputStep(Step[InputSocket]):
                     value=_parse(
                         # The prepended `src/` is the directory unicon-runner would create the file in.
                         # This is necessary because the working directory is the folder containing `src/`
-                        "src/" + cast(File, socket.data).path,
+                        "src/" + cast("File", socket.data).path,
                     ),
                 )
             )
@@ -382,7 +382,7 @@ class StringMatchStep(Step[StepSocket]):
             assert not isinstance(s.data, File)  # TODO: More robust validation for data type
             if ret_expr := in_vars.get(
                 s.id,
-                cst_expr(cast(PrimitiveData, s.data))
+                cst_expr(cast("PrimitiveData", s.data))
                 if isinstance(s.data, str | bool | int | float)
                 else None,
             ):
@@ -492,7 +492,7 @@ class PyRunFunctionStep(Step[PyRunFunctionSocket]):
     def args(self) -> Sequence[PyRunFunctionSocket]:
         return sorted(
             [socket for socket in self.data_in if socket.arg_metadata],
-            key=lambda s: cast(ArgMetadata, s.arg_metadata).position,
+            key=lambda s: cast("ArgMetadata", s.arg_metadata).position,
         )
 
     @property
@@ -528,7 +528,7 @@ class PyRunFunctionStep(Step[PyRunFunctionSocket]):
         module_name = module_file.path.split(".py")[0].replace("/", ".")
 
         args = [cst.Arg(get_param_expr(s)) for s in self.args if has_data(s)]
-        kwargs = [cst.Arg(get_param_expr(s), keyword=cst_var(cast(str, s.kwarg_name))) for s in self.kwargs if has_data(s)]  # fmt: skip
+        kwargs = [cst.Arg(get_param_expr(s), keyword=cst_var(cast("str", s.kwarg_name))) for s in self.kwargs if has_data(s)]  # fmt: skip
 
         out_var = next(
             (

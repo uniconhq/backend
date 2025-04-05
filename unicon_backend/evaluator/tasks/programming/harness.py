@@ -24,7 +24,7 @@ def mpi_sandbox(program: cst.Module) -> cst.Module:
     `if __name__ == "__main__":` block.
     """
     sandbox_preamble = MPI_SANDBOX_MODULE.body[:-1]
-    main_block = cast(cst.If, MPI_SANDBOX_MODULE.body[-1])
+    main_block = cast("cst.If", MPI_SANDBOX_MODULE.body[-1])
     updated_main_block = main_block.with_changes(
         body=main_block.body.with_changes(
             body=[*main_block.body.body, cst.Newline(), *program.body]

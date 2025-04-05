@@ -278,7 +278,7 @@ class TaskAttemptORM(CustomSQLModel, table=True):
         if self.task_type != TaskType.PROGRAMMING:
             return False
 
-        task = cast(ProgrammingTask, self.task.to_task())
+        task = cast("ProgrammingTask", self.task.to_task())
         testcase_id_to_testcase_map = {testcase.id: testcase for testcase in task.testcases}
         filtered_results: list[TaskResultORM] = []
 
@@ -305,7 +305,7 @@ class TaskAttemptORM(CustomSQLModel, table=True):
             ):
                 has_failure = True
 
-            parsedResult.result = cast(list[TestcaseResult], public_tcs)
+            parsedResult.result = cast("list[TestcaseResult]", public_tcs)
 
             # Second pass: if the output socket is private, redact the output socket
             def _is_private_output_socket(socket: SocketResult, testcase: Testcase) -> bool:
@@ -336,7 +336,7 @@ class TaskAttemptORM(CustomSQLModel, table=True):
                 if any(not socketResult.correct for socketResult in private_sockets):
                     has_failure = True
 
-                testcaseResult.results = cast(list[SocketResult], public_sockets)
+                testcaseResult.results = cast("list[SocketResult]", public_sockets)
 
             # Redact stdout and stderr.
             for testcaseResult in parsedResult.result:
