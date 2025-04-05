@@ -16,6 +16,7 @@ from unicon_backend.lib.permissions import (
     permission_delete,
     permission_list_for_subject,
     permission_lookup,
+    permission_update,
 )
 from unicon_backend.models.links import GroupMember, UserRole
 from unicon_backend.models.organisation import Group, InvitationKey, Project, Role
@@ -35,6 +36,7 @@ from unicon_backend.schemas.organisation import (
     RoleCreate,
     RolePublic,
     RolePublicWithInvitationKeys,
+    UserRoleUpdate,
 )
 
 router = APIRouter(prefix="/projects", tags=["projects"], dependencies=[Depends(get_current_user)])
@@ -181,6 +183,72 @@ def get_project_users(
     ).all()
 
 
+@router.delete("/{id}/users/{user_id}", summary="Remove user from project")
+def remove_user_from_project(
+    id: int,
+    user_id: int,
+    db_session: Annotated[Session, Depends(get_db_session)],
+    project: Annotated[Project, Depends(get_project_by_id)],
+    user: Annotated[UserORM, Depends(get_current_user)],
+):
+    if user_id != user.id and not permission_check(project, "edit_roles", user):
+        raise HTTPException(HTTPStatus.FORBIDDEN, "Permission denied")
+
+    user_role = db_session.scalar(
+        select(UserRole)
+        .where(col(UserRole.user_id) == user_id)
+        .where(col(UserRole.role_id).in_(select(Role.id).where(Role.project_id == id)))
+    )
+
+    if not user_role:
+        raise HTTPException(HTTPStatus.NOT_FOUND, "User not found in project")
+
+    db_session.delete(user_role)
+    db_session.commit()
+    permission_delete(user_role)
+    return
+
+
+@router.patch("/{id}/users", summary="Update users' roles in project")
+def update_users_in_project(
+    id: int,
+    db_session: Annotated[Session, Depends(get_db_session)],
+    project: Annotated[Project, Depends(get_project_by_id)],
+    user: Annotated[UserORM, Depends(get_current_user)],
+    data: list[UserRoleUpdate],
+):
+    if not permission_check(project, "edit_roles", user):
+        raise HTTPException(HTTPStatus.FORBIDDEN, "Permission denied")
+
+    proj_role_ids = set(db_session.scalars(select(Role.id).where(Role.project_id == id)))
+    user_roles = list(
+        db_session.scalars(select(UserRole).where(col(UserRole.role_id).in_(proj_role_ids)))
+    )
+    user_ids_in_proj = set(user_role.user_id for user_role in user_roles)
+
+    if any(
+        update.user_id not in user_ids_in_proj or update.role_id not in proj_role_ids
+        for update in data
+    ):
+        raise HTTPException(
+            HTTPStatus.BAD_REQUEST,
+            "User or role not found in project",
+        )
+
+    user_id_to_user_role = {user_role.user_id: user_role for user_role in user_roles}
+    for update in data:
+        user_role = user_id_to_user_role[update.user_id]
+        if user_role.role_id != update.role_id:
+            old_user_role = user_role.model_copy()
+            user_role.role_id = update.role_id
+            db_session.add(user_role)
+            db_session.commit()
+            db_session.refresh(user_role)
+            permission_update(old_user_role, user_role)
+
+    return
+
+
 @router.get("/{id}/groups", summary="Get all groups in a project", response_model=list[GroupPublic])
 def get_project_groups(
     id: int,
@@ -306,11 +374,6 @@ def join_project(
 
     if role is None:
         raise HTTPException(HTTPStatus.NOT_FOUND, "Invitation key not found")
-
-    if role.project.organisation.owner_id == user.id:
-        raise HTTPException(
-            HTTPStatus.CONFLICT, "Owner cannot join project, they are already owner"
-        )
 
     project_role_ids = [role.id for role in role.project.roles]
     user_role = db_session.exec(
