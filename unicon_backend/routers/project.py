@@ -375,11 +375,6 @@ def join_project(
     if role is None:
         raise HTTPException(HTTPStatus.NOT_FOUND, "Invitation key not found")
 
-    if role.project.organisation.owner_id == user.id:
-        raise HTTPException(
-            HTTPStatus.CONFLICT, "Owner cannot join project, they are already owner"
-        )
-
     project_role_ids = [role.id for role in role.project.roles]
     user_role = db_session.exec(
         select(UserRole).where(
