@@ -196,3 +196,8 @@ class RolePublicWithInvitationKeys(RolePublic):
 
 class InvitationKeyPublic(InvitationKeyBase):
     pass
+
+
+class UserRoleUpdate(CustomSQLModel):
+    user_id: int
+    role_id: int
