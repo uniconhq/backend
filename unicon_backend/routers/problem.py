@@ -545,6 +545,20 @@ def submit_task_attempt(
 ):
     task_attempt = _get_task_attempt(attempt_id, db_session, user)
     task_attempt.marked_for_submission = True
+    # Check if there's a task attempt that is currently marked for submission
+    existing_attempts = db_session.scalars(
+        select(TaskAttemptORM)
+        .where(TaskAttemptORM.id != task_attempt.id)
+        .where(TaskAttemptORM.task_id == task_attempt.task_id)
+        .where(TaskAttemptORM.user_id == user.id)
+        .where(TaskAttemptORM.marked_for_submission == True)
+    ).all()
+
+    if existing_attempts:
+        for existing_attempt in existing_attempts:
+            existing_attempt.marked_for_submission = False
+            db_session.add(existing_attempt)
+
     db_session.add(task_attempt)
     db_session.commit()
 
