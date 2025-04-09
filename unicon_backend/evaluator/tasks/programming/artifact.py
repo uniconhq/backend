@@ -47,6 +47,6 @@ class File(BaseModel):
     @property
     def size_in_kb(self) -> float:
         if self.on_minio:
-            return get_file_size(MINIO_BUCKET, cast(str, self.key)) / BYTES_IN_KB
+            return get_file_size(MINIO_BUCKET, cast("str", self.key)) / BYTES_IN_KB
         else:
             return len(self.content.encode("utf-8")) / BYTES_IN_KB

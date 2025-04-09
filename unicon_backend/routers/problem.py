@@ -122,7 +122,7 @@ def get_problem_leaderboard(
     tasks = problem_orm.tasks
     task_ids = [task.id for task in tasks if task.type == TaskType.PROGRAMMING]
     task_id_to_programming_task = {
-        task.id: cast(ProgrammingTask, task.to_task())
+        task.id: cast("ProgrammingTask", task.to_task())
         for task in tasks
         if task.type == TaskType.PROGRAMMING
     }
@@ -512,15 +512,7 @@ def submit_problem_task_attempt(
     return task_attempt_orm
 
 
-@router.post(
-    "/attempts/{attempt_id}/rerun",
-    summary="Rerun a task attempt",
-)
-def rerun_task_attempt(
-    attempt_id: int,
-    db_session: Annotated[Session, Depends(get_db_session)],
-    user: Annotated[UserORM, Depends(get_current_user)],
-):
+def _get_task_attempt(attempt_id: int, db_session: Session, user: UserORM) -> TaskAttemptORM:
     task_attempt = db_session.scalar(
         select(TaskAttemptORM)
         .where(TaskAttemptORM.id == attempt_id)
@@ -539,8 +531,46 @@ def rerun_task_attempt(
     if task_attempt.user_id != user.id:
         raise HTTPException(
             status_code=HTTPStatus.FORBIDDEN,
-            detail="User does not have permission to rerun task attempt",
+            detail="User does not have permission to access task attempt",
         )
+
+    return task_attempt
+
+
+@router.post("/attempts/{attempt_id}/submit", summary="Mark a task attempt for submission")
+def submit_task_attempt(
+    attempt_id: int,
+    db_session: Annotated[Session, Depends(get_db_session)],
+    user: Annotated[UserORM, Depends(get_current_user)],
+):
+    task_attempt = _get_task_attempt(attempt_id, db_session, user)
+    task_attempt.marked_for_submission = True
+    db_session.add(task_attempt)
+    db_session.commit()
+
+
+@router.post("/attempts/{attempt_id}/unsubmit", summary="Unmark a task attempt for submission")
+def unsubmit_task_attempt(
+    attempt_id: int,
+    db_session: Annotated[Session, Depends(get_db_session)],
+    user: Annotated[UserORM, Depends(get_current_user)],
+):
+    task_attempt = _get_task_attempt(attempt_id, db_session, user)
+    task_attempt.marked_for_submission = False
+    db_session.add(task_attempt)
+    db_session.commit()
+
+
+@router.post(
+    "/attempts/{attempt_id}/rerun",
+    summary="Rerun a task attempt",
+)
+def rerun_task_attempt(
+    attempt_id: int,
+    db_session: Annotated[Session, Depends(get_db_session)],
+    user: Annotated[UserORM, Depends(get_current_user)],
+):
+    task_attempt = _get_task_attempt(attempt_id, db_session, user)
 
     problem: Problem = task_attempt.task.problem.to_problem()
     task_result: TaskEvalResult = problem.run_task(

@@ -73,12 +73,12 @@ class Testcase(ComputeGraph):
 
     @cached_property
     def output_step(self) -> OutputStep:
-        return cast(OutputStep, next(node for node in self.nodes if node.type == StepType.OUTPUT))
+        return cast("OutputStep", next(node for node in self.nodes if node.type == StepType.OUTPUT))
 
     def attach_user_inputs(self, user_inputs: list[RequiredInput]) -> None:
         user_input_step: InputStep | None = None
         for node in filter(lambda node: node.type == StepType.INPUT, self.nodes):
-            if (input_step := cast(InputStep, node)).is_user:
+            if (input_step := cast("InputStep", node)).is_user:
                 user_input_step = input_step
 
         assert user_input_step is not None
@@ -91,7 +91,8 @@ class Testcase(ComputeGraph):
     def redact_private_fields(self) -> None:
         if self.show_node_graph:
             input_steps = cast(
-                list[InputStep], list(filter(lambda node: node.type == StepType.INPUT, self.nodes))
+                "list[InputStep]",
+                list(filter(lambda node: node.type == StepType.INPUT, self.nodes)),
             )
             # We redact private fields of the input and output sockets and the edges pointing to them.
             private_fields = [
