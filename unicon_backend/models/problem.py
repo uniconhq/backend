@@ -217,6 +217,7 @@ class TaskAttemptBase(CustomSQLModel):
     user_id: int
     task_id: int
     task_type: TaskType
+    marked_for_submission: bool
     other_fields: dict
 
 
@@ -243,6 +244,7 @@ class TaskAttemptORM(CustomSQLModel, table=True):
     problem_id: int
 
     submitted_at: datetime = Field(sa_column=_timestamp_column(nullable=False, default=True))
+    marked_for_submission: bool = Field(default=False, sa_column_kwargs={"server_default": "false"})
 
     task_type: TaskType = Field(sa_column=sa.Column(pg.ENUM(TaskType), nullable=False))
 
