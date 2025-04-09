@@ -11,6 +11,7 @@ from unicon_backend.evaluator.tasks.programming.artifact import File, PrimitiveD
 from unicon_backend.evaluator.tasks.programming.harness import gbl_except_hook, mpi_sandbox
 from unicon_backend.evaluator.tasks.programming.steps import (
     ComputeGraph,
+    InputSocket,
     InputStep,
     OutputStep,
     StepType,
@@ -133,9 +134,17 @@ class ProgrammingTask(Task[list[RequiredInput], JobId]):
     def max_score(self) -> int:
         return sum(testcase.score for testcase in self.testcases)
 
-    def redact_private_fields(self):
+    def redact_private_fields(self) -> None:
         self.testcases = [testcase for testcase in self.testcases if not testcase.is_private]
-        self.files = []
+        # show files that are public within testcases
+        redacted_file_ids: set[str] = set()
+        for testcase in self.testcases:
+            for node in filter(lambda node: node.type == StepType.INPUT, testcase.nodes):
+                for output in node.outputs:
+                    if isinstance(output.data, File) and not cast("InputSocket", output).public:
+                        redacted_file_ids.add(output.data.id)
+
+        self.files = [file for file in self.files if file.id not in redacted_file_ids]
         for testcase in self.testcases:
             testcase.redact_private_fields()
 
