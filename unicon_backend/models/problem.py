@@ -135,6 +135,8 @@ class TaskORM(CustomSQLModel, table=True):
 
     min_score_to_pass: int | None = Field(nullable=True, default=None)
 
+    triggered_rerun: bool = Field(default=False, sa_column_kwargs={"server_default": "false"})
+
     @classmethod
     def from_task(cls, task: "Task") -> "TaskORM":
         def _convert_task_to_orm(
