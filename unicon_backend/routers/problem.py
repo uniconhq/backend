@@ -13,6 +13,7 @@ from unicon_backend.dependencies.auth import get_current_user
 from unicon_backend.dependencies.common import get_db_session
 from unicon_backend.dependencies.problem import (
     get_problem_by_id,
+    get_task_by_id,
     parse_python_functions_from_file_content,
 )
 from unicon_backend.evaluator.problem import Problem, Task, UserInput
@@ -82,6 +83,33 @@ def get_problem(
         # Set autoflush of the db_session to false if we ever do that.
         problem.redact_private_fields()
     return ProblemPublic.model_validate(problem, update=permissions)
+
+
+@router.get("/{id}/tasks/{task_id}", response_model=Task)
+def get_problem_task(
+    id: int,
+    task_id: int,
+    problem_orm: Annotated[ProblemORM, Depends(get_problem_by_id)],
+    user: Annotated[UserORM, Depends(get_current_user)],
+    db_session: Annotated[Session, Depends(get_db_session)],
+):
+    permissions = permission_list_for_subject(problem_orm, user)
+    if not permission_check(problem_orm, "view", user):
+        raise HTTPException(
+            status_code=HTTPStatus.FORBIDDEN, detail="User does not have permission to view problem"
+        )
+
+    task = get_task_by_id(task_id, id, db_session)
+    task_dto = task.to_task()
+
+    if not task:
+        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="Task not found")
+
+    if not permissions["view_hidden_details"]:
+        # NOTE: Do not persist this change to the database!
+        task_dto.redact_private_fields()
+
+    return task_dto
 
 
 def calculate_score(task: ProgrammingTask, attempt: TaskAttemptORM):
@@ -281,11 +309,6 @@ def update_task(
     # Then, duplicate the task attempts to the new task
     old_task_orm.updated_version_id = new_task_orm.id
     new_task_orm.order_index = old_task_orm.order_index
-    new_task_orm.task_attempts = [
-        task_attempt.clone(new_task_orm.id)
-        # NOTE: Ensure that the order of task attempts is preserved
-        for task_attempt in sorted(old_task_orm.task_attempts, key=lambda attempt: attempt.id)
-    ]
 
     # If code below this throws an error, ensure that the old task will at least be hidden
     db_session.add(old_task_orm)
@@ -294,6 +317,11 @@ def update_task(
     problem = problem_orm.to_problem()
 
     if data.rerun:
+        new_task_orm.task_attempts = [
+            task_attempt.clone(new_task_orm.id)
+            # NOTE: Ensure that the order of task attempts is preserved
+            for task_attempt in sorted(old_task_orm.task_attempts, key=lambda attempt: attempt.id)
+        ]
         for task_attempt in new_task_orm.task_attempts:
             user_input = task_attempt.other_fields.get("user_input")
             task_result: TaskEvalResult = problem.run_task(new_task_orm.id, user_input)

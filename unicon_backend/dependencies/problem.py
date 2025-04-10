@@ -11,6 +11,20 @@ from unicon_backend.evaluator.tasks.programming.visitors import ParsedFunction, 
 from unicon_backend.models.problem import ProblemORM, TaskORM
 
 
+def get_task_by_id(
+    id: int,
+    problem_id: int,
+    db_session: Annotated[Session, Depends(get_db_session)],
+) -> TaskORM:
+    if (
+        task_orm := db_session.scalar(
+            select(TaskORM).where(TaskORM.id == id).where(TaskORM.problem_id == problem_id)
+        )
+    ) is None:
+        raise HTTPException(HTTPStatus.NOT_FOUND, "Task not found!")
+    return task_orm
+
+
 def get_problem_by_id(
     id: int,
     db_session: Annotated[Session, Depends(get_db_session)],
