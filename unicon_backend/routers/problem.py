@@ -112,6 +112,42 @@ def get_problem_task(
     return task_dto
 
 
+@router.get(
+    "/{id}/tasks/{task_id}/versions",
+    response_model=list[int],
+    summary="Get task versions from before this task",
+)
+def get_problem_task_versions(
+    id: int,
+    task_id: int,
+    problem_orm: Annotated[ProblemORM, Depends(get_problem_by_id)],
+    user: Annotated[UserORM, Depends(get_current_user)],
+    db_session: Annotated[Session, Depends(get_db_session)],
+):
+    if not permission_check(problem_orm, "view", user):
+        raise HTTPException(
+            status_code=HTTPStatus.FORBIDDEN, detail="User does not have permission to view problem"
+        )
+
+    task_data = db_session.exec(
+        select(TaskORM.id, TaskORM.updated_version_id).where(TaskORM.problem_id == id)
+    ).all()
+
+    if not any(task_id == row[0] for row in task_data):
+        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="Task not found")
+
+    updated_version_to_old_task_data = {row[1]: row for row in task_data}
+
+    result = [task_id]
+    while task_id in updated_version_to_old_task_data:
+        old_task_id, updated_version_id = updated_version_to_old_task_data[task_id]
+        if updated_version_id is None or old_task_id in result:
+            break
+        result.append(old_task_id)
+        task_id = old_task_id
+    return result
+
+
 def calculate_score(task: ProgrammingTask, attempt: TaskAttemptORM):
     result = attempt.task_results[-1]
     id_to_testcase = {testcase.id: testcase for testcase in task.testcases}
@@ -317,6 +353,7 @@ def update_task(
     problem = problem_orm.to_problem()
 
     if data.rerun:
+        new_task_orm.triggered_rerun = True
         new_task_orm.task_attempts = [
             task_attempt.clone(new_task_orm.id)
             # NOTE: Ensure that the order of task attempts is preserved
