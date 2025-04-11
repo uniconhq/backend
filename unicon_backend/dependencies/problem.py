@@ -25,6 +25,43 @@ def get_task_by_id(
     return task_orm
 
 
+def get_task_versions(
+    task_id: int, problem_id: int, db_session: Annotated[Session, Depends(get_db_session)]
+) -> list[int]:
+    task_data = db_session.exec(
+        select(TaskORM.id, TaskORM.updated_version_id).where(TaskORM.problem_id == problem_id)
+    ).all()
+
+    if not any(task_id == row[0] for row in task_data):
+        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="Task not found")
+
+    updated_version_to_old_task_data = {row[1]: row for row in task_data if row[1] is not None}
+    old_to_new_task_data = {row[0]: row for row in task_data if row[1] is not None}
+
+    # Build the full chain of tasks
+    all_versions = [task_id]
+
+    # First, go backwards in history to find older versions
+    current = task_id
+    while current in updated_version_to_old_task_data:
+        old_task_id, _ = updated_version_to_old_task_data[current]
+        if old_task_id in all_versions:
+            break  # Prevent infinite loops
+        all_versions.append(old_task_id)
+        current = old_task_id
+
+    # Then, go forwards to find newer versions
+    current = task_id
+    while current in old_to_new_task_data:
+        _, new_task_id = old_to_new_task_data[current]
+        if new_task_id in all_versions:
+            break  # Prevent infinite loops
+        all_versions.insert(0, new_task_id)  # Add to beginning of list
+        current = new_task_id
+
+    return all_versions
+
+
 def get_problem_by_id(
     id: int,
     db_session: Annotated[Session, Depends(get_db_session)],

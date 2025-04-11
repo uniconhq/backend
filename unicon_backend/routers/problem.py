@@ -14,6 +14,7 @@ from unicon_backend.dependencies.common import get_db_session
 from unicon_backend.dependencies.problem import (
     get_problem_by_id,
     get_task_by_id,
+    get_task_versions,
     parse_python_functions_from_file_content,
 )
 from unicon_backend.evaluator.problem import Problem, Task, UserInput
@@ -129,23 +130,7 @@ def get_problem_task_versions(
             status_code=HTTPStatus.FORBIDDEN, detail="User does not have permission to view problem"
         )
 
-    task_data = db_session.exec(
-        select(TaskORM.id, TaskORM.updated_version_id).where(TaskORM.problem_id == id)
-    ).all()
-
-    if not any(task_id == row[0] for row in task_data):
-        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="Task not found")
-
-    updated_version_to_old_task_data = {row[1]: row for row in task_data}
-
-    result = [task_id]
-    while task_id in updated_version_to_old_task_data:
-        old_task_id, updated_version_id = updated_version_to_old_task_data[task_id]
-        if updated_version_id is None or old_task_id in result:
-            break
-        result.append(old_task_id)
-        task_id = old_task_id
-    return result
+    return get_task_versions(task_id, id, db_session)
 
 
 def calculate_score(task: ProgrammingTask, attempt: TaskAttemptORM):
@@ -674,10 +659,11 @@ def get_problem_task_attempt_results(
     db_session: Annotated[Session, Depends(get_db_session)],
     user: Annotated[UserORM, Depends(get_current_user)],
 ) -> list[TaskAttemptResult]:
+    task_ids = get_task_versions(task_id, problem_orm.id, db_session)
     task_attempts = db_session.scalars(
         select(TaskAttemptORM)
         .where(TaskAttemptORM.problem_id == problem_orm.id)
-        .where(TaskAttemptORM.task_id == task_id)
+        .where(col(TaskAttemptORM.task_id).in_(task_ids))
         .where(TaskAttemptORM.user_id == user.id)
         .options(selectinload(TaskAttemptORM.task_results))
         .options(selectinload(TaskAttemptORM.task))
