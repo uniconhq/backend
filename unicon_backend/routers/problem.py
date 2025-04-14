@@ -336,6 +336,7 @@ def update_task(
     # If code below this throws an error, ensure that the old task will at least be hidden
     db_session.add(old_task_orm)
     db_session.commit()
+    db_session.refresh(old_task_orm)
 
     problem = problem_orm.to_problem()
 

@@ -148,6 +148,7 @@ class TaskORM(CustomSQLModel, table=True):
             order_index: int,
             max_attempts: int | None,
             min_score_to_pass: int | None,
+            updated_version_id: int | None,
             **other_fields,
         ):
             return TaskORM(
@@ -159,6 +160,7 @@ class TaskORM(CustomSQLModel, table=True):
                 order_index=order_index,
                 max_attempts=max_attempts,
                 min_score_to_pass=min_score_to_pass,
+                updated_version_id=updated_version_id,
                 other_fields=other_fields,
             )
 
@@ -175,9 +177,11 @@ class TaskORM(CustomSQLModel, table=True):
                 "order_index": self.order_index,
                 "problem_id": self.problem_id,
                 "max_attempts": self.max_attempts,
-                "updated_version_id": self.updated_version_id,
                 "min_score_to_pass": self.min_score_to_pass,
                 **self.other_fields,
+                # This is a bit cursed, but the other_fields might have updated_version_id: None due to an old bug
+                # We prevent the overwrite by swapping the order
+                "updated_version_id": self.updated_version_id,
             },
         )
 
