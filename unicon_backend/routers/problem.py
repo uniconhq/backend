@@ -15,6 +15,7 @@ from unicon_backend.dependencies.problem import (
     get_problem_by_id,
     get_task_by_id,
     get_task_versions,
+    is_task_attempt_invalidated,
     parse_python_functions_from_file_content,
 )
 from unicon_backend.evaluator.problem import Problem, Task, UserInput
@@ -258,6 +259,7 @@ def get_problem_leaderboard(
             user_result.username,
         ),
     )
+
     return Leaderboard(tasks=list(task_id_to_programming_task.values()), results=leaderboard)
 
 
@@ -352,6 +354,12 @@ def update_task(
             )
             task_attempt.task_results.append(task_result_orm)
             db_session.add(task_result_orm)
+
+    # Unmark the old task attempts as submission
+    for task_attempt in old_task_orm.task_attempts:
+        task_attempt.marked_for_submission = False
+        task_attempt.submissions.clear()
+        db_session.add(task_attempt)
 
     db_session.add(new_task_orm)
     db_session.commit()
@@ -682,7 +690,10 @@ def get_problem_task_attempt_results(
             TaskAttemptResult.model_validate(
                 task_attempt,
                 update={
-                    "has_private_failure": False if can_view_details else has_private_failure[index]
+                    "has_private_failure": False
+                    if can_view_details
+                    else has_private_failure[index],
+                    "invalidated": is_task_attempt_invalidated(task_attempt, task_ids),
                 },
             )
             for index, task_attempt in enumerate(task_attempts)

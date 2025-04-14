@@ -230,6 +230,7 @@ class TaskAttemptPublic(TaskAttemptBase):
 
 
 class TaskAttemptResult(TaskAttemptBase):
+    invalidated: bool = Field(default=False)
     task_results: list["TaskResult"]
     has_private_failure: bool = Field(default=False)
 
@@ -271,6 +272,7 @@ class TaskAttemptORM(CustomSQLModel, table=True):
             submitted_at=self.submitted_at,
             task_type=self.task_type,
             other_fields=self.other_fields,
+            marked_for_submission=self.marked_for_submission,
         )
 
     def redact_private_fields(self) -> bool:

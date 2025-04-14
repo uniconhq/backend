@@ -8,7 +8,7 @@ from sqlmodel import Session, col, select
 
 from unicon_backend.dependencies.common import get_db_session
 from unicon_backend.evaluator.tasks.programming.visitors import ParsedFunction, TypingCollector
-from unicon_backend.models.problem import ProblemORM, TaskORM
+from unicon_backend.models.problem import ProblemORM, TaskAttemptORM, TaskORM
 
 
 def get_task_by_id(
@@ -75,6 +75,20 @@ def get_problem_by_id(
     ) is None:
         raise HTTPException(HTTPStatus.NOT_FOUND, "Problem definition not found!")
     return problem_orm
+
+
+def is_task_attempt_invalidated(task_attempt: TaskAttemptORM, task_ids: list[int]) -> bool:
+    """
+    Returns whether the task attempt should be counted as a valid attempt (e.g. for use in attempt limit counts.)
+
+    We currently consider a task attempt in the count only if it is of the most recent task version.
+
+    Args:
+        task_attempt: The task attempt to check.
+        task_ids: The list of task IDs, *assumed to be in DESCENDING ORDER* that this task attempt is associated with.
+    """
+    most_updated_version_id = task_ids[0]
+    return task_attempt.task_id != most_updated_version_id
 
 
 def parse_python_functions_from_file_content(content: str) -> list[ParsedFunction]:
