@@ -613,13 +613,45 @@ def submit_task_attempt(
         .where(TaskAttemptORM.marked_for_submission == True)
     ).all()
 
+    existing_attempt_ids = []
     if existing_attempts:
         for existing_attempt in existing_attempts:
             existing_attempt.marked_for_submission = False
+            existing_attempt_ids.append(existing_attempt.id)
             db_session.add(existing_attempt)
+
+    # Check if there is a current submission for this problem
+    existing_submission = db_session.scalar(
+        select(SubmissionORM)
+        .where(SubmissionORM.problem_id == task_attempt.problem_id)
+        .where(SubmissionORM.user_id == user.id)
+    )
+
+    new_submission_orm: SubmissionORM | None = None
+    if existing_submission is None:
+        # Create a new submission
+        new_submission_orm = SubmissionORM(problem_id=task_attempt.problem_id, user_id=user.id)
+        task_attempt.submissions.append(new_submission_orm)
+        db_session.add(new_submission_orm)
+    elif len(existing_submission.task_attempts) == 0:
+        task_attempt.submissions.append(existing_submission)
+    else:
+        existing_submission.task_attempts = [
+            *[
+                existing_task_attempt
+                for existing_task_attempt in existing_submission.task_attempts
+                if existing_task_attempt.id not in existing_attempt_ids
+            ],
+            task_attempt,
+        ]
+        db_session.add(existing_submission)
 
     db_session.add(task_attempt)
     db_session.commit()
+
+    if new_submission_orm:
+        db_session.refresh(new_submission_orm)
+        permission_create(new_submission_orm)
 
 
 @router.post("/attempts/{attempt_id}/unsubmit", summary="Unmark a task attempt for submission")
@@ -631,6 +663,21 @@ def unsubmit_task_attempt(
     task_attempt = _get_task_attempt(attempt_id, db_session, user)
     task_attempt.marked_for_submission = False
     db_session.add(task_attempt)
+
+    # Remove task attempt from submission
+    existing_submission = db_session.scalar(
+        select(SubmissionORM)
+        .where(SubmissionORM.problem_id == task_attempt.problem_id)
+        .where(SubmissionORM.user_id == user.id)
+    )
+    if existing_submission:
+        existing_submission.task_attempts = [
+            task_attempt
+            for task_attempt in existing_submission.task_attempts
+            if task_attempt.id != attempt_id
+        ]
+        db_session.add(existing_submission)
+
     db_session.commit()
 
 
