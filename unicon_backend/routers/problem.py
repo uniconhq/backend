@@ -705,7 +705,7 @@ def rerun_task_attempt(
 
 
 @router.get(
-    "/{id}/tasks/{task_id}/attempts",
+    "/{id}/tasks/{task_id}/attempts/{user_id}",
     summary="Get results of all task attempts for a task",
     response_model=list[TaskAttemptResult],
 )
@@ -713,21 +713,35 @@ def get_problem_task_attempt_results(
     task_id: int,
     problem_orm: Annotated[ProblemORM, Depends(get_problem_by_id)],
     db_session: Annotated[Session, Depends(get_db_session)],
-    user: Annotated[UserORM, Depends(get_current_user)],
+    current_user: Annotated[UserORM, Depends(get_current_user)],
+    user_id: int | None = None,
 ) -> list[TaskAttemptResult]:
+    if (
+        user_id is not None
+        and user_id != current_user.id
+        and not (
+            permission_check(problem_orm.project, "view_others_submission", current_user)
+            or permission_check(problem_orm, "view_supervised_submission_access", current_user)
+        )
+    ):
+        raise HTTPException(
+            status_code=HTTPStatus.FORBIDDEN,
+            detail="User does not have permission to view others' task attempts",
+        )
+
     task_ids = get_task_versions(task_id, problem_orm.id, db_session)
     task_attempts = db_session.scalars(
         select(TaskAttemptORM)
         .where(TaskAttemptORM.problem_id == problem_orm.id)
         .where(col(TaskAttemptORM.task_id).in_(task_ids))
-        .where(TaskAttemptORM.user_id == user.id)
+        .where(TaskAttemptORM.user_id == (current_user.id if user_id is None else user_id))
         .options(selectinload(TaskAttemptORM.task_results))
         .options(selectinload(TaskAttemptORM.task))
         .order_by(col(TaskAttemptORM.id))
     ).all()
 
     db_session.close()
-    can_view_details = permission_check(problem_orm, "view_hidden_details", user)
+    can_view_details = permission_check(problem_orm, "view_hidden_details", current_user)
     has_private_failure: list[bool] = []
     with db_session.no_autoflush:
         if not can_view_details:
