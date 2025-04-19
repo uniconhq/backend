@@ -14,6 +14,8 @@ class File(BaseModel):
     path: str
     content: str
 
+    is_binary: bool = False
+
     on_minio: bool = False
     key: str | None = None
 
