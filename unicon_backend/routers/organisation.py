@@ -98,6 +98,8 @@ def delete_organisation(
 
     db_session.delete(organisation)
     db_session.commit()
+
+    permission_delete(organisation)
     return
 
 

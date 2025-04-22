@@ -128,6 +128,10 @@ def delete_project(
 
     db_session.delete(project)
     db_session.commit()
+
+    for problem in project.problems:
+        permission_delete(problem)
+    permission_delete(project)
     return
 
 
