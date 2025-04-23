@@ -1,3 +1,4 @@
+import hashlib
 import abc
 import logging
 import re
@@ -527,6 +528,9 @@ class PyRunFunctionStep(Step[PyRunFunctionSocket]):
         # NOTE: Assume that the program file is always a Python file
         module_name = module_file.path.split(".py")[0].replace("/", ".")
 
+        file_path = module_file.path
+        file_hash = hashlib.md5(module_file.content.encode()).hexdigest()
+
         args = [cst.Arg(get_param_expr(s)) for s in self.args if has_data(s)]
         kwargs = [cst.Arg(get_param_expr(s), keyword=cst_var(cast("str", s.kwarg_name))) for s in self.kwargs if has_data(s)]  # fmt: skip
 
@@ -575,6 +579,8 @@ class PyRunFunctionStep(Step[PyRunFunctionSocket]):
                             if self.function_identifier
                             else cst_var("None")
                         ),
+                        cst.Arg(cst_str(file_path)),
+                        cst.Arg(cst_str(file_hash)),
                         cst.Arg(cst_var(self.allow_error)),
                         *args,
                         *kwargs,
