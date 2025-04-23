@@ -19,8 +19,6 @@ class Language(str, Enum):
 class PythonVersion(str, Enum):
     """Ensure consistency with `uv python list`"""
 
-    PYTHON_3_7_9 = "3.7.9"
-    PYTHON_3_8_20 = "3.8.20"
     PYTHON_3_9_21 = "3.9.21"
     PYTHON_3_10_12 = "3.10.12"
     PYTHON_3_11_9 = "3.11.9"
