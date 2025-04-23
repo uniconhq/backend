@@ -1,13 +1,13 @@
+import hashlib
 import importlib
 import importlib.util as importlib_util
 import io
 import multiprocessing
+import os
 from contextlib import redirect_stderr, redirect_stdout
 from multiprocessing import Process as MPProcess
 from multiprocessing import Queue as MPQueue
-import os
 from typing import Final
-import hashlib
 
 TASK_Q_STOP_SIGNAL: Final[str] = "STOP"
 
