@@ -17,14 +17,15 @@ DIR_PATH = os.path.dirname(os.path.realpath(__file__))
 class FileIntegrityError(ValueError):
     pass
 
+
 def verify_file_md5(file_path: str, expected_hash: str) -> None:
     abs_file_path = os.path.join(DIR_PATH, file_path)
     if not os.path.exists(abs_file_path):
         raise FileIntegrityError(f"File integrity check failed (file not found): {file_path}")
     md5_hash = hashlib.md5()
-    with open(abs_file_path, 'rb') as file:
+    with open(abs_file_path, "rb") as file:
         # Read the file in chunks to handle large files efficiently
-        for chunk in iter(lambda: file.read(4096), b''):
+        for chunk in iter(lambda: file.read(4096), b""):
             md5_hash.update(chunk)
 
     calculated_hash = md5_hash.hexdigest()
@@ -54,7 +55,7 @@ class IORedirect:
         return False
 
 
-def __exec_func(module_name: str, func_name: str, file_path:str, file_hash: str, *args, **kwargs):
+def __exec_func(module_name: str, func_name: str, file_path: str, file_hash: str, *args, **kwargs):
     verify_file_md5(file_path, file_hash)
     module = importlib.import_module(module_name)
     parts = func_name.split(".")
@@ -64,7 +65,7 @@ def __exec_func(module_name: str, func_name: str, file_path:str, file_hash: str,
     return attr(*args, **kwargs)  # type: ignore
 
 
-def __exec_module(file_name: str, file_path:str, file_hash: str, **globals):
+def __exec_module(file_name: str, file_path: str, file_hash: str, **globals):
     verify_file_md5(file_path, file_hash)
     spec = importlib_util.find_spec(file_name)
     if spec and spec.loader:
@@ -79,14 +80,18 @@ def worker(task_q: MPQueue, result_q: MPQueue):
             break
 
         file_name, function_name, file_path, file_hash, args, kwargs = msg
-        assert isinstance(file_name, str) and isinstance(file_path, str) and isinstance(file_hash, str)
+        assert (
+            isinstance(file_name, str) and isinstance(file_path, str) and isinstance(file_hash, str)
+        )
 
         error = result = None
         with IORedirect() as ior:
             try:
                 if function_name:
                     module_name = file_name.replace(".py", "")
-                    result = __exec_func(module_name, function_name, file_path, file_hash, *args, **kwargs)
+                    result = __exec_func(
+                        module_name, function_name, file_path, file_hash, *args, **kwargs
+                    )
                 else:
                     __exec_module(file_name, file_path, file_hash, **kwargs)
             except Exception as e:
@@ -127,13 +132,21 @@ if __name__ == "__main__":
         sys.exit(1)
 
     def __call_function_unsafe(
-        file_name: str, function_name: str | None, file_path:str, file_hash: str, allow_error: bool, *args, **kwargs
+        file_name: str,
+        function_name: str | None,
+        file_path: str,
+        file_hash: str,
+        allow_error: bool,
+        *args,
+        **kwargs,
     ):
         result = err = None
         with IORedirect() as ior:
             try:
                 if function_name:
-                    result = __exec_func(file_name, function_name, file_path, file_hash, *args, **kwargs)
+                    result = __exec_func(
+                        file_name, function_name, file_path, file_hash, *args, **kwargs
+                    )
                 else:
                     __exec_module(file_name, file_path, file_hash, **kwargs)
             except Exception as e:
@@ -145,7 +158,13 @@ if __name__ == "__main__":
         return result, ior.stdout.getvalue(), ior.stderr.getvalue(), err
 
     def __call_function_safe(
-        file_name: str, function_name: str, file_path:str, file_hash: str, allow_error: bool, *args, **kwargs
+        file_name: str,
+        function_name: str,
+        file_path: str,
+        file_hash: str,
+        allow_error: bool,
+        *args,
+        **kwargs,
     ):
         task_q.put((file_name, function_name, file_path, file_hash, args, kwargs))
         result, stdout, stderr, err = result_q.get()
