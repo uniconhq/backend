@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 from http import HTTPStatus
 from itertools import groupby
-from typing import Annotated, Any, cast
+from typing import Annotated, cast
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
 from pydantic import RootModel
@@ -18,9 +18,10 @@ from unicon_backend.dependencies.problem import (
     is_task_attempt_invalidated,
     parse_python_functions_from_file_content,
 )
-from unicon_backend.evaluator.problem import Problem, UserInput
-from unicon_backend.evaluator.tasks.base import Task, TaskEvalResult, TaskEvalStatus, TaskType
+from unicon_backend.evaluator.problem import Problem, Task, UserInput
+from unicon_backend.evaluator.tasks.base import TaskEvalResult, TaskType
 from unicon_backend.evaluator.tasks.programming.base import ProgrammingTask, TestcaseResult
+from unicon_backend.evaluator.tasks.programming.runner import run_as_programming_task
 from unicon_backend.evaluator.tasks.programming.visitors import ParsedFunction
 from unicon_backend.lib.file import delete_file, upload_fastapi_file
 from unicon_backend.lib.permissions import (
@@ -55,22 +56,8 @@ from unicon_backend.schemas.problem import (
     ProblemUpdate,
     TaskUpdate,
 )
-from unicon_backend.workers.task_publisher import task_publisher
 
 router = APIRouter(prefix="/problems", tags=["problem"], dependencies=[Depends(get_current_user)])
-
-
-def run_programming_task(task: ProgrammingTask, input: Any) -> TaskEvalResult:
-    # NOTE: It is safe to ignore type checking here because the type of task is determined by the "type" field
-    # As long as the "type" field is set correctly, the type of task will be inferred correctly
-    runner_job = task.create_runner_job(task.validate_user_input(input))  # type: ignore
-    task_publisher.publish_runner_job(runner_job)
-    return TaskEvalResult(task_id=task.id, status=TaskEvalStatus.PENDING_PUSH, result=runner_job.id)
-
-
-def run_as_programming_task(task: Task, input: Any) -> TaskEvalResult:
-    programming_task = ProgrammingTask.model_validate(task.model_dump())
-    return run_programming_task(programming_task, input)
 
 
 @router.get("/python-versions", response_model=list[str], summary="Get available Python versions")
