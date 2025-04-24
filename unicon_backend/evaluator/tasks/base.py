@@ -20,6 +20,7 @@ class TaskEvalStatus(str, Enum):
     PENDING = "PENDING"
     SKIPPED = "SKIPPED"
     FAILED = "FAILED"
+    PENDING_PUSH = "PENDING_PUSH"
 
 
 class TaskEvalResult(BaseModel, Generic[TaskResult]):
@@ -39,10 +40,6 @@ class Task(BaseModel, abc.ABC, Generic[TaskUserInput, TaskResult]):
     max_attempts: int | None = None
     min_score_to_pass: int | None = None
     updated_version_id: int | None = None
-
-    @abc.abstractmethod
-    def run(self, user_input: TaskUserInput) -> TaskEvalResult[TaskResult]:
-        pass
 
     @abc.abstractmethod
     def validate_user_input(self, user_input: Any) -> TaskUserInput:

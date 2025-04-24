@@ -1,6 +1,7 @@
 import abc
 from asyncio import AbstractEventLoop
 from logging import getLogger
+from threading import Timer
 from typing import Literal
 
 import pika
@@ -25,6 +26,7 @@ class AsyncMQBase(abc.ABC):
         q_msg_ttl_secs: int | None = None,
         dlx_name: str | None = None,
         dlx_routing_key: str | None = None,
+        reconnect_after_sec: int | None = None,
     ):
         self._conn_params = pika.URLParameters(amqp_url)
         self._conn_params.client_properties = {"connection_name": conn_name}
@@ -42,7 +44,14 @@ class AsyncMQBase(abc.ABC):
         self._chan: Channel | None = None
         self._closing: bool = False
 
+        # Reconnection
+        self._event_loop: AbstractEventLoop | None = None
+        self._reconnect_timer: Timer | None = None
+        self._reconnect_after_sec: int | None = reconnect_after_sec
+
     def run(self, event_loop: AbstractEventLoop | None = None):
+        self._closing = False
+        self._event_loop = event_loop
         self._conn = AsyncioConnection(
             parameters=self._conn_params,
             on_open_callback=self._on_conn_open,
@@ -56,20 +65,34 @@ class AsyncMQBase(abc.ABC):
         self._closing = True
         if self._chan:
             self._chan.close()
-        if self._conn:
+        if self._conn and not self._conn.is_closed:
             self._conn.close()
+        if self._reconnect_timer:
+            self._reconnect_timer.cancel()
+
+    def _reconnect(self):
+        logger.info("Attempting to reconnect...")
+        self.stop()
+        self.run(self._event_loop)
 
     def _on_conn_open(self, _conn: AsyncioConnection):
+        logger.info(f"Connection open: {self._conn}")
         self._open_chan()
 
     def _on_conn_open_error(self, _conn: AsyncioConnection, err: BaseException):
         logger.error(f"Connection open error: {err}")
+        if self._reconnect_after_sec:
+            self._reconnect_timer = Timer(self._reconnect_after_sec, self._reconnect).start()
 
     def _on_conn_closed(self, _conn: AsyncioConnection, err: BaseException):
         self._chan = None
         if not self._closing:
-            # If the connection was closed unexpectedly
-            logger.error(f"Connection closed unexpectedly: {err}")
+            self._on_conn_closed_unexpectedly(_conn, err)
+
+    def _on_conn_closed_unexpectedly(self, _conn: AsyncioConnection, err: BaseException):
+        logger.error(f"Connection closed unexpectedly: {err}")
+        if self._reconnect_after_sec:
+            self._reconnect_timer = Timer(self._reconnect_after_sec, self._reconnect).start()
 
     def _close_conn(self):
         if self._conn and not (self._conn.is_closing or self._conn.is_closed):
@@ -83,9 +106,11 @@ class AsyncMQBase(abc.ABC):
         self._chan = chan
         self._chan.add_on_close_callback(self._on_chan_closed)
         self._setup_ex()
+        logger.info(f"Channel open: {self._chan}")
 
     def _on_chan_closed(self, _chan: Channel, _reason: BaseException):
         self._close_conn()
+        logger.info(f"Channel closedx: {self._chan}")
 
     def _setup_ex(self):
         if self._chan:
@@ -144,9 +169,18 @@ class AsyncMQConsumer(AsyncMQBase):
         q_msg_ttl_secs: int | None = None,
         dlx_name: str | None = None,
         dlx_routing_key: str | None = None,
+        reconnect_after_sec: int | None = None,
     ):
         super().__init__(
-            conn_name, amqp_url, ex_name, ex_type, q_name, q_msg_ttl_secs, dlx_name, dlx_routing_key
+            conn_name,
+            amqp_url,
+            ex_name,
+            ex_type,
+            q_name,
+            q_msg_ttl_secs,
+            dlx_name,
+            dlx_routing_key,
+            reconnect_after_sec,
         )
 
         self._consume_tag: str | None = None
@@ -222,15 +256,27 @@ class AsyncMQPublisher(AsyncMQBase):
         q_msg_ttl_secs: int | None = None,
         dlx_name: str | None = None,
         dlx_routing_key: str | None = None,
+        reconnect_after_sec: int | None = None,
     ):
         super().__init__(
-            conn_name, amqp_url, ex_name, ex_type, q_name, q_msg_ttl_secs, dlx_name, dlx_routing_key
+            conn_name,
+            amqp_url,
+            ex_name,
+            ex_type,
+            q_name,
+            q_msg_ttl_secs,
+            dlx_name,
+            dlx_routing_key,
+            reconnect_after_sec,
         )
 
         self._deliveries: dict[int, Literal[True]] = {}
         self._acked: int = 0  # Number of messages acknowledged
         self._nacked: int = 0  # Number of messages rejected
         self._message_number: int = 0  # Number of messages published
+
+    def _delivery_callback(self, delivery_tag: int) -> None:
+        pass
 
     def _on_queue_bind_ok(self, _frame):
         if self._chan:
@@ -246,26 +292,30 @@ class AsyncMQPublisher(AsyncMQBase):
         self._acked += confirmation_type == "ack"
         self._nacked += confirmation_type == "nack"
 
+        self._delivery_callback(delivery_tag)
         del self._deliveries[delivery_tag]
 
         if ack_multiple:
-            for tmp_tag in filter(lambda tmp_tag: tmp_tag <= delivery_tag, self._deliveries):
+            for tmp_tag in filter(lambda tmp_tag: tmp_tag < delivery_tag, self._deliveries):
                 self._acked += 1
+                self._delivery_callback(tmp_tag)
                 del self._deliveries[tmp_tag]
 
-    def publish(self, payload: str, content_type: str = "application/json"):
-        if self._chan:
-            self._chan.basic_publish(
-                self.ex_name,
-                self.q_name,
-                payload,
-                properties=BasicProperties(
-                    content_type=content_type, delivery_mode=DeliveryMode.Persistent
-                ),
-            )
-            # Mark that the message was published for delivery confirmation
-            self._message_number += 1
-            self._deliveries[self._message_number] = True
+    def publish(self, payload: str, content_type: str = "application/json") -> int:
+        if not self._chan:
+            raise RuntimeError("Channel is not established")
+        self._chan.basic_publish(
+            self.ex_name,
+            self.q_name,
+            payload,
+            properties=BasicProperties(
+                content_type=content_type, delivery_mode=DeliveryMode.Persistent
+            ),
+        )
+        # Mark that the message was published for delivery confirmation
+        self._message_number += 1
+        self._deliveries[self._message_number] = True
+        return self._message_number
 
     def run(self, event_loop: AbstractEventLoop | None = None):
         self._deliveries.clear()

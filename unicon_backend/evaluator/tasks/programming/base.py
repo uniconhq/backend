@@ -6,7 +6,7 @@ from uuid import uuid4
 
 from pydantic import BaseModel, Field, RootModel, model_validator
 
-from unicon_backend.evaluator.tasks import Task, TaskEvalResult, TaskEvalStatus, TaskType
+from unicon_backend.evaluator.tasks import Task, TaskType
 from unicon_backend.evaluator.tasks.programming.artifact import File, PrimitiveData
 from unicon_backend.evaluator.tasks.programming.harness import gbl_except_hook, mpi_sandbox
 from unicon_backend.evaluator.tasks.programming.steps import (
@@ -25,7 +25,6 @@ from unicon_backend.runner import (
     RunnerJob,
     RunnerProgram,
 )
-from unicon_backend.workers.task_publisher import task_publisher
 
 logger = getLogger(__name__)
 
@@ -149,7 +148,7 @@ class ProgrammingTask(Task[list[RequiredInput], JobId]):
         for testcase in self.testcases:
             testcase.redact_private_fields()
 
-    def run(self, user_inputs: list[RequiredInput]) -> TaskEvalResult[JobId]:
+    def create_runner_job(self, user_inputs: list[RequiredInput]) -> RunnerJob:
         # Check if all required inputs are provided
         for required_input in self.required_inputs:
             if not any(required_input.id == user_input.id for user_input in user_inputs):
@@ -192,9 +191,7 @@ class ProgrammingTask(Task[list[RequiredInput], JobId]):
             )
 
         runner_job = RunnerJob.create(runner_programs, self.environment)
-        task_publisher.publish(runner_job.model_dump_json(serialize_as_any=True))
-
-        return TaskEvalResult(task_id=self.id, status=TaskEvalStatus.PENDING, result=runner_job.id)
+        return runner_job
 
     def validate_user_input(self, user_inputs: Any) -> list[RequiredInput]:
         if type(user_inputs) is not list:

@@ -31,6 +31,13 @@ AMQP_CONN_NAME: Final[str] = _get_env_var("AMQP_CONN_NAME", "unicon-backend")
 AMQP_DLX: Final[str] = _get_env_var("AMQP_DLX", "unicon.dlx")
 AMQP_DEAD_TASK_QUEUE: Final[str] = _get_env_var("AMQP_DEAD_TASK_QUEUE", "unicon.tasks.dead")
 
+AMQP_RECONNECT_AFTER_SEC: Final[int] = int(_get_env_var("AMQP_RECONNECT_AFTER_SEC", 60))
+
+PENDING_PUSH_TIMEOUT: Final[int] = int(_get_env_var("PENDING_PUSH_TIMEOUT", 300))
+PENDING_PUSH_COLLECTOR_CHECK_INTERVAL: Final[int] = int(
+    _get_env_var("PENDING_PUSH_COLLECTOR_CHECK_INTERVAL", 150)
+)
+
 PERMIFY_HOST: Final[str] = _get_env_var("PERMIFY_HOST", "http://localhost:3476")
 PERMIFY_SCHEMA_VERSION: Final[str | None] = _get_env_var("PERMIFY_SCHEMA_VERSION", required=False)
 PERMIFY_TENANT_ID: Final[str] = _get_env_var("PERMIFY_TENANT_ID", "t1")

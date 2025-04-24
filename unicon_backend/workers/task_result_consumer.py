@@ -11,14 +11,15 @@ from sqlmodel import func, select
 from unicon_backend.constants import (
     AMQP_CONN_NAME,
     AMQP_DEFAULT_EXCHANGE,
+    AMQP_RECONNECT_AFTER_SEC,
     AMQP_RESULT_QUEUE,
     AMQP_URL,
 )
 from unicon_backend.database import SessionLocal
+from unicon_backend.evaluator.tasks.base import TaskEvalStatus
 from unicon_backend.evaluator.tasks.programming.base import (
     ProgrammingTask,
     SocketResult,
-    TaskEvalStatus,
     TestcaseResult,
 )
 from unicon_backend.lib.amqp import AsyncMQConsumeMessageResult, AsyncMQConsumer
@@ -41,6 +42,7 @@ class TaskResultsConsumer(AsyncMQConsumer):
             AMQP_DEFAULT_EXCHANGE,
             ExchangeType.topic,
             AMQP_RESULT_QUEUE,
+            reconnect_after_sec=AMQP_RECONNECT_AFTER_SEC,
         )
 
     def _message_callback(
