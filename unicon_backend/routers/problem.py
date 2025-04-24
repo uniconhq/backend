@@ -18,8 +18,8 @@ from unicon_backend.dependencies.problem import (
     is_task_attempt_invalidated,
     parse_python_functions_from_file_content,
 )
-from unicon_backend.evaluator.problem import Problem, Task, UserInput
-from unicon_backend.evaluator.tasks.base import TaskEvalResult, TaskEvalStatus, TaskType
+from unicon_backend.evaluator.problem import Problem, UserInput
+from unicon_backend.evaluator.tasks.base import Task, TaskEvalResult, TaskEvalStatus, TaskType
 from unicon_backend.evaluator.tasks.programming.base import ProgrammingTask, TestcaseResult
 from unicon_backend.evaluator.tasks.programming.visitors import ParsedFunction
 from unicon_backend.lib.file import delete_file, upload_fastapi_file
@@ -60,12 +60,17 @@ from unicon_backend.workers.task_publisher import task_publisher
 router = APIRouter(prefix="/problems", tags=["problem"], dependencies=[Depends(get_current_user)])
 
 
-def run_task(task: ProgrammingTask, input: Any) -> TaskEvalResult:
+def run_programming_task(task: ProgrammingTask, input: Any) -> TaskEvalResult:
     # NOTE: It is safe to ignore type checking here because the type of task is determined by the "type" field
     # As long as the "type" field is set correctly, the type of task will be inferred correctly
     runner_job = task.create_runner_job(task.validate_user_input(input))  # type: ignore
     task_publisher.publish_runner_job(runner_job)
     return TaskEvalResult(task_id=task.id, status=TaskEvalStatus.PENDING_PUSH, result=runner_job.id)
+
+
+def run_as_programming_task(task: Task, input: Any) -> TaskEvalResult:
+    programming_task = ProgrammingTask.model_validate(task.model_dump())
+    return run_programming_task(programming_task, input)
 
 
 @router.get("/python-versions", response_model=list[str], summary="Get available Python versions")
@@ -353,7 +358,9 @@ def update_task(
         ]
         for task_attempt in new_task_orm.task_attempts:
             user_input = task_attempt.other_fields.get("user_input")
-            task_result: TaskEvalResult = run_task(new_task_orm.to_task(), user_input)
+            task_result: TaskEvalResult = run_as_programming_task(
+                new_task_orm.to_task(), user_input
+            )
             task_result_orm: TaskResultORM = TaskResultORM.from_task_eval_result(
                 task_result, attempt_id=task_attempt.id, task_type=new_task_orm.type
             )
@@ -559,7 +566,7 @@ def submit_problem_task_attempt(
     )
 
     try:
-        task_result: TaskEvalResult = run_task(task.to_task(), user_input.value)
+        task_result: TaskEvalResult = run_as_programming_task(task.to_task(), user_input.value)
     except ValueError as e:
         raise HTTPException(status_code=HTTPStatus.BAD_REQUEST, detail=str(e)) from e
 
@@ -696,7 +703,7 @@ def rerun_task_attempt(
 ):
     task_attempt = _get_task_attempt(attempt_id, db_session, user)
 
-    task_result: TaskEvalResult = run_task(
+    task_result: TaskEvalResult = run_as_programming_task(
         task_attempt.task.to_task(), task_attempt.other_fields["user_input"]
     )
     task_result_orm: TaskResultORM = TaskResultORM.from_task_eval_result(

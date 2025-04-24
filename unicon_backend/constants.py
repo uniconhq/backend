@@ -1,15 +1,22 @@
 import os
-from typing import Final
+from typing import Final, Literal
 
 from dotenv import load_dotenv
 
 load_dotenv()
 
 
-def _get_env_var(name: str, default: str | None = None, required: bool = True):
+def _get_env_var(
+    name: str,
+    default: str | int | None = None,
+    required: bool = True,
+    type: Literal["str", "int"] = "str",
+):
     value = os.getenv(name, default) or default
     if (value is None) and required:
         raise ValueError(f"{name} environment variable not defined")
+    if type == "int" and value is not None:
+        return int(value)
     return value
 
 
@@ -31,11 +38,11 @@ AMQP_CONN_NAME: Final[str] = _get_env_var("AMQP_CONN_NAME", "unicon-backend")
 AMQP_DLX: Final[str] = _get_env_var("AMQP_DLX", "unicon.dlx")
 AMQP_DEAD_TASK_QUEUE: Final[str] = _get_env_var("AMQP_DEAD_TASK_QUEUE", "unicon.tasks.dead")
 
-AMQP_RECONNECT_AFTER_SEC: Final[int] = int(_get_env_var("AMQP_RECONNECT_AFTER_SEC", 60))
+AMQP_RECONNECT_AFTER_SEC: Final[int] = _get_env_var("AMQP_RECONNECT_AFTER_SEC", 60, type="int")
 
-PENDING_PUSH_TIMEOUT: Final[int] = int(_get_env_var("PENDING_PUSH_TIMEOUT", 300))
-PENDING_PUSH_COLLECTOR_CHECK_INTERVAL: Final[int] = int(
-    _get_env_var("PENDING_PUSH_COLLECTOR_CHECK_INTERVAL", 150)
+PENDING_PUSH_TIMEOUT: Final[int] = _get_env_var("PENDING_PUSH_TIMEOUT", 300, type="int")
+PENDING_PUSH_COLLECTOR_CHECK_INTERVAL: Final[int] = _get_env_var(
+    "PENDING_PUSH_COLLECTOR_CHECK_INTERVAL", 150, type="int"
 )
 
 PERMIFY_HOST: Final[str] = _get_env_var("PERMIFY_HOST", "http://localhost:3476")

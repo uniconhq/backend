@@ -1,8 +1,7 @@
 import abc
 from asyncio import AbstractEventLoop
 from logging import getLogger
-from threading import Timer
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 import pika
 from pika.adapters.asyncio_connection import AsyncioConnection
@@ -11,6 +10,11 @@ from pika.delivery_mode import DeliveryMode
 from pika.exchange_type import ExchangeType
 from pika.frame import Method
 from pika.spec import Basic, BasicProperties
+
+from unicon_backend.lib.helpers import create_and_start_timer
+
+if TYPE_CHECKING:
+    from threading import Timer
 
 logger = getLogger(__name__)
 
@@ -82,7 +86,9 @@ class AsyncMQBase(abc.ABC):
     def _on_conn_open_error(self, _conn: AsyncioConnection, err: BaseException):
         logger.error(f"Connection open error: {err}")
         if self._reconnect_after_sec:
-            self._reconnect_timer = Timer(self._reconnect_after_sec, self._reconnect).start()
+            self._reconnect_timer = create_and_start_timer(
+                self._reconnect_after_sec, self._reconnect
+            )
 
     def _on_conn_closed(self, _conn: AsyncioConnection, err: BaseException):
         self._chan = None
@@ -92,7 +98,9 @@ class AsyncMQBase(abc.ABC):
     def _on_conn_closed_unexpectedly(self, _conn: AsyncioConnection, err: BaseException):
         logger.error(f"Connection closed unexpectedly: {err}")
         if self._reconnect_after_sec:
-            self._reconnect_timer = Timer(self._reconnect_after_sec, self._reconnect).start()
+            self._reconnect_timer = create_and_start_timer(
+                self._reconnect_after_sec, self._reconnect
+            )
 
     def _close_conn(self):
         if self._conn and not (self._conn.is_closing or self._conn.is_closed):

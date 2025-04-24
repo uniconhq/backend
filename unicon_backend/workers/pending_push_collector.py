@@ -38,7 +38,7 @@ class PendingPushCollector:
             ).all()
             for task_result in task_results:
                 task_result.status = TaskEvalStatus.FAILED
-                task_result.completed_at = sa.func.now()  # pyright: ignore
+                task_result.completed_at = sa.func.now()  # type: ignore[assignment]
                 logger.info(task_result)
                 db_session.add(task_result)
             db_session.commit()
