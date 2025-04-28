@@ -1,6 +1,6 @@
 import uuid
 from enum import StrEnum
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 import sqlalchemy as sa
 import sqlalchemy.dialects.postgresql as pg
@@ -34,6 +34,8 @@ class Organisation(OrganisationBase, table=True):
     invitation_keys: sa_orm.Mapped[list["OrganisationInvitationKey"]] = Relationship(
         back_populates="organisation", cascade_delete=True
     )
+
+    excluded_fields_on_copy: ClassVar[list[str]] = ["members", "invitation_keys"]
 
 
 class OrganisationRole(StrEnum):
@@ -83,6 +85,8 @@ class Project(ProjectBase, table=True):
     groups: sa_orm.Mapped[list["Group"]] = Relationship(
         back_populates="project", cascade_delete=True
     )
+
+    excluded_fields_on_copy: ClassVar[list[str]] = ["organisation", "roles", "groups"]
 
 
 class Group(CustomSQLModel, table=True):

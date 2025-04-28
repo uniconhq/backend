@@ -20,3 +20,7 @@ def create_multi_index[T, K, V](
     for item in filter(filter_fn, items):
         index[key_fn(item)].append(value_fn(item))
     return index
+
+
+def instance_in(instance, classes):
+    return any([isinstance(instance, classes) for classes in classes])

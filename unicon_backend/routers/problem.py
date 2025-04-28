@@ -37,6 +37,7 @@ from unicon_backend.models import (
 )
 from unicon_backend.models.file import SGT, FileORM
 from unicon_backend.models.links import GroupMember
+from unicon_backend.models.organisation import Project
 from unicon_backend.models.problem import (
     SubmissionPublic,
     TaskAttemptORM,
@@ -276,14 +277,7 @@ def add_task_to_problem(
             detail="User does not have permission to add task to problem",
         )
 
-    new_task_id = (
-        db_session.scalar(select(func.max(TaskORM.id)).where(TaskORM.problem_id == problem_orm.id))
-        or 0
-    ) + 1
     taskOrm = TaskORM.from_task(task)
-    taskOrm.id = new_task_id
-    taskOrm.order_index = max((task.order_index for task in problem_orm.tasks), default=-1) + 1
-
     problem_orm.tasks.append(taskOrm)
     db_session.add(problem_orm)
     db_session.commit()
@@ -321,7 +315,6 @@ def update_task(
         )
 
     new_task_orm = TaskORM.from_task(data.task)
-    new_task_orm.id = max((task.id for task in problem_orm.tasks), default=-1) + 1
     new_task_orm.problem_id = old_task_orm.problem_id
 
     db_session.add(new_task_orm)
@@ -895,3 +888,74 @@ def parse_python_functions(
     data: ParseRequest,
 ):
     return parse_python_functions_from_file_content(data.content)
+
+
+@router.post("/{id}/tasks/{task_id}/copy")
+def copy_problem_task(
+    id: int,
+    task_id: int,
+    source_problem_orm: Annotated[ProblemORM, Depends(get_problem_by_id)],
+    user: Annotated[UserORM, Depends(get_current_user)],
+    db_session: Annotated[Session, Depends(get_db_session)],
+    target_problem_id: int | None = None,
+):
+    target_problem_orm: ProblemORM = source_problem_orm
+
+    if target_problem_id is not None:
+        target_problem_orm = get_problem_by_id(target_problem_id, db_session=db_session)
+
+    for problem_orm, direction in [(source_problem_orm, "from"), (target_problem_orm, "to")]:
+        if not permission_check(problem_orm, "edit", user):
+            raise HTTPException(
+                status_code=HTTPStatus.FORBIDDEN,
+                detail=f"User does not have permission to copy task {direction} the problem",
+            )
+
+    task_orm: TaskORM = get_task_by_id(task_id, id, db_session=db_session)
+
+    if not task_orm:
+        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="Task not found")
+
+    new_task_orm: TaskORM = task_orm.deep_copy()
+
+    target_problem_orm.tasks.append(new_task_orm)
+
+    db_session.add(new_task_orm)
+    db_session.commit()
+
+    return new_task_orm.to_task()
+
+
+@router.post("/{id}/copy")
+def copy_problem(
+    problem_orm: Annotated[ProblemORM, Depends(get_problem_by_id)],
+    db_session: Annotated[Session, Depends(get_db_session)],
+    user: Annotated[UserORM, Depends(get_current_user)],
+    target_project_id: int | None = None,
+) -> Problem:
+    source_project_orm: Project = problem_orm.project
+    target_project_orm: Project = problem_orm.project
+
+    if target_project_id is not None:
+        target_project_orm = Project.get_by_pk(target_project_id, db_session=db_session)
+
+    for project_orm, direction, permission in [
+        (source_project_orm, "from", "edit"),
+        (target_project_orm, "to", "create_problems"),
+    ]:
+        if not permission_check(project_orm, permission, user):
+            raise HTTPException(
+                status_code=HTTPStatus.FORBIDDEN,
+                detail=f"User does not have permission to copy problem {direction} the project",
+            )
+
+    new_problem_orm: ProblemORM = problem_orm.deep_copy()
+
+    target_project_orm.problems.append(new_problem_orm)
+
+    db_session.add(new_problem_orm)
+    db_session.commit()
+
+    permission_create(new_problem_orm)
+
+    return new_problem_orm.to_problem()

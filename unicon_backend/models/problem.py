@@ -1,13 +1,15 @@
 from datetime import datetime
 from functools import partial
-from typing import TYPE_CHECKING, Any, Self, cast
+from typing import TYPE_CHECKING, Any, ClassVar, Self, cast
 
 import sqlalchemy as sa
 import sqlalchemy.dialects.postgresql as pg
 import sqlalchemy.orm as sa_orm
 from pydantic import model_validator
-from sqlmodel import Field, Relationship
+from sqlalchemy import event
+from sqlmodel import Field, Relationship, Session, func, select
 
+from unicon_backend.database import SessionLocal
 from unicon_backend.evaluator.problem import Problem
 from unicon_backend.evaluator.tasks import task_classes
 from unicon_backend.evaluator.tasks.base import TaskEvalResult, TaskEvalStatus, TaskType
@@ -77,6 +79,8 @@ class ProblemORM(CustomSQLModel, table=True):
         back_populates="problem", cascade_delete=True
     )
 
+    excluded_fields_on_copy: ClassVar[list[str]] = ["published", "project", "submissions"]
+
     @classmethod
     def from_problem(cls, problem: "Problem") -> "ProblemORM":
         tasks_orm: list[TaskORM] = [TaskORM.from_task(task) for task in problem.tasks]
@@ -109,6 +113,23 @@ class ProblemORM(CustomSQLModel, table=True):
             }
         )
 
+    def deep_copy(self: "ProblemORM", excluded_classes: list[Any] | None = None) -> "ProblemORM":
+        copied: ProblemORM = super().deep_copy()
+        # Need to manually set the id and order_index to allow for bulk update
+        for i, task_orm in enumerate(copied.tasks):
+            task_orm.id = i + 1
+            task_orm.order_index = i
+        return copied
+
+
+@event.listens_for(Session, "after_flush")
+def assign_file_parent_ids(session: Session, flush_context: sa_orm.UOWTransaction) -> None:
+    for obj in session.new:
+        if isinstance(obj, ProblemORM):
+            for file in obj.supporting_files:
+                file.parent_id = obj.id
+                session.add(file)
+
 
 class TaskORM(CustomSQLModel, table=True):
     __tablename__ = "task"
@@ -136,6 +157,11 @@ class TaskORM(CustomSQLModel, table=True):
     min_score_to_pass: int | None = Field(nullable=True, default=None)
 
     triggered_rerun: bool = Field(default=False, sa_column_kwargs={"server_default": "false"})
+
+    excluded_fields_on_copy: ClassVar[list[str]] = ["order_index", "problem", "task_attempts"]
+
+    def excluded_on_copy(self) -> bool:
+        return self.updated_version_id != None
 
     @classmethod
     def from_task(cls, task: "Task") -> "TaskORM":
@@ -184,6 +210,27 @@ class TaskORM(CustomSQLModel, table=True):
                 "updated_version_id": self.updated_version_id,
             },
         )
+
+
+@event.listens_for(TaskORM, "before_insert")
+def set_task_id_and_order_index(mapper, connect, target) -> TaskORM:
+    if target.id is None or target.id < 0:
+        with SessionLocal() as db_session:
+            max_id = db_session.scalar(
+                select(func.max(TaskORM.id)).where(TaskORM.problem_id == target.problem_id)
+            )
+            target.id = max_id + 1 if max_id is not None else 1  # 1-based indexing
+
+    if target.order_index is None or target.order_index < 0:
+        with SessionLocal() as db_session:
+            max_order_index = db_session.scalar(
+                select(func.max(TaskORM.order_index)).where(TaskORM.problem_id == target.problem_id)
+            )
+            target.order_index = (
+                max_order_index + 1 if max_order_index is not None else 0
+            )  # 0-based indexing
+
+    return target
 
 
 class SubmissionAttemptLink(CustomSQLModel, table=True):
