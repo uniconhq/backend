@@ -40,17 +40,8 @@ role_permissions["admin"] = role_permissions["helper"] + [
 ]
 
 
-def create_project_with_defaults(
-    create_data: ProjectCreate, organisation_id: int, user: UserORM
-) -> Project:
-    """Note: this function does not add permission tuples (e.g. permify.)
-    Expected to be done outside the function (e.g. after the database commit after this function is called)."""
-    new_project = Project.model_validate(
-        {**create_data.model_dump(), "organisation_id": organisation_id}
-    )
-
-    # Create three default roles
-    new_project.roles = [
+def get_default_project_roles(user: UserORM) -> list[Role]:
+    return [
         Role(
             name="admin",
             users=[user],
@@ -61,6 +52,19 @@ def create_project_with_defaults(
             for role in ["helper", "member"]
         ],
     ]
+
+
+def create_project_with_defaults(
+    create_data: ProjectCreate, organisation_id: int, user: UserORM
+) -> Project:
+    """Note: this function does not add permission tuples (e.g. permify.)
+    Expected to be done outside the function (e.g. after the database commit after this function is called)."""
+    new_project = Project.model_validate(
+        {**create_data.model_dump(), "organisation_id": organisation_id}
+    )
+
+    # Create three default roles
+    new_project.roles = get_default_project_roles(user)
 
     return new_project
 

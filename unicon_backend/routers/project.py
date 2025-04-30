@@ -8,7 +8,7 @@ from sqlmodel import Session, and_, col, select
 
 from unicon_backend.dependencies.auth import get_current_user
 from unicon_backend.dependencies.common import get_db_session
-from unicon_backend.dependencies.project import get_project_by_id
+from unicon_backend.dependencies.project import get_default_project_roles, get_project_by_id
 from unicon_backend.evaluator.problem import Problem
 from unicon_backend.lib.permissions import (
     permission_check,
@@ -19,7 +19,7 @@ from unicon_backend.lib.permissions import (
     permission_update,
 )
 from unicon_backend.models.links import GroupMember, UserRole
-from unicon_backend.models.organisation import Group, InvitationKey, Project, Role
+from unicon_backend.models.organisation import Group, InvitationKey, Organisation, Project, Role
 from unicon_backend.models.problem import (
     ProblemORM,
     SubmissionORM,
@@ -420,3 +420,49 @@ def create_problem(
     permission_create(new_problem)
 
     return new_problem
+
+
+@router.post("/{id}/copy")
+def copy_project(
+    project_orm: Annotated[Project, Depends(get_project_by_id)],
+    db_session: Annotated[Session, Depends(get_db_session)],
+    user: Annotated[UserORM, Depends(get_current_user)],
+    target_organisation_id: int | None = None,
+) -> ProjectPublic:
+    source_organisation_orm: Organisation = project_orm.organisation
+    target_organisation_orm: Organisation = project_orm.organisation
+
+    if target_organisation_id is not None:
+        target_organisation_orm = Organisation.get_by_pk(
+            target_organisation_id, db_session=db_session
+        )
+
+    for organisation_orm, direction in [
+        (source_organisation_orm, "from"),
+        (target_organisation_orm, "to"),
+    ]:
+        if not permission_check(organisation_orm, "edit", user):
+            raise HTTPException(
+                status_code=HTTPStatus.FORBIDDEN,
+                detail=f"User does not have permission to copy project {direction} the organisation",
+            )
+
+    new_project_orm: Project = project_orm.deep_copy()
+
+    new_project_orm.roles = get_default_project_roles(user)
+
+    target_organisation_orm.projects.append(new_project_orm)
+
+    db_session.add(new_project_orm)
+    db_session.commit()
+
+    permission_create(new_project_orm)
+    for role in new_project_orm.roles:
+        permission_create(role)
+    for problem in new_project_orm.problems:
+        permission_create(problem)
+
+    permissions = permission_list_for_subject(new_project_orm, user)
+    result = ProjectPublic.model_validate(new_project_orm, update=permissions)
+
+    return result
