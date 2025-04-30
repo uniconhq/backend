@@ -1,5 +1,6 @@
 from logging.config import fileConfig
 
+import alembic_postgresql_enum
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
@@ -10,6 +11,12 @@ from unicon_backend.lib.common import CustomSQLModel
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
+
+alembic_postgresql_enum.set_configuration(
+    alembic_postgresql_enum.Config(
+        add_type_ignore=True,
+    )
+)
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.

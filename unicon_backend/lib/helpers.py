@@ -1,5 +1,6 @@
 from collections import defaultdict
 from collections.abc import Callable, Sequence
+from threading import Timer
 
 
 def partition[T](
@@ -20,3 +21,9 @@ def create_multi_index[T, K, V](
     for item in filter(filter_fn, items):
         index[key_fn(item)].append(value_fn(item))
     return index
+
+
+def create_and_start_timer(time, fn):
+    timer = Timer(time, fn)
+    timer.start()
+    return timer

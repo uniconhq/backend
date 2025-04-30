@@ -295,7 +295,7 @@ class TaskAttemptORM(CustomSQLModel, table=True):
         has_failure = False
         for result in self.task_results:
             # if pending, there is nothing to redact.
-            if result.status == TaskEvalStatus.PENDING:
+            if result.status in [TaskEvalStatus.PENDING, TaskEvalStatus.PENDING_PUSH]:
                 filtered_results.append(result)
                 continue
 
@@ -389,7 +389,7 @@ class TaskResultORM(TaskResultBase, table=True):
     def from_task_eval_result(
         cls, eval_result: "TaskEvalResult", attempt_id: int, task_type: TaskType
     ) -> "TaskResultORM":
-        is_pending = eval_result.status == TaskEvalStatus.PENDING
+        is_pending = eval_result.status in [TaskEvalStatus.PENDING, TaskEvalStatus.PENDING_PUSH]
         started_at = sa.func.now()
         completed_at = None if is_pending else sa.func.now()
         result = (

@@ -10,6 +10,7 @@ from unicon_backend.constants import CORS_REGEX_WHITELIST, FRONTEND_URL
 from unicon_backend.logger import setup_rich_logger
 from unicon_backend.routers import auth, file, group, organisation, problem, project, role
 from unicon_backend.workers.dead_task_consumer import dead_task_consumer
+from unicon_backend.workers.pending_push_collector import pending_push_collector
 from unicon_backend.workers.task_publisher import task_publisher
 from unicon_backend.workers.task_result_consumer import task_result_consumer
 
@@ -23,12 +24,14 @@ async def lifespan(app: FastAPI):
     dead_task_consumer.run(_event_loop)
     task_result_consumer.run(_event_loop)
     task_publisher.run(_event_loop)
+    pending_push_collector.run(_event_loop)
 
     yield
 
     task_publisher.stop()
     task_result_consumer.stop()
     dead_task_consumer.stop()
+    pending_push_collector.stop()
 
 
 app = FastAPI(title="Unicon 🦄 Backend", lifespan=lifespan, separate_input_output_schemas=False)

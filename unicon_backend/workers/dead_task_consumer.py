@@ -10,6 +10,7 @@ from unicon_backend.constants import (
     AMQP_CONN_NAME,
     AMQP_DEAD_TASK_QUEUE,
     AMQP_DLX,
+    AMQP_RECONNECT_AFTER_SEC,
     AMQP_URL,
 )
 from unicon_backend.database import SessionLocal
@@ -28,6 +29,7 @@ class DeadTasksConsumer(AsyncMQConsumer):
             AMQP_DLX,
             ExchangeType.direct,
             AMQP_DEAD_TASK_QUEUE,
+            reconnect_after_sec=AMQP_RECONNECT_AFTER_SEC,
         )
 
     def _message_callback(

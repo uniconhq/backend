@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 from http import HTTPStatus
 from itertools import groupby
-from typing import TYPE_CHECKING, Annotated, cast
+from typing import Annotated, cast
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
 from pydantic import RootModel
@@ -19,8 +19,9 @@ from unicon_backend.dependencies.problem import (
     parse_python_functions_from_file_content,
 )
 from unicon_backend.evaluator.problem import Problem, Task, UserInput
-from unicon_backend.evaluator.tasks.base import TaskType
+from unicon_backend.evaluator.tasks.base import TaskEvalResult, TaskType
 from unicon_backend.evaluator.tasks.programming.base import ProgrammingTask, TestcaseResult
+from unicon_backend.evaluator.tasks.programming.runner import run_as_programming_task
 from unicon_backend.evaluator.tasks.programming.visitors import ParsedFunction
 from unicon_backend.lib.file import delete_file, upload_fastapi_file
 from unicon_backend.lib.permissions import (
@@ -55,9 +56,6 @@ from unicon_backend.schemas.problem import (
     ProblemUpdate,
     TaskUpdate,
 )
-
-if TYPE_CHECKING:
-    from unicon_backend.evaluator.tasks.base import TaskEvalResult
 
 router = APIRouter(prefix="/problems", tags=["problem"], dependencies=[Depends(get_current_user)])
 
@@ -338,8 +336,6 @@ def update_task(
     db_session.commit()
     db_session.refresh(old_task_orm)
 
-    problem = problem_orm.to_problem()
-
     if data.rerun:
         new_task_orm.triggered_rerun = True
         new_task_orm.task_attempts = [
@@ -349,7 +345,9 @@ def update_task(
         ]
         for task_attempt in new_task_orm.task_attempts:
             user_input = task_attempt.other_fields.get("user_input")
-            task_result: TaskEvalResult = problem.run_task(new_task_orm.id, user_input)
+            task_result: TaskEvalResult = run_as_programming_task(
+                new_task_orm.to_task(), user_input
+            )
             task_result_orm: TaskResultORM = TaskResultORM.from_task_eval_result(
                 task_result, attempt_id=task_attempt.id, task_type=new_task_orm.type
             )
@@ -555,7 +553,7 @@ def submit_problem_task_attempt(
     )
 
     try:
-        task_result: TaskEvalResult = problem.run_task(task_id, user_input.value)
+        task_result: TaskEvalResult = run_as_programming_task(task.to_task(), user_input.value)
     except ValueError as e:
         raise HTTPException(status_code=HTTPStatus.BAD_REQUEST, detail=str(e)) from e
 
@@ -692,9 +690,8 @@ def rerun_task_attempt(
 ):
     task_attempt = _get_task_attempt(attempt_id, db_session, user)
 
-    problem: Problem = task_attempt.task.problem.to_problem()
-    task_result: TaskEvalResult = problem.run_task(
-        task_attempt.task_id, task_attempt.other_fields["user_input"]
+    task_result: TaskEvalResult = run_as_programming_task(
+        task_attempt.task.to_task(), task_attempt.other_fields["user_input"]
     )
     task_result_orm: TaskResultORM = TaskResultORM.from_task_eval_result(
         task_result, attempt_id=task_attempt.id, task_type=task_attempt.task_type
