@@ -1,0 +1,98 @@
+[project]
+name = "unicon-backend"
+version = "0.1.0"
+description = "The Unicon API: contests on top of Forgejo, Woodpecker and Garage"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.14"
+dependencies = [
+    "fastapi>=0.141.1",
+    "uvicorn[standard]>=0.52.4",
+    "sqlalchemy[asyncio]>=2.0.52",
+    "psycopg[binary]>=3.3.5",
+    "alembic>=1.20.0",
+    "pydantic>=2.13.5",
+    "pydantic-settings>=2.15.0",
+    "cryptography>=50.0.1",
+    "itsdangerous>=2.2.0",
+    "httpx>=0.28.1",
+]
+
+[project.scripts]
+unicon = "unicon.cli:main"
+
+[dependency-groups]
+dev = [
+    "ruff>=0.16.7",
+    "mypy>=2.3.1",
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+    "import-linter>=2.15",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["unicon"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py314"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "C4", "SIM", "RUF"]
+
+[tool.ruff.lint.per-file-ignores]
+# Alembic writes its own migration style: long lines and unsorted imports.
+"unicon/db/alembic/versions/*" = ["E501", "I001"]
+
+[tool.mypy]
+python_version = "3.14"
+strict = true
+plugins = ["pydantic.mypy"]
+files = ["unicon", "tests"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+addopts = "-q"
+
+[tool.importlinter]
+root_package = "unicon"
+
+# The three rules from the design that are cheap now and expensive later.
+[[tool.importlinter.contracts]]
+name = "api and schemas never touch the ORM models"
+type = "forbidden"
+source_modules = ["unicon.api", "unicon.schemas"]
+forbidden_modules = ["unicon.models"]
+# Direct imports only: api calls services, and services are the layer that is
+# allowed to import models. What this forbids is an ORM object reaching a
+# router, which starts with the import.
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "domain imports nothing else from unicon"
+type = "forbidden"
+source_modules = ["unicon.domain"]
+forbidden_modules = [
+    "unicon.api",
+    "unicon.db",
+    "unicon.forge",
+    "unicon.main",
+    "unicon.models",
+    "unicon.schemas",
+    "unicon.services",
+    "unicon.settings",
+    "unicon.storage",
+]
+
+[[tool.importlinter.contracts]]
+name = "services sits on top; nothing below it imports it"
+type = "forbidden"
+source_modules = ["unicon.domain", "unicon.forge", "unicon.models", "unicon.schemas", "unicon.storage"]
+forbidden_modules = ["unicon.services"]
