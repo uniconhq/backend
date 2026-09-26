@@ -96,3 +96,26 @@ name = "services sits on top; nothing below it imports it"
 type = "forbidden"
 source_modules = ["unicon.domain", "unicon.forge", "unicon.models", "unicon.schemas", "unicon.storage"]
 forbidden_modules = ["unicon.services"]
+
+# The two contracts that make the backend a shell over the `forge` package:
+# it may import that package's public surface and never its tables or its
+# forge implementations. They are switched on when the tables and the Forgejo
+# client move out of this repo into `forge` and the backend depends on it.
+# Until then `unicon.models` and `unicon.forge` are the backend's own, and the
+# three contracts above cover them. To switch on: add "forge" to
+# root_packages and uncomment.
+#
+# [tool.importlinter]
+# root_packages = ["unicon", "forge"]
+#
+# [[tool.importlinter.contracts]]
+# name = "the backend never reaches a table in the forge package"
+# type = "forbidden"
+# source_modules = ["unicon"]
+# forbidden_modules = ["forge.db"]
+#
+# [[tool.importlinter.contracts]]
+# name = "the backend never reaches a forge implementation"
+# type = "forbidden"
+# source_modules = ["unicon"]
+# forbidden_modules = ["forge.forges"]

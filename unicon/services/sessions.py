@@ -4,7 +4,6 @@ written, and the only place a token is decrypted.
 """
 
 import asyncio
-import logging
 import weakref
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -26,11 +25,12 @@ from unicon.domain.identity import ActiveSession
 from unicon.domain.session_expiry import SessionTimes, is_expired, needs_touch
 from unicon.forge.errors import ForgeRejected, ForgeTokenExpired
 from unicon.forge.protocol import ForgeIdentity, Oidc, TokenSet
+from unicon.log import get_logger
 from unicon.models import Session
 from unicon.schemas.account import SessionInfo
 from unicon.settings import Settings
 
-logger = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 REFRESH_MARGIN = timedelta(minutes=5)
 
@@ -230,15 +230,11 @@ async def _refreshed(
     try:
         return await oidc.refresh(_decrypt(stored, settings.token_encryption_key_bytes))
     except ForgeTokenExpired as exc:
-        logger.info(
-            "forge_reauth: the forge will not renew session %s (%s)", _short(session_id), exc
-        )
+        log.info("session.forge_reauth", session=_short(session_id), reason=str(exc))
         await revoke(db, session_id)
         raise ForgeReauthRequired("Sign in again to keep working in the forge.") from exc
     except ForgeRejected:
-        logger.info(
-            "forge_misconfigured: the forge refused the refresh for session %s", _short(session_id)
-        )
+        log.info("session.forge_misconfigured", session=_short(session_id))
         raise ForgeMisconfigured("The forge refused this instance.") from None
 
 

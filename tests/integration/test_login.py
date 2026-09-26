@@ -15,6 +15,7 @@ from tests.integration import database_probe, login_flow
 from tests.integration.conftest import APP_URL
 from tests.integration.running_app import running_app
 from unicon.api.cookies import LOGIN_COOKIE, SESSION_COOKIE
+from unicon.log import JsonFormatter
 from unicon.settings import Settings
 
 AN_HOUR = 3600
@@ -266,10 +267,11 @@ async def test_a_refusal_is_logged_with_its_code_and_no_secret(
     with caplog.at_level(logging.INFO, logger="unicon.services.login"):
         await client.get(landing)
 
-    assert "login_state_invalid" in caplog.text
-    assert state not in caplog.text
-    assert state[:8] in caplog.text
-    assert code not in caplog.text
+    written = "\n".join(JsonFormatter().format(record) for record in caplog.records)
+    assert "login_state_invalid" in written
+    assert state not in written
+    assert state[:8] in written
+    assert code not in written
 
 
 async def test_the_register_url_is_nothing_when_sign_ups_are_closed(settings: Settings) -> None:

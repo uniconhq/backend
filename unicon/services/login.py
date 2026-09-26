@@ -3,7 +3,6 @@ its own session cookie plus that person's Forgejo token. Nothing is written
 until the code exchange has succeeded, so an abandoned login leaves no row.
 """
 
-import logging
 import secrets
 from hmac import compare_digest
 
@@ -15,10 +14,11 @@ from unicon.domain.errors import ForgeMisconfigured, LoginStateInvalid, UniconEr
 from unicon.domain.next_path import DEFAULT_NEXT, safe_next
 from unicon.forge.errors import ForgeRejected, ForgeTokenExpired, ForgeUnreachable
 from unicon.forge.protocol import ForgeIdentity, Oidc, TokenSet
+from unicon.log import get_logger
 from unicon.services import sessions
 from unicon.settings import Settings
 
-logger = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 STATE_PREFIX = 8
 
@@ -65,10 +65,10 @@ async def complete_login(
             db, settings, identity=identity, tokens=tokens, ip=ip, user_agent=user_agent
         )
     except ForgeUnreachable:
-        logger.info("login refused: forge_unreachable (state %s)", state[:STATE_PREFIX])
+        log.info("login.refused", code="forge_unreachable", state=state[:STATE_PREFIX])
         raise
     except UniconError as failure:
-        logger.info("login refused: %s (state %s)", failure.code, state[:STATE_PREFIX])
+        log.info("login.refused", code=failure.code, state=state[:STATE_PREFIX])
         raise
     return cookie, safe_next(started.next)
 
