@@ -6,10 +6,10 @@ FROM python:3.14-slim-trixie AS build
 COPY --from=ghcr.io/astral-sh/uv:0.12.13 /uv /usr/local/bin/uv
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_PYTHON_DOWNLOADS=never
 
-WORKDIR /src
+WORKDIR /opt/unicon
 COPY forge ./forge
 COPY backend/pyproject.toml backend/uv.lock backend/README.md backend/LICENSE ./backend/
-WORKDIR /src/backend
+WORKDIR /opt/unicon/backend
 RUN uv sync --frozen --no-dev --no-install-project
 COPY backend/unicon ./unicon
 RUN uv sync --frozen --no-dev
@@ -18,10 +18,9 @@ RUN uv sync --frozen --no-dev
 FROM python:3.14-slim-trixie
 
 RUN useradd --create-home --uid 10001 unicon
-WORKDIR /app
-COPY --from=build --chown=unicon:unicon /src/backend /app
-COPY --from=build --chown=unicon:unicon /src/forge /src/forge
-ENV PATH="/app/.venv/bin:$PATH" PYTHONUNBUFFERED=1
+COPY --from=build --chown=unicon:unicon /opt/unicon /opt/unicon
+WORKDIR /opt/unicon/backend
+ENV PATH="/opt/unicon/backend/.venv/bin:$PATH" PYTHONUNBUFFERED=1
 USER unicon
 EXPOSE 8000
 
