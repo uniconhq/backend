@@ -1,51 +1,55 @@
-"""What a handler asks for: the configuration, a database session, the Forgejo
-clients and who is making the request. The clients are read off `app.state`,
-which is the seam tests replace.
+"""What a route asks for: the settings, the runtime, a database session and
+the session the request carries.
 """
 
+from collections.abc import AsyncIterator
 from typing import Annotated
 
 from fastapi import Depends, Request
+from forge.domain.errors import Unauthenticated
+from forge.domain.sessions import Session
+from forge.port import Forge
+from forge.runtime import Runtime
+from forge.services import identity
+from forge.settings import Settings
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from unicon.api.cookies import SESSION_COOKIE
-from unicon.db.session import db_session
-from unicon.domain.errors import Unauthenticated
-from unicon.domain.identity import ActiveSession
-from unicon.forge.protocol import Admin, Oidc
-from unicon.services import sessions
-from unicon.settings import Settings
+from unicon.api import cookies
 
 
 def settings_of(request: Request) -> Settings:
-    config: Settings = request.app.state.settings
-    return config
+    settings: Settings = request.app.state.settings
+    return settings
 
 
-def oidc_of(request: Request) -> Oidc:
-    client: Oidc = request.app.state.oidc
-    return client
+def runtime_of(request: Request) -> Runtime:
+    runtime: Runtime = request.app.state.runtime
+    return runtime
 
 
-def admin_of(request: Request) -> Admin:
-    client: Admin = request.app.state.admin
-    return client
+def forge_of(request: Request) -> Forge:
+    return runtime_of(request).forge
+
+
+async def db_of(request: Request) -> AsyncIterator[AsyncSession]:
+    async with runtime_of(request).sessions() as db:
+        yield db
 
 
 Config = Annotated[Settings, Depends(settings_of)]
-Db = Annotated[AsyncSession, Depends(db_session)]
-OidcClientDep = Annotated[Oidc, Depends(oidc_of)]
-AdminClientDep = Annotated[Admin, Depends(admin_of)]
+RuntimeDep = Annotated[Runtime, Depends(runtime_of)]
+ForgeDep = Annotated[Forge, Depends(forge_of)]
+Db = Annotated[AsyncSession, Depends(db_of)]
 
 
-async def current_session(request: Request, db: Db, settings: Config) -> ActiveSession:
-    """The session the cookie names, or 401. A session that has ended also clears
-    the cookie.
+async def current_session(request: Request, settings: Config, db: Db) -> Session:
+    """The session behind the cookie, checked for its lifetimes. A missing or
+    altered cookie is `Unauthenticated`.
     """
-    cookie = request.cookies.get(SESSION_COOKIE)
-    if not cookie:
-        raise Unauthenticated("Sign in first.")
-    return await sessions.authenticate(db, settings, cookie)
+    session_id = cookies.read_session_id(request, settings)
+    if session_id is None:
+        raise Unauthenticated("No session.")
+    return await identity.current(db, settings, session_id)
 
 
-CurrentSession = Annotated[ActiveSession, Depends(current_session)]
+CurrentSession = Annotated[Session, Depends(current_session)]

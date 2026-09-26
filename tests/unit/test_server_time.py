@@ -3,10 +3,10 @@
 from datetime import UTC, datetime
 
 import pytest
+from forge.settings import Settings
 from httpx import ASGITransport, AsyncClient
 
 from unicon.main import create_app
-from unicon.settings import Settings
 
 
 @pytest.fixture

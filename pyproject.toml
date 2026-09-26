@@ -1,22 +1,17 @@
 [project]
 name = "unicon-backend"
 version = "0.1.0"
-description = "The Unicon API: contests on top of Forgejo, Woodpecker and Garage"
+description = "The Unicon HTTP shell: routes, cookies and the OpenAPI document over the forge package"
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
 requires-python = ">=3.14"
 dependencies = [
+    "unicon-forge==0.1.0",
     "fastapi>=0.141.1",
     "uvicorn[standard]>=0.52.4",
-    "sqlalchemy[asyncio]>=2.0.52",
-    "psycopg[binary]>=3.3.5",
-    "alembic>=1.20.0",
-    "pydantic>=2.13.5",
-    "pydantic-settings>=2.15.0",
-    "cryptography>=50.0.1",
     "itsdangerous>=2.2.0",
-    "httpx>=0.28.1",
+    "pydantic>=2.13.5",
 ]
 
 [project.scripts]
@@ -29,7 +24,12 @@ dev = [
     "pytest>=9.1.1",
     "pytest-asyncio>=1.4.0",
     "import-linter>=2.15",
+    "httpx>=0.28.1",
+    "psycopg[binary]>=3.3.5",
 ]
+
+[tool.uv.sources]
+unicon-forge = { path = "../forge", editable = true }
 
 [build-system]
 requires = ["hatchling"]
@@ -45,10 +45,6 @@ target-version = "py314"
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "B", "C4", "SIM", "RUF"]
 
-[tool.ruff.lint.per-file-ignores]
-# Alembic writes its own migration style: long lines and unsorted imports.
-"unicon/db/alembic/versions/*" = ["E501", "I001"]
-
 [tool.mypy]
 python_version = "3.14"
 strict = true
@@ -62,60 +58,18 @@ asyncio_default_fixture_loop_scope = "function"
 addopts = "-q"
 
 [tool.importlinter]
-root_package = "unicon"
+root_packages = ["unicon", "forge"]
 
-# The three rules from the design that are cheap now and expensive later.
 [[tool.importlinter.contracts]]
-name = "api and schemas never touch the ORM models"
+name = "the backend never reaches a table in the forge package"
 type = "forbidden"
-source_modules = ["unicon.api", "unicon.schemas"]
-forbidden_modules = ["unicon.models"]
-# Direct imports only: api calls services, and services are the layer that is
-# allowed to import models. What this forbids is an ORM object reaching a
-# router, which starts with the import.
+source_modules = ["unicon"]
+forbidden_modules = ["forge.db"]
 allow_indirect_imports = true
 
 [[tool.importlinter.contracts]]
-name = "domain imports nothing else from unicon"
+name = "the backend never reaches a forge implementation"
 type = "forbidden"
-source_modules = ["unicon.domain"]
-forbidden_modules = [
-    "unicon.api",
-    "unicon.db",
-    "unicon.forge",
-    "unicon.main",
-    "unicon.models",
-    "unicon.schemas",
-    "unicon.services",
-    "unicon.settings",
-    "unicon.storage",
-]
-
-[[tool.importlinter.contracts]]
-name = "services sits on top; nothing below it imports it"
-type = "forbidden"
-source_modules = ["unicon.domain", "unicon.forge", "unicon.models", "unicon.schemas", "unicon.storage"]
-forbidden_modules = ["unicon.services"]
-
-# The two contracts that make the backend a shell over the `forge` package:
-# it may import that package's public surface and never its tables or its
-# forge implementations. They are switched on when the tables and the Forgejo
-# client move out of this repo into `forge` and the backend depends on it.
-# Until then `unicon.models` and `unicon.forge` are the backend's own, and the
-# three contracts above cover them. To switch on: add "forge" to
-# root_packages and uncomment.
-#
-# [tool.importlinter]
-# root_packages = ["unicon", "forge"]
-#
-# [[tool.importlinter.contracts]]
-# name = "the backend never reaches a table in the forge package"
-# type = "forbidden"
-# source_modules = ["unicon"]
-# forbidden_modules = ["forge.db"]
-#
-# [[tool.importlinter.contracts]]
-# name = "the backend never reaches a forge implementation"
-# type = "forbidden"
-# source_modules = ["unicon"]
-# forbidden_modules = ["forge.forges"]
+source_modules = ["unicon"]
+forbidden_modules = ["forge.forges"]
+allow_indirect_imports = true

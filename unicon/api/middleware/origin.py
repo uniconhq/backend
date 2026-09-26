@@ -1,21 +1,25 @@
-"""The other half of the CSRF story. A state-changing request carrying the session
-cookie must say it came from this site. Requests without the cookie are not
-checked: there is nothing to forge.
+"""A state-changing request carrying the session cookie must say it came from
+the platform's own origin, in `Origin` or, failing that, in `Referer`. Reads
+and requests without the cookie are not checked.
 """
 
 from collections.abc import Awaitable, Callable
 from urllib.parse import urlsplit
 
+from forge.domain.errors import UniconError
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 
 from unicon.api.cookies import SESSION_COOKIE
-from unicon.api.errors import problem_response
-from unicon.domain.errors import OriginMismatch
+from unicon.api.errors import problem_response, status_of
 from unicon.schemas.problem import Problem
 
 UNSAFE_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
+
+
+class OriginMismatch(UniconError):
+    code = "origin_mismatch"
 
 
 class OriginCheck(BaseHTTPMiddleware):
@@ -28,13 +32,9 @@ class OriginCheck(BaseHTTPMiddleware):
     ) -> Response:
         if self._is_forgeable(request) and _claimed_origin(request) != self._expected:
             error = OriginMismatch("This request did not come from the site.")
+            status = status_of(error)
             return problem_response(
-                Problem.of(
-                    code=error.code,
-                    status=error.status,
-                    title="Forbidden",
-                    detail=error.detail,
-                )
+                Problem.of(code=error.code, status=status, title="Forbidden", detail=error.detail)
             )
         return await call_next(request)
 
@@ -43,9 +43,6 @@ class OriginCheck(BaseHTTPMiddleware):
 
 
 def _claimed_origin(request: Request) -> str | None:
-    """`Origin`, or the origin part of `Referer` where the browser sends no
-    `Origin`.
-    """
     origin = request.headers.get("origin")
     if origin:
         return origin
