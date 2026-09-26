@@ -28,8 +28,10 @@ trusts. With `UNICON_FORGE=fake` the whole shell runs against the in-memory
 forge, with no git host at all.
 
 The real configuration comes from the compose stack in `deploy`, whose
-bootstrap writes a `.env` with every `UNICON_*` variable the package's
-settings class reads. A missing or malformed variable stops the process at
+bootstrap writes a `.env` with every `UNICON_*` variable the settings read.
+`ShellSettings` in `unicon/settings.py` extends the package's settings with
+the two values only this shell uses, `UNICON_SESSION_SIGNING_KEY` and
+`UNICON_COOKIE_SECURE`. A missing or malformed variable stops the process at
 start with the variable named. Two hostnames in that file are the stack's:
 `postgres` in `UNICON_DATABASE_URL` and `forgejo` in
 `UNICON_FORGE_INTERNAL_URL`; from a laptop shell substitute the published
@@ -59,6 +61,11 @@ and `SameSite=Lax` are the whole CSRF story.
 The session list, revoke, sign-out-everywhere, deactivate and delete routes
 each call the matching package operation and return its refusal unchanged.
 
+Each request is one unit of work. The `Ctx` dependency opens a database
+session, hands the route the package's `Context` over it, commits when the
+route returns and rolls back when it raises. A route calls services and
+never touches the session itself.
+
 ## Errors
 
 Every error is an RFC 9457 problem document with a stable `code`. The
@@ -70,14 +77,16 @@ nowhere else:
 | `not_found` | 404 |
 | `forbidden`, `fresh_sign_in_required`, `origin_mismatch` | 403 |
 | `conflict`, `sole_admin`, `shared_workflow_owner` | 409 |
-| `rejected`, `validation_error` | 422 |
+| `rejected`, `invalid_name`, `validation_error` | 422 |
 | `unauthenticated`, `session_expired` | 401, and the session cookie is cleared |
 | `sign_in_invalid`, `sign_in_denied` | 400 |
 | `forge_misconfigured` | 502 |
 | `forge_unavailable` | 503 |
 
 `sole_admin` carries `scopes` and `shared_workflow_owner` carries
-`workflows`, so the browser can show what stands in the way.
+`workflows`, so the browser can show what stands in the way. A typed error
+the table does not know is a fault in the table: it is answered as a 500
+with its code and logged as `errors.unmapped`.
 
 ## Logging
 
@@ -104,10 +113,11 @@ docker build -f backend/Dockerfile ..
 ```
 
 `lint-imports` holds the two contracts that keep this a shell: nothing here
-imports the package's `db` or anything under its `forges`. The integration
-tests run the app over a real Postgres and the in-memory forge; they create
-and drop a database of their own on the server the URL names and are skipped
-without it. The openapi diff fails when a response changed and nobody
+imports the package's `db` or anything under its `forges`. The tests load the
+package's pytest plugin, `forge.testing`, and run the app over the same
+migrated Postgres, in-memory forge and runtime the package tests itself with;
+they create and drop a database of their own on the server the URL names and
+are skipped without it. The openapi diff fails when a response changed and nobody
 regenerated the document.
 
 The image is built from the parent directory with both `backend/` and
@@ -119,12 +129,13 @@ until the backend pins a released version of it.
 ```
 unicon/
   main.py      the app factory; the runtime starts and stops with the app
+  settings.py  the package's settings plus the cookie key and flag
   cli.py       api | migrate | openapi
-  api/         routes, cookies, the error mapping and the middleware
+  api/         routes, dependencies, cookies, the error mapping and the middleware
   schemas/     what the API answers with, including the problem document
 tests/
   unit/        no database
-  integration/ a real Postgres and the in-memory forge
+  integration/ a real Postgres and the in-memory forge, through the browser's hops
 ```
 
 ## Licence
