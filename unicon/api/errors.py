@@ -1,7 +1,8 @@
 """Every error the API answers with, as an RFC 9457 problem document. The
 package's typed errors are mapped to a status code here and nowhere else, and
 the error's stable code goes into the body so a client switches on it rather
-than on prose.
+than on prose. A typed error with no mapping is a fault in this table and is
+answered as one.
 """
 
 from http import HTTPStatus
@@ -11,28 +12,32 @@ from fastapi import FastAPI, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from forge.domain.errors import UniconError
+from forge.log import get_logger
 from starlette.exceptions import HTTPException
 
 from unicon.api.cookies import clear_session
 from unicon.schemas.problem import PROBLEM_CONTENT_TYPE, Problem
+
+log = get_logger(__name__)
 
 STATUS = {
     "not_found": 404,
     "forbidden": 403,
     "conflict": 409,
     "rejected": 422,
+    "forge_misconfigured": 502,
     "forge_unavailable": 503,
+    "invalid_name": 422,
     "unauthenticated": 401,
     "session_expired": 401,
     "fresh_sign_in_required": 403,
     "sign_in_invalid": 400,
     "sign_in_denied": 400,
-    "forge_misconfigured": 502,
     "sole_admin": 409,
     "shared_workflow_owner": 409,
     "origin_mismatch": 403,
 }
-UNMAPPED_STATUS = 400
+INTERNAL = 500
 CLEARS_SESSION = frozenset({"unauthenticated", "session_expired"})
 HTTP_CODES = {404: "not_found", 405: "method_not_allowed"}
 
@@ -45,7 +50,7 @@ def register_error_handlers(app: FastAPI) -> None:
 
 
 def status_of(error: UniconError) -> int:
-    return STATUS.get(error.code, UNMAPPED_STATUS)
+    return STATUS.get(error.code, INTERNAL)
 
 
 def problem_response(problem: Problem) -> JSONResponse:
@@ -63,6 +68,8 @@ def _title(status: int) -> str:
 async def _typed_error(request: Request, exc: Exception) -> Response:
     error = cast(UniconError, exc)
     status = status_of(error)
+    if error.code not in STATUS:
+        log.error("errors.unmapped", code=error.code)
     response = problem_response(
         Problem.of(
             code=error.code, status=status, title=_title(status), detail=error.detail, **error.extra
@@ -102,8 +109,8 @@ async def _unexpected_error(request: Request, exc: Exception) -> Response:
     return problem_response(
         Problem.of(
             code="internal_error",
-            status=500,
-            title=_title(500),
+            status=INTERNAL,
+            title=_title(INTERNAL),
             detail="The server failed to handle this request.",
         )
     )

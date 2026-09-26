@@ -8,10 +8,10 @@ from typing import Any
 
 import pytest
 from forge.log import JsonFormatter
-from forge.settings import Settings
 from httpx import ASGITransport, AsyncClient
 
 from unicon.main import create_app
+from unicon.settings import ShellSettings
 
 FORMATTER = JsonFormatter()
 
@@ -25,7 +25,7 @@ def _records(caplog: pytest.LogCaptureFixture, event: str) -> list[dict[str, Any
 
 
 async def test_a_request_produces_exactly_one_record_without_the_cookie(
-    settings: Settings, caplog: pytest.LogCaptureFixture
+    settings: ShellSettings, caplog: pytest.LogCaptureFixture
 ) -> None:
     caplog.set_level(logging.INFO)
     app = create_app(settings)

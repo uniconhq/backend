@@ -12,8 +12,9 @@ from datetime import timedelta
 
 from fastapi import Request, Response
 from forge.services.sign_in import SignInAttempt
-from forge.settings import Settings
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
+
+from unicon.settings import ShellSettings
 
 SESSION_COOKIE = "unicon_session"
 SIGN_IN_COOKIE = "unicon_sign_in"
@@ -23,16 +24,16 @@ SESSION_SALT = "unicon-session"
 SIGN_IN_SALT = "unicon-sign-in"
 
 
-def set_session(response: Response, session_id: uuid.UUID, settings: Settings) -> None:
+def set_session(response: Response, session_id: uuid.UUID, settings: ShellSettings) -> None:
     value = _serializer(settings, SESSION_SALT).dumps(session_id.hex)
     _set(response, SESSION_COOKIE, value, settings.session_hard_ttl, settings)
 
 
-def clear_session(response: Response, settings: Settings) -> None:
+def clear_session(response: Response, settings: ShellSettings) -> None:
     _clear(response, SESSION_COOKIE, settings)
 
 
-def read_session_id(request: Request, settings: Settings) -> uuid.UUID | None:
+def read_session_id(request: Request, settings: ShellSettings) -> uuid.UUID | None:
     """The session id the request carries, or none when there is no cookie or
     its signature does not hold.
     """
@@ -48,16 +49,16 @@ def read_session_id(request: Request, settings: Settings) -> uuid.UUID | None:
         return None
 
 
-def set_sign_in(response: Response, attempt: SignInAttempt, settings: Settings) -> None:
+def set_sign_in(response: Response, attempt: SignInAttempt, settings: ShellSettings) -> None:
     value = _serializer(settings, SIGN_IN_SALT).dumps(asdict(attempt))
     _set(response, SIGN_IN_COOKIE, value, settings.sign_in_ttl, settings)
 
 
-def clear_sign_in(response: Response, settings: Settings) -> None:
+def clear_sign_in(response: Response, settings: ShellSettings) -> None:
     _clear(response, SIGN_IN_COOKIE, settings)
 
 
-def read_sign_in(request: Request, settings: Settings) -> SignInAttempt | None:
+def read_sign_in(request: Request, settings: ShellSettings) -> SignInAttempt | None:
     value = request.cookies.get(SIGN_IN_COOKIE)
     if not value:
         return None
@@ -70,7 +71,7 @@ def read_sign_in(request: Request, settings: Settings) -> SignInAttempt | None:
         return None
 
 
-def _serializer(settings: Settings, salt: str) -> URLSafeTimedSerializer:
+def _serializer(settings: ShellSettings, salt: str) -> URLSafeTimedSerializer:
     return URLSafeTimedSerializer(settings.session_signing_key_bytes, salt=salt)
 
 
@@ -79,7 +80,7 @@ def _seconds(lifetime: timedelta) -> int:
 
 
 def _set(
-    response: Response, name: str, value: str, lifetime: timedelta, settings: Settings
+    response: Response, name: str, value: str, lifetime: timedelta, settings: ShellSettings
 ) -> None:
     response.set_cookie(
         name,
@@ -92,7 +93,7 @@ def _set(
     )
 
 
-def _clear(response: Response, name: str, settings: Settings) -> None:
+def _clear(response: Response, name: str, settings: ShellSettings) -> None:
     response.delete_cookie(
         name, path=PATH, httponly=True, samesite="lax", secure=settings.cookie_secure
     )

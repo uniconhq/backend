@@ -3,14 +3,14 @@
 from datetime import UTC, datetime
 
 import pytest
-from forge.settings import Settings
 from httpx import ASGITransport, AsyncClient
 
 from unicon.main import create_app
+from unicon.settings import ShellSettings
 
 
 @pytest.fixture
-async def client(settings: Settings) -> AsyncClient:
+async def client(settings: ShellSettings) -> AsyncClient:
     app = create_app(settings)
     return AsyncClient(transport=ASGITransport(app=app), base_url="http://test")
 

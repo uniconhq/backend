@@ -1,15 +1,15 @@
 """Each of the package's typed errors comes out with its own status and code,
-in one place, and an unmapped one still carries its code.
+in one place, and one the table does not know is answered as a fault.
 """
 
 import pytest
 from forge.domain import errors
 from forge.domain.errors import UniconError
-from forge.settings import Settings
 from httpx import ASGITransport, AsyncClient
 
 from unicon.api.errors import status_of
 from unicon.main import create_app
+from unicon.settings import ShellSettings
 
 CASES = [
     (errors.NotFound, 404),
@@ -17,6 +17,7 @@ CASES = [
     (errors.Conflict, 409),
     (errors.Rejected, 422),
     (errors.Unavailable, 503),
+    (errors.InvalidName, 422),
     (errors.Unauthenticated, 401),
     (errors.SessionExpired, 401),
     (errors.FreshSignInRequired, 403),
@@ -37,11 +38,11 @@ class Surprise(UniconError):
     code = "surprise"
 
 
-def test_an_unmapped_error_keeps_its_code() -> None:
-    assert status_of(Surprise("no")) == 400
+def test_an_unmapped_error_is_a_fault() -> None:
+    assert status_of(Surprise("no")) == 500
 
 
-async def test_a_typed_error_becomes_a_problem_document(settings: Settings) -> None:
+async def test_a_typed_error_becomes_a_problem_document(settings: ShellSettings) -> None:
     app = create_app(settings)
 
     @app.get("/boom")
@@ -58,7 +59,7 @@ async def test_a_typed_error_becomes_a_problem_document(settings: Settings) -> N
     assert response.json()["scopes"] == [{"kind": "org", "name": "acme"}]
 
 
-async def test_an_unauthenticated_answer_clears_the_cookie(settings: Settings) -> None:
+async def test_an_unauthenticated_answer_clears_the_cookie(settings: ShellSettings) -> None:
     app = create_app(settings)
 
     @app.get("/who")
