@@ -9,13 +9,13 @@ import pytest
 from unicon.api.openapi import HTTP_METHODS, build_document
 from unicon.main import create_app
 from unicon.schemas.problem import PROBLEM_CONTENT_TYPE
-from unicon.settings import Settings
+from unicon.settings import ShellSettings
 
 COMMITTED_DOCUMENT = Path(__file__).resolve().parents[2] / "openapi.json"
 
 
 @pytest.fixture
-def document(settings: Settings) -> dict[str, Any]:
+def document(settings: ShellSettings) -> dict[str, Any]:
     return build_document(create_app(settings))
 
 

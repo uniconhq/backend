@@ -1,6 +1,4 @@
-"""What the login endpoints answer with, where they answer at all: the others are
-redirects and a 204.
-"""
+"""What the sign-in routes answer with, where they answer with a body."""
 
 from pydantic import BaseModel
 
