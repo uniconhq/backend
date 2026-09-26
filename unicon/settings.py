@@ -7,7 +7,7 @@ import binascii
 import logging
 import sys
 from datetime import timedelta
-from typing import Any, Self
+from typing import Any, Literal, Self
 
 from pydantic import HttpUrl, PostgresDsn, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -21,6 +21,14 @@ class Settings(BaseSettings):
     public_url: HttpUrl
 
     database_url: PostgresDsn
+
+    # Which implementation sits behind the forge port. `fake` runs the whole
+    # stack without a forge, in tests.
+    forge: Literal["forgejo", "fake"] = "forgejo"
+
+    # Whether any signed-in user may create an organisation. Off, only a
+    # platform administrator creates one.
+    org_creation_open: bool = True
 
     forge_public_url: HttpUrl
 
@@ -145,6 +153,8 @@ class Settings(BaseSettings):
             "session_signing_key": key,
             "token_encryption_key": key,
             "cookie_secure": False,
+            "forge": "forgejo",
+            "org_creation_open": True,
             "forge_registration_open": True,
             "log_level": "INFO",
             "session_hard_ttl": timedelta(days=30),

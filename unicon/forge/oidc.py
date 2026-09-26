@@ -5,7 +5,6 @@ the back-channel calls go to the internal one.
 """
 
 import json
-import logging
 from datetime import UTC, datetime, timedelta
 from typing import Any
 from urllib.parse import urlencode
@@ -13,9 +12,10 @@ from urllib.parse import urlencode
 from unicon.forge.errors import ForgeRejected, ForgeTokenExpired
 from unicon.forge.http import ForgeHttp
 from unicon.forge.protocol import ForgeIdentity, TokenSet
+from unicon.log import get_logger
 from unicon.settings import Settings
 
-logger = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 AUTHORIZE_PATH = "/login/oauth/authorize"
 TOKEN_PATH = "/login/oauth/access_token"
@@ -83,11 +83,11 @@ class OidcClient:
             error, description = _oauth_error(refusal.body)
             if error in SPENT_GRANT_ERRORS:
                 raise ForgeTokenExpired(error) from refusal
-            logger.error(
-                "forge refused a %s grant: error=%s error_description=%s",
-                form["grant_type"],
-                error,
-                description,
+            log.error(
+                "forge.grant_refused",
+                grant_type=form["grant_type"],
+                error=error,
+                description=description,
             )
             raise
         return _token_set(response.json(), requested_at)

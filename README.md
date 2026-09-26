@@ -35,12 +35,27 @@ reachable at whatever host and port the dev override publishes, and
 and a local process both reach at `http://localhost:3300`. Substitute those two
 and the rest of the file works as it stands.
 
-`UNICON_LOG_LEVEL` (default `INFO`) sets the level for `unicon api`. Nothing
-logs a token, an authorization code or a PKCE verifier at any level; a failed
-login logs its outcome code and the first eight characters of the state. The
-per-request access log is off for the same reason: uvicorn writes the whole
-request line, and `/api/v1/auth/callback?code=...` is a request line with a
-credential in it. The proxy in front keeps the traffic record.
+`UNICON_FORGE` picks the implementation behind the forge port, `forgejo` or
+`fake`. `UNICON_ORG_CREATION_OPEN` (default `true`) says whether any signed-in
+user may create an organisation.
+
+## Logging
+
+Every line `unicon api` writes is one JSON record: `time`, `level`, `logger`,
+`event`, then the event's named fields. Modules log through
+`unicon.log.get_logger` with an event name and fields, never a formatted
+sentence, so a log can be searched by `event` and filtered by a field. uvicorn's
+own lines go through the same handler. `UNICON_LOG_LEVEL` (default `INFO`)
+sets the level.
+
+Every request produces one `http.request` record with `method`, `path`,
+`status` and `duration_ms`, written by the `RequestLog` middleware when the
+response finishes. The query string is not in it, because
+`/api/v1/auth/callback?code=...` carries a credential; neither is the session
+cookie or the body. uvicorn's own access log is off for the same reason. A
+`SecretStr` given to the logger comes out as `**********`, and nothing logs a
+token, an authorization code or a PKCE verifier at any level; a failed login
+logs its outcome code and the first eight characters of the state.
 
 ## Checks
 
@@ -155,6 +170,7 @@ different answer from `forge_unreachable`.
 unicon/
   main.py      the app factory        cli.py       api | migrate | openapi
   settings.py  every knob, read once at startup
+  log.py       the one structured logger; every line is a JSON record
   api/         routers: validate, call one service, shape the response
   auth/        cookies, PKCE and the encryption of the forge tokens
   schemas/     what the API returns, including the RFC 9457 problem document
