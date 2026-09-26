@@ -3,7 +3,6 @@ is all Forgejo's state; Unicon only revokes its own sessions.
 """
 
 import json
-import logging
 from collections.abc import Awaitable
 from datetime import UTC, datetime
 
@@ -20,11 +19,12 @@ from unicon.domain.identity import ActiveSession
 from unicon.forge.admin import UserNotFound
 from unicon.forge.errors import ForgeRejected, ForgeUnreachable
 from unicon.forge.protocol import Admin, Oidc, TeamMembership
+from unicon.log import get_logger
 from unicon.schemas.account import Me
 from unicon.services import sessions
 from unicon.settings import Settings
 
-logger = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 OWNERS_TEAM = "Owners"
 ADMIN_TEAM_SUFFIX = "-admin"
@@ -35,7 +35,7 @@ async def me(db: AsyncSession, settings: Settings, session: ActiveSession, oidc:
         token = await sessions.forge_token_for(db, settings, session.id, oidc)
         identity = await oidc.userinfo(token)
     except ForgeRejected as exc:
-        logger.warning("forge refused userinfo for session of user %s", session.user_id)
+        log.warning("forge.userinfo_refused", user_id=session.user_id)
         await sessions.revoke(db, session.id)
         raise ForgeReauthRequired("Sign in again.") from exc
     except ForgeUnreachable:
@@ -133,7 +133,7 @@ async def _apply(call: Awaitable[None]) -> None:
     try:
         await call
     except ForgeRejected as exc:
-        logger.warning("forge refused an account change: %s", exc.body[:200])
+        log.warning("forge.account_change_refused", reason=exc.body[:200])
         raise ForgeRejectedChange(_reason(exc)) from exc
 
 

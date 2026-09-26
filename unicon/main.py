@@ -11,6 +11,7 @@ from fastapi import FastAPI
 from unicon.api import health
 from unicon.api.errors import register_error_handlers
 from unicon.api.middleware.origin import OriginCheck
+from unicon.api.middleware.request_log import RequestLog
 from unicon.api.openapi import build_document
 from unicon.api.v1 import router as v1_router
 from unicon.db.engine import new_engine, new_probe_engine
@@ -49,6 +50,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     config = settings or load_settings()
     app.state.settings = config
     app.add_middleware(OriginCheck, public_url=str(config.public_url))
+    # Added last, so it is outermost and times the whole request.
+    app.add_middleware(RequestLog)
     register_error_handlers(app)
     app.include_router(health.router)
     app.include_router(v1_router)

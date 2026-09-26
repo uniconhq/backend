@@ -5,15 +5,13 @@ two; CI runs all three.
 import argparse
 import asyncio
 import json
-import logging
 import sys
 from pathlib import Path
 
 from unicon.db.migrations import upgrade_to_head
+from unicon.log import configure
 from unicon.main import create_app
 from unicon.settings import DatabaseSettings, Settings, load_database_settings, load_settings
-
-LOG_FORMAT = "%(asctime)s %(levelname)s %(name)s %(message)s"
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -41,8 +39,12 @@ def _serve(host: str, port: int) -> int:
     import uvicorn
 
     settings = load_settings()
-    logging.basicConfig(level=settings.log_level, format=LOG_FORMAT)
+    configure(settings.log_level)
     _use_selector_loop_on_windows()
+    # log_config=None leaves uvicorn's loggers on the root handler above, so its
+    # own lines are JSON records like everything else. The access log stays off:
+    # the request record comes from the RequestLog middleware, which never
+    # writes the query string.
     uvicorn.run(
         create_app(settings),
         host=host,
@@ -50,6 +52,7 @@ def _serve(host: str, port: int) -> int:
         proxy_headers=True,
         forwarded_allow_ips="*",
         access_log=False,
+        log_config=None,
     )
     return 0
 
