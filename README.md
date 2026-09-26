@@ -10,12 +10,11 @@ client from.
 
 ## Running it
 
-You need [uv](https://docs.astral.sh/uv/), a Postgres, and the `forge`
-repository checked out beside this one. Everything below is run from the
-repository root.
+You need [uv](https://docs.astral.sh/uv/) and a Postgres. Everything below
+is run from the repository root.
 
 ```sh
-uv sync                       # create .venv from uv.lock, forge from ../forge
+uv sync                       # create .venv from uv.lock
 cp .env.example .env          # then fill it in, or take deploy/.env
 set -a; . ./.env; set +a
 uv run unicon migrate         # apply the forge package's migrations
@@ -109,7 +108,7 @@ uv run mypy
 UNICON_TEST_DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5432/postgres uv run pytest
 UNICON_DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5432/unicon uv run unicon migrate
 uv run unicon openapi && git diff --exit-code openapi.json
-docker build -f backend/Dockerfile ..
+docker build .
 ```
 
 `lint-imports` holds the two contracts that keep this a shell: nothing here
@@ -120,9 +119,11 @@ they create and drop a database of their own on the server the URL names and
 are skipped without it. The openapi diff fails when a response changed and nobody
 regenerated the document.
 
-The image is built from the parent directory with both `backend/` and
-`forge/` checked out, because the package is installed from the sibling path
-until the backend pins a released version of it.
+The `forge` package comes from one release, named in `[tool.uv.sources]`
+and locked to the wheel's hash in `uv.lock`, so a change in that repository
+reaches this one only when someone moves the pin. Moving it is one edit
+followed by `uv lock`, and it carries both the code and the migrations
+`unicon migrate` applies.
 
 ## Layout
 
