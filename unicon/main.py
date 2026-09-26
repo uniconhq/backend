@@ -1,12 +1,14 @@
-"""The app factory. Configuration is read while the app is built, so a bad value
-stops start-up rather than someone's first request.
+"""The app factory. The runtime is built while the app starts and stopped when
+it stops, so the package's background loops run beside the routes for exactly
+as long as the process serves.
 """
 
-from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
+from collections.abc import AsyncIterator, Callable
+from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from importlib.metadata import version
 
 from fastapi import FastAPI
+from forge.runtime import Runtime
 
 from unicon.api import health
 from unicon.api.errors import register_error_handlers
@@ -14,43 +16,25 @@ from unicon.api.middleware.origin import OriginCheck
 from unicon.api.middleware.request_log import RequestLog
 from unicon.api.openapi import build_document
 from unicon.api.v1 import router as v1_router
-from unicon.db.engine import new_engine, new_probe_engine
-from unicon.db.session import new_session_factory
-from unicon.forge.admin import AdminClient
-from unicon.forge.http import new_forge_http
-from unicon.forge.oidc import OidcClient
-from unicon.settings import Settings, load_settings
+from unicon.api.v1.auth import CALLBACK_PATH
+from unicon.settings import ShellSettings, load_shell_settings
+
+Lifespan = Callable[[FastAPI], AbstractAsyncContextManager[None]]
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    settings: Settings = app.state.settings
-    engine = new_engine(settings)
-    app.state.engine = engine
-    app.state.probe_engine = new_probe_engine(settings)
-    app.state.session_factory = new_session_factory(engine)
-    forge = new_forge_http(settings)
-    app.state.oidc = OidcClient(settings, forge)
-    app.state.admin = AdminClient(settings, forge)
-    try:
-        yield
-    finally:
-        await forge.aclose()
-        await app.state.probe_engine.dispose()
-        await engine.dispose()
-
-
-def create_app(settings: Settings | None = None) -> FastAPI:
+def create_app(settings: ShellSettings | None = None, runtime: Runtime | None = None) -> FastAPI:
+    """Build the app. Without a `runtime`, one is built from the settings when
+    the app starts.
+    """
+    config = settings or load_shell_settings()
     app = FastAPI(
         title="Unicon API",
         version=version("unicon-backend"),
-        summary="Contests on top of Forgejo, Woodpecker and Garage",
-        lifespan=lifespan,
+        summary="Contests on top of a git host, a CI and an object store",
+        lifespan=_lifespan(config, runtime),
     )
-    config = settings or load_settings()
     app.state.settings = config
     app.add_middleware(OriginCheck, public_url=str(config.public_url))
-    # Added last, so it is outermost and times the whole request.
     app.add_middleware(RequestLog)
     register_error_handlers(app)
     app.include_router(health.router)
@@ -58,3 +42,26 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     document = build_document(app)
     app.openapi = lambda: document  # type: ignore[method-assign]
     return app
+
+
+def sign_in_redirect_uri(settings: ShellSettings) -> str:
+    """Where the host sends a browser back to after sign-in: this shell's
+    callback route on the public URL.
+    """
+    return str(settings.public_url).rstrip("/") + CALLBACK_PATH
+
+
+def _lifespan(settings: ShellSettings, given: Runtime | None) -> Lifespan:
+    @asynccontextmanager
+    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        runtime = given or Runtime.build(
+            settings, sign_in_redirect_uri=sign_in_redirect_uri(settings)
+        )
+        app.state.runtime = runtime
+        runtime.start_background()
+        try:
+            yield
+        finally:
+            await runtime.stop()
+
+    return lifespan

@@ -1,5 +1,5 @@
-"""One record per request: route, method, status and timing. Nothing from the
-request itself goes into it: not the query string, which carries the login
+"""One record per request: method, path, status and timing. Nothing from the
+request itself goes into it: not the query string, which carries the sign-in
 code and state on the callback, not the cookie, not the body.
 """
 
@@ -7,7 +7,7 @@ import time
 from collections.abc import Awaitable, Callable, MutableMapping
 from typing import Any
 
-from unicon.log import get_logger
+from forge.log import get_logger
 
 Scope = MutableMapping[str, Any]
 Message = MutableMapping[str, Any]
@@ -17,15 +17,11 @@ App = Callable[[Scope, Receive, Send], Awaitable[None]]
 
 log = get_logger(__name__)
 
-# What a request that never sent a response start is recorded as: the handler
-# raised before answering, and the error handler above did not catch it.
 NO_RESPONSE = 500
 
 
 class RequestLog:
-    """Pure ASGI, so a streaming response is logged when it finishes rather than
-    buffered to be measured.
-    """
+    """Pure ASGI, so a streaming response is recorded when it finishes."""
 
     def __init__(self, app: App) -> None:
         self._app = app

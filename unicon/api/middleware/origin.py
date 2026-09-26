@@ -1,55 +1,76 @@
-"""The other half of the CSRF story. A state-changing request carrying the session
-cookie must say it came from this site. Requests without the cookie are not
-checked: there is nothing to forge.
+"""A state-changing request carrying the session cookie must say it came from
+the platform's own origin, in `Origin` or, failing that, in `Referer`. Reads
+and requests without the cookie are not checked.
 """
 
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, MutableMapping
+from http.cookies import SimpleCookie
+from typing import Any
 from urllib.parse import urlsplit
 
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.requests import Request
-from starlette.responses import Response
+from forge.domain.errors import UniconError
 
 from unicon.api.cookies import SESSION_COOKIE
-from unicon.api.errors import problem_response
-from unicon.domain.errors import OriginMismatch
+from unicon.api.errors import problem_response, status_of
 from unicon.schemas.problem import Problem
+
+Scope = MutableMapping[str, Any]
+Message = MutableMapping[str, Any]
+Receive = Callable[[], Awaitable[Message]]
+Send = Callable[[Message], Awaitable[None]]
+App = Callable[[Scope, Receive, Send], Awaitable[None]]
 
 UNSAFE_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
 
 
-class OriginCheck(BaseHTTPMiddleware):
-    def __init__(self, app: Callable[..., Awaitable[None]], public_url: str) -> None:
-        super().__init__(app)
+class OriginMismatch(UniconError):
+    code = "origin_mismatch"
+
+
+class OriginCheck:
+    """Pure ASGI, so streaming responses and background work pass through it
+    untouched.
+    """
+
+    def __init__(self, app: App, public_url: str) -> None:
+        self._app = app
         self._expected = _origin_of(public_url)
 
-    async def dispatch(
-        self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
-    ) -> Response:
-        if self._is_forgeable(request) and _claimed_origin(request) != self._expected:
-            error = OriginMismatch("This request did not come from the site.")
-            return problem_response(
-                Problem.of(
-                    code=error.code,
-                    status=error.status,
-                    title="Forbidden",
-                    detail=error.detail,
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] == "http" and self._is_forgeable(scope):
+            headers = _headers(scope)
+            if _claimed_origin(headers) != self._expected:
+                error = OriginMismatch("This request did not come from the site.")
+                status = status_of(error)
+                response = problem_response(
+                    Problem.of(
+                        code=error.code, status=status, title="Forbidden", detail=error.detail
+                    )
                 )
-            )
-        return await call_next(request)
+                await response(scope, receive, send)
+                return
+        await self._app(scope, receive, send)
 
-    def _is_forgeable(self, request: Request) -> bool:
-        return request.method in UNSAFE_METHODS and SESSION_COOKIE in request.cookies
+    def _is_forgeable(self, scope: Scope) -> bool:
+        if scope["method"] not in UNSAFE_METHODS:
+            return False
+        cookies: SimpleCookie = SimpleCookie()
+        cookies.load(_headers(scope).get("cookie", ""))
+        return SESSION_COOKIE in cookies
 
 
-def _claimed_origin(request: Request) -> str | None:
-    """`Origin`, or the origin part of `Referer` where the browser sends no
-    `Origin`.
-    """
-    origin = request.headers.get("origin")
+def _headers(scope: Scope) -> dict[str, str]:
+    return {
+        name.decode("latin-1").lower(): value.decode("latin-1")
+        for name, value in scope.get("headers", [])
+    }
+
+
+def _claimed_origin(headers: dict[str, str]) -> str | None:
+    origin = headers.get("origin")
     if origin:
         return origin
-    referer = request.headers.get("referer")
+    referer = headers.get("referer")
     return _origin_of(referer) if referer else None
 
 
