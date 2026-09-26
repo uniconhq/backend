@@ -246,6 +246,7 @@
         "type": "object"
       },
       "SessionInfo": {
+        "description": "One place this user is signed in, described by its device and its\ntimes. The address a session came from is kept for the record and stays\nout of the answer.",
         "properties": {
           "created_at": {
             "format": "date-time",
@@ -259,17 +260,6 @@
           "id": {
             "title": "Id",
             "type": "string"
-          },
-          "ip": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Ip"
           },
           "last_seen_at": {
             "format": "date-time",
@@ -292,7 +282,6 @@
           "id",
           "created_at",
           "last_seen_at",
-          "ip",
           "user_agent",
           "current"
         ],

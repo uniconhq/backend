@@ -59,10 +59,14 @@ class Me(BaseModel):
 
 
 class SessionInfo(BaseModel):
+    """One place this user is signed in, described by its device and its
+    times. The address a session came from is kept for the record and stays
+    out of the answer.
+    """
+
     id: str
     created_at: datetime
     last_seen_at: datetime
-    ip: str | None
     user_agent: str | None
     current: bool
 
@@ -72,7 +76,6 @@ class SessionInfo(BaseModel):
             id=info.id.hex,
             created_at=info.created_at,
             last_seen_at=info.last_seen_at,
-            ip=str(info.ip) if info.ip else None,
             user_agent=info.user_agent,
             current=info.current,
         )
