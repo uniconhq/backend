@@ -1,5 +1,8 @@
-"""Turning exceptions into RFC 9457 problem documents. Five handlers cover every
-error response the API can give.
+"""Every error the API answers with, as an RFC 9457 problem document. The
+package's typed errors are mapped to a status code here and nowhere else, and
+the error's stable code goes into the body so a client switches on it rather
+than on prose. A typed error with no mapping is a fault in this table and is
+answered as one.
 """
 
 from http import HTTPStatus
@@ -8,29 +11,46 @@ from typing import Any, cast
 from fastapi import FastAPI, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from forge.domain.errors import UniconError
+from forge.log import get_logger
 from starlette.exceptions import HTTPException
 
 from unicon.api.cookies import clear_session
-from unicon.domain.errors import ForgeUnavailable, UniconError
-from unicon.forge.errors import ForgeUnreachable
 from unicon.schemas.problem import PROBLEM_CONTENT_TYPE, Problem
 
+log = get_logger(__name__)
+
+STATUS = {
+    "not_found": 404,
+    "forbidden": 403,
+    "conflict": 409,
+    "rejected": 422,
+    "forge_misconfigured": 502,
+    "forge_unavailable": 503,
+    "invalid_name": 422,
+    "unauthenticated": 401,
+    "session_expired": 401,
+    "fresh_sign_in_required": 403,
+    "sign_in_invalid": 400,
+    "sign_in_denied": 400,
+    "sole_admin": 409,
+    "shared_workflow_owner": 409,
+    "origin_mismatch": 403,
+}
+INTERNAL = 500
+CLEARS_SESSION = frozenset({"unauthenticated", "session_expired"})
 HTTP_CODES = {404: "not_found", 405: "method_not_allowed"}
 
 
 def register_error_handlers(app: FastAPI) -> None:
-    app.add_exception_handler(UniconError, _named_error)
-    app.add_exception_handler(ForgeUnreachable, _forge_unreachable)
+    app.add_exception_handler(UniconError, _typed_error)
     app.add_exception_handler(RequestValidationError, _invalid_request)
     app.add_exception_handler(HTTPException, _http_error)
     app.add_exception_handler(Exception, _unexpected_error)
 
 
-def forge_is_down() -> ForgeUnavailable:
-    """Services let `ForgeUnreachable` out rather than each translating it, so
-    there is one answer for a forge that did not reply.
-    """
-    return ForgeUnavailable("The forge did not answer.")
+def status_of(error: UniconError) -> int:
+    return STATUS.get(error.code, INTERNAL)
 
 
 def problem_response(problem: Problem) -> JSONResponse:
@@ -45,24 +65,19 @@ def _title(status: int) -> str:
     return HTTPStatus(status).phrase
 
 
-async def _named_error(request: Request, exc: Exception) -> Response:
+async def _typed_error(request: Request, exc: Exception) -> Response:
     error = cast(UniconError, exc)
+    status = status_of(error)
+    if error.code not in STATUS:
+        log.error("errors.unmapped", code=error.code)
     response = problem_response(
         Problem.of(
-            code=error.code,
-            status=error.status,
-            title=_title(error.status),
-            detail=error.detail,
-            **error.extra,
+            code=error.code, status=status, title=_title(status), detail=error.detail, **error.extra
         )
     )
-    if error.clears_session:
+    if error.code in CLEARS_SESSION:
         clear_session(response, request.app.state.settings)
     return response
-
-
-async def _forge_unreachable(request: Request, exc: Exception) -> Response:
-    return await _named_error(request, forge_is_down())
 
 
 async def _invalid_request(request: Request, exc: Exception) -> Response:
@@ -80,10 +95,9 @@ async def _invalid_request(request: Request, exc: Exception) -> Response:
 
 async def _http_error(request: Request, exc: Exception) -> Response:
     error = cast(HTTPException, exc)
-    code = HTTP_CODES.get(error.status_code, "http_error")
     return problem_response(
         Problem.of(
-            code=code,
+            code=HTTP_CODES.get(error.status_code, "http_error"),
             status=error.status_code,
             title=_title(error.status_code),
             detail=str(error.detail),
@@ -95,17 +109,14 @@ async def _unexpected_error(request: Request, exc: Exception) -> Response:
     return problem_response(
         Problem.of(
             code="internal_error",
-            status=500,
-            title=_title(500),
+            status=INTERNAL,
+            title=_title(INTERNAL),
             detail="The server failed to handle this request.",
         )
     )
 
 
 def _readable_errors(exc: RequestValidationError) -> list[dict[str, Any]]:
-    """Location, message and type only. Pydantic's `ctx` can hold objects that do
-    not serialise, and the input it echoes can hold what the client sent.
-    """
     return [
         {
             "location": [str(part) for part in error["loc"]],

@@ -1,5 +1,5 @@
-"""`unicon api`, `unicon migrate`, `unicon openapi`. The container runs the first
-two; CI runs all three.
+"""`unicon api`, `unicon migrate` and `unicon openapi`. The container runs the
+first two; CI runs all three.
 """
 
 import argparse
@@ -8,10 +8,12 @@ import json
 import sys
 from pathlib import Path
 
-from unicon.db.migrations import upgrade_to_head
-from unicon.log import configure
+from forge.log import configure
+from forge.runtime import migrate
+from forge.settings import load_database_settings
+
 from unicon.main import create_app
-from unicon.settings import DatabaseSettings, Settings, load_database_settings, load_settings
+from unicon.settings import ShellSettings, load_shell_settings
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -31,20 +33,17 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "api":
         return _serve(args.host, args.port)
     if args.command == "migrate":
-        return _migrate(load_database_settings())
+        migrate(str(load_database_settings().database_url))
+        return 0
     return _write_openapi(args.output)
 
 
 def _serve(host: str, port: int) -> int:
     import uvicorn
 
-    settings = load_settings()
+    settings = load_shell_settings()
     configure(settings.log_level)
     _use_selector_loop_on_windows()
-    # log_config=None leaves uvicorn's loggers on the root handler above, so its
-    # own lines are JSON records like everything else. The access log stays off:
-    # the request record comes from the RequestLog middleware, which never
-    # writes the query string.
     uvicorn.run(
         create_app(settings),
         host=host,
@@ -58,20 +57,13 @@ def _serve(host: str, port: int) -> int:
 
 
 def _use_selector_loop_on_windows() -> None:
-    """psycopg cannot run asynchronously on Windows' default proactor loop.
-    Deployment is Linux; this is for a laptop.
-    """
+    """psycopg cannot run asynchronously on Windows' default proactor loop."""
     if sys.platform == "win32":
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 
-def _migrate(settings: DatabaseSettings) -> int:
-    upgrade_to_head(str(settings.database_url))
-    return 0
-
-
 def _write_openapi(output: Path) -> int:
-    app = create_app(Settings.for_tests())
+    app = create_app(ShellSettings.for_tests())
     document = json.dumps(app.openapi(), indent=2, sort_keys=True) + "\n"
     output.write_text(document, encoding="utf-8", newline="\n")
     return 0

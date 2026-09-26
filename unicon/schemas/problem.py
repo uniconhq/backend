@@ -11,7 +11,7 @@ PROBLEM_CONTENT_TYPE = "application/problem+json"
 
 
 class Problem(BaseModel):
-    """Extra members are allowed: `last_admin` carries `scopes`, for instance."""
+    """Extra members are allowed: `sole_admin` carries `scopes`, for instance."""
 
     model_config = ConfigDict(extra="allow")
 

@@ -1,14 +1,11 @@
-"""The two probes, outside `/api/v1` because they are not part of the API.
-`/readyz` checks Postgres and nothing else, on a connection of its own, so a
-backend with a full pool answers ready rather than dead.
+"""The two probes, outside `/api/v1`. `/healthz` says the process is up;
+`/readyz` says the database answered, on a connection of its own.
 """
 
-from fastapi import APIRouter, Request, Response
+from fastapi import APIRouter, Response
 
-from unicon.db.engine import ping
+from unicon.api.deps import RuntimeDep
 from unicon.schemas.health import Health, NotReady, Ready
-
-READY_TIMEOUT_SECONDS = 2.0
 
 router = APIRouter(tags=["health"])
 
@@ -21,18 +18,16 @@ async def healthz() -> Health:
 @router.get(
     "/readyz",
     operation_id="getReadiness",
-    summary="Is Postgres reachable",
+    summary="Is the database reachable",
     response_model=Ready,
-    responses={503: {"model": NotReady, "description": "Postgres did not answer"}},
+    responses={503: {"model": NotReady, "description": "The database did not answer"}},
 )
-async def readyz(request: Request) -> Response | Ready:
+async def readyz(runtime: RuntimeDep) -> Response | Ready:
     try:
-        await ping(request.app.state.probe_engine, READY_TIMEOUT_SECONDS)
+        await runtime.ready()
     except Exception as exc:
         body = NotReady(status="not_ready", postgres=type(exc).__name__)
         return Response(
-            status_code=503,
-            content=body.model_dump_json(),
-            media_type="application/json",
+            status_code=503, content=body.model_dump_json(), media_type="application/json"
         )
     return Ready(status="ready")

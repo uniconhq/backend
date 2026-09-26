@@ -1,51 +1,63 @@
-"""What a handler asks for: the configuration, a database session, the Forgejo
-clients and who is making the request. The clients are read off `app.state`,
-which is the seam tests replace.
+"""What a route asks for: the settings, the runtime, a unit of work with its
+context, and the session the request carries. The unit of work commits when
+the route returns and rolls back when it raises, so a service never commits.
 """
 
+from collections.abc import AsyncIterator
 from typing import Annotated
 
 from fastapi import Depends, Request
+from forge.context import Context
+from forge.domain.errors import Unauthenticated
+from forge.domain.sessions import Session
+from forge.runtime import Runtime
+from forge.services import identity
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from unicon.api.cookies import SESSION_COOKIE
-from unicon.db.session import db_session
-from unicon.domain.errors import Unauthenticated
-from unicon.domain.identity import ActiveSession
-from unicon.forge.protocol import Admin, Oidc
-from unicon.services import sessions
-from unicon.settings import Settings
+from unicon.api import cookies
+from unicon.settings import ShellSettings
 
 
-def settings_of(request: Request) -> Settings:
-    config: Settings = request.app.state.settings
-    return config
+def settings_of(request: Request) -> ShellSettings:
+    settings: ShellSettings = request.app.state.settings
+    return settings
 
 
-def oidc_of(request: Request) -> Oidc:
-    client: Oidc = request.app.state.oidc
-    return client
+def runtime_of(request: Request) -> Runtime:
+    runtime: Runtime = request.app.state.runtime
+    return runtime
 
 
-def admin_of(request: Request) -> Admin:
-    client: Admin = request.app.state.admin
-    return client
+async def unit_of_work(request: Request) -> AsyncIterator[AsyncSession]:
+    async with runtime_of(request).sessions() as db:
+        try:
+            yield db
+        except BaseException:
+            await db.rollback()
+            raise
+        await db.commit()
 
 
-Config = Annotated[Settings, Depends(settings_of)]
-Db = Annotated[AsyncSession, Depends(db_session)]
-OidcClientDep = Annotated[Oidc, Depends(oidc_of)]
-AdminClientDep = Annotated[Admin, Depends(admin_of)]
+Config = Annotated[ShellSettings, Depends(settings_of)]
+RuntimeDep = Annotated[Runtime, Depends(runtime_of)]
+Db = Annotated[AsyncSession, Depends(unit_of_work)]
 
 
-async def current_session(request: Request, db: Db, settings: Config) -> ActiveSession:
-    """The session the cookie names, or 401. A session that has ended also clears
-    the cookie.
+def context_of(request: Request, db: Db) -> Context:
+    return runtime_of(request).context(db)
+
+
+Ctx = Annotated[Context, Depends(context_of)]
+
+
+async def current_session(request: Request, settings: Config, ctx: Ctx) -> Session:
+    """The session behind the cookie, checked for its lifetimes. A missing or
+    altered cookie is `Unauthenticated`.
     """
-    cookie = request.cookies.get(SESSION_COOKIE)
-    if not cookie:
-        raise Unauthenticated("Sign in first.")
-    return await sessions.authenticate(db, settings, cookie)
+    session_id = cookies.read_session_id(request, settings)
+    if session_id is None:
+        raise Unauthenticated("No session.")
+    return await identity.current(ctx, session_id)
 
 
-CurrentSession = Annotated[ActiveSession, Depends(current_session)]
+CurrentSession = Annotated[Session, Depends(current_session)]

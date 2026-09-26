@@ -23,13 +23,21 @@ jobs:
           --health-retries 10
 
     env:
-      # The integration tests create and drop databases on this server.
       UNICON_TEST_DATABASE_URL: postgresql+psycopg://postgres:test@localhost:5432/postgres
-      # `unicon migrate` and `alembic check` read this one and nothing else.
       UNICON_DATABASE_URL: postgresql+psycopg://postgres:test@localhost:5432/postgres
+
+    defaults:
+      run:
+        working-directory: backend
 
     steps:
       - uses: actions/checkout@v7
+        with:
+          path: backend
+      - uses: actions/checkout@v7
+        with:
+          repository: uniconhq/forge
+          path: forge
 
       - uses: astral-sh/setup-uv@v10.1.0
         with:
@@ -42,14 +50,10 @@ jobs:
       - run: uv run ruff check .
       - run: uv run lint-imports
       - run: uv run mypy
-      - run: uv run pytest tests/unit
-      - run: uv run pytest tests/integration
+      - run: uv run pytest
 
       - name: Migrate an empty database
         run: uv run unicon migrate
-
-      - name: Every model change has a migration
-        run: uv run alembic check
 
       - name: openapi.json is current
         run: |
@@ -60,10 +64,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - run: docker build --tag unicon-backend:${{ github.sha }} .
+        with:
+          path: backend
+      - uses: actions/checkout@v7
+        with:
+          repository: uniconhq/forge
+          path: forge
+      - run: docker build --tag unicon-backend:${{ github.sha }} -f backend/Dockerfile .
 
-  # Only the default branch publishes, and this is the only job granted
-  # `packages: write`.
   publish:
     needs: [checks, image]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -74,6 +82,12 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
+        with:
+          path: backend
+      - uses: actions/checkout@v7
+        with:
+          repository: uniconhq/forge
+          path: forge
 
       - uses: docker/login-action@v4
         with:
@@ -85,10 +99,10 @@ jobs:
         id: commit
         run: echo "short=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
 
-      # `main` is what the dev stack follows; `sha-<short>` is what a deployment pins.
       - uses: docker/build-push-action@v7
         with:
           context: .
+          file: backend/Dockerfile
           push: true
           tags: |
             ghcr.io/uniconhq/backend:main
