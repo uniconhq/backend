@@ -16,6 +16,7 @@
         "type": "object"
       },
       "Me": {
+        "description": "The signed-in user and their roles at every scope. `degraded` is set\nwhen the forge did not answer and the identity comes from the session.",
         "properties": {
           "avatar_url": {
             "anyOf": [
@@ -54,6 +55,13 @@
             ],
             "title": "Name"
           },
+          "roles": {
+            "items": {
+              "$ref": "#/components/schemas/Role"
+            },
+            "title": "Roles",
+            "type": "array"
+          },
           "user_id": {
             "title": "User Id",
             "type": "integer"
@@ -67,8 +75,9 @@
           "user_id",
           "username",
           "name",
-          "avatar_url",
           "email",
+          "avatar_url",
+          "roles",
           "degraded"
         ],
         "title": "Me",
@@ -96,7 +105,7 @@
       },
       "Problem": {
         "additionalProperties": true,
-        "description": "Extra members are allowed: `last_admin` carries `scopes`, for instance.",
+        "description": "Extra members are allowed: `sole_admin` carries `scopes`, for instance.",
         "properties": {
           "code": {
             "title": "Code",
@@ -161,6 +170,65 @@
           "url"
         ],
         "title": "RegisterUrl",
+        "type": "object"
+      },
+      "Role": {
+        "properties": {
+          "role": {
+            "title": "Role",
+            "type": "string"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/Scope"
+          }
+        },
+        "required": [
+          "scope",
+          "role"
+        ],
+        "title": "Role",
+        "type": "object"
+      },
+      "Scope": {
+        "properties": {
+          "contest": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contest"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "org": {
+            "title": "Org",
+            "type": "string"
+          },
+          "task": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Task"
+          }
+        },
+        "required": [
+          "kind",
+          "org",
+          "contest",
+          "task"
+        ],
+        "title": "Scope",
         "type": "object"
       },
       "ServerTime": {
@@ -234,7 +302,7 @@
     }
   },
   "info": {
-    "summary": "Contests on top of Forgejo, Woodpecker and Garage",
+    "summary": "Contests on top of a git host, a CI and an object store",
     "title": "Unicon API",
     "version": "0.1.0"
   },
@@ -340,7 +408,7 @@
             "description": "An error, as an RFC 9457 problem document. `code` names it."
           }
         },
-        "summary": "Start a login through the forge",
+        "summary": "Start a sign-in through the forge",
         "tags": [
           "auth"
         ]
@@ -395,7 +463,7 @@
             "description": "An error, as an RFC 9457 problem document. `code` names it."
           }
         },
-        "summary": "Where to create a forge account, if it is open",
+        "summary": "Where to create a forge account, when sign-up is open",
         "tags": [
           "auth"
         ]
@@ -419,7 +487,7 @@
             "description": "An error, as an RFC 9457 problem document. `code` names it."
           }
         },
-        "summary": "Delete the forge account",
+        "summary": "Delete the account at the forge",
         "tags": [
           "me"
         ]
@@ -448,7 +516,7 @@
             "description": "An error, as an RFC 9457 problem document. `code` names it."
           }
         },
-        "summary": "The signed-in person",
+        "summary": "The signed-in user and their roles",
         "tags": [
           "me"
         ]
@@ -472,7 +540,7 @@
             "description": "An error, as an RFC 9457 problem document. `code` names it."
           }
         },
-        "summary": "Deactivate the forge account",
+        "summary": "Deactivate the account at the forge",
         "tags": [
           "me"
         ]
@@ -529,7 +597,7 @@
             "description": "An error, as an RFC 9457 problem document. `code` names it."
           }
         },
-        "summary": "This person's sessions",
+        "summary": "Where this user is signed in",
         "tags": [
           "me"
         ]
@@ -654,7 +722,7 @@
                 }
               }
             },
-            "description": "Postgres did not answer"
+            "description": "The database did not answer"
           },
           "default": {
             "content": {
@@ -667,7 +735,7 @@
             "description": "An error, as an RFC 9457 problem document. `code` names it."
           }
         },
-        "summary": "Is Postgres reachable",
+        "summary": "Is the database reachable",
         "tags": [
           "health"
         ]
