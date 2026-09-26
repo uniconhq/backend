@@ -26,9 +26,9 @@ def _age_sessions(database_url: str, minutes: int) -> None:
 
 
 async def test_me_lists_roles_at_every_scope(client: httpx.AsyncClient, forge: FakeForge) -> None:
-    await forge.create_org(OrgName("acme"), description="Acme")
-    await forge.grant_role(7, Scope("acme"), Role.ADMIN)
-    await forge.grant_role(7, Scope("acme", "spring", "sum"), Role.OBSERVER)
+    await forge.orgs.create_org(OrgName("acme"), description="Acme")
+    await forge.orgs.grant_role(7, Scope("acme"), Role.ADMIN)
+    await forge.orgs.grant_role(7, Scope("acme", "spring", "sum"), Role.OBSERVER)
     await sign_in(client, forge)
 
     me = await client.get("/api/v1/me")
@@ -112,8 +112,8 @@ async def test_deactivating_signs_out_and_turns_the_account_off(
 async def test_a_delete_refusal_names_the_scopes(
     client: httpx.AsyncClient, forge: FakeForge
 ) -> None:
-    await forge.create_org(OrgName("acme"), description="Acme")
-    await forge.grant_role(7, Scope("acme"), Role.ADMIN)
+    await forge.orgs.create_org(OrgName("acme"), description="Acme")
+    await forge.orgs.grant_role(7, Scope("acme"), Role.ADMIN)
     await sign_in(client, forge)
 
     refused = await client.delete("/api/v1/me", headers=ORIGIN)
@@ -128,8 +128,8 @@ async def test_a_delete_refusal_names_the_shared_workflow(
     client: httpx.AsyncClient, forge: FakeForge
 ) -> None:
     ada = AsUser(7, forge.mint(7))
-    workflow = await forge.create_workflow(ada, "ada", "classic", {}, Visibility.PRIVATE)
-    await forge.share_workflow(ada, workflow, 8)
+    workflow = await forge.workflows.create_workflow(ada, "ada", "classic", {}, Visibility.PRIVATE)
+    await forge.workflows.share_workflow(ada, workflow, 8)
     await sign_in(client, forge)
 
     refused = await client.delete("/api/v1/me", headers=ORIGIN)

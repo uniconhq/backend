@@ -10,8 +10,9 @@ from forge.domain.errors import NotFound
 from forge.services import account, identity, sessions
 
 from unicon.api import cookies
-from unicon.api.deps import Config, CurrentSession, Db, ForgeDep
+from unicon.api.deps import Config, Ctx, CurrentSession
 from unicon.schemas.account import Me, SessionInfo
+from unicon.settings import ShellSettings
 
 NO_CONTENT = status.HTTP_204_NO_CONTENT
 
@@ -19,13 +20,13 @@ router = APIRouter(prefix="/me", tags=["me"])
 
 
 @router.get("", operation_id="getMe", summary="The signed-in user and their roles")
-async def get_me(db: Db, settings: Config, forge: ForgeDep, session: CurrentSession) -> Me:
-    return Me.of(await identity.whoami(db, settings, forge, session))
+async def get_me(ctx: Ctx, session: CurrentSession) -> Me:
+    return Me.of(await identity.whoami(ctx, session))
 
 
 @router.get("/sessions", operation_id="listMySessions", summary="Where this user is signed in")
-async def list_my_sessions(db: Db, settings: Config, session: CurrentSession) -> list[SessionInfo]:
-    return [SessionInfo.of(info) for info in await sessions.list_for(db, settings, session)]
+async def list_my_sessions(ctx: Ctx, session: CurrentSession) -> list[SessionInfo]:
+    return [SessionInfo.of(info) for info in await sessions.list_for(ctx, session)]
 
 
 @router.delete(
@@ -35,10 +36,10 @@ async def list_my_sessions(db: Db, settings: Config, session: CurrentSession) ->
     status_code=NO_CONTENT,
 )
 async def revoke_my_session(
-    db: Db, settings: Config, session: CurrentSession, session_id: str
+    settings: Config, ctx: Ctx, session: CurrentSession, session_id: str
 ) -> Response:
     target = _session_id(session_id)
-    await sessions.revoke(db, target, owner=session.user_id)
+    await sessions.revoke(ctx, target, owner=session.user_id)
     if target == session.id:
         return _signed_out(settings)
     return Response(status_code=NO_CONTENT)
@@ -50,8 +51,8 @@ async def revoke_my_session(
     summary="Sign out everywhere, including here",
     status_code=NO_CONTENT,
 )
-async def revoke_all_my_sessions(db: Db, settings: Config, session: CurrentSession) -> Response:
-    await sessions.revoke_all(db, session.user_id)
+async def revoke_all_my_sessions(settings: Config, ctx: Ctx, session: CurrentSession) -> Response:
+    await sessions.revoke_all(ctx, session.user_id)
     return _signed_out(settings)
 
 
@@ -61,18 +62,16 @@ async def revoke_all_my_sessions(db: Db, settings: Config, session: CurrentSessi
     summary="Deactivate the account at the forge",
     status_code=NO_CONTENT,
 )
-async def deactivate_me(
-    db: Db, settings: Config, forge: ForgeDep, session: CurrentSession
-) -> Response:
-    await account.deactivate(db, settings, forge, session)
+async def deactivate_me(settings: Config, ctx: Ctx, session: CurrentSession) -> Response:
+    await account.deactivate(ctx, session)
     return _signed_out(settings)
 
 
 @router.delete(
     "", operation_id="deleteMe", summary="Delete the account at the forge", status_code=NO_CONTENT
 )
-async def delete_me(db: Db, settings: Config, forge: ForgeDep, session: CurrentSession) -> Response:
-    await account.delete(db, settings, forge, session)
+async def delete_me(settings: Config, ctx: Ctx, session: CurrentSession) -> Response:
+    await account.delete(ctx, session)
     return _signed_out(settings)
 
 
@@ -83,7 +82,7 @@ def _session_id(value: str) -> uuid.UUID:
         raise NotFound("No such session.") from exc
 
 
-def _signed_out(settings: Config) -> Response:
+def _signed_out(settings: ShellSettings) -> Response:
     response = Response(status_code=NO_CONTENT)
     cookies.clear_session(response, settings)
     return response

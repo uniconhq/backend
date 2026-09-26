@@ -10,9 +10,10 @@ from pathlib import Path
 
 from forge.log import configure
 from forge.runtime import migrate
-from forge.settings import Settings, load_database_settings, load_settings
+from forge.settings import load_database_settings
 
 from unicon.main import create_app
+from unicon.settings import ShellSettings, load_shell_settings
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -40,7 +41,7 @@ def main(argv: list[str] | None = None) -> int:
 def _serve(host: str, port: int) -> int:
     import uvicorn
 
-    settings = load_settings()
+    settings = load_shell_settings()
     configure(settings.log_level)
     _use_selector_loop_on_windows()
     uvicorn.run(
@@ -62,7 +63,7 @@ def _use_selector_loop_on_windows() -> None:
 
 
 def _write_openapi(output: Path) -> int:
-    app = create_app(Settings.for_tests())
+    app = create_app(ShellSettings.for_tests())
     document = json.dumps(app.openapi(), indent=2, sort_keys=True) + "\n"
     output.write_text(document, encoding="utf-8", newline="\n")
     return 0

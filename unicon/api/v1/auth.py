@@ -1,5 +1,5 @@
-"""Sign-in as HTTP: the redirect to the forge, the callback that sets the
-session cookie, sign-out, and whether the forge takes new accounts.
+"""Sign-in as HTTP: the redirect to the host, the callback that sets the
+session cookie, sign-out, and where a person creates an account.
 """
 
 from urllib.parse import urlencode
@@ -11,13 +11,13 @@ from forge.domain.next_path import safe_next
 from forge.services import sessions, sign_in
 
 from unicon.api import cookies
-from unicon.api.deps import Config, CurrentSession, Db, ForgeDep
+from unicon.api.deps import Config, Ctx, CurrentSession
 from unicon.schemas.auth import RegisterUrl
 
 FOUND = status.HTTP_302_FOUND
 NO_CONTENT = status.HTTP_204_NO_CONTENT
 SIGN_IN_PAGE = "/login"
-SIGN_UP_PATH = "/user/sign_up"
+CALLBACK_PATH = "/api/v1/auth/callback"
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -32,10 +32,10 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 )
 async def start_login(
     settings: Config,
-    forge: ForgeDep,
+    ctx: Ctx,
     next: str | None = Query(default=None, description="A path on this site to land on"),
 ) -> RedirectResponse:
-    started = sign_in.start(forge, next)
+    started = sign_in.start(ctx.forge, next)
     response = RedirectResponse(started.url, status_code=FOUND)
     cookies.set_sign_in(response, started.attempt, settings)
     return response
@@ -51,9 +51,8 @@ async def start_login(
 )
 async def complete_login(
     request: Request,
-    db: Db,
     settings: Config,
-    forge: ForgeDep,
+    ctx: Ctx,
     code: str = Query(default=""),
     state: str = Query(default=""),
     error: str | None = Query(default=None),
@@ -63,9 +62,7 @@ async def complete_login(
         if error:
             raise SignInDenied("The forge did not approve this sign-in.")
         session, landing = await sign_in.complete(
-            db,
-            settings,
-            forge,
+            ctx,
             code=code,
             state=state,
             attempt=attempt,
@@ -81,7 +78,7 @@ async def complete_login(
 
     previous = cookies.read_session_id(request, settings)
     if previous is not None:
-        await sessions.revoke(db, previous)
+        await sessions.revoke(ctx, previous)
     response = RedirectResponse(landing, status_code=FOUND)
     cookies.clear_sign_in(response, settings)
     cookies.set_session(response, session.id, settings)
@@ -89,8 +86,8 @@ async def complete_login(
 
 
 @router.post("/logout", operation_id="logout", summary="End this session", status_code=NO_CONTENT)
-async def logout(db: Db, settings: Config, session: CurrentSession) -> Response:
-    await sessions.revoke(db, session.id)
+async def logout(settings: Config, ctx: Ctx, session: CurrentSession) -> Response:
+    await sessions.revoke(ctx, session.id)
     response = Response(status_code=NO_CONTENT)
     cookies.clear_session(response, settings)
     return response
@@ -101,7 +98,5 @@ async def logout(db: Db, settings: Config, session: CurrentSession) -> Response:
     operation_id="getRegisterUrl",
     summary="Where to create a forge account, when sign-up is open",
 )
-async def register_url(settings: Config) -> RegisterUrl:
-    if not settings.forge_registration_open:
-        return RegisterUrl(url=None)
-    return RegisterUrl(url=str(settings.forge_public_url).rstrip("/") + SIGN_UP_PATH)
+async def register_url(ctx: Ctx) -> RegisterUrl:
+    return RegisterUrl(url=ctx.forge.identity.sign_up_url())
