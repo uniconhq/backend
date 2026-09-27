@@ -1,24 +1,17 @@
-"""A state-changing request carrying the session cookie must say it came from
-the platform's own origin, in `Origin` or, failing that, in `Referer`. Reads
-and requests without the cookie are not checked.
+"""Every state-changing request must say it came from the platform's own
+origin, in `Origin` or, failing that, in `Referer`. Reads are not checked.
+Whether the request carries a session makes no difference: the check runs
+before anything looks at the cookie, so a cookie the parser cannot read
+cannot hide a session from it, and a route that changes state without a
+session is covered the day it exists.
 """
 
-from collections.abc import Awaitable, Callable, MutableMapping
-from http.cookies import SimpleCookie
-from typing import Any
 from urllib.parse import urlsplit
 
 from forge.domain.errors import UniconError
+from starlette.types import ASGIApp, Receive, Scope, Send
 
-from unicon.api.cookies import SESSION_COOKIE
-from unicon.api.errors import problem_response, status_of
-from unicon.schemas.problem import Problem
-
-Scope = MutableMapping[str, Any]
-Message = MutableMapping[str, Any]
-Receive = Callable[[], Awaitable[Message]]
-Send = Callable[[Message], Awaitable[None]]
-App = Callable[[Scope, Receive, Send], Awaitable[None]]
+from unicon.api.errors import problem_for
 
 UNSAFE_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
 
@@ -32,31 +25,20 @@ class OriginCheck:
     untouched.
     """
 
-    def __init__(self, app: App, public_url: str) -> None:
+    def __init__(self, app: ASGIApp, public_url: str) -> None:
         self._app = app
         self._expected = _origin_of(public_url)
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        if scope["type"] == "http" and self._is_forgeable(scope):
-            headers = _headers(scope)
-            if _claimed_origin(headers) != self._expected:
-                error = OriginMismatch("This request did not come from the site.")
-                status = status_of(error)
-                response = problem_response(
-                    Problem.of(
-                        code=error.code, status=status, title="Forbidden", detail=error.detail
-                    )
-                )
-                await response(scope, receive, send)
-                return
+        if _is_state_changing(scope) and _claimed_origin(_headers(scope)) != self._expected:
+            error = OriginMismatch("This request did not come from the site.")
+            await problem_for(error)(scope, receive, send)
+            return
         await self._app(scope, receive, send)
 
-    def _is_forgeable(self, scope: Scope) -> bool:
-        if scope["method"] not in UNSAFE_METHODS:
-            return False
-        cookies: SimpleCookie = SimpleCookie()
-        cookies.load(_headers(scope).get("cookie", ""))
-        return SESSION_COOKIE in cookies
+
+def _is_state_changing(scope: Scope) -> bool:
+    return scope["type"] == "http" and scope["method"] in UNSAFE_METHODS
 
 
 def _headers(scope: Scope) -> dict[str, str]:

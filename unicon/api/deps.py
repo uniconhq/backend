@@ -1,6 +1,9 @@
 """What a route asks for: the settings, the runtime, a unit of work with its
 context, and the session the request carries. The unit of work commits when
 the route returns and rolls back when it raises, so a service never commits.
+The commit happens before the response is sent: a client that reads a 204
+or a redirect has the change on disk, and a commit that fails is answered
+as a 500 instead of a success.
 """
 
 from collections.abc import AsyncIterator
@@ -40,7 +43,7 @@ async def unit_of_work(request: Request) -> AsyncIterator[AsyncSession]:
 
 Config = Annotated[ShellSettings, Depends(settings_of)]
 RuntimeDep = Annotated[Runtime, Depends(runtime_of)]
-Db = Annotated[AsyncSession, Depends(unit_of_work)]
+Db = Annotated[AsyncSession, Depends(unit_of_work, scope="function")]
 
 
 def context_of(request: Request, db: Db) -> Context:

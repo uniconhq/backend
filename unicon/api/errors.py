@@ -3,6 +3,12 @@ package's typed errors are mapped to a status code here and nowhere else, and
 the error's stable code goes into the body so a client switches on it rather
 than on prose. A typed error with no mapping is a fault in this table and is
 answered as one.
+
+What of the error reaches the client is decided per code. A refusal carries
+its detail, because the detail is the reason the person can act on. A forge
+that is down or wrongly registered, and an error this table does not know,
+are answered with a fixed sentence: their detail names hosts, paths and the
+forge's own words, which belong in the log and not in a browser.
 """
 
 from http import HTTPStatus
@@ -41,6 +47,12 @@ INTERNAL = 500
 CLEARS_SESSION = frozenset({"unauthenticated", "session_expired"})
 HTTP_CODES = {404: "not_found", 405: "method_not_allowed"}
 
+WITHHELD_DETAIL = {
+    "forge_unavailable": "The forge did not answer. Try again in a moment.",
+    "forge_misconfigured": "The forge refused the platform's own registration.",
+}
+UNMAPPED_DETAIL = "The server failed to handle this request."
+
 
 def register_error_handlers(app: FastAPI) -> None:
     app.add_exception_handler(UniconError, _typed_error)
@@ -61,20 +73,40 @@ def problem_response(problem: Problem) -> JSONResponse:
     )
 
 
+def problem_for(error: UniconError) -> JSONResponse:
+    """The response for a typed error: its status, its code, and as much of
+    its detail as the client should see.
+    """
+    status = status_of(error)
+    if error.code not in STATUS:
+        log.error("errors.unmapped", code=error.code, detail=error.detail)
+        return problem_response(
+            Problem.of(code=error.code, status=status, title=_title(status), detail=UNMAPPED_DETAIL)
+        )
+    if error.code in WITHHELD_DETAIL:
+        log.warning("errors.forge", code=error.code, detail=error.detail, **error.extra)
+        return problem_response(
+            Problem.of(
+                code=error.code,
+                status=status,
+                title=_title(status),
+                detail=WITHHELD_DETAIL[error.code],
+            )
+        )
+    return problem_response(
+        Problem.of(
+            code=error.code, status=status, title=_title(status), detail=error.detail, **error.extra
+        )
+    )
+
+
 def _title(status: int) -> str:
     return HTTPStatus(status).phrase
 
 
 async def _typed_error(request: Request, exc: Exception) -> Response:
     error = cast(UniconError, exc)
-    status = status_of(error)
-    if error.code not in STATUS:
-        log.error("errors.unmapped", code=error.code)
-    response = problem_response(
-        Problem.of(
-            code=error.code, status=status, title=_title(status), detail=error.detail, **error.extra
-        )
-    )
+    response = problem_for(error)
     if error.code in CLEARS_SESSION:
         clear_session(response, request.app.state.settings)
     return response
@@ -111,7 +143,7 @@ async def _unexpected_error(request: Request, exc: Exception) -> Response:
             code="internal_error",
             status=INTERNAL,
             title=_title(INTERNAL),
-            detail="The server failed to handle this request.",
+            detail=UNMAPPED_DETAIL,
         )
     )
 
