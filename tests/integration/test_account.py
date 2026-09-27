@@ -2,27 +2,18 @@
 to leave with the package's refusals passed through.
 """
 
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 
 import httpx
-import psycopg
 from forge.domain.identity import AsUser
 from forge.domain.ids import OrgName
 from forge.domain.roles import Role, Scope
 from forge.domain.workflows import Visibility
 from forge.forges.fake import FakeForge
+from forge.testing import FakeClock
 
 from tests.integration.conftest import ORIGIN, sign_in
 from unicon.api.cookies import SESSION_COOKIE
-
-
-def _age_sessions(database_url: str, minutes: int) -> None:
-    with psycopg.connect(database_url.replace("postgresql+psycopg://", "postgresql://")) as db:
-        db.execute(
-            "update sessions set created_at = %s",
-            (datetime.now(UTC) - timedelta(minutes=minutes),),
-        )
-        db.commit()
 
 
 async def test_me_lists_roles_at_every_scope(client: httpx.AsyncClient, forge: FakeForge) -> None:
@@ -85,10 +76,10 @@ async def test_sign_out_everywhere_ends_this_session_too(
 
 
 async def test_deactivating_needs_a_fresh_sign_in(
-    client: httpx.AsyncClient, forge: FakeForge, migrated_database_url: str
+    client: httpx.AsyncClient, forge: FakeForge, clock: FakeClock
 ) -> None:
     await sign_in(client, forge)
-    _age_sessions(migrated_database_url, 6)
+    clock.advance(timedelta(minutes=6))
 
     refused = await client.post("/api/v1/me/deactivate", headers=ORIGIN)
 
