@@ -84,12 +84,8 @@
         "type": "object"
       },
       "NotReady": {
-        "description": "Deliberately not a problem document: an orchestrator reads this and wants\nthe reason in a fixed place.",
+        "description": "Deliberately not a problem document: an orchestrator reads the status in\na fixed place. What failed underneath is in the log and not here.",
         "properties": {
-          "postgres": {
-            "title": "Postgres",
-            "type": "string"
-          },
           "status": {
             "const": "not_ready",
             "title": "Status",
@@ -97,8 +93,7 @@
           }
         },
         "required": [
-          "status",
-          "postgres"
+          "status"
         ],
         "title": "NotReady",
         "type": "object"
@@ -299,6 +294,7 @@
   "paths": {
     "/api/v1/auth/callback": {
       "get": {
+        "description": "The attempt's `next` was made safe by forge when the sign-in started,\nand the attempt comes back signed, so it is used as it is.",
         "operationId": "completeLogin",
         "parameters": [
           {

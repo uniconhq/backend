@@ -7,7 +7,7 @@ import time
 from collections.abc import Awaitable, Callable, MutableMapping
 from typing import Any
 
-from forge.log import get_logger
+from forge.api.log import get_logger
 
 Scope = MutableMapping[str, Any]
 Message = MutableMapping[str, Any]

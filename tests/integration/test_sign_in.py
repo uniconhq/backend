@@ -1,9 +1,10 @@
 """A sign-in through the forge lands the browser back on `next` with a session
-cookie set, and every way it can fail lands on the sign-in page with a code.
+cookie set, every way it can fail lands on the sign-in page with a code, the
+cookie carries the flags it must, and one that no longer holds is cleared.
 """
 
 import httpx
-from forge.forges.fake import FakeForge
+from forge.testing import FakeForge
 
 from tests.integration.conftest import ORIGIN, query_of, sign_in
 from unicon.api.cookies import SESSION_COOKIE, SIGN_IN_COOKIE
@@ -97,3 +98,31 @@ async def test_signing_in_again_ends_the_previous_session(
 async def test_the_register_url_follows_the_setting(client: httpx.AsyncClient) -> None:
     answer = await client.get("/api/v1/auth/register-url")
     assert answer.json() == {"url": "http://forge.test/user/sign_up"}
+
+
+async def test_the_session_cookie_is_httponly_lax_and_on_every_path(
+    client: httpx.AsyncClient, forge: FakeForge
+) -> None:
+    landed = await sign_in(client, forge)
+
+    (header,) = [
+        value
+        for value in landed.headers.get_list("set-cookie")
+        if value.startswith(f"{SESSION_COOKIE}=")
+    ]
+    flags = header.lower()
+    assert "httponly" in flags
+    assert "samesite=lax" in flags
+    assert "path=/" in flags
+    assert "secure" not in flags
+
+
+async def test_a_forged_session_cookie_is_refused_and_cleared(client: httpx.AsyncClient) -> None:
+    client.cookies.set(SESSION_COOKIE, "forged")
+
+    refused = await client.get("/api/v1/me")
+
+    assert refused.status_code == 401
+    assert refused.json()["code"] == "unauthenticated"
+    assert f"{SESSION_COOKIE}=" in refused.headers["set-cookie"]
+    assert "max-age=0" in refused.headers["set-cookie"].lower()

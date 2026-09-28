@@ -14,9 +14,8 @@ class Ready(BaseModel):
 
 
 class NotReady(BaseModel):
-    """Deliberately not a problem document: an orchestrator reads this and wants
-    the reason in a fixed place.
+    """Deliberately not a problem document: an orchestrator reads the status in
+    a fixed place. What failed underneath is in the log and not here.
     """
 
     status: Literal["not_ready"]
-    postgres: str

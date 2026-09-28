@@ -2,17 +2,16 @@
 
 import pytest
 from fastapi import FastAPI
-from forge.domain.errors import NotFound
+from forge.api.errors import NotFound
 from httpx import ASGITransport, AsyncClient
 
 from unicon.main import create_app
 from unicon.schemas.problem import PROBLEM_CONTENT_TYPE
-from unicon.settings import ShellSettings
 
 
 @pytest.fixture
-def app(settings: ShellSettings) -> FastAPI:
-    built = create_app(settings)
+def app() -> FastAPI:
+    built = create_app()
 
     @built.get("/missing")
     async def missing() -> None:
