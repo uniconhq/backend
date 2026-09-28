@@ -1,9 +1,14 @@
 """A state-changing request from another origin is refused, the same request
-from the app succeeds, and the probes answer on a running stack.
+from the app succeeds, the probes answer on a running stack, and the clock is
+forge's.
 """
 
+from datetime import datetime
+
 import httpx
-from forge.forges.fake import FakeForge
+import pytest
+from forge.api.errors import NotReady
+from forge.testing import FakeClock, FakeForge
 
 from tests.integration.conftest import ORIGIN, sign_in
 from unicon.api.cookies import SESSION_COOKIE
@@ -53,6 +58,26 @@ async def test_the_probes_answer(client: httpx.AsyncClient) -> None:
     assert (await client.get("/healthz")).json() == {"status": "ok"}
     assert (await client.get("/readyz")).json() == {"status": "ready"}
     assert (await client.get("/api/v1/time")).status_code == 200
+
+
+async def test_a_database_that_does_not_answer_is_not_ready_without_saying_why(
+    client: httpx.AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def not_ready() -> None:
+        raise NotReady("The database did not answer.")
+
+    monkeypatch.setattr("forge.api.ready", not_ready)
+
+    answer = await client.get("/readyz")
+
+    assert answer.status_code == 503
+    assert answer.json() == {"status": "not_ready"}
+
+
+async def test_the_server_time_is_forges_clock(client: httpx.AsyncClient, clock: FakeClock) -> None:
+    answer = await client.get("/api/v1/time")
+
+    assert datetime.fromisoformat(answer.json()["now"]) == clock.now()
 
 
 async def test_a_request_with_neither_origin_nor_referer_is_refused(

@@ -1,42 +1,44 @@
-"""The unit of work commits before the response leaves. A commit that fails
-is answered as a fault, never as the success the route returned.
+"""An action saves its change before it returns, so a route answers only
+after the change is on disk. An action that fails, at its commit or
+anywhere before, raises out of the call, and the route answers a fault
+rather than the success it would have returned.
 """
 
 from collections.abc import AsyncIterator
 
 import httpx
 import pytest
-from fastapi import FastAPI, Response, status
-from forge.runtime import Runtime
-from forge.testing import APP_URL
+from fastapi import FastAPI
+from forge.api import sessions
+from forge.testing import APP_URL, FakeForge
 
-from tests.integration.conftest import ORIGIN
-from unicon.api.deps import Db
-from unicon.main import create_app
-from unicon.settings import ShellSettings
-
-
-async def _refuse_to_commit() -> None:
-    raise RuntimeError("the database went away at commit")
+from tests.integration.conftest import ORIGIN, sign_in
+from unicon.api.cookies import SESSION_COOKIE
 
 
 @pytest.fixture
-async def failing_app(settings: ShellSettings, runtime: Runtime) -> AsyncIterator[FastAPI]:
-    built = create_app(settings, runtime)
-
-    @built.post("/commit-fails", status_code=status.HTTP_204_NO_CONTENT)
-    async def commit_fails(db: Db) -> Response:
-        db.commit = _refuse_to_commit  # type: ignore[method-assign]
-        return Response(status_code=status.HTTP_204_NO_CONTENT)
-
-    async with built.router.lifespan_context(built):
-        yield built
-
-
-async def test_a_commit_that_fails_is_not_answered_as_a_success(failing_app: FastAPI) -> None:
-    transport = httpx.ASGITransport(app=failing_app, raise_app_exceptions=False)
+async def faulting_client(app: FastAPI) -> AsyncIterator[httpx.AsyncClient]:
+    """A client that receives the 500 the app answers, rather than the
+    exception the server re-raises after answering it.
+    """
+    transport = httpx.ASGITransport(app=app, raise_app_exceptions=False)
     async with httpx.AsyncClient(transport=transport, base_url=APP_URL) as client:
-        answer = await client.post("/commit-fails", headers=ORIGIN)
+        yield client
+
+
+async def test_an_action_that_fails_is_answered_as_a_fault_and_not_a_success(
+    faulting_client: httpx.AsyncClient, forge: FakeForge, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    await sign_in(faulting_client, forge)
+
+    async def commit_fails(*args: object, **kwargs: object) -> None:
+        raise RuntimeError("the database went away at commit")
+
+    monkeypatch.setattr(sessions, "revoke", commit_fails)
+
+    answer = await faulting_client.post("/api/v1/auth/logout", headers=ORIGIN)
 
     assert answer.status_code == 500
     assert answer.json()["code"] == "internal_error"
+    assert "set-cookie" not in answer.headers
+    assert SESSION_COOKIE in faulting_client.cookies

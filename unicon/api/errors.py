@@ -17,8 +17,8 @@ from typing import Any, cast
 from fastapi import FastAPI, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from forge.domain.errors import UniconError
-from forge.log import get_logger
+from forge.api.errors import UniconError
+from forge.api.log import get_logger
 from starlette.exceptions import HTTPException
 
 from unicon.api.cookies import clear_session
@@ -108,7 +108,7 @@ async def _typed_error(request: Request, exc: Exception) -> Response:
     error = cast(UniconError, exc)
     response = problem_for(error)
     if error.code in CLEARS_SESSION:
-        clear_session(response, request.app.state.settings)
+        clear_session(response)
     return response
 
 
