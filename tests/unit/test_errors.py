@@ -3,6 +3,7 @@ in one place, and one the table does not know is answered as a fault.
 """
 
 import pytest
+from fastapi import FastAPI
 from forge.domain import errors
 from forge.domain.errors import UniconError
 from httpx import ASGITransport, AsyncClient
@@ -10,6 +11,8 @@ from httpx import ASGITransport, AsyncClient
 from unicon.api.errors import status_of
 from unicon.main import create_app
 from unicon.settings import ShellSettings
+
+FORGE_DETAIL = "/api/v1/repos/acme/spring.contest/contents/x answered 500"
 
 CASES = [
     (errors.NotFound, 404),
@@ -74,3 +77,67 @@ async def test_an_unauthenticated_answer_clears_the_cookie(settings: ShellSettin
     assert response.status_code == 401
     assert "unicon_session=" in response.headers["set-cookie"]
     assert "max-age=0" in response.headers["set-cookie"].lower()
+
+
+async def _answer(app: FastAPI, path: str) -> dict[str, object]:
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.get(path)
+    body: dict[str, object] = response.json()
+    body["_status"] = response.status_code
+    return body
+
+
+async def test_a_forge_that_is_down_is_answered_without_its_detail(
+    settings: ShellSettings,
+) -> None:
+    app = create_app(settings)
+
+    @app.get("/down")
+    async def down() -> None:
+        raise errors.Unavailable(FORGE_DETAIL)
+
+    @app.get("/wrong")
+    async def wrong() -> None:
+        raise errors.Misconfigured("invalid_client from /login/oauth/access_token", error="x")
+
+    down_body = await _answer(app, "/down")
+    wrong_body = await _answer(app, "/wrong")
+
+    assert down_body["_status"] == 503
+    assert down_body["code"] == "forge_unavailable"
+    assert wrong_body["_status"] == 502
+    assert wrong_body["code"] == "forge_misconfigured"
+    for body in (down_body, wrong_body):
+        assert "/api/v1" not in str(body)
+        assert "/login/oauth" not in str(body)
+        assert "error" not in body
+
+
+async def test_an_unmapped_error_is_answered_without_its_detail(
+    settings: ShellSettings,
+) -> None:
+    app = create_app(settings)
+
+    @app.get("/odd")
+    async def odd() -> None:
+        raise Surprise("internal detail about table foo")
+
+    body = await _answer(app, "/odd")
+
+    assert body["_status"] == 500
+    assert body["code"] == "surprise"
+    assert "table foo" not in str(body)
+
+
+async def test_a_refusal_keeps_its_reason(settings: ShellSettings) -> None:
+    app = create_app(settings)
+
+    @app.get("/refused")
+    async def refused() -> None:
+        raise errors.Rejected("The name is taken at the forge.")
+
+    body = await _answer(app, "/refused")
+
+    assert body["_status"] == 422
+    assert body["detail"] == "The name is taken at the forge."

@@ -52,9 +52,9 @@ read. Both cookies are `HttpOnly`, `SameSite=Lax`, and `Secure` when
 `UNICON_COOKIE_SECURE` is on. The app and the API share one origin, so the
 cookie is first-party.
 
-`OriginCheck` refuses any state-changing request carrying the session cookie
-whose `Origin`, or the origin of its `Referer`, is not the public URL. That
-and `SameSite=Lax` are the whole CSRF story.
+`OriginCheck` refuses any state-changing request whose `Origin`, or the
+origin of its `Referer`, is not the public URL, whether or not it carries a
+session. That and `SameSite=Lax` are the whole CSRF story.
 
 `GET /api/v1/me` returns the caller's identity and their roles at every scope.
 The session list, revoke, sign-out-everywhere, deactivate and delete routes
@@ -62,8 +62,10 @@ each call the matching package operation and return its refusal unchanged.
 
 Each request is one unit of work. The `Ctx` dependency opens a database
 session, hands the route the package's `Context` over it, commits when the
-route returns and rolls back when it raises. A route calls services and
-never touches the session itself.
+route returns and rolls back when it raises. The commit happens before the
+response is sent, so a 204 or a redirect means the change is on disk, and a
+commit that fails is answered as a 500. A route calls services and never
+touches the session itself.
 
 ## Errors
 
@@ -83,9 +85,13 @@ nowhere else:
 | `forge_unavailable` | 503 |
 
 `sole_admin` carries `scopes` and `shared_workflow_owner` carries
-`workflows`, so the browser can show what stands in the way. A typed error
-the table does not know is a fault in the table: it is answered as a 500
-with its code and logged as `errors.unmapped`.
+`workflows`, so the browser can show what stands in the way. A refusal
+carries its `detail`, which is the reason the person can act on.
+`forge_unavailable` and `forge_misconfigured` are answered with a fixed
+sentence and their detail, which names the forge's hosts and paths, goes to
+the log as `errors.forge`. A typed error the table does not know is a fault
+in the table: it is answered as a 500 with its code and a fixed sentence, and
+logged as `errors.unmapped`.
 
 ## Logging
 
