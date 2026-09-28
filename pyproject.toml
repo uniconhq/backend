@@ -66,13 +66,9 @@ type = "forbidden"
 source_modules = ["unicon", "tests"]
 forbidden_modules = [
     "forge.services",
-    "forge.setup",
-    "forge.actions",
-    "forge.context",
+    "forge.runtime",
     "forge.settings",
     "forge.log",
-    "forge.crypto",
-    "forge.cookies",
     "forge.cli",
     "forge.domain",
     "forge.port",
