@@ -1,66 +1,26 @@
-"""What a route asks for: the settings, the runtime, a unit of work with its
-context, and the session the request carries. The unit of work commits when
-the route returns and rolls back when it raises, so a service never commits.
-The commit happens before the response is sent: a client that reads a 204
-or a redirect has the change on disk, and a commit that fails is answered
-as a 500 instead of a success.
+"""What a route asks for: the session the request carries. Every route reads
+what else it needs from the request and calls one forge action, which opens,
+commits and closes its own transaction before the route builds a response.
 """
 
-from collections.abc import AsyncIterator
 from typing import Annotated
 
 from fastapi import Depends, Request
-from forge.context import Context
-from forge.domain.errors import Unauthenticated
-from forge.domain.sessions import Session
-from forge.runtime import Runtime
-from forge.services import identity
-from sqlalchemy.ext.asyncio import AsyncSession
+from forge.api import identity
+from forge.api.errors import Unauthenticated
+from forge.api.types import Session
 
 from unicon.api import cookies
-from unicon.settings import ShellSettings
 
 
-def settings_of(request: Request) -> ShellSettings:
-    settings: ShellSettings = request.app.state.settings
-    return settings
-
-
-def runtime_of(request: Request) -> Runtime:
-    runtime: Runtime = request.app.state.runtime
-    return runtime
-
-
-async def unit_of_work(request: Request) -> AsyncIterator[AsyncSession]:
-    async with runtime_of(request).sessions() as db:
-        try:
-            yield db
-        except BaseException:
-            await db.rollback()
-            raise
-        await db.commit()
-
-
-Config = Annotated[ShellSettings, Depends(settings_of)]
-RuntimeDep = Annotated[Runtime, Depends(runtime_of)]
-Db = Annotated[AsyncSession, Depends(unit_of_work, scope="function")]
-
-
-def context_of(request: Request, db: Db) -> Context:
-    return runtime_of(request).context(db)
-
-
-Ctx = Annotated[Context, Depends(context_of)]
-
-
-async def current_session(request: Request, settings: Config, ctx: Ctx) -> Session:
+async def current_session(request: Request) -> Session:
     """The session behind the cookie, checked for its lifetimes. A missing or
     altered cookie is `Unauthenticated`.
     """
-    session_id = cookies.read_session_id(request, settings)
+    session_id = cookies.read_session_id(request)
     if session_id is None:
         raise Unauthenticated("No session.")
-    return await identity.current(ctx, session_id)
+    return await identity.current(session_id)
 
 
 CurrentSession = Annotated[Session, Depends(current_session)]

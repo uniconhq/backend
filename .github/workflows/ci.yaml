@@ -43,7 +43,7 @@ jobs:
       - run: uv run pytest
 
       - name: Migrate an empty database
-        run: uv run unicon migrate
+        run: uv run unicon-forge migrate
 
       - name: openapi.json is current
         run: |

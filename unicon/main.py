@@ -1,14 +1,18 @@
-"""The app factory. The runtime is built while the app starts and stopped when
-it stops, so the package's background loops run beside the routes for exactly
-as long as the process serves.
+"""The app factory. Forge is started while the app starts and stopped when it
+stops, so the package's background loops run beside the routes for exactly
+as long as the process serves. Building the app reads no setting, so the
+OpenAPI document comes out of an app forge was never started for. The
+document is served at `/openapi.json`, which the frontend generates from;
+the Swagger and ReDoc pages are not, because an API browser is not part of
+what a deployment exposes.
 """
 
-from collections.abc import AsyncIterator, Callable
-from contextlib import AbstractAsyncContextManager, asynccontextmanager
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from importlib.metadata import version
 
+import forge.api
 from fastapi import FastAPI
-from forge.runtime import Runtime
 
 from unicon.api import health
 from unicon.api.errors import register_error_handlers
@@ -17,24 +21,18 @@ from unicon.api.middleware.request_log import RequestLog
 from unicon.api.openapi import build_document
 from unicon.api.v1 import router as v1_router
 from unicon.api.v1.auth import CALLBACK_PATH
-from unicon.settings import ShellSettings, load_shell_settings
-
-Lifespan = Callable[[FastAPI], AbstractAsyncContextManager[None]]
 
 
-def create_app(settings: ShellSettings | None = None, runtime: Runtime | None = None) -> FastAPI:
-    """Build the app. Without a `runtime`, one is built from the settings when
-    the app starts.
-    """
-    config = settings or load_shell_settings()
+def create_app() -> FastAPI:
     app = FastAPI(
         title="Unicon API",
         version=version("unicon-backend"),
         summary="Contests on top of a git host, a CI and an object store",
-        lifespan=_lifespan(config, runtime),
+        lifespan=_lifespan,
+        docs_url=None,
+        redoc_url=None,
     )
-    app.state.settings = config
-    app.add_middleware(OriginCheck, public_url=str(config.public_url))
+    app.add_middleware(OriginCheck)
     app.add_middleware(RequestLog)
     register_error_handlers(app)
     app.include_router(health.router)
@@ -44,24 +42,10 @@ def create_app(settings: ShellSettings | None = None, runtime: Runtime | None = 
     return app
 
 
-def sign_in_redirect_uri(settings: ShellSettings) -> str:
-    """Where the host sends a browser back to after sign-in: this shell's
-    callback route on the public URL.
-    """
-    return str(settings.public_url).rstrip("/") + CALLBACK_PATH
-
-
-def _lifespan(settings: ShellSettings, given: Runtime | None) -> Lifespan:
-    @asynccontextmanager
-    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-        runtime = given or Runtime.build(
-            settings, sign_in_redirect_uri=sign_in_redirect_uri(settings)
-        )
-        app.state.runtime = runtime
-        runtime.start_background()
-        try:
-            yield
-        finally:
-            await runtime.stop()
-
-    return lifespan
+@asynccontextmanager
+async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
+    forge.api.start(callback_path=CALLBACK_PATH)
+    try:
+        yield
+    finally:
+        await forge.api.stop()

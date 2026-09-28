@@ -2,9 +2,10 @@
 `/readyz` says the database answered, on a connection of its own.
 """
 
+import forge.api
 from fastapi import APIRouter, Response
+from forge.api.errors import NotReady as NotReadyError
 
-from unicon.api.deps import RuntimeDep
 from unicon.schemas.health import Health, NotReady, Ready
 
 router = APIRouter(tags=["health"])
@@ -22,11 +23,11 @@ async def healthz() -> Health:
     response_model=Ready,
     responses={503: {"model": NotReady, "description": "The database did not answer"}},
 )
-async def readyz(runtime: RuntimeDep) -> Response | Ready:
+async def readyz() -> Response | Ready:
     try:
-        await runtime.ready()
-    except Exception as exc:
-        body = NotReady(status="not_ready", postgres=type(exc).__name__)
+        await forge.api.ready()
+    except NotReadyError:
+        body = NotReady(status="not_ready")
         return Response(
             status_code=503, content=body.model_dump_json(), media_type="application/json"
         )
