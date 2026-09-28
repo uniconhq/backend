@@ -2,9 +2,9 @@
 
 from datetime import datetime
 
-from forge.domain.roles import RoleGrant
-from forge.services.identity import Me as MeRecord
-from forge.services.sessions import SessionInfo as SessionRecord
+from forge.api.identity import Me as MeRecord
+from forge.api.sessions import SessionInfo as SessionRecord
+from forge.api.types import RoleGrant
 from pydantic import BaseModel
 
 

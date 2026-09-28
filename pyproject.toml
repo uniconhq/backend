@@ -7,10 +7,9 @@ license = "MIT"
 license-files = ["LICENSE"]
 requires-python = ">=3.14"
 dependencies = [
-    "unicon-forge==0.1.0",
+    "unicon-forge==0.2.0",
     "fastapi>=0.141.1",
     "uvicorn[standard]>=0.52.4",
-    "itsdangerous>=2.2.0",
     "pydantic>=2.13.5",
 ]
 
@@ -29,7 +28,7 @@ dev = [
 ]
 
 [tool.uv.sources]
-unicon-forge = { url = "https://github.com/uniconhq/forge/releases/download/v0.1.0/unicon_forge-0.1.0-py3-none-any.whl" }
+unicon-forge = { url = "https://github.com/uniconhq/forge/releases/download/v0.2.0/unicon_forge-0.2.0-py3-none-any.whl" }
 
 [build-system]
 requires = ["hatchling"]
@@ -58,18 +57,33 @@ asyncio_default_fixture_loop_scope = "function"
 addopts = "-q -p forge.testing"
 
 [tool.importlinter]
-root_packages = ["unicon", "forge"]
+root_packages = ["unicon", "tests", "forge"]
+include_external_packages = true
 
 [[tool.importlinter.contracts]]
-name = "the backend never reaches a table in the forge package"
+name = "the backend and its tests reach forge only through forge.api, and never the database"
 type = "forbidden"
-source_modules = ["unicon"]
-forbidden_modules = ["forge.db"]
+source_modules = ["unicon", "tests"]
+forbidden_modules = [
+    "forge.services",
+    "forge.setup",
+    "forge.actions",
+    "forge.context",
+    "forge.settings",
+    "forge.log",
+    "forge.crypto",
+    "forge.cookies",
+    "forge.cli",
+    "forge.domain",
+    "forge.port",
+    "forge.db",
+    "forge.forges",
+    "sqlalchemy",
+]
 allow_indirect_imports = true
 
 [[tool.importlinter.contracts]]
-name = "the backend never reaches a forge implementation"
+name = "the running app never loads the test kit"
 type = "forbidden"
 source_modules = ["unicon"]
-forbidden_modules = ["forge.forges"]
-allow_indirect_imports = true
+forbidden_modules = ["forge.testing"]

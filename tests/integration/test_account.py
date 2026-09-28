@@ -5,12 +5,8 @@ to leave with the package's refusals passed through.
 from datetime import timedelta
 
 import httpx
-from forge.domain.identity import AsUser
-from forge.domain.ids import OrgName
-from forge.domain.roles import Role, Scope
-from forge.domain.workflows import Visibility
-from forge.forges.fake import FakeForge
-from forge.testing import FakeClock
+from forge.api.types import Role, Scope
+from forge.testing import AsUser, FakeClock, FakeForge, OrgName, Visibility
 
 from tests.integration.conftest import ORIGIN, sign_in
 from unicon.api.cookies import SESSION_COOKIE

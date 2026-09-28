@@ -1,16 +1,17 @@
 """Each of the package's typed errors comes out with its own status and code,
-in one place, and one the table does not know is answered as a fault.
+in one place, and one the table does not know is answered as a fault. That
+an unauthenticated answer clears the cookie is in the integration tests,
+since the cookie's flags are forge's.
 """
 
 import pytest
 from fastapi import FastAPI
-from forge.domain import errors
-from forge.domain.errors import UniconError
+from forge.api import errors
+from forge.api.errors import UniconError
 from httpx import ASGITransport, AsyncClient
 
 from unicon.api.errors import status_of
 from unicon.main import create_app
-from unicon.settings import ShellSettings
 
 FORGE_DETAIL = "/api/v1/repos/acme/spring.contest/contents/x answered 500"
 
@@ -45,8 +46,8 @@ def test_an_unmapped_error_is_a_fault() -> None:
     assert status_of(Surprise("no")) == 500
 
 
-async def test_a_typed_error_becomes_a_problem_document(settings: ShellSettings) -> None:
-    app = create_app(settings)
+async def test_a_typed_error_becomes_a_problem_document() -> None:
+    app = create_app()
 
     @app.get("/boom")
     async def boom() -> None:
@@ -62,23 +63,6 @@ async def test_a_typed_error_becomes_a_problem_document(settings: ShellSettings)
     assert response.json()["scopes"] == [{"kind": "org", "name": "acme"}]
 
 
-async def test_an_unauthenticated_answer_clears_the_cookie(settings: ShellSettings) -> None:
-    app = create_app(settings)
-
-    @app.get("/who")
-    async def who() -> None:
-        raise errors.Unauthenticated("No session.")
-
-    transport = ASGITransport(app=app)
-    cookies = {"unicon_session": "x"}
-    async with AsyncClient(transport=transport, base_url="http://test", cookies=cookies) as client:
-        response = await client.get("/who")
-
-    assert response.status_code == 401
-    assert "unicon_session=" in response.headers["set-cookie"]
-    assert "max-age=0" in response.headers["set-cookie"].lower()
-
-
 async def _answer(app: FastAPI, path: str) -> dict[str, object]:
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -88,10 +72,8 @@ async def _answer(app: FastAPI, path: str) -> dict[str, object]:
     return body
 
 
-async def test_a_forge_that_is_down_is_answered_without_its_detail(
-    settings: ShellSettings,
-) -> None:
-    app = create_app(settings)
+async def test_a_forge_that_is_down_is_answered_without_its_detail() -> None:
+    app = create_app()
 
     @app.get("/down")
     async def down() -> None:
@@ -114,10 +96,8 @@ async def test_a_forge_that_is_down_is_answered_without_its_detail(
         assert "error" not in body
 
 
-async def test_an_unmapped_error_is_answered_without_its_detail(
-    settings: ShellSettings,
-) -> None:
-    app = create_app(settings)
+async def test_an_unmapped_error_is_answered_without_its_detail() -> None:
+    app = create_app()
 
     @app.get("/odd")
     async def odd() -> None:
@@ -130,8 +110,8 @@ async def test_an_unmapped_error_is_answered_without_its_detail(
     assert "table foo" not in str(body)
 
 
-async def test_a_refusal_keeps_its_reason(settings: ShellSettings) -> None:
-    app = create_app(settings)
+async def test_a_refusal_keeps_its_reason() -> None:
+    app = create_app()
 
     @app.get("/refused")
     async def refused() -> None:

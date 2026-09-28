@@ -1,5 +1,6 @@
-"""`unicon api`, `unicon migrate` and `unicon openapi`. The container runs the
-first two; CI runs all three.
+"""`unicon api` and `unicon openapi`. The container runs the first; CI runs
+both. The database is migrated by the forge package's own command,
+`unicon-forge migrate`.
 """
 
 import argparse
@@ -8,12 +9,9 @@ import json
 import sys
 from pathlib import Path
 
-from forge.log import configure
-from forge.runtime import migrate
-from forge.settings import load_database_settings
+from forge.api import log
 
 from unicon.main import create_app
-from unicon.settings import ShellSettings, load_shell_settings
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -24,30 +22,24 @@ def main(argv: list[str] | None = None) -> int:
     api.add_argument("--host", default="0.0.0.0")
     api.add_argument("--port", type=int, default=8000)
 
-    commands.add_parser("migrate", help="bring the database up to the latest migration")
-
     openapi = commands.add_parser("openapi", help="write the OpenAPI document")
     openapi.add_argument("--output", type=Path, default=Path("openapi.json"))
 
     args = parser.parse_args(argv)
     if args.command == "api":
         return _serve(args.host, args.port)
-    if args.command == "migrate":
-        migrate(str(load_database_settings().database_url))
-        return 0
     return _write_openapi(args.output)
 
 
 def _serve(host: str, port: int) -> int:
+    log.setup()
     import uvicorn
 
-    settings = load_shell_settings()
-    configure(settings.log_level)
-    _use_selector_loop_on_windows()
     uvicorn.run(
-        create_app(settings),
+        create_app(),
         host=host,
         port=port,
+        loop=f"{__name__}:event_loop",
         proxy_headers=True,
         forwarded_allow_ips="*",
         access_log=False,
@@ -56,15 +48,22 @@ def _serve(host: str, port: int) -> int:
     return 0
 
 
-def _use_selector_loop_on_windows() -> None:
-    """psycopg cannot run asynchronously on Windows' default proactor loop."""
+def event_loop() -> asyncio.AbstractEventLoop:
+    """The loop the server runs on, named to uvicorn as a factory: uvicorn
+    picks its own loop and ignores the process's policy, so this is the one
+    way to choose. psycopg cannot run asynchronously on Windows' default
+    proactor loop, so Windows gets the selector loop. Everywhere else it is
+    uvicorn's own choice, which is uvloop where that is installed.
+    """
     if sys.platform == "win32":
-        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+        return asyncio.SelectorEventLoop()
+    from uvicorn.loops.auto import auto_loop_factory
+
+    return auto_loop_factory()()
 
 
 def _write_openapi(output: Path) -> int:
-    app = create_app(ShellSettings.for_tests())
-    document = json.dumps(app.openapi(), indent=2, sort_keys=True) + "\n"
+    document = json.dumps(create_app().openapi(), indent=2, sort_keys=True) + "\n"
     output.write_text(document, encoding="utf-8", newline="\n")
     return 0
 

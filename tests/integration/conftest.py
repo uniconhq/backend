@@ -1,5 +1,7 @@
 """The app over a real Postgres and the in-memory forge, the way
-`UNICON_FORGE=fake` runs it.
+`UNICON_FORGE=fake` runs it. The test holds forge's setup through
+`held_setup`, so the app is served without its lifespan, which would start
+forge a second time.
 """
 
 from collections.abc import AsyncIterator
@@ -8,28 +10,16 @@ from urllib.parse import parse_qs, urlsplit
 import httpx
 import pytest
 from fastapi import FastAPI
-from forge.forges.fake import FakeForge
-from forge.runtime import Runtime
-from forge.testing import APP_URL
+from forge.testing import APP_URL, FakeForge
 
 from unicon.main import create_app
-from unicon.settings import ShellSettings
 
 ORIGIN = {"Origin": APP_URL}
 
 
 @pytest.fixture
-def settings(migrated_database_url: str) -> ShellSettings:
-    return ShellSettings.for_tests(
-        database_url=migrated_database_url, public_url=APP_URL, forge_public_url="http://forge.test"
-    )
-
-
-@pytest.fixture
-async def app(settings: ShellSettings, runtime: Runtime) -> AsyncIterator[FastAPI]:
-    built = create_app(settings, runtime)
-    async with built.router.lifespan_context(built):
-        yield built
+def app(held_setup: object) -> FastAPI:
+    return create_app()
 
 
 @pytest.fixture
