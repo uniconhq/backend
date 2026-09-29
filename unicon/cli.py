@@ -1,17 +1,37 @@
-"""`unicon api` and `unicon openapi`. The container runs the first; CI runs
-both. The database is migrated by the forge package's own command,
-`unicon-forge migrate`.
+"""`unicon api` and `unicon openapi`, and the operator's two commands. The
+container runs `api` and CI runs `openapi`. The database is migrated by the
+forge package's own command, `unicon-forge migrate`.
+
+`unicon create-org` and `unicon create-account` are what only the operator
+does, run on the stack itself with the stack's `UNICON_*` settings; no route
+does either. `create-org` makes an org whatever `UNICON_ORG_CREATION_OPEN`
+says and names its first admin, an existing user at the forge, and refuses
+a description over 255 characters before forge is called; it runs the
+whole provisioning before it returns and exits 0 only when the org is ready.
+An org that stopped at a step is left for the provisioning poller, which
+tries it again from there, and the command exits 2. `create-account` makes a
+person's account at the forge for a deployment whose sign-up is closed, and
+prints its first password once. A refusal prints its reason and exits 1.
 """
 
 import argparse
 import asyncio
 import json
 import sys
+from collections.abc import Awaitable, Callable
 from pathlib import Path
 
-from forge.api import log
+import forge.api
+from forge.api import account, log, orgs
+from forge.api.errors import UniconError
+from forge.api.types import OrgName
 
+from unicon.api.v1.auth import CALLBACK_PATH
 from unicon.main import create_app
+from unicon.schemas.orgs import DESCRIPTION_MAX
+
+REFUSED = 1
+NOT_READY = 2
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -25,9 +45,33 @@ def main(argv: list[str] | None = None) -> int:
     openapi = commands.add_parser("openapi", help="write the OpenAPI document")
     openapi.add_argument("--output", type=Path, default=Path("openapi.json"))
 
+    create_org = commands.add_parser("create-org", help="make an org and name its first admin")
+    create_org.add_argument("name")
+    create_org.add_argument("--admin", required=True, help="an existing user at the forge")
+    create_org.add_argument(
+        "--description", default="", help=f"at most {DESCRIPTION_MAX} characters"
+    )
+
+    create_account = commands.add_parser(
+        "create-account", help="make a person's account at the forge"
+    )
+    create_account.add_argument("username")
+    create_account.add_argument("--email", required=True)
+
     args = parser.parse_args(argv)
     if args.command == "api":
         return _serve(args.host, args.port)
+    if args.command == "create-org":
+        if len(args.description) > DESCRIPTION_MAX:
+            print(
+                f"The description is longer than {DESCRIPTION_MAX} characters, "
+                "the most the forge takes.",
+                file=sys.stderr,
+            )
+            return REFUSED
+        return _as_operator(lambda: _create_org(args.name, args.admin, args.description))
+    if args.command == "create-account":
+        return _as_operator(lambda: _create_account(args.username, args.email))
     return _write_openapi(args.output)
 
 
@@ -60,6 +104,50 @@ def event_loop() -> asyncio.AbstractEventLoop:
     from uvicorn.loops.auto import auto_loop_factory
 
     return auto_loop_factory()()
+
+
+def _as_operator(command: Callable[[], Awaitable[int]]) -> int:
+    """Run one operator command with forge started around it, on the loop
+    the server would use. No poller or timed pass runs beside it, so the
+    command does what it says and nothing else.
+    """
+    log.setup()
+
+    async def run() -> int:
+        forge.api.start(callback_path=CALLBACK_PATH, background=False)
+        try:
+            return await command()
+        except UniconError as refused:
+            print(refused.detail, file=sys.stderr)
+            return REFUSED
+        finally:
+            await forge.api.stop()
+
+    return asyncio.run(run(), loop_factory=event_loop)
+
+
+async def _create_org(name: str, admin: str, description: str) -> int:
+    record = await orgs.create_by_operator(
+        OrgName(name), description=description, admin_username=admin
+    )
+    print(f"Org {record.target_id}: {record.status}, last step {record.last_step or 'none'}.")
+    if record.status == "ready":
+        print(f"{admin} is its admin.")
+        return 0
+    if record.failed_step is not None:
+        print(f"It stopped at {record.failed_step}: {record.error}.")
+    else:
+        print(f"It stopped outside its steps: {record.error}.")
+    print("The provisioning poller of the running stack tries it again from there.")
+    return NOT_READY
+
+
+async def _create_account(username: str, email: str) -> int:
+    user, password = await account.create(username, email=email)
+    print(f"Account {user.username} created, user id {user.id}.")
+    print(f"First password: {password}")
+    print("It is shown only this once and must be changed at the first sign-in.")
+    return 0
 
 
 def _write_openapi(output: Path) -> int:
