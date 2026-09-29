@@ -129,6 +129,11 @@ the one the route needs at the scope in the third column.
 | `GET <task>` | observer | task | | the task's state |
 | `GET <task>/publications` | observer | task | | the publications, oldest first |
 | `GET <task>/release` | a session | | | whether the caller sees the task and may submit to it now, or 404 when the contest is hidden from them |
+| `GET <contest>/contestants` | observer | contest | | every registration, oldest first |
+| `POST <contest>/contestants/{user_id}/approve` | manager | contest | | the registration |
+| `POST <contest>/contestants/{user_id}/reject` | manager | contest | `reason` | the registration |
+| `POST <contest>/contestants/{user_id}/remove` | manager | contest | | the registration |
+| `PUT <contest>/contestants/{user_id}/extension` | manager | contest | `seconds` | the registration |
 | `POST <task>/save` | manager | task | `changes`, `confirm`, `keep_as_draft`, `message` | the save's result |
 | `GET <scope>/roles` | observer | scope | | the holders |
 | `POST <scope>/roles` | manager | scope | `username`, `role` | 204 |
@@ -192,12 +197,13 @@ and one that does not is kept as a draft: its files are written, nothing is
 published, and the last publication keeps grading. While the contest runs,
 a save that changes how the task grades is `confirmation_required`, listing
 what would change, and nothing is written. The same save with `confirm`
-publishes; with `keep_as_draft` it is written as a draft that says what it
-held back, and an empty save with `confirm` publishes that draft later.
+publishes. A save with `keep_as_draft` is written as a draft that says what
+it held back and publishes nothing, on any save, and an empty save with
+`confirm` publishes that draft later.
 
 A save answers with `outcome`. `published` carries the `publication`, its
 `number`, `grading_changed`, the `changes`, and where the task's
-`registration` for grading stands: `done`, `pending` or `not_needed`.
+`activation` at the CI stands: `done`, `pending` or `not_needed`.
 `draft` carries the `version` written, the `errors`, each `{path, message}`,
 and what it `held_back`. `GET <task>` answers the version at the head, the
 latest publication or none, whether the head is a draft, and the draft's
@@ -208,6 +214,60 @@ whether the task is `released`, `visible` and `open` to the caller now by
 the server's clock, and the first reason it is `closed`. Nothing is released
 before the task's first publication, and a task whose contest is hidden from
 the caller is not found.
+
+## Contestants and visitors
+
+A contestant's routes need a session and no role, since the person holds none
+in the contest they enter:
+
+| Route | Body | Answer |
+|---|---|---|
+| `GET /api/v1/contests` | | every published contest the caller may enter or has entered, newest start first, with their own `status` |
+| `POST <contest>/registration` | `invite_code` | 201, the caller's registration |
+| `GET <contest>/registration` | | the caller's registration, or null |
+| `GET <contest>/home` | | the contest's home for the caller |
+| `GET <task>/page` | | a released task's statement and limits |
+
+Registering answers pending, or approved when the contest approves on its
+own. A registration the contest's rules refuse answers with the rule's code:
+`registration_closed`, `is_staff`, `invite_required`, `wrong_invite_code` and
+`domain_not_allowed` as 403, `already_registered` and `contest_full` as 409.
+A registration carries its `status`, the `reason` when it was rejected, its
+times, the caller's `time_extension_seconds`, and `workspace`, which is
+`preparing` until every part of an approved contestant's workspace is made
+and then `ready`, and null for anyone not approved. The home carries the
+contest's `title`, dates and `state`, the caller's `registration`, whether
+the caller `organises` the contest and so may not enter it, whether the
+window is `registration_open` and whether registering is `invite_only`
+or `asks_code`, the caller's own `deadline`, which is the end plus their
+extension, `now`, the server's clock when it was read, and the `tasks`
+released to them, each with its `label`, `title`, `points` and `release`. A
+task's page carries its `statement` in Markdown and its `limits`:
+`submissions`, `rate_count` in any `rate_seconds`, and `max_size` in bytes.
+For a contest the caller may not see, the home answers 404, the same as for
+one that is not there, and so does the page of a task that is not visible to
+them; the caller's own registration reads null wherever they have none.
+
+The organiser's contestants routes are in the table above. A contestant
+carries the person's `user_id`, `username`, `name`, `email` and
+`avatar_url`, all but the id null once the account is gone, the same fields
+as a person's own registration, and `workspace_error`, why the last try at a
+part of the workspace failed while it is still being made. A decision the
+registration's status does not allow is `wrong_status`, carrying the status
+as `current`; a rejection needs a `reason` (`invalid_reason`), and an
+extension is between none and a year (`invalid_extension`), and one
+of more than a billion seconds either way is not taken at all
+(`validation_error`).
+
+A visitor with no session calls the routes under `/api/v1/public`, which
+read no cookie: `GET /api/v1/public/contests`, every contest whose
+`visibility` is `public` and that is published; `GET
+/api/v1/public/contests/{org}/{contest}`, one of them with its released
+tasks; and `GET /api/v1/public/contests/{org}/{contest}/tasks/{task}`, a
+released task's statement. Anything else answers 404 there. Every
+contestant's and organiser's route answers a request with no session 401;
+the few others that need none are the sign-in's own, the server's clock, the
+health checks and the event door, and a test lists them all.
 
 ## The event door
 
@@ -254,10 +314,10 @@ nowhere else:
 | Code | Status |
 |---|---|
 | `not_found` | 404 |
-| `forbidden`, `fresh_sign_in_required`, `origin_mismatch`, `admin_only`, `reserved_path` | 403 |
-| `conflict`, `sole_admin`, `contestant_conflict`, `shared_workflow_owner`, `confirmation_required` | 409 |
+| `forbidden`, `fresh_sign_in_required`, `origin_mismatch`, `admin_only`, `reserved_path`, `registration_closed`, `is_staff`, `invite_required`, `wrong_invite_code`, `domain_not_allowed` | 403 |
+| `conflict`, `sole_admin`, `contestant_conflict`, `shared_workflow_owner`, `confirmation_required`, `already_registered`, `contest_full`, `wrong_status` | 409 |
 | `payload_too_large` | 413 |
-| `rejected`, `invalid_name`, `invalid_definition`, `invalid_path`, `validation_error` | 422 |
+| `rejected`, `invalid_name`, `invalid_definition`, `invalid_path`, `invalid_reason`, `invalid_extension`, `validation_error` | 422 |
 | `unauthenticated`, `session_expired` | 401, and the session cookie is cleared |
 | `sign_in_invalid`, `sign_in_denied` | 400 |
 | `forge_misconfigured` | 502 |
@@ -267,8 +327,10 @@ nowhere else:
 `contestant_conflict` carries `contests`, `shared_workflow_owner` carries
 `workflows`, `admin_only` carries `keys`, `reserved_path` carries `paths`,
 `confirmation_required` carries `changes`, `invalid_definition` carries
-`errors`, each `{"path", "message"}`, and `invalid_path` carries `path`, so
-the browser can show what stands in the way. A refusal
+`errors`, each `{"path", "message"}`, `invalid_path` carries `path` and
+`wrong_status` carries `current`, so the browser can show what stands in the
+way. A member named like a field of the document itself, such as `status`,
+would replace it, so it is left out and logged as `errors.member_clash`. A refusal
 carries its `detail`, which is the reason the person can act on.
 `forge_unavailable` and `forge_misconfigured` are answered with a fixed
 sentence and their detail, which names the forge's hosts and paths, goes to
