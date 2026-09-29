@@ -11,6 +11,7 @@ from forge.api.errors import UniconError
 from httpx import ASGITransport, AsyncClient
 
 from unicon.api.errors import status_of
+from unicon.api.v1.events import PayloadTooLarge
 from unicon.main import create_app
 
 FORGE_DETAIL = "/api/v1/repos/acme/spring.contest/contents/x answered 500"
@@ -29,7 +30,13 @@ CASES = [
     (errors.SignInDenied, 400),
     (errors.Misconfigured, 502),
     (errors.SoleAdmin, 409),
+    (errors.ContestantConflict, 409),
     (errors.SharedWorkflowOwner, 409),
+    (errors.AdminOnly, 403),
+    (errors.ReservedPath, 403),
+    (errors.ConfirmationRequired, 409),
+    (errors.InvalidPath, 422),
+    (PayloadTooLarge, 413),
 ]
 
 
@@ -61,6 +68,44 @@ async def test_a_typed_error_becomes_a_problem_document() -> None:
     assert response.headers["content-type"].startswith("application/problem+json")
     assert response.json()["code"] == "sole_admin"
     assert response.json()["scopes"] == [{"kind": "org", "name": "acme"}]
+
+
+REFUSALS = [
+    (errors.ContestantConflict("bob is a contestant.", contests=["acme/spring"]), 409, "contests"),
+    (errors.AdminOnly("Only an admin may.", keys=["name", "statement.md"]), 403, "keys"),
+    (errors.ReservedPath("Only the compiler.", paths=["plans/default.json"]), 403, "paths"),
+    (
+        errors.ConfirmationRequired("Confirm it.", changes=["plans/default.json changed"]),
+        409,
+        "changes",
+    ),
+    (
+        errors.InvalidDefinition(
+            "contest.yaml", [{"path": "visibility", "message": "Not a visibility."}]
+        ),
+        422,
+        "errors",
+    ),
+    (errors.InvalidPath("Not a path.", path="../other.task/task.yaml"), 422, "path"),
+]
+
+
+@pytest.mark.parametrize(
+    ("error", "status", "member"), REFUSALS, ids=[error.code for error, _, _ in REFUSALS]
+)
+async def test_a_refusal_carries_its_member(error: UniconError, status: int, member: str) -> None:
+    app = create_app()
+
+    @app.get("/refused")
+    async def refused() -> None:
+        raise error
+
+    body = await _answer(app, "/refused")
+
+    assert body["_status"] == status
+    assert body["code"] == error.code
+    assert body["detail"] == error.detail
+    assert body[member] == error.extra[member]
 
 
 async def _answer(app: FastAPI, path: str) -> dict[str, object]:

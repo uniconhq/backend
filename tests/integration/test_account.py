@@ -5,6 +5,7 @@ to leave with the package's refusals passed through.
 from datetime import timedelta
 
 import httpx
+from fastapi import FastAPI
 from forge.api.types import Role, Scope
 from forge.testing import AsUser, FakeClock, FakeForge, OrgName, Visibility
 
@@ -43,10 +44,10 @@ async def test_a_forge_that_is_down_degrades_me(
 
 
 async def test_a_second_browser_shows_and_is_revoked_from_the_first(
-    client: httpx.AsyncClient, forge: FakeForge, app: object
+    client: httpx.AsyncClient, forge: FakeForge, app: FastAPI
 ) -> None:
     await sign_in(client, forge)
-    other = httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://app.test")  # type: ignore[arg-type]
+    other = httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://app.test")
     async with other:
         await sign_in(other, forge)
 
