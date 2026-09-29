@@ -40,8 +40,15 @@ STATUS = {
     "sign_in_invalid": 400,
     "sign_in_denied": 400,
     "sole_admin": 409,
+    "contestant_conflict": 409,
     "shared_workflow_owner": 409,
     "origin_mismatch": 403,
+    "payload_too_large": 413,
+    "admin_only": 403,
+    "reserved_path": 403,
+    "confirmation_required": 409,
+    "invalid_definition": 422,
+    "invalid_path": 422,
 }
 INTERNAL = 500
 CLEARS_SESSION = frozenset({"unauthenticated", "session_expired"})

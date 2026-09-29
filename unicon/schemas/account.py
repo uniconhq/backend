@@ -7,12 +7,7 @@ from forge.api.sessions import SessionInfo as SessionRecord
 from forge.api.types import RoleGrant
 from pydantic import BaseModel
 
-
-class Scope(BaseModel):
-    kind: str
-    org: str
-    contest: str | None
-    task: str | None
+from unicon.schemas.scope import Scope
 
 
 class Role(BaseModel):
@@ -21,15 +16,7 @@ class Role(BaseModel):
 
     @classmethod
     def of(cls, grant: RoleGrant) -> Role:
-        return cls(
-            scope=Scope(
-                kind=grant.scope.kind.value,
-                org=grant.scope.org,
-                contest=grant.scope.contest,
-                task=grant.scope.task,
-            ),
-            role=grant.role.value,
-        )
+        return cls(scope=Scope.of(grant.scope), role=grant.role.value)
 
 
 class Me(BaseModel):
