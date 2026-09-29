@@ -9,9 +9,9 @@ is refused with `forbidden` before the route runs.
 The URL of each kind of scope is here too, beside the function that reads a
 scope back out of it, so the path and the scope it names are written in one
 place: `/orgs/{org}`, `/orgs/{org}/contests/{contest}` and
-`/orgs/{org}/contests/{contest}/tasks/{task}`. `TaskAtPath` is the task
-scope read that way, for the one route under a task that needs a session and
-no role.
+`/orgs/{org}/contests/{contest}/tasks/{task}`. `ContestAtPath` and
+`TaskAtPath` are the contest and task scopes read that way, for the routes a
+contestant calls, which need a session and no role.
 """
 
 from collections.abc import Awaitable, Callable
@@ -49,6 +49,7 @@ SCOPE_FROM_PATH: dict[ScopeKind, Callable[..., Awaitable[Scope]]] = {
     ScopeKind.TASK: _task,
 }
 
+ContestAtPath = Annotated[Scope, Depends(_contest)]
 TaskAtPath = Annotated[Scope, Depends(_task)]
 
 

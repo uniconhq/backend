@@ -8,7 +8,7 @@ held back while the contest runs.
 from datetime import datetime
 from typing import Annotated, Literal, Self
 
-from forge.api.publications import Draft, Published, Registration
+from forge.api.publications import Activation, Draft, Published
 from forge.api.publications import Publication as PublicationRecord
 from forge.api.types import Problem
 from pydantic import BaseModel, Field, model_validator
@@ -63,10 +63,11 @@ class FileChange(Encoded):
 
 
 class SaveRequest(BaseModel):
-    """The files a save writes, several at once. While the task's contest
-    runs, `confirm` publishes a change to how the task grades, and
-    `keep_as_draft` writes it as a draft that says what it held back; an
-    empty save with `confirm` publishes a draft kept that way.
+    """The files a save writes, several at once. `keep_as_draft` writes them
+    as a draft that says what it held back and publishes nothing, on any
+    save. Otherwise, while the task's contest runs, `confirm` publishes a
+    change to how the task grades; an empty save with `confirm` publishes a
+    draft kept earlier.
     """
 
     changes: list[FileChange] = []
@@ -83,9 +84,9 @@ class SaveRequest(BaseModel):
 
 
 class PublishedSave(BaseModel):
-    """A save that published. `registration` says where the task's
-    registration for grading stands: `done` by this save, `pending` with the
-    poller, or `not_needed` because an earlier publication did it.
+    """A save that published. `activation` says where the task's activation
+    at the CI stands: `done` by this save, `pending` with the poller, or
+    `not_needed` because an earlier publication did it.
     """
 
     outcome: Literal["published"]
@@ -93,7 +94,7 @@ class PublishedSave(BaseModel):
     number: int
     grading_changed: bool
     changes: list[str]
-    registration: Registration
+    activation: Activation
 
     @classmethod
     def of(cls, result: Published) -> PublishedSave:
@@ -103,7 +104,7 @@ class PublishedSave(BaseModel):
             number=result.number,
             grading_changed=result.grading_changed,
             changes=list(result.changes),
-            registration=result.registration,
+            activation=result.activation,
         )
 
 
