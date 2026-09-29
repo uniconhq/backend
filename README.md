@@ -24,10 +24,6 @@ uv run unicon-forge migrate   # the forge package's command, installed with it
 uv run unicon api             # http://localhost:8000
 ```
 
-`uv sync` installs the `forge` package from the checkout beside this one,
-`../forge`, so both repositories are cloned side by side; see
-[Checks](#checks).
-
 `GET /openapi.json` is the document the frontend generates from; the Swagger
 and ReDoc pages are off, since an API browser is not part of what a
 deployment exposes. `GET /healthz` says the process is up. `GET /readyz` says the database
@@ -319,18 +315,11 @@ of the poller the app's lifespan would run, and a contestant is made with
 its `register_contestant`. The openapi diff fails when a response changed and nobody
 regenerated the document.
 
-The `forge` package is the checkout beside this one: `[tool.uv.sources]`
-names `../forge`, installed editable, and `dependencies` names
-`unicon-forge` with no version, so a change there, its code and the
-migrations `unicon-forge migrate` applies, is live here at once. Every step
-above but `docker build .` runs with that folder beside this one. CI checks
-out this repository alone and the image is built from this repository
-alone, so there `uv sync --frozen` and `docker build .` fail while the
-source is the checkout. A forge release is followed here by one edit and
-`uv lock`: `[tool.uv.sources]` names the release's wheel, `dependencies`
-pins its version, and the lock holds the wheel's hash. From then a change in
-that repository reaches this one only when someone moves the pin the same
-way, and CI and the image build have all they need in this repository.
+The `forge` package comes from one release, named in `[tool.uv.sources]`
+and locked to the wheel's hash in `uv.lock`, so a change in that repository
+reaches this one only when someone moves the pin. Moving it is one edit
+followed by `uv lock`, and it carries both the code and the migrations
+`unicon-forge migrate` applies.
 
 ## Layout
 

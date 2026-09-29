@@ -7,7 +7,7 @@ license = "MIT"
 license-files = ["LICENSE"]
 requires-python = ">=3.14"
 dependencies = [
-    "unicon-forge",
+    "unicon-forge==0.4.0",
     "fastapi>=0.141.1",
     "uvicorn[standard]>=0.52.4",
     "pydantic>=2.13.5",
@@ -28,7 +28,7 @@ dev = [
 ]
 
 [tool.uv.sources]
-unicon-forge = { path = "../forge", editable = true }
+unicon-forge = { url = "https://github.com/uniconhq/forge/releases/download/v0.4.0/unicon_forge-0.4.0-py3-none-any.whl" }
 
 [build-system]
 requires = ["hatchling"]

@@ -994,7 +994,7 @@ dev = [
 requires-dist = [
     { name = "fastapi", specifier = ">=0.141.1" },
     { name = "pydantic", specifier = ">=2.13.5" },
-    { name = "unicon-forge", editable = "../forge" },
+    { name = "unicon-forge", url = "https://github.com/uniconhq/forge/releases/download/v0.4.0/unicon_forge-0.4.0-py3-none-any.whl" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.52.4" },
 ]
 
@@ -1012,7 +1012,7 @@ dev = [
 [[package]]
 name = "unicon-forge"
 version = "0.4.0"
-source = { editable = "../forge" }
+source = { url = "https://github.com/uniconhq/forge/releases/download/v0.4.0/unicon_forge-0.4.0-py3-none-any.whl" }
 dependencies = [
     { name = "alembic" },
     { name = "cryptography" },
@@ -1023,6 +1023,9 @@ dependencies = [
     { name = "pydantic-settings" },
     { name = "pyyaml" },
     { name = "sqlalchemy", extra = ["asyncio"] },
+]
+wheels = [
+    { url = "https://github.com/uniconhq/forge/releases/download/v0.4.0/unicon_forge-0.4.0-py3-none-any.whl", hash = "sha256:8327f3e4eeca694bf2be193bffa9356c5ff741b0d6456d8706233ca2b0775c16" },
 ]
 
 [package.metadata]
@@ -1036,16 +1039,6 @@ requires-dist = [
     { name = "pydantic-settings", specifier = ">=2.15.0" },
     { name = "pyyaml", specifier = ">=6.0.3" },
     { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0.52" },
-]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "import-linter", specifier = ">=2.15" },
-    { name = "mypy", specifier = ">=2.3.1" },
-    { name = "pytest", specifier = ">=9.1.1" },
-    { name = "pytest-asyncio", specifier = ">=1.4.0" },
-    { name = "ruff", specifier = ">=0.16.7" },
-    { name = "types-pyyaml", specifier = ">=6.0.12.20260906" },
 ]
 
 [[package]]
