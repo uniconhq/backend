@@ -6,12 +6,18 @@ cannot hide a session from it, and a route that changes state without a
 session is covered the day it exists. The platform's origin is asked of
 forge on the first request that is checked, not when the app is built, so an
 app forge was never started for can still be built.
+
+One path is let through: the door the forge pushes an org's events to,
+forge's `EVENTS_PATH` followed by the org's name. The forge calls it from
+inside the stack with no browser and no session, so it has no origin to
+claim, and the signature over the body is what admits it.
 """
 
 from urllib.parse import urlsplit
 
 from forge.api import public_url
 from forge.api.errors import UniconError
+from forge.api.events import EVENTS_PATH
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 from unicon.api.errors import problem_for
@@ -33,7 +39,7 @@ class OriginCheck:
         self._expected: str | None = None
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        if _is_state_changing(scope) and _claimed_origin(_headers(scope)) != self._origin():
+        if _is_checked(scope) and _claimed_origin(_headers(scope)) != self._origin():
             error = OriginMismatch("This request did not come from the site.")
             await problem_for(error)(scope, receive, send)
             return
@@ -45,8 +51,20 @@ class OriginCheck:
         return self._expected
 
 
-def _is_state_changing(scope: Scope) -> bool:
-    return scope["type"] == "http" and scope["method"] in UNSAFE_METHODS
+def _is_checked(scope: Scope) -> bool:
+    return (
+        scope["type"] == "http"
+        and scope["method"] in UNSAFE_METHODS
+        and not _is_forge_event(scope["path"])
+    )
+
+
+def _is_forge_event(path: str) -> bool:
+    """A push from the forge: one org name after the events path, and
+    nothing more.
+    """
+    org = path.removeprefix(f"{EVENTS_PATH}/")
+    return org != path and org != "" and "/" not in org
 
 
 def _headers(scope: Scope) -> dict[str, str]:
