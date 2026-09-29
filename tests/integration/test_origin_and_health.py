@@ -115,3 +115,23 @@ async def test_a_request_without_a_session_is_checked_too(client: httpx.AsyncCli
 
     assert refused.status_code == 403
     assert refused.json()["code"] == "origin_mismatch"
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/api/v1/events/forge",
+        "/api/v1/events/forge/",
+        "/api/v1/events/forge/acme/more",
+        "/api/v1/events/forgery/acme",
+        "/api/v1/orgs",
+        "/api/v1/orgs/acme/roles",
+    ],
+)
+async def test_only_the_forge_event_door_is_let_past_the_check(
+    client: httpx.AsyncClient, path: str
+) -> None:
+    refused = await client.post(path, content=b"{}")
+
+    assert refused.status_code == 403
+    assert refused.json()["code"] == "origin_mismatch"
