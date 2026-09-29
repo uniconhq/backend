@@ -51,6 +51,316 @@
         "title": "Contest",
         "type": "object"
       },
+      "ContestHome": {
+        "description": "A contest's home for the caller. `organises` says the caller holds a\nrole at the contest, which keeps them from registering; `registration_open`\nsays whether the registration window is open now, `invite_only` whether only invited\npeople may register and `asks_code` whether registering takes the\ncontest's code. `deadline` is the contest's end plus the caller's own\nextension.",
+        "properties": {
+          "asks_code": {
+            "title": "Asks Code",
+            "type": "boolean"
+          },
+          "deadline": {
+            "format": "date-time",
+            "title": "Deadline",
+            "type": "string"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "end": {
+            "format": "date-time",
+            "title": "End",
+            "type": "string"
+          },
+          "invite_only": {
+            "title": "Invite Only",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "now": {
+            "format": "date-time",
+            "title": "Now",
+            "type": "string"
+          },
+          "org": {
+            "title": "Org",
+            "type": "string"
+          },
+          "organises": {
+            "title": "Organises",
+            "type": "boolean"
+          },
+          "registration": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MyRegistration"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "registration_open": {
+            "title": "Registration Open",
+            "type": "boolean"
+          },
+          "start": {
+            "format": "date-time",
+            "title": "Start",
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "draft",
+              "published",
+              "archived"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "submissions_closed": {
+            "title": "Submissions Closed",
+            "type": "boolean"
+          },
+          "tasks": {
+            "items": {
+              "$ref": "#/components/schemas/TaskEntry"
+            },
+            "title": "Tasks",
+            "type": "array"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "org",
+          "name",
+          "title",
+          "description",
+          "start",
+          "end",
+          "state",
+          "submissions_closed",
+          "registration",
+          "organises",
+          "registration_open",
+          "invite_only",
+          "asks_code",
+          "deadline",
+          "now",
+          "tasks"
+        ],
+        "title": "ContestHome",
+        "type": "object"
+      },
+      "ContestSummary": {
+        "description": "A contest the caller sees, by its org and name, with its title, when\nit runs, who sees it, and the caller's own registration status.",
+        "properties": {
+          "end": {
+            "format": "date-time",
+            "title": "End",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "org": {
+            "title": "Org",
+            "type": "string"
+          },
+          "start": {
+            "format": "date-time",
+            "title": "Start",
+            "type": "string"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "enum": [
+                  "pending",
+                  "approved",
+                  "rejected",
+                  "withdrawn",
+                  "removed"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "visibility": {
+            "enum": [
+              "public",
+              "signed-in",
+              "hidden"
+            ],
+            "title": "Visibility",
+            "type": "string"
+          }
+        },
+        "required": [
+          "org",
+          "name",
+          "title",
+          "start",
+          "end",
+          "visibility",
+          "status"
+        ],
+        "title": "ContestSummary",
+        "type": "object"
+      },
+      "Contestant": {
+        "description": "One registration as organisers see it: the person's own fields, who\nthey are, and `workspace_error`, why the last try at a part of their\nworkspace failed, while it is still being made. `username`, `name` and\n`email` are null once the person's account is gone.",
+        "properties": {
+          "avatar_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avatar Url"
+          },
+          "decided_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided At"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "registered_at": {
+            "format": "date-time",
+            "title": "Registered At",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "approved",
+              "rejected",
+              "withdrawn",
+              "removed"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "time_extension_seconds": {
+            "title": "Time Extension Seconds",
+            "type": "integer"
+          },
+          "user_id": {
+            "title": "User Id",
+            "type": "integer"
+          },
+          "username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Username"
+          },
+          "workspace": {
+            "anyOf": [
+              {
+                "enum": [
+                  "preparing",
+                  "ready"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workspace"
+          },
+          "workspace_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workspace Error"
+          }
+        },
+        "required": [
+          "status",
+          "reason",
+          "registered_at",
+          "decided_at",
+          "time_extension_seconds",
+          "workspace",
+          "user_id",
+          "username",
+          "name",
+          "email",
+          "avatar_url",
+          "workspace_error"
+        ],
+        "title": "Contestant",
+        "type": "object"
+      },
       "CreateContest": {
         "description": "A contest to make, titled `title` or, without one, its name.",
         "properties": {
@@ -173,6 +483,22 @@
           "held_back"
         ],
         "title": "DraftSave",
+        "type": "object"
+      },
+      "ExtensionRequest": {
+        "description": "How long past the contest's end this person may still submit, in\nseconds, in place of any extension they had.",
+        "properties": {
+          "seconds": {
+            "maximum": 1000000000.0,
+            "minimum": -1000000000.0,
+            "title": "Seconds",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "seconds"
+        ],
+        "title": "ExtensionRequest",
         "type": "object"
       },
       "FileChange": {
@@ -348,6 +674,35 @@
         "title": "Holder",
         "type": "object"
       },
+      "Limits": {
+        "description": "What a submit is checked against: how many submissions in all, at\nmost `rate_count` in any `rate_seconds`, and how large, in bytes.",
+        "properties": {
+          "max_size": {
+            "title": "Max Size",
+            "type": "integer"
+          },
+          "rate_count": {
+            "title": "Rate Count",
+            "type": "integer"
+          },
+          "rate_seconds": {
+            "title": "Rate Seconds",
+            "type": "integer"
+          },
+          "submissions": {
+            "title": "Submissions",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "submissions",
+          "rate_count",
+          "rate_seconds",
+          "max_size"
+        ],
+        "title": "Limits",
+        "type": "object"
+      },
       "Me": {
         "description": "The signed-in user and their roles at every scope. `degraded` is set\nwhen the forge did not answer and the identity comes from the session.",
         "properties": {
@@ -414,6 +769,79 @@
           "degraded"
         ],
         "title": "Me",
+        "type": "object"
+      },
+      "MyRegistration": {
+        "description": "The caller's own registration. `reason` is why it was rejected;\n`workspace` is where an approved contestant's workspace stands, `preparing`\nuntil every part of it is made, and null for anyone not approved.",
+        "properties": {
+          "decided_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided At"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "registered_at": {
+            "format": "date-time",
+            "title": "Registered At",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "approved",
+              "rejected",
+              "withdrawn",
+              "removed"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "time_extension_seconds": {
+            "title": "Time Extension Seconds",
+            "type": "integer"
+          },
+          "workspace": {
+            "anyOf": [
+              {
+                "enum": [
+                  "preparing",
+                  "ready"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workspace"
+          }
+        },
+        "required": [
+          "status",
+          "reason",
+          "registered_at",
+          "decided_at",
+          "time_extension_seconds",
+          "workspace"
+        ],
+        "title": "MyRegistration",
         "type": "object"
       },
       "NotReady": {
@@ -576,6 +1004,97 @@
         "title": "Provisioning",
         "type": "object"
       },
+      "PublicContest": {
+        "description": "A public contest by its org and name, with its title, what it says of\nitself and when it runs. `tasks` are its released tasks, and empty in the\nlist of contests.",
+        "properties": {
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "end": {
+            "format": "date-time",
+            "title": "End",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "org": {
+            "title": "Org",
+            "type": "string"
+          },
+          "start": {
+            "format": "date-time",
+            "title": "Start",
+            "type": "string"
+          },
+          "tasks": {
+            "items": {
+              "$ref": "#/components/schemas/PublicTask"
+            },
+            "title": "Tasks",
+            "type": "array"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "org",
+          "name",
+          "title",
+          "description",
+          "start",
+          "end",
+          "tasks"
+        ],
+        "title": "PublicContest",
+        "type": "object"
+      },
+      "PublicStatement": {
+        "description": "A released task of a public contest with its statement in Markdown.",
+        "properties": {
+          "statement": {
+            "title": "Statement",
+            "type": "string"
+          },
+          "task": {
+            "$ref": "#/components/schemas/PublicTask"
+          }
+        },
+        "required": [
+          "task",
+          "statement"
+        ],
+        "title": "PublicStatement",
+        "type": "object"
+      },
+      "PublicTask": {
+        "description": "A released task of a public contest: its name, the label the contest\ngives it, and its title.",
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "label",
+          "title"
+        ],
+        "title": "PublicTask",
+        "type": "object"
+      },
       "Publication": {
         "description": "One publication: its number among the task's publications, the version\nit froze, whether it changed how the task grades and what, and when.",
         "properties": {
@@ -620,8 +1139,17 @@
         "type": "object"
       },
       "PublishedSave": {
-        "description": "A save that published. `registration` says where the task's\nregistration for grading stands: `done` by this save, `pending` with the\npoller, or `not_needed` because an earlier publication did it.",
+        "description": "A save that published. `activation` says where the task's activation\nat the CI stands: `done` by this save, `pending` with the poller, or\n`not_needed` because an earlier publication did it.",
         "properties": {
+          "activation": {
+            "enum": [
+              "done",
+              "pending",
+              "not_needed"
+            ],
+            "title": "Activation",
+            "type": "string"
+          },
           "changes": {
             "items": {
               "type": "string"
@@ -645,15 +1173,6 @@
           "publication": {
             "title": "Publication",
             "type": "string"
-          },
-          "registration": {
-            "enum": [
-              "done",
-              "pending",
-              "not_needed"
-            ],
-            "title": "Registration",
-            "type": "string"
           }
         },
         "required": [
@@ -662,7 +1181,7 @@
           "number",
           "grading_changed",
           "changes",
-          "registration"
+          "activation"
         ],
         "title": "PublishedSave",
         "type": "object"
@@ -679,6 +1198,24 @@
           "status"
         ],
         "title": "Ready",
+        "type": "object"
+      },
+      "RegisterRequest": {
+        "description": "The code the contest asks for, when it asks for one.",
+        "properties": {
+          "invite_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Invite Code"
+          }
+        },
+        "title": "RegisterRequest",
         "type": "object"
       },
       "RegisterUrl": {
@@ -699,6 +1236,20 @@
           "url"
         ],
         "title": "RegisterUrl",
+        "type": "object"
+      },
+      "RejectRequest": {
+        "description": "Why, in words the person reads on their own page.",
+        "properties": {
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "RejectRequest",
         "type": "object"
       },
       "Role": {
@@ -766,7 +1317,7 @@
         "type": "object"
       },
       "SaveRequest": {
-        "description": "The files a save writes, several at once. While the task's contest\nruns, `confirm` publishes a change to how the task grades, and\n`keep_as_draft` writes it as a draft that says what it held back; an\nempty save with `confirm` publishes a draft kept that way.",
+        "description": "The files a save writes, several at once. `keep_as_draft` writes them\nas a draft that says what it held back and publishes nothing, on any\nsave. Otherwise, while the task's contest runs, `confirm` publishes a\nchange to how the task grades; an empty save with `confirm` publishes a\ndraft kept earlier.",
         "properties": {
           "changes": {
             "default": [],
@@ -911,6 +1462,95 @@
           "name"
         ],
         "title": "Task",
+        "type": "object"
+      },
+      "TaskEntry": {
+        "description": "A task released to the caller: its name, the label and points the\ncontest gives it, its title, and whether they may submit to it now.",
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "points": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Points"
+          },
+          "release": {
+            "$ref": "#/components/schemas/TaskRelease"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "label",
+          "title",
+          "points",
+          "release"
+        ],
+        "title": "TaskEntry",
+        "type": "object"
+      },
+      "TaskPage": {
+        "description": "A task as the caller reads it: its statement in Markdown and the\nlimits a submit is checked against, and nothing else the task holds.",
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "limits": {
+            "$ref": "#/components/schemas/Limits"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "points": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Points"
+          },
+          "release": {
+            "$ref": "#/components/schemas/TaskRelease"
+          },
+          "statement": {
+            "title": "Statement",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "label",
+          "title",
+          "points",
+          "statement",
+          "limits",
+          "release"
+        ],
+        "title": "TaskPage",
         "type": "object"
       },
       "TaskRelease": {
@@ -1292,6 +1932,42 @@
         "summary": "Where to create a forge account, when sign-up is open",
         "tags": [
           "auth"
+        ]
+      }
+    },
+    "/api/v1/contests": {
+      "get": {
+        "description": "Newest start first, each with the caller's own status. An organiser\nfinds their own contests from their orgs.",
+        "operationId": "listMyContests",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ContestSummary"
+                  },
+                  "title": "Response Listmycontests",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Every published contest the caller may enter or has entered",
+        "tags": [
+          "contest home"
         ]
       }
     },
@@ -1684,6 +2360,326 @@
         ]
       }
     },
+    "/api/v1/orgs/{org}/contests/{contest}/contestants": {
+      "get": {
+        "description": "Oldest first, each with where an approved contestant's workspace\nstands.",
+        "operationId": "listContestants",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Contestant"
+                  },
+                  "title": "Response Listcontestants",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Every registration for the contest",
+        "tags": [
+          "contestants"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/contestants/{user_id}/approve": {
+      "post": {
+        "description": "The contestant's workspace starts being made at once.",
+        "operationId": "approveContestant",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Contestant"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Approve a pending registration",
+        "tags": [
+          "contestants"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/contestants/{user_id}/extension": {
+      "put": {
+        "description": "In place of any extension they had; zero takes it away.",
+        "operationId": "extendContestant",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExtensionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Contestant"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Give one person more time past the contest's end",
+        "tags": [
+          "contestants"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/contestants/{user_id}/reject": {
+      "post": {
+        "description": "The person reads the reason on their own page.",
+        "operationId": "rejectContestant",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RejectRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Contestant"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Reject a pending registration with a reason",
+        "tags": [
+          "contestants"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/contestants/{user_id}/remove": {
+      "post": {
+        "description": "They can no longer write their workspace, and what is in it stays.",
+        "operationId": "removeContestant",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Contestant"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Remove an approved contestant",
+        "tags": [
+          "contestants"
+        ]
+      }
+    },
     "/api/v1/orgs/{org}/contests/{contest}/files/{path}": {
       "get": {
         "operationId": "readContestFile",
@@ -1973,6 +2969,58 @@
         ]
       }
     },
+    "/api/v1/orgs/{org}/contests/{contest}/home": {
+      "get": {
+        "description": "The contest's dates, the caller's registration and own deadline, the\nserver's clock, and the tasks released to the caller.",
+        "operationId": "getContestHome",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContestHome"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "The contest's home",
+        "tags": [
+          "contest home"
+        ]
+      }
+    },
     "/api/v1/orgs/{org}/contests/{contest}/provisioning": {
       "get": {
         "description": "Not found when nothing has asked for the contest.",
@@ -2022,6 +3070,126 @@
         "summary": "How far making the contest has got",
         "tags": [
           "contests"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/registration": {
+      "get": {
+        "description": "Null when the caller has not registered.",
+        "operationId": "getMyRegistration",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/MyRegistration"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Getmyregistration"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "The caller's own registration for the contest",
+        "tags": [
+          "contestants"
+        ]
+      },
+      "post": {
+        "description": "Pending until an organiser decides it, or approved at once when the\ncontest approves on its own. A registration the contest's rules refuse\ncomes back with the rule's code, such as `registration_closed` or\n`contest_full`.",
+        "operationId": "registerForContest",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyRegistration"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Register the caller for the contest",
+        "tags": [
+          "contestants"
         ]
       }
     },
@@ -2717,6 +3885,67 @@
         "summary": "Every change, newest first",
         "tags": [
           "files"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/page": {
+      "get": {
+        "description": "The statement and the limits a submit is checked against.",
+        "operationId": "getTaskPage",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "task",
+            "required": true,
+            "schema": {
+              "title": "Task",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskPage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "A released task's page",
+        "tags": [
+          "contest home"
         ]
       }
     },
@@ -3500,6 +4729,153 @@
         "summary": "Take away someone's role at the org",
         "tags": [
           "roles"
+        ]
+      }
+    },
+    "/api/v1/public/contests": {
+      "get": {
+        "description": "Newest start first, each without its tasks.",
+        "operationId": "listPublicContests",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PublicContest"
+                  },
+                  "title": "Response Listpubliccontests",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "The public contests",
+        "tags": [
+          "public"
+        ]
+      }
+    },
+    "/api/v1/public/contests/{org}/{contest}": {
+      "get": {
+        "operationId": "getPublicContest",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicContest"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "A public contest and its released tasks",
+        "tags": [
+          "public"
+        ]
+      }
+    },
+    "/api/v1/public/contests/{org}/{contest}/tasks/{task}": {
+      "get": {
+        "operationId": "getPublicStatement",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "task",
+            "required": true,
+            "schema": {
+              "title": "Task",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicStatement"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "A released task's statement",
+        "tags": [
+          "public"
         ]
       }
     },

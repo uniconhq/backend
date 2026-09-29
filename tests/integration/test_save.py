@@ -84,7 +84,7 @@ async def test_the_organiser_path_from_an_org_to_a_publication(
         1,
         False,
     )
-    assert first["registration"] == "done"
+    assert first["activation"] == "done"
 
     statement = await _save(client, await _edit(client, "statement.md", "Write", "Add. Write"))
     assert (statement.json()["number"], statement.json()["grading_changed"]) == (2, False)

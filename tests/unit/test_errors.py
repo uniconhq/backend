@@ -36,6 +36,16 @@ CASES = [
     (errors.ReservedPath, 403),
     (errors.ConfirmationRequired, 409),
     (errors.InvalidPath, 422),
+    (errors.RegistrationClosed, 403),
+    (errors.IsStaff, 403),
+    (errors.InviteRequired, 403),
+    (errors.WrongInviteCode, 403),
+    (errors.DomainNotAllowed, 403),
+    (errors.AlreadyRegistered, 409),
+    (errors.ContestFull, 409),
+    (errors.WrongStatus, 409),
+    (errors.InvalidReason, 422),
+    (errors.InvalidExtension, 422),
     (PayloadTooLarge, 413),
 ]
 
@@ -87,6 +97,7 @@ REFUSALS = [
         "errors",
     ),
     (errors.InvalidPath("Not a path.", path="../other.task/task.yaml"), 422, "path"),
+    (errors.WrongStatus("It was rejected.", current="rejected"), 409, "current"),
 ]
 
 
@@ -115,6 +126,19 @@ async def _answer(app: FastAPI, path: str) -> dict[str, object]:
     body: dict[str, object] = response.json()
     body["_status"] = response.status_code
     return body
+
+
+async def test_a_member_named_like_a_field_of_the_document_is_left_out() -> None:
+    app = create_app()
+
+    @app.get("/clash")
+    async def clash() -> None:
+        raise errors.WrongStatus("It was rejected.", status="rejected", current="rejected")
+
+    body = await _answer(app, "/clash")
+
+    assert (body["_status"], body["status"], body["code"]) == (409, 409, "wrong_status")
+    assert body["current"] == "rejected"
 
 
 async def test_a_forge_that_is_down_is_answered_without_its_detail() -> None:

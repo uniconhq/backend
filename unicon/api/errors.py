@@ -8,7 +8,9 @@ What of the error reaches the client is decided per code. A refusal carries
 its detail, because the detail is the reason the person can act on. A forge
 that is down or wrongly registered, and an error this table does not know,
 are answered with a fixed sentence: their detail names hosts, paths and the
-forge's own words, which belong in the log and not in a browser.
+forge's own words, which belong in the log and not in a browser. A member of
+an error's refusal never replaces a field of the document itself, such as its
+`status`; one that would is left out and logged.
 """
 
 from http import HTTPStatus
@@ -49,6 +51,16 @@ STATUS = {
     "confirmation_required": 409,
     "invalid_definition": 422,
     "invalid_path": 422,
+    "registration_closed": 403,
+    "is_staff": 403,
+    "invite_required": 403,
+    "wrong_invite_code": 403,
+    "domain_not_allowed": 403,
+    "already_registered": 409,
+    "contest_full": 409,
+    "wrong_status": 409,
+    "invalid_reason": 422,
+    "invalid_extension": 422,
 }
 INTERNAL = 500
 CLEARS_SESSION = frozenset({"unauthenticated", "session_expired"})
@@ -59,6 +71,7 @@ WITHHELD_DETAIL = {
     "forge_misconfigured": "The forge refused the platform's own registration.",
 }
 UNMAPPED_DETAIL = "The server failed to handle this request."
+DOCUMENT_FIELDS = frozenset(Problem.model_fields)
 
 
 def register_error_handlers(app: FastAPI) -> None:
@@ -91,7 +104,7 @@ def problem_for(error: UniconError) -> JSONResponse:
             Problem.of(code=error.code, status=status, title=_title(status), detail=UNMAPPED_DETAIL)
         )
     if error.code in WITHHELD_DETAIL:
-        log.warning("errors.forge", code=error.code, detail=error.detail, **error.extra)
+        log.warning("errors.forge", code=error.code, detail=error.detail, extra=error.extra)
         return problem_response(
             Problem.of(
                 code=error.code,
@@ -100,9 +113,16 @@ def problem_for(error: UniconError) -> JSONResponse:
                 detail=WITHHELD_DETAIL[error.code],
             )
         )
+    extra = {key: value for key, value in error.extra.items() if key not in DOCUMENT_FIELDS}
+    if len(extra) < len(error.extra):
+        log.error(
+            "errors.member_clash",
+            code=error.code,
+            members=sorted(error.extra.keys() - extra.keys()),
+        )
     return problem_response(
         Problem.of(
-            code=error.code, status=status, title=_title(status), detail=error.detail, **error.extra
+            code=error.code, status=status, title=_title(status), detail=error.detail, **extra
         )
     )
 
