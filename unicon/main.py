@@ -19,7 +19,7 @@ from unicon.api.errors import register_error_handlers
 from unicon.api.middleware.origin import OriginCheck
 from unicon.api.middleware.request_log import RequestLog
 from unicon.api.openapi import build_document
-from unicon.api.v1 import events
+from unicon.api.v1 import events, runs
 from unicon.api.v1 import router as v1_router
 from unicon.api.v1.auth import CALLBACK_PATH
 
@@ -39,6 +39,7 @@ def create_app() -> FastAPI:
     app.include_router(health.router)
     app.include_router(v1_router)
     app.include_router(events.router)
+    app.include_router(runs.router)
     document = build_document(app)
     app.openapi = lambda: document  # type: ignore[method-assign]
     return app

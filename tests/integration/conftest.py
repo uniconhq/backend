@@ -11,7 +11,10 @@ task acme/spring/sum in it made through the routes and the poller, with ada
 signed in. `world` adds carol (20), who holds nothing. `ORG`, `CONTEST` and
 `TASK` are the three scopes' URLs, and `ACME`, `SPRING` and `SUM` the scopes
 themselves. `run_contest` and `publish` are the two writes a test of a
-running contest starts with.
+running contest starts with, and `edit_task` changes the task's settings.
+`entered` adds carol as the task's approved contestant with her workspace
+made, and `enter` makes anyone else one; `upload` sends a file the way the
+browser does.
 """
 
 import asyncio
@@ -170,3 +173,76 @@ async def publish(client: httpx.AsyncClient) -> None:
         headers=ORIGIN,
     )
     assert saved.json()["outcome"] == "published", saved.text
+
+
+async def edit_task(client: httpx.AsyncClient, old: str, new: str) -> None:
+    """acme/spring/sum's `task.yaml` with `old` replaced by `new`, saved,
+    confirmed and published by the signed-in organiser.
+    """
+    current = await read(client, f"{TASK}/files/task.yaml")
+    assert old in current["content"]
+    saved = await client.put(
+        f"{TASK}/files/task.yaml",
+        json={
+            "encoding": "utf-8",
+            "content": current["content"].replace(old, new),
+            "token": current["token"],
+            "confirm": True,
+        },
+        headers=ORIGIN,
+    )
+    assert saved.status_code == 200, saved.text
+    assert saved.json()["outcome"] == "published", saved.text
+
+
+async def enter(client: httpx.AsyncClient, forge: FakeForge, setup: Setup, user_id: int) -> None:
+    """The user registered for acme/spring through the routes, approved by
+    ada and their workspace made, leaving the client signed in as them.
+    """
+    await sign_in_as(client, forge, user_id)
+    registered = await client.post(f"{CONTEST}/registration", json={}, headers=ORIGIN)
+    assert registered.status_code == 201, registered.text
+    await sign_in_as(client, forge, 7)
+    approved = await client.post(f"{CONTEST}/contestants/{user_id}/approve", headers=ORIGIN)
+    assert approved.status_code == 200, approved.text
+    for _ in range(3):
+        await tick(setup, "provisioning")
+    await sign_in_as(client, forge, user_id)
+
+
+@pytest.fixture
+async def entered(client: httpx.AsyncClient, world: FakeForge, held_setup: Setup) -> FakeForge:
+    """acme/spring public and running, acme/spring/sum published, and carol
+    (20) its approved contestant with her workspace made, signed in.
+    """
+    await run_contest(client, visibility="public")
+    await publish(client)
+    await enter(client, world, held_setup, 20)
+    world.reset_calls()
+    return world
+
+
+async def upload(
+    client: httpx.AsyncClient,
+    forge: FakeForge,
+    content: bytes,
+    *,
+    input: str = "submission",
+    filename: str = "main.py",
+) -> dict[str, Any]:
+    """A file uploaded the way the browser does: a slot, the bytes posted
+    with its form, and the upload completed. Returns the upload.
+    """
+    slot = await client.post(
+        f"{TASK}/uploads",
+        json={"input": input, "filename": filename, "size": len(content)},
+        headers=ORIGIN,
+    )
+    assert slot.status_code == 201, slot.text
+    forge.objects.post(slot.json()["fields"], content)
+    completed = await client.post(
+        f"{TASK}/uploads/{slot.json()['id']}/complete", json={}, headers=ORIGIN
+    )
+    assert completed.status_code == 200, completed.text
+    body: dict[str, Any] = completed.json()
+    return body
