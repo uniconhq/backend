@@ -43,6 +43,9 @@ async def test_a_signed_in_person_reads_the_home_and_a_released_task(
         "rate_seconds": 30,
         "max_size": 10 * 1024 * 1024,
     }
+    assert [(entry["id"], entry["type"], entry["label"]) for entry in page.json()["inputs"]] == [
+        ("submission", "code", "Your solution")
+    ]
 
 
 async def test_the_home_carries_the_callers_registration(
