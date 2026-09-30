@@ -10,11 +10,13 @@ from forge.api import errors
 from forge.api.errors import UniconError
 from httpx import ASGITransport, AsyncClient
 
-from unicon.api.errors import status_of
-from unicon.api.v1.events import PayloadTooLarge
+from unicon.api.errors import STATUS, status_of
+from unicon.api.raw import PayloadTooLarge
 from unicon.main import create_app
 
 FORGE_DETAIL = "/api/v1/repos/acme/spring.contest/contents/x answered 500"
+RETRY_AT = "2026-09-26T12:00:30+00:00"
+UPLOAD = "0192f4a4-7b7e-7000-8000-000000000001"
 
 CASES = [
     (errors.NotFound, 404),
@@ -46,6 +48,21 @@ CASES = [
     (errors.WrongStatus, 409),
     (errors.InvalidReason, 422),
     (errors.InvalidExtension, 422),
+    (errors.TaskClosed, 403),
+    (errors.Archived, 403),
+    (errors.NotApproved, 403),
+    (errors.WorkspaceNotReady, 409),
+    (errors.SubmissionLimit, 409),
+    (errors.RateLimited, 429),
+    (errors.TooLarge, 413),
+    (errors.UploadNotYours, 404),
+    (errors.UploadNotReady, 409),
+    (errors.InvalidInputs, 422),
+    (errors.InvalidIdempotencyKey, 422),
+    (errors.CiRequestRefused, 403),
+    (errors.InvalidToken, 401),
+    (errors.GradingClosed, 409),
+    (errors.InvalidCallback, 422),
     (PayloadTooLarge, 413),
 ]
 
@@ -53,6 +70,21 @@ CASES = [
 @pytest.mark.parametrize(("error", "status"), CASES)
 def test_each_error_has_its_own_status(error: type[UniconError], status: int) -> None:
     assert status_of(error("no")) == status
+
+
+ANSWERED_ELSEWHERE = {"not_ready"}
+"""Codes a route answers itself: `/readyz` turns `not_ready` into its own
+503 body, so the table never sees it."""
+
+
+def test_every_error_the_front_door_names_has_a_status() -> None:
+    named = {
+        found.code
+        for found in (getattr(errors, name) for name in errors.__all__)
+        if isinstance(found, type) and issubclass(found, UniconError) and "code" in vars(found)
+    }
+
+    assert named - {UniconError.code} - ANSWERED_ELSEWHERE <= STATUS.keys()
 
 
 class Surprise(UniconError):
@@ -98,6 +130,17 @@ REFUSALS = [
     ),
     (errors.InvalidPath("Not a path.", path="../other.task/task.yaml"), 422, "path"),
     (errors.WrongStatus("It was rejected.", current="rejected"), 409, "current"),
+    (errors.TaskClosed("It ended.", reason="ended"), 403, "reason"),
+    (errors.SubmissionLimit("All made.", limit=50), 409, "limit"),
+    (errors.RateLimited("Wait.", rate="1 per 30s", retry_at=RETRY_AT), 429, "retry_at"),
+    (errors.TooLarge("Too big.", limit=1024, input="notes"), 413, "input"),
+    (errors.UploadNotYours("Not yours.", uploads=[UPLOAD]), 404, "uploads"),
+    (errors.UploadNotReady("Not there.", uploads=[UPLOAD]), 409, "uploads"),
+    (
+        errors.InvalidInputs("No.", errors=[{"input": "submission", "message": "No."}]),
+        422,
+        "errors",
+    ),
 ]
 
 
@@ -190,3 +233,37 @@ async def test_a_refusal_keeps_its_reason() -> None:
 
     assert body["_status"] == 422
     assert body["detail"] == "The name is taken at the forge."
+
+
+async def test_a_rate_limit_says_when_to_try_again_in_its_header_too() -> None:
+    app = create_app()
+
+    @app.get("/busy/{retry_at}")
+    async def busy(retry_at: str) -> None:
+        raise errors.RateLimited("Wait.", rate="1 per 30s", retry_at=retry_at)
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        exact = await client.get(f"/busy/{RETRY_AT}")
+        early = await client.get("/busy/2026-09-26T20:00:29.250000+08:00")
+        unzoned = await client.get("/busy/2026-09-26T12:00:30")
+
+    assert exact.status_code == 429
+    assert exact.headers["retry-after"] == "Sat, 26 Sep 2026 12:00:30 GMT"
+    assert early.headers["retry-after"] == "Sat, 26 Sep 2026 12:00:30 GMT"
+    assert "retry-after" not in unzoned.headers
+    assert unzoned.json()["retry_at"] == "2026-09-26T12:00:30"
+
+
+async def test_no_other_refusal_carries_a_retry_after() -> None:
+    app = create_app()
+
+    @app.get("/closed")
+    async def closed() -> None:
+        raise errors.TaskClosed("It ended.", reason="ended", retry_at=RETRY_AT)
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.get("/closed")
+
+    assert "retry-after" not in response.headers
