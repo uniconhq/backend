@@ -12,17 +12,14 @@ event that is let in is answered 204 and does nothing else.
 
 from fastapi import APIRouter, Request, Response, status
 from forge.api import events
-from forge.api.errors import UniconError
 from forge.api.types import OrgName
+
+from unicon.api import raw
 
 NO_CONTENT = status.HTTP_204_NO_CONTENT
 MAX_BODY = 1024 * 1024
 
 router = APIRouter(prefix=events.EVENTS_PATH, tags=["events"])
-
-
-class PayloadTooLarge(UniconError):
-    code = "payload_too_large"
 
 
 @router.post(
@@ -36,26 +33,10 @@ async def receive_forge_event(request: Request, org: str) -> Response:
     secret, in the first of forge's signature headers the request carries,
     `X-Forgejo-Signature` and then `X-Gitea-Signature`.
     """
-    body = await _body(request)
+    body = await raw.body(request, MAX_BODY, "An event's body")
     signature = next(
         (request.headers[name] for name in events.SIGNATURE_HEADERS if name in request.headers),
         "",
     )
     await events.check(OrgName(org), body, signature)
     return Response(status_code=NO_CONTENT)
-
-
-async def _body(request: Request) -> bytes:
-    declared = request.headers.get("content-length", "")
-    if declared.isascii() and declared.isdigit() and int(declared) > MAX_BODY:
-        raise _too_large()
-    body = bytearray()
-    async for chunk in request.stream():
-        body.extend(chunk)
-        if len(body) > MAX_BODY:
-            raise _too_large()
-    return bytes(body)
-
-
-def _too_large() -> PayloadTooLarge:
-    return PayloadTooLarge(f"An event's body is at most {MAX_BODY} bytes.")

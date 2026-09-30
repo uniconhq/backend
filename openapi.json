@@ -1,6 +1,30 @@
 {
   "components": {
     "schemas": {
+      "CallbackAnswer": {
+        "description": "Where the grading stands once its run's report is taken.",
+        "properties": {
+          "status": {
+            "enum": [
+              "queued",
+              "dispatching",
+              "dispatched",
+              "running",
+              "done",
+              "failed",
+              "cancelled",
+              "system_error"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "CallbackAnswer",
+        "type": "object"
+      },
       "Change": {
         "description": "One entry of the history: the version it made, who made it, what they\nsaid about it and when.",
         "properties": {
@@ -36,6 +60,21 @@
           "at"
         ],
         "title": "Change",
+        "type": "object"
+      },
+      "CompleteUploadRequest": {
+        "description": "Every part of a file sent in parts, once each and in order. A file\nsent in one request has none.",
+        "properties": {
+          "parts": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/FinishedPart"
+            },
+            "title": "Parts",
+            "type": "array"
+          }
+        },
+        "title": "CompleteUploadRequest",
         "type": "object"
       },
       "Contest": {
@@ -361,6 +400,124 @@
         "title": "Contestant",
         "type": "object"
       },
+      "ContestantInput": {
+        "description": "One input the contestant gives, with what its form shows: `label`,\nthe `language` choices of a code input, `min` and `max` of a number,\nthe `accept` patterns and `max_size` in bytes of a file, and a\n`default`. The submit panel shows one field or drop zone per input.",
+        "properties": {
+          "accept": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accept"
+          },
+          "default": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Default"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          },
+          "max": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max"
+          },
+          "max_size": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Size"
+          },
+          "min": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min"
+          },
+          "type": {
+            "enum": [
+              "code",
+              "text",
+              "number",
+              "boolean",
+              "file",
+              "file[]",
+              "dataset",
+              "jupyter"
+            ],
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "label",
+          "language",
+          "min",
+          "max",
+          "accept",
+          "max_size",
+          "default"
+        ],
+        "title": "ContestantInput",
+        "type": "object"
+      },
       "CreateContest": {
         "description": "A contest to make, titled `title` or, without one, its name.",
         "properties": {
@@ -574,6 +731,435 @@
         "title": "FileContent",
         "type": "object"
       },
+      "FinishedPart": {
+        "description": "A part the browser sent: its number and the `ETag` the store answered\nits PUT with.",
+        "properties": {
+          "etag": {
+            "title": "Etag",
+            "type": "string"
+          },
+          "number": {
+            "title": "Number",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "number",
+          "etag"
+        ],
+        "title": "FinishedPart",
+        "type": "object"
+      },
+      "GradedTest": {
+        "description": "One test's row of a verdict: its name as the task spells it, its own\noutcome, its time in milliseconds and peak memory in KiB, each null when\nthe step was not measured, its named numbers, and the checker's note\nwhen there is one.",
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "memory_kb": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Memory Kb"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "metrics": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Metrics",
+            "type": "object"
+          },
+          "outcome": {
+            "enum": [
+              "accepted",
+              "partial",
+              "wrong_answer",
+              "time_limit",
+              "memory_limit",
+              "output_limit",
+              "runtime_error",
+              "compile_error",
+              "skipped",
+              "system_error"
+            ],
+            "title": "Outcome",
+            "type": "string"
+          },
+          "time_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Time Ms"
+          }
+        },
+        "required": [
+          "id",
+          "outcome",
+          "time_ms",
+          "memory_kb",
+          "metrics",
+          "message"
+        ],
+        "title": "GradedTest",
+        "type": "object"
+      },
+      "Grading": {
+        "description": "One grading as an organiser managing its task reads it: the\nsubmission by its contestant's workspace and number, the publication it\ngrades against, its stage and attempt, where it stands and, while it\nwaits, why, the reason it failed, its verdict as the run sent it,\nwhether its log was written, the last progress its run reported, how\noften it went back to the queue, and its times.",
+        "properties": {
+          "attempt": {
+            "title": "Attempt",
+            "type": "integer"
+          },
+          "deadline_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deadline At"
+          },
+          "dispatched_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dispatched At"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "log": {
+            "title": "Log",
+            "type": "boolean"
+          },
+          "progress": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GradingProgress"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "publication": {
+            "title": "Publication",
+            "type": "string"
+          },
+          "queued_at": {
+            "format": "date-time",
+            "title": "Queued At",
+            "type": "string"
+          },
+          "requeues": {
+            "title": "Requeues",
+            "type": "integer"
+          },
+          "retry_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retry At"
+          },
+          "stage": {
+            "title": "Stage",
+            "type": "string"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "status": {
+            "enum": [
+              "queued",
+              "dispatching",
+              "dispatched",
+              "running",
+              "done",
+              "failed",
+              "cancelled",
+              "system_error"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "submission_number": {
+            "title": "Submission Number",
+            "type": "integer"
+          },
+          "submitted_at": {
+            "format": "date-time",
+            "title": "Submitted At",
+            "type": "string"
+          },
+          "verdict": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verdict"
+          },
+          "wait_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wait Reason"
+          },
+          "workspace": {
+            "title": "Workspace",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "workspace",
+          "submission_number",
+          "submitted_at",
+          "publication",
+          "stage",
+          "attempt",
+          "status",
+          "wait_reason",
+          "error",
+          "verdict",
+          "log",
+          "progress",
+          "requeues",
+          "queued_at",
+          "retry_at",
+          "dispatched_at",
+          "started_at",
+          "finished_at",
+          "deadline_at"
+        ],
+        "title": "Grading",
+        "type": "object"
+      },
+      "GradingProgress": {
+        "description": "The last progress a grading's run reported: the step it was at and how\nmany of that step's containers were done of how many.",
+        "properties": {
+          "done": {
+            "title": "Done",
+            "type": "integer"
+          },
+          "step": {
+            "title": "Step",
+            "type": "string"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "step",
+          "done",
+          "total"
+        ],
+        "title": "GradingProgress",
+        "type": "object"
+      },
+      "GradingResult": {
+        "description": "One grading of a submission at one stage, as its contestant sees it:\nits id, stage, attempt and status, the stage's `show`, and of its\nverdict what that allows: the `outcome`, the named `metrics`, the\n`summary` and a row for every test. `log` says whether its run log can\nbe read.",
+        "properties": {
+          "attempt": {
+            "title": "Attempt",
+            "type": "integer"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "log": {
+            "title": "Log",
+            "type": "boolean"
+          },
+          "metrics": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metrics"
+          },
+          "outcome": {
+            "anyOf": [
+              {
+                "enum": [
+                  "accepted",
+                  "partial",
+                  "wrong_answer",
+                  "time_limit",
+                  "memory_limit",
+                  "output_limit",
+                  "runtime_error",
+                  "compile_error",
+                  "skipped",
+                  "system_error"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outcome"
+          },
+          "show": {
+            "enum": [
+              "full",
+              "metrics",
+              "hidden"
+            ],
+            "title": "Show",
+            "type": "string"
+          },
+          "stage": {
+            "title": "Stage",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "queued",
+              "dispatching",
+              "dispatched",
+              "running",
+              "done",
+              "failed",
+              "cancelled",
+              "system_error"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          },
+          "tests": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/GradedTest"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tests"
+          }
+        },
+        "required": [
+          "id",
+          "stage",
+          "attempt",
+          "status",
+          "show",
+          "outcome",
+          "metrics",
+          "summary",
+          "tests",
+          "log"
+        ],
+        "title": "GradingResult",
+        "type": "object"
+      },
       "GrantRequest": {
         "description": "Give the named user `role` at the scope, moving them from any other\nrole they hold directly there.",
         "properties": {
@@ -771,6 +1357,46 @@
         "title": "Me",
         "type": "object"
       },
+      "MultipartUploadSlot": {
+        "description": "A slot for a file sent in parts: every part but the last is\n`part_size` bytes, each sent to its own URL, until `expires_at`.",
+        "properties": {
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "method": {
+            "const": "multipart",
+            "title": "Method",
+            "type": "string"
+          },
+          "part_size": {
+            "title": "Part Size",
+            "type": "integer"
+          },
+          "parts": {
+            "items": {
+              "$ref": "#/components/schemas/UploadPart"
+            },
+            "title": "Parts",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "method",
+          "part_size",
+          "parts",
+          "expires_at"
+        ],
+        "title": "MultipartUploadSlot",
+        "type": "object"
+      },
       "MyRegistration": {
         "description": "The caller's own registration. `reason` is why it was rejected;\n`workspace` is where an approved contestant's workspace stands, `preparing`\nuntil every part of it is made, and null for anyone not approved.",
         "properties": {
@@ -857,6 +1483,46 @@
           "status"
         ],
         "title": "NotReady",
+        "type": "object"
+      },
+      "PostUploadSlot": {
+        "description": "A slot for a file sent in one request: a form posted to `url` with\n`fields` sent as they are and before the file, which works until\n`expires_at`.",
+        "properties": {
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "fields": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Fields",
+            "type": "object"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "method": {
+            "const": "post",
+            "title": "Method",
+            "type": "string"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "method",
+          "url",
+          "fields",
+          "expires_at"
+        ],
+        "title": "PostUploadSlot",
         "type": "object"
       },
       "Problem": {
@@ -1252,6 +1918,40 @@
         "title": "RejectRequest",
         "type": "object"
       },
+      "Rejudge": {
+        "description": "What a rejudge did: the publication the new attempts grade against,\nhow many it queued, how many unfinished attempts against an older\npublication it cancelled first, how many it left to finish against the\ncurrent one, and how many it passed over because the current\npublication no longer has their stage.",
+        "properties": {
+          "cancelled": {
+            "title": "Cancelled",
+            "type": "integer"
+          },
+          "left_running": {
+            "title": "Left Running",
+            "type": "integer"
+          },
+          "passed_over": {
+            "title": "Passed Over",
+            "type": "integer"
+          },
+          "publication": {
+            "title": "Publication",
+            "type": "string"
+          },
+          "queued": {
+            "title": "Queued",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "publication",
+          "queued",
+          "cancelled",
+          "left_running",
+          "passed_over"
+        ],
+        "title": "Rejudge",
+        "type": "object"
+      },
       "Role": {
         "properties": {
           "role": {
@@ -1451,6 +2151,175 @@
         "title": "SessionInfo",
         "type": "object"
       },
+      "Submission": {
+        "description": "One of the caller's submissions of the task: its number among them,\nwhen it was taken, and its grading at each stage in the order the task\nlists its stages.",
+        "properties": {
+          "gradings": {
+            "items": {
+              "$ref": "#/components/schemas/GradingResult"
+            },
+            "title": "Gradings",
+            "type": "array"
+          },
+          "number": {
+            "title": "Number",
+            "type": "integer"
+          },
+          "submitted_at": {
+            "format": "date-time",
+            "title": "Submitted At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "number",
+          "submitted_at",
+          "gradings"
+        ],
+        "title": "Submission",
+        "type": "object"
+      },
+      "SubmitRequest": {
+        "description": "A submit: `idempotency_key` is 8 to 128 letters, digits, `-` and `_`,\nmade once by the browser for this submit, so sending it again answers\nwith the submission it made and makes nothing. `inputs` is keyed by the\nid of each of the task's contestant inputs.",
+        "properties": {
+          "idempotency_key": {
+            "title": "Idempotency Key",
+            "type": "string"
+          },
+          "inputs": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/SubmittedInput"
+            },
+            "title": "Inputs",
+            "type": "object"
+          }
+        },
+        "required": [
+          "idempotency_key",
+          "inputs"
+        ],
+        "title": "SubmitRequest",
+        "type": "object"
+      },
+      "SubmittedFileInput": {
+        "description": "What one input of a submission was: the paths of its files in the\nsubmission, each readable at the file route, and the language of a code\ninput; or the value given.",
+        "properties": {
+          "files": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Files",
+            "type": "array"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "files",
+          "language",
+          "value"
+        ],
+        "title": "SubmittedFileInput",
+        "type": "object"
+      },
+      "SubmittedFiles": {
+        "description": "What a submission was made with, by input id, so a page can put it\nback into the upload panel.",
+        "properties": {
+          "inputs": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/SubmittedFileInput"
+            },
+            "title": "Inputs",
+            "type": "object"
+          },
+          "number": {
+            "title": "Number",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "number",
+          "inputs"
+        ],
+        "title": "SubmittedFiles",
+        "type": "object"
+      },
+      "SubmittedInput": {
+        "description": "What is given for one input: the uploads of its files, and for a code\ninput the language chosen; or, for a text, number or true-or-false input,\nits `value`. Forge checks it against the task's inputs.",
+        "properties": {
+          "language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          },
+          "uploads": {
+            "default": [],
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Uploads",
+            "type": "array"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "title": "SubmittedInput",
+        "type": "object"
+      },
       "Task": {
         "properties": {
           "name": {
@@ -1505,8 +2374,15 @@
         "type": "object"
       },
       "TaskPage": {
-        "description": "A task as the caller reads it: its statement in Markdown and the\nlimits a submit is checked against, and nothing else the task holds.",
+        "description": "A task as the caller reads it: its statement in Markdown, the limits\na submit is checked against and the inputs a contestant gives, and\nnothing else the task holds.",
         "properties": {
+          "inputs": {
+            "items": {
+              "$ref": "#/components/schemas/ContestantInput"
+            },
+            "title": "Inputs",
+            "type": "array"
+          },
           "label": {
             "title": "Label",
             "type": "string"
@@ -1548,6 +2424,7 @@
           "points",
           "statement",
           "limits",
+          "inputs",
           "release"
         ],
         "title": "TaskPage",
@@ -1692,6 +2569,138 @@
           "description"
         ],
         "title": "UpdateOrg",
+        "type": "object"
+      },
+      "Upload": {
+        "description": "Where one upload stands: the input it is for, its name and content\ntype, the size declared and, once measured, the size and SHA-256 in hex\nof what arrived. `verified` is an upload a submit may name; `rejected`\nis one whose size is not the one declared, which never is.",
+        "properties": {
+          "content_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content Type"
+          },
+          "declared_size": {
+            "title": "Declared Size",
+            "type": "integer"
+          },
+          "filename": {
+            "title": "Filename",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "input": {
+            "title": "Input",
+            "type": "string"
+          },
+          "sha256": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sha256"
+          },
+          "size": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Size"
+          },
+          "status": {
+            "enum": [
+              "presigned",
+              "verified",
+              "rejected",
+              "consumed",
+              "expired"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "input",
+          "filename",
+          "content_type",
+          "declared_size",
+          "size",
+          "sha256",
+          "status"
+        ],
+        "title": "Upload",
+        "type": "object"
+      },
+      "UploadPart": {
+        "description": "One part of a file sent in parts: its number, from 1, and the URL it\nis sent to with a PUT, which takes exactly its share of the file.",
+        "properties": {
+          "number": {
+            "title": "Number",
+            "type": "integer"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "number",
+          "url"
+        ],
+        "title": "UploadPart",
+        "type": "object"
+      },
+      "UploadRequest": {
+        "description": "One file to upload for the task's contestant input `input`: its name,\nthe name it is committed under, its size in bytes and, when the browser\nknows it, its content type.",
+        "properties": {
+          "content_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content Type"
+          },
+          "filename": {
+            "title": "Filename",
+            "type": "string"
+          },
+          "input": {
+            "title": "Input",
+            "type": "string"
+          },
+          "size": {
+            "title": "Size",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "input",
+          "filename",
+          "size"
+        ],
+        "title": "UploadRequest",
         "type": "object"
       },
       "WriteFile": {
@@ -1935,6 +2944,49 @@
         ]
       }
     },
+    "/api/v1/ci/config": {
+      "post": {
+        "description": "Signed by the CI with its key; a request that does not verify, names\nno grading, or names one not being started with these variables is\n`ci_request_refused`, never an empty answer.",
+        "operationId": "answerCiConfig",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          },
+          "description": "The CI's question, signed over these exact bytes.",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            },
+            "description": "The run's configuration, in the media type forge gives."
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "The CI asks what a grading run's steps are",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
     "/api/v1/contests": {
       "get": {
         "description": "Newest start first, each with the caller's own status. An organiser\nfinds their own contests from their orgs.",
@@ -2004,6 +3056,115 @@
         "summary": "An event the forge pushes for an org",
         "tags": [
           "events"
+        ]
+      }
+    },
+    "/api/v1/gradings/{grading}/callback": {
+      "post": {
+        "description": "Under `Authorization: Bearer <token>`, the run's own token: `started`,\n`progress` with the step and its counts, or `finished` with the verdict.\nA missing or wrong token is `invalid_token`, a body that is no report\n`invalid_callback`, and a grading that takes no reports now\n`grading_closed`. The same verdict sent again is answered the same.",
+        "operationId": "reportGradingRun",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "grading",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Grading",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          },
+          "description": "`started`, `progress` with `step`, `done` and `total`, or `finished` with `verdict`.",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CallbackAnswer"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "A grading run reports how it stands",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/api/v1/gradings/{grading}/envelope": {
+      "get": {
+        "description": "The runner's `envelope.schema.json`, for the envelope key the URL\ncarries. It is served once, while the grading is dispatched, and that\nfetch is the run beginning. A wrong key is `not_found`, and a second\nfetch, a grading the CI holds no run of, or one whose deadline has\npassed, `grading_closed`. It carries the run's callback token, so it is\nnever stored on the way.",
+        "operationId": "getGradingEnvelope",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "grading",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Grading",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "key",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Key",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            },
+            "description": "The runner's `envelope.schema.json`."
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "The envelope a grading run fetches as it begins",
+        "tags": [
+          "runs"
         ]
       }
     },
@@ -3806,6 +4967,148 @@
         ]
       }
     },
+    "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/gradings/{grading}/cancel": {
+      "post": {
+        "description": "The grading as it now stands, `cancelled`. A finished one is\n`wrong_status`, carrying its status as `current`.",
+        "operationId": "cancelGrading",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "grading",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Grading",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "task",
+            "required": true,
+            "schema": {
+              "title": "Task",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Grading"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Stop a grading that is not finished",
+        "tags": [
+          "gradings"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/gradings/{grading}/retry": {
+      "post": {
+        "description": "The new attempt, queued; the old one is kept as it was. One that is\nnot finished is `wrong_status`, and `conflict` while another attempt of\nit is being graded.",
+        "operationId": "retryGrading",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "grading",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Grading",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "task",
+            "required": true,
+            "schema": {
+              "title": "Task",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Grading"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Grade a finished grading again as a new attempt",
+        "tags": [
+          "gradings"
+        ]
+      }
+    },
     "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/history": {
       "get": {
         "operationId": "listTaskHistory",
@@ -4071,6 +5374,67 @@
         "summary": "The task's publications, oldest first",
         "tags": [
           "tasks"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/rejudge": {
+      "post": {
+        "description": "How many new attempts it queued, cancelled first, left to finish and\npassed over. A task with no publication is `not_found`.",
+        "operationId": "rejudgeTask",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "task",
+            "required": true,
+            "schema": {
+              "title": "Task",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Rejudge"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Grade every submission of the task again against its current publication",
+        "tags": [
+          "gradings"
         ]
       }
     },
@@ -4410,6 +5774,463 @@
         ]
       }
     },
+    "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/submissions": {
+      "get": {
+        "operationId": "listMySubmissions",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "task",
+            "required": true,
+            "schema": {
+              "title": "Task",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Submission"
+                  },
+                  "title": "Response Listmysubmissions",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "The caller's own submissions of the task, newest first",
+        "tags": [
+          "submissions"
+        ]
+      },
+      "post": {
+        "description": "The new submission, its grading queued at each stage graded on\nsubmit. The same `idempotency_key` sent again answers with the\nsubmission it made and makes nothing. A submit the task's rules refuse\nanswers with the rule's code, such as `rate_limited` with `retry_at` or\n`submission_limit` with `limit`, before anything is written.",
+        "operationId": "createSubmission",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "task",
+            "required": true,
+            "schema": {
+              "title": "Task",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Submission"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Submit the caller's uploads and values to the task",
+        "tags": [
+          "submissions"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/submissions/{number}": {
+      "get": {
+        "description": "With what each stage's `show` lets the caller see of its grading.",
+        "operationId": "getMySubmission",
+        "parameters": [
+          {
+            "description": "The submission's number",
+            "in": "path",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "description": "The submission's number",
+              "maximum": 2147483647,
+              "minimum": 1,
+              "title": "Number",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "task",
+            "required": true,
+            "schema": {
+              "title": "Task",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Submission"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "One of the caller's own submissions of the task",
+        "tags": [
+          "submissions"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/submissions/{number}/files": {
+      "get": {
+        "description": "Each input's files by their paths in the submission, its language, or\nits value, so a page can put them back into the upload panel.",
+        "operationId": "listMySubmissionFiles",
+        "parameters": [
+          {
+            "description": "The submission's number",
+            "in": "path",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "description": "The submission's number",
+              "maximum": 2147483647,
+              "minimum": 1,
+              "title": "Number",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "task",
+            "required": true,
+            "schema": {
+              "title": "Task",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubmittedFiles"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "What one of the caller's own submissions was made with",
+        "tags": [
+          "submissions"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/submissions/{number}/files/{path}": {
+      "get": {
+        "description": "`path` is one of the paths the files route names, such as\n`files/submission/main.py`.",
+        "operationId": "readMySubmissionFile",
+        "parameters": [
+          {
+            "description": "The submission's number",
+            "in": "path",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "description": "The submission's number",
+              "maximum": 2147483647,
+              "minimum": 1,
+              "title": "Number",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "path",
+            "required": true,
+            "schema": {
+              "title": "Path",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "task",
+            "required": true,
+            "schema": {
+              "title": "Task",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "The file's bytes."
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "One file of one of the caller's own submissions, as a download",
+        "tags": [
+          "submissions"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/submissions/{number}/log": {
+      "get": {
+        "description": "The log of the latest attempt at the stage, only where the stage's\n`show` is `full`; anywhere else it is `not_found`, the same as a\nsubmission that is not the caller's.",
+        "operationId": "readMySubmissionLog",
+        "parameters": [
+          {
+            "description": "The submission's number",
+            "in": "path",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "description": "The submission's number",
+              "maximum": 2147483647,
+              "minimum": 1,
+              "title": "Number",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "task",
+            "required": true,
+            "schema": {
+              "title": "Task",
+              "type": "string"
+            }
+          },
+          {
+            "description": "A stage; the first with a log when absent",
+            "in": "query",
+            "name": "stage",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "A stage; the first with a log when absent",
+              "title": "Stage"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/plain; charset=utf-8": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "The log, as the run wrote it."
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "The run log of one of the caller's own submissions",
+        "tags": [
+          "submissions"
+        ]
+      }
+    },
     "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/tree": {
       "get": {
         "operationId": "listTaskTree",
@@ -4483,6 +6304,180 @@
         "summary": "A folder's entries",
         "tags": [
           "files"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/uploads": {
+      "post": {
+        "description": "A form for one request, or for a file larger than forge takes in one\nrequest a URL for each part. A file the input does not take is `invalid_inputs` and one over\nthe input's or the task's size `too_large`, naming the limit.",
+        "operationId": "requestUploadSlot",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "task",
+            "required": true,
+            "schema": {
+              "title": "Task",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UploadRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "discriminator": {
+                    "mapping": {
+                      "multipart": "#/components/schemas/MultipartUploadSlot",
+                      "post": "#/components/schemas/PostUploadSlot"
+                    },
+                    "propertyName": "method"
+                  },
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/PostUploadSlot"
+                    },
+                    {
+                      "$ref": "#/components/schemas/MultipartUploadSlot"
+                    }
+                  ],
+                  "title": "Response Requestuploadslot"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Ask for a slot to upload one file for the task",
+        "tags": [
+          "submissions"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/uploads/{upload}/complete": {
+      "post": {
+        "description": "Forge measures what arrived: `verified` when it is the size declared,\n`rejected` when it is not. A file sent in parts names every part with\nthe `ETag` the store answered it with. Asked again, it answers the same.",
+        "operationId": "completeUpload",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "upload",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Upload",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "task",
+            "required": true,
+            "schema": {
+              "title": "Task",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/CompleteUploadRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Upload"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Say an upload's bytes are there",
+        "tags": [
+          "submissions"
         ]
       }
     },

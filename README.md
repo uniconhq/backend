@@ -1,7 +1,7 @@
 # Unicon backend
 
 The HTTP shell over the `forge` package: the routes, the role guard in front
-of the organiser routes, the door the forge pushes events through, the
+of the organiser routes, the doors the forge and a grading run call, the
 response schemas, the cookie names and flags, the Origin check, the request
 log, the table from error to status code, and the OpenAPI document, started
 by `unicon api`, and the operator's two commands beside it. It imports `forge.api`, the package's front door, and nothing else of it. It has
@@ -76,10 +76,13 @@ the cookie is first-party.
 
 `OriginCheck` refuses any state-changing request whose `Origin`, or the
 origin of its `Referer`, is not the public URL, whether or not it carries a
-session. That and `SameSite=Lax` are the whole CSRF story. One path is let
-through: forge's `EVENTS_PATH` followed by an org's name, where the forge
-pushes events with no browser behind them and the signature is what admits
-the request.
+session. That and `SameSite=Lax` are the whole CSRF story. Three doors a
+machine calls with no browser behind it are let through, each admitted by
+what it carries rather than where it came from: forge's `EVENTS_PATH`
+followed by an org's name, where the forge pushes events under a signature;
+the CI's configuration extension at forge's `CI_CONFIG_PATH`, under the
+CI's signature; and a grading run's callback at `CALLBACK_PATH` with one
+grading's id, under the run's token.
 
 `GET /api/v1/me` returns the caller's identity and their roles at every scope.
 The session list (`GET /api/v1/me/sessions`), revoke
@@ -143,6 +146,9 @@ the one the route needs at the scope in the third column.
 | `GET <place>/history?path=` | observer | place | | every change, newest first |
 | `PUT <place>/files/{path}` | manager | place | `encoding`, `content`, `token`, `message`, `confirm`, `keep_as_draft` | `version` at a contest, the save's result at a task |
 | `POST <place>/files/{path}/rollback` | manager | place | `version`, `token`, `message`, `confirm`, `keep_as_draft` | as a write |
+| `POST <task>/gradings/{grading}/cancel` | manager | task | | the grading, `cancelled` |
+| `POST <task>/gradings/{grading}/retry` | manager | task | | the new attempt, `queued` |
+| `POST <task>/rejudge` | manager | task | | what the rejudge did |
 
 Creating an org answers at once with its `provisioning` record, and
 forge's poller makes the org in the background; the status route follows
@@ -267,7 +273,72 @@ tasks; and `GET /api/v1/public/contests/{org}/{contest}/tasks/{task}`, a
 released task's statement. Anything else answers 404 there. Every
 contestant's and organiser's route answers a request with no session 401;
 the few others that need none are the sign-in's own, the server's clock, the
-health checks and the event door, and a test lists them all.
+health checks and the machines' doors, and a test lists them all.
+
+## Uploads and submissions
+
+A contestant submits to a task they are an approved contestant of, while it
+is open to them, and reads back only their own submissions. Each route needs
+a session and no role; `<task>` is the task's prefix.
+
+| Route | Body | Answer |
+|---|---|---|
+| `POST <task>/uploads` | `input`, `filename`, `size`, `content_type` | 201, a slot |
+| `POST <task>/uploads/{upload}/complete` | `parts`, for a file sent in parts | the upload |
+| `POST <task>/submissions` | `idempotency_key`, `inputs` | 201, the submission |
+| `GET <task>/submissions` | | the caller's own, newest first |
+| `GET <task>/submissions/{number}` | | one of them |
+| `GET <task>/submissions/{number}/files` | | what it was made with |
+| `GET <task>/submissions/{number}/files/{path}` | | one of its files, as a download |
+| `GET <task>/submissions/{number}/log?stage=` | | its run log, as plain text |
+
+A file never passes through the platform. The browser asks for a slot for
+one file of a contestant input, and a slot is one of two kinds, told apart by
+`method`: `post` carries a `url` and the `fields` to post before the file, a
+form whose signed policy holds the file to the size declared; `multipart`,
+for a file larger than forge sends in one request, carries `part_size` and a
+`url` for each of the `parts`, each taking exactly its share with a PUT. Either works until
+`expires_at`. The browser then completes the upload, naming each part with
+the `ETag` the store answered it with, and forge measures what arrived: an
+upload carries its `status`, `verified` when it is the size declared and
+`rejected` when it is not, with its `size` and `sha256`. Completing again
+answers the same. An upload is its owner's alone, for one task, and anyone
+else's is not found.
+
+A submit names, for each of the task's contestant inputs by id, the
+`uploads` of its files and the `language` of a code input, or the `value` of
+a text, number or true-or-false input, with an `idempotency_key` the browser
+makes once per submit, 8 to 128 letters, digits, `-` and `_`. The same key
+sent again answers with the submission it made and makes nothing. A
+submission carries its `number`, `submitted_at` and `gradings`, the latest
+attempt at each of the task's stages, each with its `id`, `stage`,
+`attempt`, `status`, the stage's `show`, and of the verdict what `show`
+lets the contestant see: `full` the `outcome`, `metrics`, `summary`,
+`tests` and whether there is a `log`, `metrics` the outcome and metrics,
+`hidden` the status alone. An outcome is one of the runner's list, metrics
+are named numbers, and a test's row is its `id`, `outcome`, `time_ms`,
+`memory_kb`, each null when not measured, its own `metrics` and the
+checker's `message` or null. What is not shown is null; the route renders
+what forge gives it and nothing more. The files route answers each input's
+`files`, by their paths in the submission, its `language` or its `value`,
+and a file comes back as its bytes, `application/octet-stream`, as an
+attachment named after the file, with `nosniff` and a sandboxing content
+security policy, so nothing a contestant uploaded runs as a page of the
+platform's. Another contestant's submission is not found, the same as one
+that is not there, and a number that cannot be one is `validation_error`.
+
+A slot or a submit the task's rules refuse answers with the rule's code:
+`task_closed`, with its `reason`, `ended` or `submissions_closed`,
+`archived` and `not_approved` as 403; `workspace_not_ready`,
+`submission_limit` with its `limit`, `upload_not_ready` with the
+`uploads` refused, and `upload_limit`, too many open uploads, with its
+`limit` and `bytes`, as 409; `rate_limited` as 429 with the `rate` and
+`retry_at`, which the `Retry-After` header carries too; `too_large` as 413
+with the `limit` in bytes and the `input` whose limit it is, or null for the
+task's; `upload_not_yours` as 404 with the `uploads`; and `invalid_inputs`,
+each of its `errors` naming its `input`, and `invalid_idempotency_key` as
+422.
+
 
 ## The event door
 
@@ -281,6 +352,66 @@ no length, or with a length that is not a number. The route reads the raw body a
 and an org with no secret are both `forbidden`. A signed event is answered
 204 and does nothing else. The public proxy answers this path with
 404, so only the stack reaches it.
+
+## The grading run's doors
+
+A grading run calls three routes with no session, and each hands forge the
+request as it arrived, since what admits it is over its exact bytes; a body
+is read raw and only up to a bound, refused past it as `payload_too_large`
+the way the event door refuses one.
+
+`POST /api/v1/ci/config`, forge's `CI_CONFIG_PATH`, is the CI's
+configuration extension, called from inside the stack; the public proxy
+answers it with 404. Its method, its target, the path undecoded and the
+query exactly as sent, every header and the body, at most 1 MiB, go to
+`runs.config` as a `CiRequest`, which checks the CI's signature over them
+and answers the run's steps; the route answers those bytes in the media
+type forge gives. A request that does not verify, names no grading, or
+names one not being started with its variables is `ci_request_refused`,
+never an empty answer.
+
+`GET /api/v1/gradings/{grading}/envelope?key=` serves the envelope the
+harness fetches as the run begins, for the envelope key the URL carries,
+once, while the grading is dispatched; a wrong key is `not_found`, and a
+second fetch, a grading the CI holds no run of, or one whose deadline has
+passed, `grading_closed`. It carries the run's callback token,
+so it is answered `Cache-Control: no-store`.
+
+`POST /api/v1/gradings/{grading}/callback` takes a run's report, `started`,
+`progress` or `finished` with the verdict, at most 4 MiB, handing the
+`Authorization` header and the raw body to `runs.callback`, and answers the
+grading's `status` after it. A missing or wrong bearer token is
+`invalid_token`, a body that is no report `invalid_callback`, and a grading
+that takes no reports now `grading_closed`. The same verdict sent again is
+answered the same. `grading_closed` is a 409 and not a 410: it is the
+grading's state that refuses the request, and a grading sent back to the
+queue takes its next run's envelope and reports. `invalid_callback` is a 422
+like every other body that does not fit. The harness stops reporting at a
+401, 403, 404, 409 or 410 and sends a verdict again only after a 5xx or a
+429, so each of these refusals ends a run's reporting and none is retried.
+The request log never records the query or a header, so neither the key nor
+the token reaches it.
+
+An organiser managing a task cancels one of its gradings, retries a
+finished one as a new attempt, or rejudges the whole task against its
+current publication, with the three routes in the organisers' table. A
+grading is named under its task's prefix, where the guard checks the role,
+and a grading of any other task is not found there, the same as one that is
+not there at all, whatever the caller may do at that other task; forge
+checks the role again at the grading's own task. A grading carries its
+`workspace`, `submission_number`, `publication`, `stage`, `attempt`,
+`status`, `wait_reason`, `error`, `verdict`, `log`, `progress` (the `step`
+last reported and how many of its containers are `done` of the `total`),
+`requeues` and its times; cancelling a finished one or retrying one that is
+not finished is `wrong_status` with its `current` status, and retrying one
+with another attempt still being graded is `conflict`. A rejudge answers the
+`publication` it grades against and how many attempts it `queued`,
+`cancelled` first, `left_running` and `passed_over`.
+
+A contestant reads the run log of their own submission's latest attempt at
+a `stage`, or at the first stage with one, only where that stage's `show` is
+`full`; anywhere else it is `not_found`, and one larger than forge serves is
+`log_too_large`. It is answered as plain text with the download's headers.
 
 ## Operator commands
 
@@ -313,12 +444,14 @@ nowhere else:
 
 | Code | Status |
 |---|---|
-| `not_found` | 404 |
-| `forbidden`, `fresh_sign_in_required`, `origin_mismatch`, `admin_only`, `reserved_path`, `registration_closed`, `is_staff`, `invite_required`, `wrong_invite_code`, `domain_not_allowed` | 403 |
-| `conflict`, `sole_admin`, `contestant_conflict`, `shared_workflow_owner`, `confirmation_required`, `already_registered`, `contest_full`, `wrong_status` | 409 |
-| `payload_too_large` | 413 |
-| `rejected`, `invalid_name`, `invalid_definition`, `invalid_path`, `invalid_reason`, `invalid_extension`, `validation_error` | 422 |
+| `not_found`, `upload_not_yours` | 404 |
+| `forbidden`, `ci_request_refused`, `fresh_sign_in_required`, `origin_mismatch`, `admin_only`, `reserved_path`, `registration_closed`, `is_staff`, `invite_required`, `wrong_invite_code`, `domain_not_allowed`, `task_closed`, `archived`, `not_approved` | 403 |
+| `conflict`, `sole_admin`, `contestant_conflict`, `shared_workflow_owner`, `confirmation_required`, `already_registered`, `contest_full`, `wrong_status`, `workspace_not_ready`, `submission_limit`, `upload_not_ready`, `upload_limit`, `log_too_large`, `grading_closed` | 409 |
+| `payload_too_large`, `too_large` | 413 |
+| `rate_limited` | 429, with `Retry-After` |
+| `rejected`, `invalid_name`, `invalid_definition`, `invalid_path`, `invalid_reason`, `invalid_extension`, `invalid_inputs`, `invalid_idempotency_key`, `invalid_callback`, `validation_error` | 422 |
 | `unauthenticated`, `session_expired` | 401, and the session cookie is cleared |
+| `invalid_token` | 401 |
 | `sign_in_invalid`, `sign_in_denied` | 400 |
 | `forge_misconfigured` | 502 |
 | `forge_unavailable` | 503 |
@@ -327,9 +460,10 @@ nowhere else:
 `contestant_conflict` carries `contests`, `shared_workflow_owner` carries
 `workflows`, `admin_only` carries `keys`, `reserved_path` carries `paths`,
 `confirmation_required` carries `changes`, `invalid_definition` carries
-`errors`, each `{"path", "message"}`, `invalid_path` carries `path` and
-`wrong_status` carries `current`, so the browser can show what stands in the
-way. A member named like a field of the document itself, such as `status`,
+`errors`, each `{"path", "message"}`, `invalid_path` carries `path`,
+`wrong_status` carries `current`, and the refusals of an upload or a submit
+carry what the section above names, so the browser can show what stands in
+the way. A member named like a field of the document itself, such as `status`,
 would replace it, so it is left out and logged as `errors.member_clash`. A refusal
 carries its `detail`, which is the reason the person can act on.
 `forge_unavailable` and `forge_misconfigured` are answered with a fixed
@@ -381,7 +515,12 @@ The `forge` package comes from one release, named in `[tool.uv.sources]`
 and locked to the wheel's hash in `uv.lock`, so a change in that repository
 reaches this one only when someone moves the pin. Moving it is one edit
 followed by `uv lock`, and it carries both the code and the migrations
-`unicon-forge migrate` applies.
+`unicon-forge migrate` applies. While a forge change this repository needs is
+not released yet, the source is the sibling checkout at `../forge` instead,
+editable. The image then builds with that checkout handed in as the named
+context `forge`, `docker build --build-context forge=../forge .`, which the
+dev stack in `deploy` does; `docker build .` alone builds only once the pin
+names the release again, which is what this repository's CI builds.
 
 ## Layout
 

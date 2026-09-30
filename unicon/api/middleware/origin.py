@@ -7,22 +7,29 @@ session is covered the day it exists. The platform's origin is asked of
 forge on the first request that is checked, not when the app is built, so an
 app forge was never started for can still be built.
 
-One path is let through: the door the forge pushes an org's events to,
-forge's `EVENTS_PATH` followed by the org's name. The forge calls it from
-inside the stack with no browser and no session, so it has no origin to
-claim, and the signature over the body is what admits it.
+Three doors are let through, each called by a machine with no browser and
+no session, so with no origin to claim: the one the forge pushes an org's
+events to, forge's `EVENTS_PATH` followed by the org's name; the CI's
+configuration extension at `CI_CONFIG_PATH`; and a grading run's callback at
+`CALLBACK_PATH`, with one grading's id in it. A signature or a token over the
+request is what admits each, and no cookie is read at any of them.
 """
 
+import re
 from urllib.parse import urlsplit
 
 from forge.api import public_url
 from forge.api.errors import UniconError
 from forge.api.events import EVENTS_PATH
+from forge.api.runs import CALLBACK_PATH, CI_CONFIG_PATH
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 from unicon.api.errors import problem_for
 
 UNSAFE_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
+GRADING_ID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+"""A grading's id as forge writes it into the callback URL it hands a run."""
+CALLBACK = re.compile(re.escape(CALLBACK_PATH).replace(re.escape("{grading}"), GRADING_ID))
 
 
 class OriginMismatch(UniconError):
@@ -55,8 +62,12 @@ def _is_checked(scope: Scope) -> bool:
     return (
         scope["type"] == "http"
         and scope["method"] in UNSAFE_METHODS
-        and not _is_forge_event(scope["path"])
+        and not _is_machine_door(scope["path"])
     )
+
+
+def _is_machine_door(path: str) -> bool:
+    return path == CI_CONFIG_PATH or _is_forge_event(path) or _is_callback(path)
 
 
 def _is_forge_event(path: str) -> bool:
@@ -65,6 +76,13 @@ def _is_forge_event(path: str) -> bool:
     """
     org = path.removeprefix(f"{EVENTS_PATH}/")
     return org != path and org != "" and "/" not in org
+
+
+def _is_callback(path: str) -> bool:
+    """A grading run's report: the callback path with one grading's id,
+    written as forge writes it, and nothing more.
+    """
+    return CALLBACK.fullmatch(path) is not None
 
 
 def _headers(scope: Scope) -> dict[str, str]:

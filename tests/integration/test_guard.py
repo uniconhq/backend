@@ -38,6 +38,7 @@ BELOW = {Role.ADMIN: Role.MANAGER, Role.MANAGER: Role.OBSERVER, Role.OBSERVER: N
 CAROL = {"username": "carol", "role": "observer"}
 NEW_FILE = {"encoding": "utf-8", "content": "note\n", "token": None}
 ROLLBACK = {"version": "nowhere", "token": None}
+NO_GRADING = "0192f4a4-7b7e-7000-8000-000000000001"
 SESSION_ONLY = {
     "createOrg",
     "getOrgProvisioning",
@@ -46,6 +47,14 @@ SESSION_ONLY = {
     "getMyRegistration",
     "getContestHome",
     "getTaskPage",
+    "requestUploadSlot",
+    "completeUpload",
+    "createSubmission",
+    "listMySubmissions",
+    "getMySubmission",
+    "listMySubmissionFiles",
+    "readMySubmissionFile",
+    "readMySubmissionLog",
 }
 
 ROUTES: list[tuple[str, str, dict[str, Any] | None, Role, Scope]] = [
@@ -83,6 +92,9 @@ ROUTES: list[tuple[str, str, dict[str, Any] | None, Role, Scope]] = [
     ("GET", f"{TASK}/history", None, Role.OBSERVER, SUM),
     ("PUT", f"{TASK}/files/data/testcases/1.in", NEW_FILE, Role.MANAGER, SUM),
     ("POST", f"{TASK}/files/task.yaml/rollback", ROLLBACK, Role.MANAGER, SUM),
+    ("POST", f"{TASK}/gradings/{NO_GRADING}/cancel", None, Role.MANAGER, SUM),
+    ("POST", f"{TASK}/gradings/{NO_GRADING}/retry", None, Role.MANAGER, SUM),
+    ("POST", f"{TASK}/rejudge", None, Role.MANAGER, SUM),
 ]
 EACH_ROUTE = pytest.mark.parametrize(
     ("method", "path", "body", "role", "scope"),
@@ -123,6 +135,9 @@ NO_SESSION = {
     "completeLogin",
     "getRegisterUrl",
     "receiveForgeEvent",
+    "answerCiConfig",
+    "getGradingEnvelope",
+    "reportGradingRun",
     "listPublicContests",
     "getPublicContest",
     "getPublicStatement",
