@@ -135,7 +135,9 @@ async def test_a_rollback_writes_the_older_file_back_as_a_new_change(
 async def test_a_task_write_is_a_save_and_answers_as_one(
     client: httpx.AsyncClient, sum_task: FakeForge
 ) -> None:
-    written = await _put(client, f"{TASK}/files/data/testcases/1.in", "1 2\n", None)
+    example = await read(client, f"{TASK}/files/data/testcases/1.in")
+
+    written = await _put(client, f"{TASK}/files/data/testcases/1.in", "1 2\n", example["token"])
 
     assert written.status_code == 200
     assert written.json()["outcome"] == "published"

@@ -10,9 +10,12 @@ that is down or wrongly registered, and an error this table does not know,
 are answered with a fixed sentence: their detail names hosts, paths and the
 forge's own words, which belong in the log and not in a browser. A member of
 an error's refusal never replaces a field of the document itself, such as its
-`status`; one that would is left out and logged.
+`status`; one that would is left out and logged. A refusal that says when
+to try again, `rate_limited`, says it in a `Retry-After` header too.
 """
 
+from datetime import UTC, datetime, timedelta
+from email.utils import format_datetime
 from http import HTTPStatus
 from typing import Any, cast
 
@@ -61,9 +64,27 @@ STATUS = {
     "wrong_status": 409,
     "invalid_reason": 422,
     "invalid_extension": 422,
+    "task_closed": 403,
+    "archived": 403,
+    "not_approved": 403,
+    "workspace_not_ready": 409,
+    "submission_limit": 409,
+    "rate_limited": 429,
+    "too_large": 413,
+    "upload_not_yours": 404,
+    "upload_not_ready": 409,
+    "upload_limit": 409,
+    "log_too_large": 409,
+    "invalid_inputs": 422,
+    "invalid_idempotency_key": 422,
+    "ci_request_refused": 403,
+    "invalid_token": 401,
+    "grading_closed": 409,
+    "invalid_callback": 422,
 }
 INTERNAL = 500
 CLEARS_SESSION = frozenset({"unauthenticated", "session_expired"})
+RETRY_AFTER = frozenset({"rate_limited"})
 HTTP_CODES = {404: "not_found", 405: "method_not_allowed"}
 
 WITHHELD_DETAIL = {
@@ -120,11 +141,35 @@ def problem_for(error: UniconError) -> JSONResponse:
             code=error.code,
             members=sorted(error.extra.keys() - extra.keys()),
         )
-    return problem_response(
+    response = problem_response(
         Problem.of(
             code=error.code, status=status, title=_title(status), detail=error.detail, **extra
         )
     )
+    retry_after = _retry_after(error)
+    if retry_after is not None:
+        response.headers["Retry-After"] = retry_after
+    return response
+
+
+def _retry_after(error: UniconError) -> str | None:
+    """When a refusal that says when to try again may be tried again, as the
+    HTTP date of `retry_at`, rounded up to the second so a client that waits
+    for it is not early. None for any other refusal, or a `retry_at` that
+    does not read as a time with its zone.
+    """
+    if error.code not in RETRY_AFTER:
+        return None
+    value = error.extra.get("retry_at")
+    try:
+        moment = datetime.fromisoformat(value) if isinstance(value, str) else None
+    except ValueError:
+        moment = None
+    if moment is None or moment.tzinfo is None:
+        return None
+    if moment.microsecond:
+        moment = moment.replace(microsecond=0) + timedelta(seconds=1)
+    return format_datetime(moment.astimezone(UTC), usegmt=True)
 
 
 def _title(status: int) -> str:

@@ -7,6 +7,7 @@ the deadline the server enforces.
 from datetime import datetime
 from typing import Literal
 
+from forge.api.contest_home import ContestantInput as ContestantInputRecord
 from forge.api.contest_home import ContestHome as ContestHomeRecord
 from forge.api.contest_home import ContestSummary as ContestSummaryRecord
 from forge.api.contest_home import Limits as LimitsRecord
@@ -142,9 +143,45 @@ class Limits(BaseModel):
         )
 
 
+InputType = Literal["code", "text", "number", "boolean", "file", "file[]", "dataset", "jupyter"]
+
+
+class ContestantInput(BaseModel):
+    """One input the contestant gives, with what its form shows: `label`,
+    the `language` choices of a code input, `min` and `max` of a number,
+    the `accept` patterns and `max_size` in bytes of a file, and a
+    `default`. The submit panel shows one field or drop zone per input.
+    """
+
+    id: str
+    type: InputType
+    label: str
+    language: list[str] | None
+    min: float | None
+    max: float | None
+    accept: list[str] | None
+    max_size: int | None
+    default: str | float | bool | None
+
+    @classmethod
+    def of(cls, entry: ContestantInputRecord) -> ContestantInput:
+        return cls(
+            id=entry.id,
+            type=entry.type.value,
+            label=entry.label or entry.id,
+            language=list(entry.language) if entry.language is not None else None,
+            min=entry.min,
+            max=entry.max,
+            accept=list(entry.accept) if entry.accept is not None else None,
+            max_size=entry.max_size,
+            default=entry.default,
+        )
+
+
 class TaskPage(BaseModel):
-    """A task as the caller reads it: its statement in Markdown and the
-    limits a submit is checked against, and nothing else the task holds.
+    """A task as the caller reads it: its statement in Markdown, the limits
+    a submit is checked against and the inputs a contestant gives, and
+    nothing else the task holds.
     """
 
     name: str
@@ -153,6 +190,7 @@ class TaskPage(BaseModel):
     points: int | None
     statement: str
     limits: Limits
+    inputs: list[ContestantInput]
     release: TaskRelease
 
     @classmethod
@@ -164,5 +202,6 @@ class TaskPage(BaseModel):
             points=page.points,
             statement=page.statement,
             limits=Limits.of(page.limits),
+            inputs=[ContestantInput.of(entry) for entry in page.inputs],
             release=TaskRelease.of(page.release),
         )
