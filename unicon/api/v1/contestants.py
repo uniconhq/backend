@@ -1,9 +1,10 @@
 """Registering for a contest and the organisers' decisions on it. The caller
 registers themself and reads their own registration with a session and no
 role. Listing a contest's registrations needs the observer role at the
-contest, and approving, rejecting, removing and giving someone more time need
-the manager role there. Forge checks the contest's rules and each decision,
-and every refusal comes back with its own code.
+contest, and approving, rejecting, taking a rejection back, removing and
+giving someone more time need the manager role there. Forge checks the
+contest's rules and each decision, and every refusal comes back with its own
+code.
 """
 
 from datetime import timedelta
@@ -106,6 +107,19 @@ async def reject_contestant(
     return Contestant.of(
         await contestants.reject(organiser, _contest(organiser), user_id, body.reason)
     )
+
+
+@router.post(
+    f"{CONTEST}/contestants/{{user_id}}/reopen",
+    operation_id="reopenContestant",
+    summary="Take a rejection back, leaving the registration pending",
+)
+async def reopen_contestant(organiser: ContestManager, user_id: int) -> Contestant:
+    """The reason goes, and the registration waits for a decision again. It
+    takes a place again, so a full contest refuses it with `contest_full`, and
+    someone who holds a role at the contest by now with `is_staff`.
+    """
+    return Contestant.of(await contestants.reopen(organiser, _contest(organiser), user_id))
 
 
 @router.post(
