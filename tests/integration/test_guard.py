@@ -74,6 +74,7 @@ ROUTES: list[tuple[str, str, dict[str, Any] | None, Role, Scope]] = [
     ("GET", f"{CONTEST}/contestants", None, Role.OBSERVER, SPRING),
     ("POST", f"{CONTEST}/contestants/20/approve", None, Role.MANAGER, SPRING),
     ("POST", f"{CONTEST}/contestants/20/reject", {"reason": "No."}, Role.MANAGER, SPRING),
+    ("POST", f"{CONTEST}/contestants/20/reopen", None, Role.MANAGER, SPRING),
     ("POST", f"{CONTEST}/contestants/20/remove", None, Role.MANAGER, SPRING),
     ("PUT", f"{CONTEST}/contestants/20/extension", {"seconds": 60}, Role.MANAGER, SPRING),
     ("GET", f"{CONTEST}/tree", None, Role.OBSERVER, SPRING),
