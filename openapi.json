@@ -3841,6 +3841,67 @@
         ]
       }
     },
+    "/api/v1/orgs/{org}/contests/{contest}/contestants/{user_id}/reopen": {
+      "post": {
+        "description": "The reason goes, and the registration waits for a decision again. It\ntakes a place again, so a full contest refuses it with `contest_full`, and\nsomeone who holds a role at the contest by now with `is_staff`.",
+        "operationId": "reopenContestant",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Contestant"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Take a rejection back, leaving the registration pending",
+        "tags": [
+          "contestants"
+        ]
+      }
+    },
     "/api/v1/orgs/{org}/contests/{contest}/files/{path}": {
       "get": {
         "operationId": "readContestFile",
