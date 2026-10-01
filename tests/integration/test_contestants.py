@@ -1,7 +1,8 @@
 """Registering for a contest and deciding the registrations, over HTTP. A
 registration leaves a pending row and a refused one answers with the rule's
 code; the caller's own registration shows the reason after a rejection. A
-manager lists, approves, rejects, removes and extends, each answer being the
+manager lists, approves, rejects, reopens a rejection, removes and extends,
+each answer being the
 row as it now stands, and a contestant is refused every one of those. A
 refusal of a decision carries its code.
 """
@@ -103,6 +104,23 @@ async def test_a_manager_decides_and_the_caller_reads_the_reason(
     assert (mine.json()["status"], mine.json()["reason"]) == ("rejected", "Not a student.")
 
 
+async def test_a_rejection_is_taken_back_and_then_approved(
+    client: httpx.AsyncClient, world: FakeForge
+) -> None:
+    await run_contest(client, visibility="public")
+    await _register_carol(client, world)
+    await sign_in_as(client, world, 7)
+
+    pending = await client.post(f"{CONTESTANTS}/20/reopen", headers=ORIGIN)
+    await client.post(f"{CONTESTANTS}/20/reject", json={"reason": "Not a student."}, headers=ORIGIN)
+    reopened = await client.post(f"{CONTESTANTS}/20/reopen", headers=ORIGIN)
+    approved = await client.post(f"{CONTESTANTS}/20/approve", headers=ORIGIN)
+
+    assert (pending.status_code, pending.json()["code"]) == (409, "wrong_status")
+    assert (reopened.json()["status"], reopened.json()["reason"]) == ("pending", None)
+    assert approved.json()["status"] == "approved"
+
+
 async def test_an_approved_contestant_is_given_time_and_removed(
     client: httpx.AsyncClient, world: FakeForge, held_setup: Setup
 ) -> None:
@@ -139,13 +157,14 @@ async def test_a_contestant_is_refused_every_decision(
         await client.get(CONTESTANTS),
         await client.post(f"{CONTESTANTS}/20/approve", headers=ORIGIN),
         await client.post(f"{CONTESTANTS}/20/reject", json={"reason": "x"}, headers=ORIGIN),
+        await client.post(f"{CONTESTANTS}/20/reopen", headers=ORIGIN),
         await client.post(f"{CONTESTANTS}/20/remove", headers=ORIGIN),
         await client.put(f"{CONTESTANTS}/20/extension", json={"seconds": 1}, headers=ORIGIN),
     ]
 
     assert [(answer.status_code, answer.json()["code"]) for answer in answers] == [
         (403, "forbidden")
-    ] * 5
+    ] * 6
 
 
 async def test_registering_needs_a_session(client: httpx.AsyncClient, world: FakeForge) -> None:

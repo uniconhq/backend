@@ -135,6 +135,7 @@ the one the route needs at the scope in the third column.
 | `GET <contest>/contestants` | observer | contest | | every registration, oldest first |
 | `POST <contest>/contestants/{user_id}/approve` | manager | contest | | the registration |
 | `POST <contest>/contestants/{user_id}/reject` | manager | contest | `reason` | the registration |
+| `POST <contest>/contestants/{user_id}/reopen` | manager | contest | | the registration, pending again |
 | `POST <contest>/contestants/{user_id}/remove` | manager | contest | | the registration |
 | `PUT <contest>/contestants/{user_id}/extension` | manager | contest | `seconds` | the registration |
 | `POST <task>/save` | manager | task | `changes`, `confirm`, `keep_as_draft`, `message` | the save's result |
@@ -263,7 +264,10 @@ registration's status does not allow is `wrong_status`, carrying the status
 as `current`; a rejection needs a `reason` (`invalid_reason`), and an
 extension is between none and a year (`invalid_extension`), and one
 of more than a billion seconds either way is not taken at all
-(`validation_error`).
+(`validation_error`). Reopening takes a rejection back: the registration is
+pending again with its reason cleared, and since it takes a place again it
+is refused with `contest_full` when none is free and `is_staff` when the
+person holds a role at the contest by now.
 
 A visitor with no session calls the routes under `/api/v1/public`, which
 read no cookie: `GET /api/v1/public/contests`, every contest whose

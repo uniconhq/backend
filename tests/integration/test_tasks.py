@@ -29,7 +29,7 @@ async def test_a_task_is_asked_for_made_by_the_poller_and_listed(
     )
     await tick(held_setup, "provisioning")
     done = (await client.get(f"{TASK}/provisioning")).json()
-    assert (done["status"], done["last_step"]) == ("ready", "roles")
+    assert (done["status"], done["last_step"]) == ("ready", "contest_entry")
     assert (await client.get(f"{CONTEST}/tasks")).json() == [{"name": "sum"}]
     settings = (await client.get(f"{TASK}/files/task.yaml")).json()
     assert 'name: "Sum of Two"' in settings["content"]

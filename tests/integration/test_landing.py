@@ -27,9 +27,9 @@ async def test_a_visitor_reads_the_public_contests_and_a_released_statement(
     assert [(entry["org"], entry["name"], entry["tasks"]) for entry in listed.json()] == [
         ("acme", "spring", [])
     ]
-    assert contest.json()["tasks"] == [{"name": "sum", "label": "sum", "title": "sum"}]
+    assert contest.json()["tasks"] == [{"name": "sum", "label": "A", "title": "sum"}]
     assert statement.json() == {
-        "task": {"name": "sum", "label": "sum", "title": "sum"},
+        "task": {"name": "sum", "label": "A", "title": "sum"},
         "statement": "Add two numbers.\n",
     }
 
