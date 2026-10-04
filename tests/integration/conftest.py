@@ -167,7 +167,7 @@ async def publish(client: httpx.AsyncClient) -> None:
         json={"encoding": "utf-8", "content": "Add two numbers.\n", "token": statement["token"]},
         headers=ORIGIN,
     )
-    assert "publication" in saved.json(), saved.text
+    assert "number" in saved.json(), saved.text
 
 
 async def edit_task(client: httpx.AsyncClient, old: str, new: str) -> None:
@@ -187,7 +187,7 @@ async def edit_task(client: httpx.AsyncClient, old: str, new: str) -> None:
         headers=ORIGIN,
     )
     assert saved.status_code == 200, saved.text
-    assert "publication" in saved.json(), saved.text
+    assert "number" in saved.json(), saved.text
 
 
 async def enter(client: httpx.AsyncClient, forge: FakeForge, setup: Setup, user_id: int) -> None:
