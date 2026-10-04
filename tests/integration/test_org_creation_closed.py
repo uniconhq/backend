@@ -6,7 +6,7 @@ import httpx
 import pytest
 from forge.testing import FakeForge, Settings
 
-from tests.integration.conftest import ORG, ORIGIN, Command, sign_in
+from tests.integration.conftest import ORIGIN, Command, sign_in
 
 
 @pytest.fixture
@@ -25,7 +25,7 @@ async def test_creating_an_org_is_refused_while_creation_is_closed(
     assert refused.status_code == 403
     assert refused.json()["code"] == "forbidden"
     assert "closed" in refused.json()["detail"]
-    assert (await client.get(f"{ORG}/provisioning")).status_code == 404
+    assert "acme" not in forge.state.orgs
 
 
 async def test_the_operator_still_makes_one(
@@ -34,5 +34,5 @@ async def test_the_operator_still_makes_one(
     code = await unicon(["create-org", "acme", "--admin", "ada"])
 
     assert code == 0
-    assert capsys.readouterr().out.startswith("Org acme: ready")
+    assert capsys.readouterr().out.startswith("Org acme made")
     assert "acme" in forge.state.orgs

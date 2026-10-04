@@ -23,23 +23,36 @@ router = APIRouter(tags=["contest home"])
     "/contests",
     operation_id="listMyContests",
     summary="Every published contest the caller may enter or has entered",
+    response_model=list[ContestSummary],
 )
-async def list_my_contests(session: CurrentSession) -> list[ContestSummary]:
+async def list_my_contests(session: CurrentSession) -> tuple[contest_home.ContestSummary, ...]:
     """Newest start first, each with the caller's own status. An organiser
     finds their own contests from their orgs.
     """
-    return [ContestSummary.of(found) for found in await contest_home.contests(session)]
+    return await contest_home.contests(session)
 
 
-@router.get(f"{CONTEST}/home", operation_id="getContestHome", summary="The contest's home")
-async def get_contest_home(session: CurrentSession, scope: ContestAtPath) -> ContestHome:
+@router.get(
+    f"{CONTEST}/home",
+    operation_id="getContestHome",
+    summary="The contest's home",
+    response_model=ContestHome,
+)
+async def get_contest_home(
+    session: CurrentSession, scope: ContestAtPath
+) -> contest_home.ContestHome:
     """The contest's dates, the caller's registration and own deadline, the
     server's clock, and the tasks released to the caller.
     """
-    return ContestHome.of(await contest_home.home(session, contests.contest_id_of(scope)))
+    return await contest_home.home(session, contests.contest_id_of(scope))
 
 
-@router.get(f"{TASK}/page", operation_id="getTaskPage", summary="A released task's page")
-async def get_task_page(session: CurrentSession, scope: TaskAtPath) -> TaskPage:
+@router.get(
+    f"{TASK}/page",
+    operation_id="getTaskPage",
+    summary="A released task's page",
+    response_model=TaskPage,
+)
+async def get_task_page(session: CurrentSession, scope: TaskAtPath) -> contest_home.TaskPage:
     """The statement and the limits a submit is checked against."""
-    return TaskPage.of(await contest_home.task(session, tasks.task_id_of(scope)))
+    return await contest_home.task(session, tasks.task_id_of(scope))

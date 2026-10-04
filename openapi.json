@@ -1,22 +1,66 @@
 {
   "components": {
     "schemas": {
+      "Account": {
+        "description": "Someone with their email, as they see themself and as the organisers\nof a contest they registered for see them.",
+        "properties": {
+          "avatar_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avatar Url"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "username": {
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "username",
+          "name",
+          "avatar_url",
+          "email"
+        ],
+        "title": "Account",
+        "type": "object"
+      },
       "CallbackAnswer": {
         "description": "Where the grading stands once its run's report is taken.",
         "properties": {
           "status": {
-            "enum": [
-              "queued",
-              "dispatching",
-              "dispatched",
-              "running",
-              "done",
-              "failed",
-              "cancelled",
-              "system_error"
-            ],
-            "title": "Status",
-            "type": "string"
+            "$ref": "#/components/schemas/GradingStatus"
           }
         },
         "required": [
@@ -26,7 +70,7 @@
         "type": "object"
       },
       "Change": {
-        "description": "One entry of the history: the version it made, who made it, what they\nsaid about it and when.",
+        "description": "One entry of a place's history: the version it made, who made it, what\nthey said about it and when.",
         "properties": {
           "at": {
             "format": "date-time",
@@ -62,36 +106,19 @@
         "title": "Change",
         "type": "object"
       },
-      "CompleteUploadRequest": {
-        "description": "Every part of a file sent in parts, once each and in order. A file\nsent in one request has none.",
-        "properties": {
-          "parts": {
-            "default": [],
-            "items": {
-              "$ref": "#/components/schemas/FinishedPart"
-            },
-            "title": "Parts",
-            "type": "array"
-          }
-        },
-        "title": "CompleteUploadRequest",
-        "type": "object"
-      },
-      "Contest": {
-        "properties": {
-          "name": {
-            "title": "Name",
-            "type": "string"
-          }
-        },
-        "required": [
-          "name"
+      "Closed": {
+        "description": "Why a task is not open, the first of these that applies.",
+        "enum": [
+          "not_released",
+          "archived",
+          "ended",
+          "submissions_closed"
         ],
-        "title": "Contest",
-        "type": "object"
+        "title": "Closed",
+        "type": "string"
       },
       "ContestHome": {
-        "description": "A contest's home for the caller. `organises` says the caller holds a\nrole at the contest, which keeps them from registering; `registration_open`\nsays whether the registration window is open now, `invite_only` whether only invited\npeople may register and `asks_code` whether registering takes the\ncontest's code. `deadline` is the contest's end plus the caller's own\nextension.",
+        "description": "A contest's home for the caller. `organises` says the caller holds a\nrole at the contest, which keeps them from registering;\n`registration_open` says whether the registration window is open now,\n`invite_only` whether only invited people may register and `asks_code`\nwhether registering takes the contest's code. `deadline` is the\ncontest's end plus the caller's own extension.",
         "properties": {
           "asks_code": {
             "title": "Asks Code",
@@ -124,10 +151,6 @@
             "title": "Now",
             "type": "string"
           },
-          "org": {
-            "title": "Org",
-            "type": "string"
-          },
           "organises": {
             "title": "Organises",
             "type": "boolean"
@@ -152,13 +175,7 @@
             "type": "string"
           },
           "state": {
-            "enum": [
-              "draft",
-              "published",
-              "archived"
-            ],
-            "title": "State",
-            "type": "string"
+            "$ref": "#/components/schemas/State"
           },
           "submissions_closed": {
             "title": "Submissions Closed",
@@ -171,15 +188,13 @@
             "title": "Tasks",
             "type": "array"
           },
-          "title": {
-            "title": "Title",
-            "type": "string"
+          "where": {
+            "$ref": "#/components/schemas/ContestNames"
           }
         },
         "required": [
-          "org",
+          "where",
           "name",
-          "title",
           "description",
           "start",
           "end",
@@ -197,8 +212,27 @@
         "title": "ContestHome",
         "type": "object"
       },
+      "ContestNames": {
+        "description": "A contest by the names of its org and itself.",
+        "properties": {
+          "contest": {
+            "title": "Contest",
+            "type": "string"
+          },
+          "org": {
+            "title": "Org",
+            "type": "string"
+          }
+        },
+        "required": [
+          "org",
+          "contest"
+        ],
+        "title": "ContestNames",
+        "type": "object"
+      },
       "ContestSummary": {
-        "description": "A contest the caller sees, by its org and name, with its title, when\nit runs, who sees it, and the caller's own registration status.",
+        "description": "A contest the caller sees, with its title, when it runs, who sees it,\nand the caller's own registration status.",
         "properties": {
           "end": {
             "format": "date-time",
@@ -209,10 +243,6 @@
             "title": "Name",
             "type": "string"
           },
-          "org": {
-            "title": "Org",
-            "type": "string"
-          },
           "start": {
             "format": "date-time",
             "title": "Start",
@@ -221,39 +251,23 @@
           "status": {
             "anyOf": [
               {
-                "enum": [
-                  "pending",
-                  "approved",
-                  "rejected",
-                  "withdrawn",
-                  "removed"
-                ],
-                "type": "string"
+                "$ref": "#/components/schemas/Status"
               },
               {
                 "type": "null"
               }
-            ],
-            "title": "Status"
-          },
-          "title": {
-            "title": "Title",
-            "type": "string"
+            ]
           },
           "visibility": {
-            "enum": [
-              "public",
-              "signed-in",
-              "hidden"
-            ],
-            "title": "Visibility",
-            "type": "string"
+            "$ref": "#/components/schemas/ContestVisibility"
+          },
+          "where": {
+            "$ref": "#/components/schemas/ContestNames"
           }
         },
         "required": [
-          "org",
+          "where",
           "name",
-          "title",
           "start",
           "end",
           "visibility",
@@ -262,20 +276,19 @@
         "title": "ContestSummary",
         "type": "object"
       },
+      "ContestVisibility": {
+        "description": "Who sees the contest: visitors and everyone signed in, anyone with a\nsession, or only its contestants and organisers.",
+        "enum": [
+          "public",
+          "signed-in",
+          "hidden"
+        ],
+        "title": "ContestVisibility",
+        "type": "string"
+      },
       "Contestant": {
-        "description": "One registration as organisers see it: the person's own fields, who\nthey are, and `workspace_error`, why the last try at a part of their\nworkspace failed, while it is still being made. `username`, `name` and\n`email` are null once the person's account is gone.",
+        "description": "One registration as the contest's organisers read it: the same\nfields, and who the person is, null once their account is gone.",
         "properties": {
-          "avatar_url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Avatar Url"
-          },
           "decided_at": {
             "anyOf": [
               {
@@ -287,28 +300,6 @@
               }
             ],
             "title": "Decided At"
-          },
-          "email": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Email"
-          },
-          "name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Name"
           },
           "reason": {
             "anyOf": [
@@ -327,81 +318,41 @@
             "type": "string"
           },
           "status": {
-            "enum": [
-              "pending",
-              "approved",
-              "rejected",
-              "withdrawn",
-              "removed"
-            ],
-            "title": "Status",
-            "type": "string"
+            "$ref": "#/components/schemas/Status"
           },
-          "time_extension_seconds": {
-            "title": "Time Extension Seconds",
+          "time_extension": {
+            "title": "Time Extension",
             "type": "integer"
+          },
+          "user": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Account"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "user_id": {
             "title": "User Id",
             "type": "integer"
-          },
-          "username": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Username"
-          },
-          "workspace": {
-            "anyOf": [
-              {
-                "enum": [
-                  "preparing",
-                  "ready"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Workspace"
-          },
-          "workspace_error": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Workspace Error"
           }
         },
         "required": [
           "status",
-          "reason",
           "registered_at",
           "decided_at",
-          "time_extension_seconds",
-          "workspace",
+          "reason",
+          "time_extension",
           "user_id",
-          "username",
-          "name",
-          "email",
-          "avatar_url",
-          "workspace_error"
+          "user"
         ],
         "title": "Contestant",
         "type": "object"
       },
       "ContestantInput": {
-        "description": "One input the contestant gives, with what its form shows: `label`,\nthe `language` choices of a code input, `min` and `max` of a number,\nthe `accept` patterns and `max_size` in bytes of a file, and a\n`default`. The submit panel shows one field or drop zone per input.",
+        "description": "One input the contestant gives, with what its form shows: `label`,\nthe `language` choices of a code input, `min` and `max` of a number,\nthe `accept` patterns and `max_size` in bytes of a file, and a\n`default`. The submit panel shows one field or drop zone per input, and\nan input with no label by its id.",
         "properties": {
           "accept": {
             "anyOf": [
@@ -439,8 +390,15 @@
             "type": "string"
           },
           "label": {
-            "title": "Label",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
           },
           "language": {
             "anyOf": [
@@ -490,18 +448,7 @@
             "title": "Min"
           },
           "type": {
-            "enum": [
-              "code",
-              "text",
-              "number",
-              "boolean",
-              "file",
-              "file[]",
-              "dataset",
-              "jupyter"
-            ],
-            "title": "Type",
-            "type": "string"
+            "$ref": "#/components/schemas/InputType"
           }
         },
         "required": [
@@ -587,6 +534,25 @@
         "title": "CreateTask",
         "type": "object"
       },
+      "CreateWorkflow": {
+        "description": "A workflow to make under `owner`: the caller's own username, or the\nname of an org where they hold the manager role or above.",
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "owner": {
+            "title": "Owner",
+            "type": "string"
+          }
+        },
+        "required": [
+          "owner",
+          "name"
+        ],
+        "title": "CreateWorkflow",
+        "type": "object"
+      },
       "DefinitionError": {
         "description": "One thing wrong with a definition file: its YAML path, \"\" for the file\nas a whole, and a sentence a form shows beside that field.",
         "properties": {
@@ -606,7 +572,7 @@
         "title": "DefinitionError",
         "type": "object"
       },
-      "DraftSave": {
+      "Draft": {
         "description": "A save kept as a draft: the version its files were written as, the\nerrors that kept it from publishing, and what it held back.",
         "properties": {
           "errors": {
@@ -623,24 +589,26 @@
             "title": "Held Back",
             "type": "array"
           },
-          "outcome": {
-            "const": "draft",
-            "title": "Outcome",
-            "type": "string"
-          },
           "version": {
             "title": "Version",
             "type": "string"
           }
         },
         "required": [
-          "outcome",
           "version",
           "errors",
           "held_back"
         ],
-        "title": "DraftSave",
+        "title": "Draft",
         "type": "object"
+      },
+      "EntryKind": {
+        "enum": [
+          "file",
+          "directory"
+        ],
+        "title": "EntryKind",
+        "type": "string"
       },
       "ExtensionRequest": {
         "description": "How long past the contest's end this person may still submit, in\nseconds, in place of any extension they had.",
@@ -731,23 +699,18 @@
         "title": "FileContent",
         "type": "object"
       },
-      "FinishedPart": {
-        "description": "A part the browser sent: its number and the `ETag` the store answered\nits PUT with.",
+      "ForgeUrl": {
+        "description": "Where a browser reaches the forge's own pages: sign-in and the account\nsettings. No trailing slash.",
         "properties": {
-          "etag": {
-            "title": "Etag",
+          "url": {
+            "title": "Url",
             "type": "string"
-          },
-          "number": {
-            "title": "Number",
-            "type": "integer"
           }
         },
         "required": [
-          "number",
-          "etag"
+          "url"
         ],
-        "title": "FinishedPart",
+        "title": "ForgeUrl",
         "type": "object"
       },
       "GradedTest": {
@@ -826,7 +789,7 @@
         "type": "object"
       },
       "Grading": {
-        "description": "One grading as an organiser managing its task reads it: the\nsubmission by its contestant's workspace and number, the publication it\ngrades against, its stage and attempt, where it stands and, while it\nwaits, why, the reason it failed, its verdict as the run sent it,\nwhether its log was written, the last progress its run reported, how\noften it went back to the queue, and its times.",
+        "description": "One grading as an organiser managing its task reads it: the\nsubmission by its number, the publication it grades against, its stage\nand attempt, where it stands, the reason it failed, its verdict, whether\nits log was written, the last progress its run reported, and its times.",
         "properties": {
           "attempt": {
             "title": "Attempt",
@@ -900,28 +863,12 @@
           },
           "publication": {
             "title": "Publication",
-            "type": "string"
+            "type": "integer"
           },
           "queued_at": {
             "format": "date-time",
             "title": "Queued At",
             "type": "string"
-          },
-          "requeues": {
-            "title": "Requeues",
-            "type": "integer"
-          },
-          "retry_at": {
-            "anyOf": [
-              {
-                "format": "date-time",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Retry At"
           },
           "stage": {
             "title": "Stage",
@@ -940,18 +887,7 @@
             "title": "Started At"
           },
           "status": {
-            "enum": [
-              "queued",
-              "dispatching",
-              "dispatched",
-              "running",
-              "done",
-              "failed",
-              "cancelled",
-              "system_error"
-            ],
-            "title": "Status",
-            "type": "string"
+            "$ref": "#/components/schemas/GradingStatus"
           },
           "submission_number": {
             "title": "Submission Number",
@@ -965,48 +901,27 @@
           "verdict": {
             "anyOf": [
               {
-                "additionalProperties": true,
-                "type": "object"
+                "$ref": "#/components/schemas/Verdict"
               },
               {
                 "type": "null"
               }
-            ],
-            "title": "Verdict"
-          },
-          "wait_reason": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Wait Reason"
-          },
-          "workspace": {
-            "title": "Workspace",
-            "type": "string"
+            ]
           }
         },
         "required": [
           "id",
-          "workspace",
           "submission_number",
           "submitted_at",
           "publication",
           "stage",
           "attempt",
           "status",
-          "wait_reason",
           "error",
           "verdict",
           "log",
           "progress",
-          "requeues",
           "queued_at",
-          "retry_at",
           "dispatched_at",
           "started_at",
           "finished_at",
@@ -1039,138 +954,24 @@
         "title": "GradingProgress",
         "type": "object"
       },
-      "GradingResult": {
-        "description": "One grading of a submission at one stage, as its contestant sees it:\nits id, stage, attempt and status, the stage's `show`, and of its\nverdict what that allows: the `outcome`, the named `metrics`, the\n`summary` and a row for every test. `log` says whether its run log can\nbe read.",
-        "properties": {
-          "attempt": {
-            "title": "Attempt",
-            "type": "integer"
-          },
-          "id": {
-            "format": "uuid",
-            "title": "Id",
-            "type": "string"
-          },
-          "log": {
-            "title": "Log",
-            "type": "boolean"
-          },
-          "metrics": {
-            "anyOf": [
-              {
-                "additionalProperties": {
-                  "type": "number"
-                },
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Metrics"
-          },
-          "outcome": {
-            "anyOf": [
-              {
-                "enum": [
-                  "accepted",
-                  "partial",
-                  "wrong_answer",
-                  "time_limit",
-                  "memory_limit",
-                  "output_limit",
-                  "runtime_error",
-                  "compile_error",
-                  "skipped",
-                  "system_error"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Outcome"
-          },
-          "show": {
-            "enum": [
-              "full",
-              "metrics",
-              "hidden"
-            ],
-            "title": "Show",
-            "type": "string"
-          },
-          "stage": {
-            "title": "Stage",
-            "type": "string"
-          },
-          "status": {
-            "enum": [
-              "queued",
-              "dispatching",
-              "dispatched",
-              "running",
-              "done",
-              "failed",
-              "cancelled",
-              "system_error"
-            ],
-            "title": "Status",
-            "type": "string"
-          },
-          "summary": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Summary"
-          },
-          "tests": {
-            "anyOf": [
-              {
-                "items": {
-                  "$ref": "#/components/schemas/GradedTest"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Tests"
-          }
-        },
-        "required": [
-          "id",
-          "stage",
-          "attempt",
-          "status",
-          "show",
-          "outcome",
-          "metrics",
-          "summary",
-          "tests",
-          "log"
+      "GradingStatus": {
+        "description": "Where one grading stands. `queued` waits for its run to be started,\nwhich happens as soon as the request that made it commits; `dispatched`\nis held by the CI, waiting for a machine or checking out; `running` has\nhad its envelope fetched by the harness. It ends `done` with a verdict,\n`cancelled` by an organiser, or `system_error`, a grading that failed for\na reason of the platform's, never a grade: its run could not be started,\nor did not report before its deadline.",
+        "enum": [
+          "queued",
+          "dispatched",
+          "running",
+          "done",
+          "cancelled",
+          "system_error"
         ],
-        "title": "GradingResult",
-        "type": "object"
+        "title": "GradingStatus",
+        "type": "string"
       },
       "GrantRequest": {
         "description": "Give the named user `role` at the scope, moving them from any other\nrole they hold directly there.",
         "properties": {
           "role": {
-            "enum": [
-              "admin",
-              "manager",
-              "observer"
-            ],
-            "title": "Role",
-            "type": "string"
+            "$ref": "#/components/schemas/Role"
           },
           "username": {
             "title": "Username",
@@ -1198,82 +999,68 @@
         "title": "Health",
         "type": "object"
       },
-      "Holder": {
-        "description": "Someone holding `role` at the scope asked about. `scope` is where\nthey hold it directly, and `inherited` is set when that is a broader\nscope, such as an org admin listed at one of the org's contests.",
+      "HeldRole": {
+        "description": "A role the user holds, at the org, contest or task `names` reaches.",
         "properties": {
-          "avatar_url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Avatar Url"
-          },
-          "inherited": {
-            "title": "Inherited",
-            "type": "boolean"
-          },
-          "name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Name"
+          "names": {
+            "$ref": "#/components/schemas/ScopeNames"
           },
           "role": {
-            "enum": [
-              "admin",
-              "manager",
-              "observer"
-            ],
-            "title": "Role",
-            "type": "string"
-          },
-          "scope": {
-            "$ref": "#/components/schemas/Scope"
-          },
-          "user_id": {
-            "title": "User Id",
-            "type": "integer"
-          },
-          "username": {
-            "title": "Username",
-            "type": "string"
+            "$ref": "#/components/schemas/Role"
           }
         },
         "required": [
-          "user_id",
-          "username",
-          "name",
-          "avatar_url",
           "role",
-          "scope",
-          "inherited"
+          "names"
+        ],
+        "title": "HeldRole",
+        "type": "object"
+      },
+      "Holder": {
+        "description": "Someone holding `role` at the scope asked about, held directly at\n`at_names`: that scope, or a broader one, such as the org of a contest\nwhose admin is listed at the contest.",
+        "properties": {
+          "at_names": {
+            "$ref": "#/components/schemas/ScopeNames"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          },
+          "user": {
+            "$ref": "#/components/schemas/Person"
+          }
+        },
+        "required": [
+          "user",
+          "role",
+          "at_names"
         ],
         "title": "Holder",
         "type": "object"
       },
+      "InputType": {
+        "description": "The type of one input, the same on the contestant's side and the\nsetter's (TASK-FORMAT.md section 2).",
+        "enum": [
+          "code",
+          "text",
+          "number",
+          "boolean",
+          "file",
+          "file[]",
+          "dataset",
+          "jupyter"
+        ],
+        "title": "InputType",
+        "type": "string"
+      },
       "Limits": {
-        "description": "What a submit is checked against: how many submissions in all, at\nmost `rate_count` in any `rate_seconds`, and how large, in bytes.",
+        "description": "What a submit is checked against: how many submissions in all, how\noften, and how large, in bytes.",
         "properties": {
           "max_size": {
             "title": "Max Size",
             "type": "integer"
           },
-          "rate_count": {
-            "title": "Rate Count",
-            "type": "integer"
-          },
-          "rate_seconds": {
-            "title": "Rate Seconds",
-            "type": "integer"
+          "rate": {
+            "$ref": "#/components/schemas/Rate"
           },
           "submissions": {
             "title": "Submissions",
@@ -1282,8 +1069,7 @@
         },
         "required": [
           "submissions",
-          "rate_count",
-          "rate_seconds",
+          "rate",
           "max_size"
         ],
         "title": "Limits",
@@ -1292,113 +1078,31 @@
       "Me": {
         "description": "The signed-in user and their roles at every scope. `degraded` is set\nwhen the forge did not answer and the identity comes from the session.",
         "properties": {
-          "avatar_url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Avatar Url"
-          },
           "degraded": {
             "title": "Degraded",
             "type": "boolean"
           },
-          "email": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Email"
-          },
-          "name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Name"
-          },
           "roles": {
             "items": {
-              "$ref": "#/components/schemas/Role"
+              "$ref": "#/components/schemas/HeldRole"
             },
             "title": "Roles",
             "type": "array"
           },
-          "user_id": {
-            "title": "User Id",
-            "type": "integer"
-          },
-          "username": {
-            "title": "Username",
-            "type": "string"
+          "user": {
+            "$ref": "#/components/schemas/Account"
           }
         },
         "required": [
-          "user_id",
-          "username",
-          "name",
-          "email",
-          "avatar_url",
+          "user",
           "roles",
           "degraded"
         ],
         "title": "Me",
         "type": "object"
       },
-      "MultipartUploadSlot": {
-        "description": "A slot for a file sent in parts: every part but the last is\n`part_size` bytes, each sent to its own URL, until `expires_at`.",
-        "properties": {
-          "expires_at": {
-            "format": "date-time",
-            "title": "Expires At",
-            "type": "string"
-          },
-          "id": {
-            "format": "uuid",
-            "title": "Id",
-            "type": "string"
-          },
-          "method": {
-            "const": "multipart",
-            "title": "Method",
-            "type": "string"
-          },
-          "part_size": {
-            "title": "Part Size",
-            "type": "integer"
-          },
-          "parts": {
-            "items": {
-              "$ref": "#/components/schemas/UploadPart"
-            },
-            "title": "Parts",
-            "type": "array"
-          }
-        },
-        "required": [
-          "id",
-          "method",
-          "part_size",
-          "parts",
-          "expires_at"
-        ],
-        "title": "MultipartUploadSlot",
-        "type": "object"
-      },
       "MyRegistration": {
-        "description": "The caller's own registration. `reason` is why it was rejected;\n`workspace` is where an approved contestant's workspace stands, `preparing`\nuntil every part of it is made, and null for anyone not approved.",
+        "description": "The caller's own registration: where it stands, when it was made and\nlast decided, why it was rejected, and how long past the contest's end\nthey may still submit, in seconds.",
         "properties": {
           "decided_at": {
             "anyOf": [
@@ -1429,45 +1133,35 @@
             "type": "string"
           },
           "status": {
-            "enum": [
-              "pending",
-              "approved",
-              "rejected",
-              "withdrawn",
-              "removed"
-            ],
-            "title": "Status",
-            "type": "string"
+            "$ref": "#/components/schemas/Status"
           },
-          "time_extension_seconds": {
-            "title": "Time Extension Seconds",
+          "time_extension": {
+            "title": "Time Extension",
             "type": "integer"
-          },
-          "workspace": {
-            "anyOf": [
-              {
-                "enum": [
-                  "preparing",
-                  "ready"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Workspace"
           }
         },
         "required": [
           "status",
-          "reason",
           "registered_at",
           "decided_at",
-          "time_extension_seconds",
-          "workspace"
+          "reason",
+          "time_extension"
         ],
         "title": "MyRegistration",
+        "type": "object"
+      },
+      "Named": {
+        "description": "An org, a contest or a task, by the name people call it.",
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "Named",
         "type": "object"
       },
       "NotReady": {
@@ -1485,44 +1179,47 @@
         "title": "NotReady",
         "type": "object"
       },
-      "PostUploadSlot": {
-        "description": "A slot for a file sent in one request: a form posted to `url` with\n`fields` sent as they are and before the file, which works until\n`expires_at`.",
+      "Person": {
+        "description": "Someone as another person sees them, by their forge id. Their email\nstays out.",
         "properties": {
-          "expires_at": {
-            "format": "date-time",
-            "title": "Expires At",
-            "type": "string"
-          },
-          "fields": {
-            "additionalProperties": {
-              "type": "string"
-            },
-            "title": "Fields",
-            "type": "object"
+          "avatar_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avatar Url"
           },
           "id": {
-            "format": "uuid",
             "title": "Id",
-            "type": "string"
+            "type": "integer"
           },
-          "method": {
-            "const": "post",
-            "title": "Method",
-            "type": "string"
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
           },
-          "url": {
-            "title": "Url",
+          "username": {
+            "title": "Username",
             "type": "string"
           }
         },
         "required": [
           "id",
-          "method",
-          "url",
-          "fields",
-          "expires_at"
+          "username",
+          "name",
+          "avatar_url"
         ],
-        "title": "PostUploadSlot",
+        "title": "Person",
         "type": "object"
       },
       "Problem": {
@@ -1560,118 +1257,8 @@
         "title": "Problem",
         "type": "object"
       },
-      "Provisioning": {
-        "description": "How far making something has got. `steps` are the steps of its kind\nin the order they run, and `last_step` is the last one that completed.\nA failed record names the step it stopped at in `failed_step`, which is\nnone when the work failed outside any step, and says when it is tried\nagain, from where it stopped, in `retry_at`; both are none unless the\nstatus is `failed`. `error` is the reason the last try failed, and\n`attempts` counts the tries.",
-        "properties": {
-          "attempts": {
-            "title": "Attempts",
-            "type": "integer"
-          },
-          "error": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Error"
-          },
-          "failed_step": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Failed Step"
-          },
-          "kind": {
-            "enum": [
-              "org",
-              "contest",
-              "task"
-            ],
-            "title": "Kind",
-            "type": "string"
-          },
-          "last_step": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Last Step"
-          },
-          "ready_at": {
-            "anyOf": [
-              {
-                "format": "date-time",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Ready At"
-          },
-          "retry_at": {
-            "anyOf": [
-              {
-                "format": "date-time",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Retry At"
-          },
-          "status": {
-            "enum": [
-              "pending",
-              "running",
-              "ready",
-              "failed"
-            ],
-            "title": "Status",
-            "type": "string"
-          },
-          "steps": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Steps",
-            "type": "array"
-          },
-          "target": {
-            "title": "Target",
-            "type": "string"
-          }
-        },
-        "required": [
-          "kind",
-          "target",
-          "status",
-          "steps",
-          "last_step",
-          "failed_step",
-          "error",
-          "retry_at",
-          "attempts",
-          "ready_at"
-        ],
-        "title": "Provisioning",
-        "type": "object"
-      },
       "PublicContest": {
-        "description": "A public contest by its org and name, with its title, what it says of\nitself and when it runs. `tasks` are its released tasks, and empty in the\nlist of contests.",
+        "description": "A public contest `where` it is, by the names of its org and itself,\nwith its title as `name`, what it says of itself and when it runs.\n`tasks` are its released tasks, and empty in the list of contests.",
         "properties": {
           "description": {
             "title": "Description",
@@ -1686,10 +1273,6 @@
             "title": "Name",
             "type": "string"
           },
-          "org": {
-            "title": "Org",
-            "type": "string"
-          },
           "start": {
             "format": "date-time",
             "title": "Start",
@@ -1702,15 +1285,13 @@
             "title": "Tasks",
             "type": "array"
           },
-          "title": {
-            "title": "Title",
-            "type": "string"
+          "where": {
+            "$ref": "#/components/schemas/ContestNames"
           }
         },
         "required": [
-          "org",
+          "where",
           "name",
-          "title",
           "description",
           "start",
           "end",
@@ -1762,7 +1343,7 @@
         "type": "object"
       },
       "Publication": {
-        "description": "One publication: its number among the task's publications, the version\nit froze, whether it changed how the task grades and what, and when.",
+        "description": "One publication: its number among the task's publications, the version\nit froze, whether it changed how the task grades and what, and when.\nWhich workflow each of its workflow names was at the forge stays out.",
         "properties": {
           "at": {
             "format": "date-time",
@@ -1780,10 +1361,6 @@
             "title": "Grading Changed",
             "type": "boolean"
           },
-          "id": {
-            "title": "Id",
-            "type": "string"
-          },
           "number": {
             "title": "Number",
             "type": "integer"
@@ -1794,7 +1371,6 @@
           }
         },
         "required": [
-          "id",
           "number",
           "version",
           "grading_changed",
@@ -1804,18 +1380,9 @@
         "title": "Publication",
         "type": "object"
       },
-      "PublishedSave": {
-        "description": "A save that published. `activation` says where the task's activation\nat the CI stands: `done` by this save, `pending` with the poller, or\n`not_needed` because an earlier publication did it.",
+      "Published": {
+        "description": "A save that published: the new publication's number among the task's,\nwhether it changed how the task grades, and what.",
         "properties": {
-          "activation": {
-            "enum": [
-              "done",
-              "pending",
-              "not_needed"
-            ],
-            "title": "Activation",
-            "type": "string"
-          },
           "changes": {
             "items": {
               "type": "string"
@@ -1830,26 +1397,33 @@
           "number": {
             "title": "Number",
             "type": "integer"
-          },
-          "outcome": {
-            "const": "published",
-            "title": "Outcome",
-            "type": "string"
-          },
-          "publication": {
-            "title": "Publication",
-            "type": "string"
           }
         },
         "required": [
-          "outcome",
-          "publication",
           "number",
           "grading_changed",
-          "changes",
-          "activation"
+          "changes"
         ],
-        "title": "PublishedSave",
+        "title": "Published",
+        "type": "object"
+      },
+      "Rate": {
+        "description": "At most `count` submissions in any `per` seconds.",
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "per": {
+            "title": "Per",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "count",
+          "per"
+        ],
+        "title": "Rate",
         "type": "object"
       },
       "Ready": {
@@ -1918,7 +1492,7 @@
         "title": "RejectRequest",
         "type": "object"
       },
-      "Rejudge": {
+      "Rejudged": {
         "description": "What a rejudge did: the publication the new attempts grade against,\nhow many it queued, how many unfinished attempts against an older\npublication it cancelled first, how many it left to finish against the\ncurrent one, and how many it passed over because the current\npublication no longer has their stage.",
         "properties": {
           "cancelled": {
@@ -1935,7 +1509,7 @@
           },
           "publication": {
             "title": "Publication",
-            "type": "string"
+            "type": "integer"
           },
           "queued": {
             "title": "Queued",
@@ -1949,25 +1523,121 @@
           "left_running",
           "passed_over"
         ],
-        "title": "Rejudge",
+        "title": "Rejudged",
         "type": "object"
       },
-      "Role": {
+      "Result": {
+        "description": "One grading of a submission at one stage, as its contestant sees it:\nits id, stage, attempt and status, the stage's `show`, and of its\nverdict what that allows: the `outcome`, the named `metrics`, the\n`summary` and a row for every test. `log` says whether its run log can\nbe read.",
         "properties": {
-          "role": {
-            "title": "Role",
+          "attempt": {
+            "title": "Attempt",
+            "type": "integer"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
             "type": "string"
           },
-          "scope": {
-            "$ref": "#/components/schemas/Scope"
+          "log": {
+            "title": "Log",
+            "type": "boolean"
+          },
+          "metrics": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metrics"
+          },
+          "outcome": {
+            "anyOf": [
+              {
+                "enum": [
+                  "accepted",
+                  "partial",
+                  "wrong_answer",
+                  "time_limit",
+                  "memory_limit",
+                  "output_limit",
+                  "runtime_error",
+                  "compile_error",
+                  "skipped",
+                  "system_error"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outcome"
+          },
+          "show": {
+            "$ref": "#/components/schemas/Show"
+          },
+          "stage": {
+            "title": "Stage",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/GradingStatus"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          },
+          "tests": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/GradedTest"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tests"
           }
         },
         "required": [
-          "scope",
-          "role"
+          "id",
+          "stage",
+          "attempt",
+          "status",
+          "show",
+          "outcome",
+          "metrics",
+          "summary",
+          "tests",
+          "log"
+        ],
+        "title": "Result",
+        "type": "object"
+      },
+      "Role": {
+        "enum": [
+          "admin",
+          "manager",
+          "observer"
         ],
         "title": "Role",
-        "type": "object"
+        "type": "string"
       },
       "RollbackFile": {
         "description": "Write the file as it was at `version` back as a new change, `token`\nbeing the one of the file as it is now.",
@@ -2052,7 +1722,8 @@
         "title": "SaveRequest",
         "type": "object"
       },
-      "Scope": {
+      "ScopeNames": {
+        "description": "The names of the org, the contest and the task a scope reaches, as far\ndown as it does, in the shape of an address: `acme`, `acme/spring`,\n`acme/spring/sum`.",
         "properties": {
           "contest": {
             "anyOf": [
@@ -2064,10 +1735,6 @@
               }
             ],
             "title": "Contest"
-          },
-          "kind": {
-            "title": "Kind",
-            "type": "string"
           },
           "org": {
             "title": "Org",
@@ -2086,12 +1753,11 @@
           }
         },
         "required": [
-          "kind",
           "org",
           "contest",
           "task"
         ],
-        "title": "Scope",
+        "title": "ScopeNames",
         "type": "object"
       },
       "ServerTime": {
@@ -2121,6 +1787,7 @@
             "type": "boolean"
           },
           "id": {
+            "format": "uuid",
             "title": "Id",
             "type": "string"
           },
@@ -2151,12 +1818,80 @@
         "title": "SessionInfo",
         "type": "object"
       },
+      "Show": {
+        "description": "What a contestant sees of a stage's result.",
+        "enum": [
+          "full",
+          "metrics",
+          "hidden"
+        ],
+        "title": "Show",
+        "type": "string"
+      },
+      "Slot": {
+        "description": "A slot for one file: where to send it, and when the slot stops being\ngood. `ready` is true for a file the forge already holds, which is sent\nagain by sending nothing.",
+        "properties": {
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "ready": {
+            "title": "Ready",
+            "type": "boolean"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          }
+        },
+        "required": [
+          "id",
+          "url",
+          "expires_at",
+          "ready"
+        ],
+        "title": "Slot",
+        "type": "object"
+      },
+      "State": {
+        "enum": [
+          "draft",
+          "published",
+          "archived"
+        ],
+        "title": "State",
+        "type": "string"
+      },
+      "Status": {
+        "enum": [
+          "pending",
+          "approved",
+          "rejected",
+          "withdrawn",
+          "removed"
+        ],
+        "title": "Status",
+        "type": "string"
+      },
       "Submission": {
         "description": "One of the caller's submissions of the task: its number among them,\nwhen it was taken, and its grading at each stage in the order the task\nlists its stages.",
         "properties": {
           "gradings": {
             "items": {
-              "$ref": "#/components/schemas/GradingResult"
+              "$ref": "#/components/schemas/Result"
             },
             "title": "Gradings",
             "type": "array"
@@ -2180,7 +1915,7 @@
         "type": "object"
       },
       "SubmitRequest": {
-        "description": "A submit: `idempotency_key` is 8 to 128 letters, digits, `-` and `_`,\nmade once by the browser for this submit, so sending it again answers\nwith the submission it made and makes nothing. `inputs` is keyed by the\nid of each of the task's contestant inputs.",
+        "description": "A submit: `idempotency_key` is 8 to 128 letters, digits, `-` and `_`,\nmade once by the browser for this submit, so sending it again answers\nwith the submission it made and makes nothing. `inputs` is keyed by the\nid of each of the task's contestant inputs, and forge checks them\nagainst the task's inputs.",
         "properties": {
           "idempotency_key": {
             "title": "Idempotency Key",
@@ -2202,7 +1937,7 @@
         "type": "object"
       },
       "SubmittedFileInput": {
-        "description": "What one input of a submission was: the paths of its files in the\nsubmission, each readable at the file route, and the language of a code\ninput; or the value given.",
+        "description": "What one input of a submission was: the paths of its files in the\nsubmission, each readable at the file route, and the language of a code\ninput; or the value given. It is read leniently from the submission's\n`submission.json`: a member of the wrong type is left out rather than\nfailing the answer.",
         "properties": {
           "files": {
             "items": {
@@ -2274,7 +2009,7 @@
         "type": "object"
       },
       "SubmittedInput": {
-        "description": "What is given for one input: the uploads of its files, and for a code\ninput the language chosen; or, for a text, number or true-or-false input,\nits `value`. Forge checks it against the task's inputs.",
+        "description": "What a contestant gives for one input: the uploads of its files, and\nfor a code input the language chosen; or, for a text, number or\ntrue-or-false input, its value.",
         "properties": {
           "language": {
             "anyOf": [
@@ -2318,19 +2053,6 @@
           }
         },
         "title": "SubmittedInput",
-        "type": "object"
-      },
-      "Task": {
-        "properties": {
-          "name": {
-            "title": "Name",
-            "type": "string"
-          }
-        },
-        "required": [
-          "name"
-        ],
-        "title": "Task",
         "type": "object"
       },
       "TaskEntry": {
@@ -2431,24 +2153,17 @@
         "type": "object"
       },
       "TaskRelease": {
-        "description": "Whether the caller sees the task and may submit to it now, by the\nserver's clock: `released` once the contest is published and started,\nthe task's `release_at` has passed and it is not hidden; `visible` from\nthen until the contest is archived; `open` while visible, before the\ncontest's end plus the caller's own extension, with submissions not\nclosed. `closed` is the first reason it is not open.",
+        "description": "Whether the task is released, visible and open to one person now, and\nwhen it is not open, the first reason why.",
         "properties": {
           "closed": {
             "anyOf": [
               {
-                "enum": [
-                  "not_released",
-                  "archived",
-                  "ended",
-                  "submissions_closed"
-                ],
-                "type": "string"
+                "$ref": "#/components/schemas/Closed"
               },
               {
                 "type": "null"
               }
-            ],
-            "title": "Closed"
+            ]
           },
           "open": {
             "title": "Open",
@@ -2511,15 +2226,9 @@
         "type": "object"
       },
       "TreeEntry": {
-        "description": "A file or a folder directly under the folder asked about.",
         "properties": {
           "kind": {
-            "enum": [
-              "file",
-              "directory"
-            ],
-            "title": "Kind",
-            "type": "string"
+            "$ref": "#/components/schemas/EntryKind"
           },
           "path": {
             "title": "Path",
@@ -2572,7 +2281,7 @@
         "type": "object"
       },
       "Upload": {
-        "description": "Where one upload stands: the input it is for, its name and content\ntype, the size declared and, once measured, the size and SHA-256 in hex\nof what arrived. `verified` is an upload a submit may name; `rejected`\nis one whose size is not the one declared, which never is.",
+        "description": "Where one upload stands: the input it is for, its name and content\ntype, the size and digest declared for it, and its status. `verified` is\nan upload a submit may name.",
         "properties": {
           "content_type": {
             "anyOf": [
@@ -2584,10 +2293,6 @@
               }
             ],
             "title": "Content Type"
-          },
-          "declared_size": {
-            "title": "Declared Size",
-            "type": "integer"
           },
           "filename": {
             "title": "Filename",
@@ -2603,37 +2308,15 @@
             "type": "string"
           },
           "sha256": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Sha256"
+            "title": "Sha256",
+            "type": "string"
           },
           "size": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Size"
+            "title": "Size",
+            "type": "integer"
           },
           "status": {
-            "enum": [
-              "presigned",
-              "verified",
-              "rejected",
-              "consumed",
-              "expired"
-            ],
-            "title": "Status",
-            "type": "string"
+            "$ref": "#/components/schemas/UploadStatus"
           }
         },
         "required": [
@@ -2641,7 +2324,6 @@
           "input",
           "filename",
           "content_type",
-          "declared_size",
           "size",
           "sha256",
           "status"
@@ -2649,27 +2331,8 @@
         "title": "Upload",
         "type": "object"
       },
-      "UploadPart": {
-        "description": "One part of a file sent in parts: its number, from 1, and the URL it\nis sent to with a PUT, which takes exactly its share of the file.",
-        "properties": {
-          "number": {
-            "title": "Number",
-            "type": "integer"
-          },
-          "url": {
-            "title": "Url",
-            "type": "string"
-          }
-        },
-        "required": [
-          "number",
-          "url"
-        ],
-        "title": "UploadPart",
-        "type": "object"
-      },
       "UploadRequest": {
-        "description": "One file to upload for the task's contestant input `input`: its name,\nthe name it is committed under, its size in bytes and, when the browser\nknows it, its content type.",
+        "description": "One file to upload for the task's contestant input `input`: the name\nit is committed under, its size in bytes, the SHA-256 of its content in\nlowercase hex and, when the browser knows it, its content type.\n\nThe digest is what the forge checks the bytes against as they arrive, so\na file that changed between being read and being sent is refused there\nrather than committed.",
         "properties": {
           "content_type": {
             "anyOf": [
@@ -2690,6 +2353,10 @@
             "title": "Input",
             "type": "string"
           },
+          "sha256": {
+            "title": "Sha256",
+            "type": "string"
+          },
           "size": {
             "title": "Size",
             "type": "integer"
@@ -2698,9 +2365,86 @@
         "required": [
           "input",
           "filename",
-          "size"
+          "size",
+          "sha256"
         ],
         "title": "UploadRequest",
+        "type": "object"
+      },
+      "UploadStatus": {
+        "description": "Where an upload stands: `waiting` until the forge holds its bytes,\n`verified` once the forge says it does, and `consumed` once a commit\nholds the pointer to it.",
+        "enum": [
+          "waiting",
+          "verified",
+          "consumed"
+        ],
+        "title": "UploadStatus",
+        "type": "string"
+      },
+      "Verdict": {
+        "description": "What a run's verdict says of the submission: its outcome, its named\nnumbers, its summary and a row for every test. Where the run put its log\nand the forge's names for what it graded stay out.",
+        "properties": {
+          "metrics": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Metrics",
+            "type": "object"
+          },
+          "outcome": {
+            "enum": [
+              "accepted",
+              "partial",
+              "wrong_answer",
+              "time_limit",
+              "memory_limit",
+              "output_limit",
+              "runtime_error",
+              "compile_error",
+              "skipped",
+              "system_error"
+            ],
+            "title": "Outcome",
+            "type": "string"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          },
+          "tests": {
+            "items": {
+              "$ref": "#/components/schemas/GradedTest"
+            },
+            "title": "Tests",
+            "type": "array"
+          }
+        },
+        "required": [
+          "outcome",
+          "metrics",
+          "summary",
+          "tests"
+        ],
+        "title": "Verdict",
+        "type": "object"
+      },
+      "Workflow": {
+        "description": "A workflow, by its owner and its name.",
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "owner": {
+            "title": "Owner",
+            "type": "string"
+          }
+        },
+        "required": [
+          "owner",
+          "name"
+        ],
+        "title": "Workflow",
         "type": "object"
       },
       "WriteFile": {
@@ -2840,6 +2584,38 @@
           }
         },
         "summary": "Land back from the forge",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/forge-url": {
+      "get": {
+        "description": "The account lives at the forge, so the app links there for the\npassword, the email and two-factor, and signs the browser out there too.\nServed here rather than built into the app, so one image fits every\ndeployment.",
+        "operationId": "getForgeUrl",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForgeUrl"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Where a browser reaches the forge's own pages",
         "tags": [
           "auth"
         ]
@@ -3339,7 +3115,7 @@
     },
     "/api/v1/orgs": {
       "post": {
-        "description": "The caller becomes the org's first admin once it is ready.",
+        "description": "The caller becomes the org's first admin.",
         "operationId": "createOrg",
         "requestBody": {
           "content": {
@@ -3352,11 +3128,11 @@
           "required": true
         },
         "responses": {
-          "202": {
+          "201": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Provisioning"
+                  "$ref": "#/components/schemas/Named"
                 }
               }
             },
@@ -3373,7 +3149,7 @@
             "description": "An error, as an RFC 9457 problem document. `code` names it."
           }
         },
-        "summary": "Ask for an org to be made",
+        "summary": "Make an org",
         "tags": [
           "orgs"
         ]
@@ -3445,7 +3221,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "$ref": "#/components/schemas/Contest"
+                    "$ref": "#/components/schemas/Named"
                   },
                   "title": "Response Listcontests",
                   "type": "array"
@@ -3494,11 +3270,11 @@
           "required": true
         },
         "responses": {
-          "202": {
+          "201": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Provisioning"
+                  "$ref": "#/components/schemas/Named"
                 }
               }
             },
@@ -3515,7 +3291,7 @@
             "description": "An error, as an RFC 9457 problem document. `code` names it."
           }
         },
-        "summary": "Ask for a contest to be made in the org",
+        "summary": "Make a contest in the org",
         "tags": [
           "contests"
         ]
@@ -4243,58 +4019,6 @@
         ]
       }
     },
-    "/api/v1/orgs/{org}/contests/{contest}/provisioning": {
-      "get": {
-        "description": "Not found when nothing has asked for the contest.",
-        "operationId": "getContestProvisioning",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "contest",
-            "required": true,
-            "schema": {
-              "title": "Contest",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "org",
-            "required": true,
-            "schema": {
-              "title": "Org",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Provisioning"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "default": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "An error, as an RFC 9457 problem document. `code` names it."
-          }
-        },
-        "summary": "How far making the contest has got",
-        "tags": [
-          "contests"
-        ]
-      }
-    },
     "/api/v1/orgs/{org}/contests/{contest}/registration": {
       "get": {
         "description": "Null when the caller has not registered.",
@@ -4608,7 +4332,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "$ref": "#/components/schemas/Task"
+                    "$ref": "#/components/schemas/Named"
                   },
                   "title": "Response Listtasks",
                   "type": "array"
@@ -4667,11 +4391,11 @@
           "required": true
         },
         "responses": {
-          "202": {
+          "201": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Provisioning"
+                  "$ref": "#/components/schemas/Named"
                 }
               }
             },
@@ -4688,7 +4412,7 @@
             "description": "An error, as an RFC 9457 problem document. `code` names it."
           }
         },
-        "summary": "Ask for a task to be made in the contest",
+        "summary": "Make a task in the contest",
         "tags": [
           "tasks"
         ]
@@ -4896,19 +4620,12 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "discriminator": {
-                    "mapping": {
-                      "draft": "#/components/schemas/DraftSave",
-                      "published": "#/components/schemas/PublishedSave"
-                    },
-                    "propertyName": "outcome"
-                  },
-                  "oneOf": [
+                  "anyOf": [
                     {
-                      "$ref": "#/components/schemas/PublishedSave"
+                      "$ref": "#/components/schemas/Published"
                     },
                     {
-                      "$ref": "#/components/schemas/DraftSave"
+                      "$ref": "#/components/schemas/Draft"
                     }
                   ],
                   "title": "Response Writetaskfile"
@@ -4990,19 +4707,12 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "discriminator": {
-                    "mapping": {
-                      "draft": "#/components/schemas/DraftSave",
-                      "published": "#/components/schemas/PublishedSave"
-                    },
-                    "propertyName": "outcome"
-                  },
-                  "oneOf": [
+                  "anyOf": [
                     {
-                      "$ref": "#/components/schemas/PublishedSave"
+                      "$ref": "#/components/schemas/Published"
                     },
                     {
-                      "$ref": "#/components/schemas/DraftSave"
+                      "$ref": "#/components/schemas/Draft"
                     }
                   ],
                   "title": "Response Rollbacktaskfile"
@@ -5313,67 +5023,6 @@
         ]
       }
     },
-    "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/provisioning": {
-      "get": {
-        "description": "Not found when nothing has asked for the task.",
-        "operationId": "getTaskProvisioning",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "task",
-            "required": true,
-            "schema": {
-              "title": "Task",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "org",
-            "required": true,
-            "schema": {
-              "title": "Org",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "contest",
-            "required": true,
-            "schema": {
-              "title": "Contest",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Provisioning"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "default": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "An error, as an RFC 9457 problem document. `code` names it."
-          }
-        },
-        "summary": "How far making the task has got",
-        "tags": [
-          "tasks"
-        ]
-      }
-    },
     "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/publications": {
       "get": {
         "operationId": "listTaskPublications",
@@ -5476,7 +5125,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Rejudge"
+                  "$ref": "#/components/schemas/Rejudged"
                 }
               }
             },
@@ -5797,19 +5446,12 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "discriminator": {
-                    "mapping": {
-                      "draft": "#/components/schemas/DraftSave",
-                      "published": "#/components/schemas/PublishedSave"
-                    },
-                    "propertyName": "outcome"
-                  },
-                  "oneOf": [
+                  "anyOf": [
                     {
-                      "$ref": "#/components/schemas/PublishedSave"
+                      "$ref": "#/components/schemas/Published"
                     },
                     {
-                      "$ref": "#/components/schemas/DraftSave"
+                      "$ref": "#/components/schemas/Draft"
                     }
                   ],
                   "title": "Response Savetask"
@@ -6370,7 +6012,7 @@
     },
     "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/uploads": {
       "post": {
-        "description": "A form for one request, or for a file larger than forge takes in one\nrequest a URL for each part. A file the input does not take is `invalid_inputs` and one over\nthe input's or the task's size `too_large`, naming the limit.",
+        "description": "The address to send the file to, or `ready` for a file the forge\nalready holds, which needs no upload at all. A file the input does not\ntake is `invalid_inputs` and one over the input's or the task's size\n`too_large`, naming the limit.",
         "operationId": "requestUploadSlot",
         "parameters": [
           {
@@ -6416,22 +6058,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "discriminator": {
-                    "mapping": {
-                      "multipart": "#/components/schemas/MultipartUploadSlot",
-                      "post": "#/components/schemas/PostUploadSlot"
-                    },
-                    "propertyName": "method"
-                  },
-                  "oneOf": [
-                    {
-                      "$ref": "#/components/schemas/PostUploadSlot"
-                    },
-                    {
-                      "$ref": "#/components/schemas/MultipartUploadSlot"
-                    }
-                  ],
-                  "title": "Response Requestuploadslot"
+                  "$ref": "#/components/schemas/Slot"
                 }
               }
             },
@@ -6456,7 +6083,7 @@
     },
     "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/uploads/{upload}/complete": {
       "post": {
-        "description": "Forge measures what arrived: `verified` when it is the size declared,\n`rejected` when it is not. A file sent in parts names every part with\nthe `ETag` the store answered it with. Asked again, it answers the same.",
+        "description": "Forge asks the forge whether the place holds the object: `verified`\nwhen it does, `upload_not_ready` when it does not. The forge keeps\nnothing that is not what its address named, so an upload either arrived\nas declared or did not arrive. Asked again, it answers the same.",
         "operationId": "completeUpload",
         "parameters": [
           {
@@ -6497,23 +6124,6 @@
             }
           }
         ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "anyOf": [
-                  {
-                    "$ref": "#/components/schemas/CompleteUploadRequest"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ],
-                "title": "Body"
-              }
-            }
-          }
-        },
         "responses": {
           "200": {
             "content": {
@@ -6606,49 +6216,6 @@
         "summary": "A folder's entries",
         "tags": [
           "files"
-        ]
-      }
-    },
-    "/api/v1/orgs/{org}/provisioning": {
-      "get": {
-        "description": "Not found when nothing was asked for under that name, or someone else\nasked for it.",
-        "operationId": "getOrgProvisioning",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "org",
-            "required": true,
-            "schema": {
-              "title": "Org",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Provisioning"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "default": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "An error, as an RFC 9457 problem document. `code` names it."
-          }
-        },
-        "summary": "How far making the org has got",
-        "tags": [
-          "orgs"
         ]
       }
     },
@@ -6963,6 +6530,48 @@
         "summary": "Server time in UTC",
         "tags": [
           "time"
+        ]
+      }
+    },
+    "/api/v1/workflows": {
+      "post": {
+        "description": "Under the caller's own username, or an org where they hold the manager\nrole or above, with its first commit written as the caller.",
+        "operationId": "createWorkflow",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateWorkflow"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Workflow"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Make a workflow",
+        "tags": [
+          "workflows"
         ]
       }
     },

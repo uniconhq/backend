@@ -1,6 +1,6 @@
 """The operator's two commands, run as `unicon ...` over the fake: an org
 made whatever the setting says, with its named admin able to administer it,
-an org that stops halfway reported with a non-zero exit, a description
+an org that fails halfway refused with its reason, a description
 longer than the forge takes refused before forge is called, and an account
 whose first password is printed once and which then signs in.
 """
@@ -23,7 +23,7 @@ async def test_create_org_makes_a_ready_org_its_admin_can_administer(
     code = await unicon(["create-org", "acme", "--admin", "bob", "--description", "Acme"])
 
     assert code == 0
-    assert capsys.readouterr().out == ("Org acme: ready, last step ci_login.\nbob is its admin.\n")
+    assert capsys.readouterr().out == "Org acme made, with bob its admin.\n"
     org = forge.state.orgs["acme"]
     assert (org.description, org.labels != set(), org.event_push is not None) == (
         "Acme",
@@ -47,7 +47,7 @@ async def test_create_org_names_an_admin_the_forge_does_not_know(
     assert "acme" not in forge.state.orgs
 
 
-async def test_create_org_that_stops_halfway_says_where_and_fails(
+async def test_create_org_that_fails_halfway_is_refused_with_its_reason(
     unicon: Command,
     forge: FakeForge,
     capsys: pytest.CaptureFixture[str],
@@ -60,10 +60,10 @@ async def test_create_org_that_stops_halfway_says_where_and_fails(
 
     code = await unicon(["create-org", "acme", "--admin", "ada"])
 
-    assert code == 2
-    out = capsys.readouterr().out
-    assert out.startswith("Org acme: failed, last step service_token.\n")
-    assert "It stopped at ci_user: the forge or the CI did not answer." in out
+    assert code == 1
+    assert capsys.readouterr().err == (
+        "The forge or the CI did not answer; try again in a moment.\n"
+    )
 
 
 async def test_create_account_prints_the_first_password_once_and_the_account_signs_in(
@@ -86,7 +86,7 @@ async def test_create_account_prints_the_first_password_once_and_the_account_sig
 
     await sign_in_as(client, forge, user.id)
     me = await client.get("/api/v1/me")
-    assert (me.json()["username"], me.json()["roles"]) == ("carol", [])
+    assert (me.json()["user"]["username"], me.json()["roles"]) == ("carol", [])
 
 
 async def test_create_account_refuses_a_service_account_name(

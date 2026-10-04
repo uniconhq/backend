@@ -18,15 +18,16 @@ is run from the repository root.
 
 ```sh
 uv sync                       # create .venv from uv.lock
-cp .env.example .env          # then fill it in, or take deploy/.env
+cp .env.example .env          # then fill it in
 set -a; . ./.env; set +a
 uv run unicon-forge migrate   # the forge package's command, installed with it
 uv run unicon api             # http://localhost:8000
 ```
 
-`GET /openapi.json` is the document the frontend generates from; the Swagger
-and ReDoc pages are off, since an API browser is not part of what a
-deployment exposes. `GET /healthz` says the process is up. `GET /readyz` says the database
+`GET /openapi.json` is the document the frontend generates from, served on
+the backend's own port only: the proxy answers it 404, and the frontend reads
+the copy committed here. The Swagger and ReDoc pages are off, since an API
+browser is not part of what a deployment exposes. `GET /healthz` says the process is up. `GET /readyz` says the database
 answered. `GET /api/v1/time` is the server clock, the only clock the frontend
 trusts. With `UNICON_FORGE=fake` the whole shell runs against the in-memory
 forge, with no git host at all.
@@ -37,19 +38,19 @@ package installs `unicon-forge`, and `unicon-forge migrate` reads
 from this image before the API starts.
 
 The real configuration comes from the compose stack in `deploy`, whose
-bootstrap writes a `.env` with every `UNICON_*` variable. Every one of them is
-read by forge, `UNICON_SESSION_SIGNING_KEY` and `UNICON_COOKIE_SECURE`
-included; this shell reads none. `unicon api` calls `forge.api.log.setup()`
-first, before the server starts, so every line is JSON, and the app's
+bootstrap writes a `.env` with the secrets and the operator's choices, and
+whose `compose.yaml` hands this image its `UNICON_*` variables, the database
+URL and the other services' addresses written there. Every one of them is
+read by forge, `UNICON_SESSION_SIGNING_KEY` included; this shell reads none.
+`unicon api` calls `forge.api.log.setup()` first, before the server starts, so every line is JSON, and the app's
 lifespan calls `forge.api.start(callback_path="/api/v1/auth/callback")`,
 giving forge the one thing it cannot know, this shell's callback route. A
 missing or malformed variable stops the process at start with the variable
 named. `unicon openapi` builds the app without starting forge, so it reads no
 setting; the Origin check asks forge for the public URL on the first request
-it checks. Two hostnames in that file are the stack's:
-`postgres` in `UNICON_DATABASE_URL` and `forgejo` in
-`UNICON_FORGE_INTERNAL_URL`; from a laptop shell substitute the published
-addresses.
+it checks. Two hostnames there are the stack's: `postgres` in
+`UNICON_DATABASE_URL` and `forgejo` in `UNICON_FORGE_INTERNAL_URL`; from a
+laptop shell use addresses it reaches, as `.env.example` does.
 
 ## Sign-in and sessions
 
@@ -61,9 +62,12 @@ already had to `sign_in.complete`, which creates the new session and ends the
 old one in one transaction; the route sets the `unicon_session` cookie and
 lands on the `next` path forge validated when the sign-in started. A callback with no sign-in cookie, or a state that does
 not match, lands on `/login` with the error's code in the query.
-`POST /api/v1/auth/logout` ends this session and clears its cookie, and
+`POST /api/v1/auth/logout` ends this session and clears its cookie,
 `GET /api/v1/auth/register-url` answers where to make an account at the
-forge, or null when sign-up there is closed.
+forge, or null when forge's `UNICON_FORGE_REGISTRATION_OPEN` says sign-up
+there is closed, and `GET /api/v1/auth/forge-url` answers where a browser
+reaches the forge's own pages, where the account's password, email and
+two-factor are changed. Neither of the last two needs a session.
 
 What goes into the two cookies is forge's: `forge.api.cookies` makes the
 signed value and reads it back, and the signing key never leaves the package.
@@ -84,12 +88,27 @@ the CI's configuration extension at forge's `CI_CONFIG_PATH`, under the
 CI's signature; and a grading run's callback at `CALLBACK_PATH` with one
 grading's id, under the run's token.
 
-`GET /api/v1/me` returns the caller's identity and their roles at every scope.
+`GET /api/v1/me` returns the caller's identity as `user` and their `roles`
+at every scope, each with the `names` of where it is held.
 The session list (`GET /api/v1/me/sessions`), revoke
 (`DELETE /api/v1/me/sessions/{session_id}`), sign-out-everywhere
 (`DELETE /api/v1/me/sessions`), deactivate (`POST /api/v1/me/deactivate`)
 and delete (`DELETE /api/v1/me`) routes each call the matching forge action
 and return its refusal unchanged.
+
+A route returns the record its forge action gives and names the model it
+answers with as its `response_model`, and FastAPI reads each field off the
+record by name and sends only the fields that model lists. Where everything
+a forge record holds may go to the browser, the forge's own type is the
+model, as for a task's release, a folder's entries, the history and a
+published save. Everywhere else a model in `unicon/schemas` lists the fields
+that go out, which leaves behind the keys the forge's ids are built from,
+another person's email, the address a session came from, the forge's ids
+for a publication's workflows, and where a run put its log. Field names are
+the forge's: a contest is `where` it is, by its `org` and `contest` names,
+and its `name` is its title. An answer is sent whole, so
+`unicon/api/openapi.py` marks every field of an answer's schema required in
+the document, a field with a default included.
 
 An action is one unit of work, and a route calls one per request. The action
 opens its own transaction, commits before it returns and rolls back when it
@@ -105,14 +124,20 @@ answer.
 ## Organisers
 
 A scope has one URL shape: `/api/v1/orgs/{org}`, then
-`/contests/{contest}`, then `/tasks/{task}`. Every organiser route is behind
-one dependency, `require(role, at)` in `unicon/api/guard.py`: it reads the
-session, builds the scope from the path parameters of the `at` prefix, and
-calls `access.organiser` once, which reads the caller's roles, counts a role
-held at a broader scope and a higher role, and either refuses with
-`forbidden` or returns the `Organiser` the route hands to its action. The
-action takes that value and reads no roles itself, so a request reads them
-once. No route checks a role any other way.
+`/contests/{contest}`, then `/tasks/{task}`. The names in it are labels:
+forge files every org, contest and task under a key that never changes, and
+turns the names into those keys. Every organiser route is behind one
+dependency, `require(role, at)` in `unicon/api/guard.py`: it reads the
+session and the path parameters of the `at` prefix and calls
+`access.organiser_at` once, which finds the scope by those names, reads the
+caller's roles, counts a role held at a broader scope and a higher role, and
+either refuses with `forbidden` or returns the `Organiser` the route hands
+to its action. A name in the path that is not there is `forbidden` too,
+unless the caller holds the role above it, when it is `not_found`, so no
+route tells anyone else which contests or tasks exist. The action takes that
+value and reads no roles itself, so a request reads them once. No route
+checks a role any other way. Every answer that shows a name takes it from
+the record forge returns, never from an id.
 
 Below, `<org>`, `<contest>` and `<task>` stand for the three prefixes,
 `<scope>` for any of them and `<place>` for a contest or a task. The role is
@@ -120,15 +145,12 @@ the one the route needs at the scope in the third column.
 
 | Route | Needs | At | Body | Answer |
 |---|---|---|---|---|
-| `POST /api/v1/orgs` | a session | | `name`, `description` | 202, the provisioning record |
-| `GET <org>/provisioning` | the person who asked | | | the record, or 404 |
+| `POST /api/v1/orgs` | a session | | `name`, `description` | 201, the org's `name` |
 | `PATCH <org>` | admin | org | `description`, `display_name` | 204 |
-| `POST <org>/contests` | manager | org | `name`, `title` | 202, the provisioning record |
+| `POST <org>/contests` | manager | org | `name`, `title` | 201, the contest's `name` |
 | `GET <org>/contests` | observer | org | | the contests by name |
-| `GET <contest>/provisioning` | observer | org | | the record, or 404 |
-| `POST <contest>/tasks` | manager | contest | `name`, `title` | 202, the provisioning record |
+| `POST <contest>/tasks` | manager | contest | `name`, `title` | 201, the task's `name` |
 | `GET <contest>/tasks` | observer | contest | | the tasks by name |
-| `GET <task>/provisioning` | observer | contest | | the record, or 404 |
 | `GET <task>` | observer | task | | the task's state |
 | `GET <task>/publications` | observer | task | | the publications, oldest first |
 | `GET <task>/release` | a session | | | whether the caller sees the task and may submit to it now, or 404 when the contest is hidden from them |
@@ -151,30 +173,21 @@ the one the route needs at the scope in the third column.
 | `POST <task>/gradings/{grading}/retry` | manager | task | | the new attempt, `queued` |
 | `POST <task>/rejudge` | manager | task | | what the rejudge did |
 
-Creating an org answers at once with its `provisioning` record, and
-forge's poller makes the org in the background; the status route follows
-it to `ready` or to `failed`. The record is everything a follower needs:
-`kind` (`org`, `contest` or `task`), `target`, `status`, `steps`, the steps
-of its kind in the order they run, `last_step`, the last one completed,
-`failed_step`, the step a failed record stopped at, `error`, the reason,
-`retry_at`, when a failed record is next tried, `attempts` and `ready_at`.
-`failed_step` and `retry_at` are null unless the status is `failed`, and
-`failed_step` is null too when the work failed outside any step. An org's
-description is at most 255 characters, the most the forge takes, on both
-the create and the change. The person who asked
-becomes the org's admin. Whether anyone signed in may ask is forge's
+Creating an org, a contest or a task makes the whole thing at the forge
+and the CI before the route answers, and the answer is the new thing's
+`name`. A step that fails is refused with its reason, and asking again is
+safe. An org's description is at most 255 characters, the most the forge
+takes, on both the create and the change. The person who asked becomes the
+org's admin. Whether anyone signed in may ask is forge's
 `UNICON_ORG_CREATION_OPEN`; with it off the route answers `forbidden`.
-
-A contest's and a task's provisioning is followed at the scope above it,
-since the thing being made holds no roles until it is there. Making a
-contest needs the org to be there, and a task needs its contest.
+Making a contest needs the org to be there, and a task needs its contest.
 
 The role routes are served under each of the three scope prefixes, and the
 file routes under the contest and the task prefixes, each made by one
-factory so each kind has its own operation names. A holder carries
-`user_id`, `username`, `name`, `avatar_url`, `role`, the `scope` the role
-is held at directly, and `inherited` when that is a broader scope than the
-one asked about. Granting a different role than the one held moves the
+factory so each kind has its own operation names. A holder carries the
+`user`, by `id`, `username`, `name` and `avatar_url`, the `role`, and
+`at_names`, the names of the scope the role is held at directly: the one
+asked about, or a broader one. Granting a different role than the one held moves the
 person to it, which is how a person is promoted or demoted. Forge refuses a
 manager granting admin or demoting or removing an admin (`forbidden`),
 removing the last admin of a scope (`sole_admin`), and a role for a
@@ -208,11 +221,10 @@ publishes. A save with `keep_as_draft` is written as a draft that says what
 it held back and publishes nothing, on any save, and an empty save with
 `confirm` publishes that draft later.
 
-A save answers with `outcome`. `published` carries the `publication`, its
-`number`, `grading_changed`, the `changes`, and where the task's
-`activation` at the CI stands: `done`, `pending` or `not_needed`.
-`draft` carries the `version` written, the `errors`, each `{path, message}`,
-and what it `held_back`. `GET <task>` answers the version at the head, the
+A save answers with what it published or with the draft it kept. A
+publication carries the `publication`, its `number`, `grading_changed` and
+the `changes`; a draft carries the `version` written, the `errors`, each
+`{path, message}`, and what it `held_back`. `GET <task>` answers the version at the head, the
 latest publication or none, whether the head is a draft, and the draft's
 errors, worked out again on every read.
 
@@ -240,28 +252,25 @@ own. A registration the contest's rules refuse answers with the rule's code:
 `registration_closed`, `is_staff`, `invite_required`, `wrong_invite_code` and
 `domain_not_allowed` as 403, `already_registered` and `contest_full` as 409.
 A registration carries its `status`, the `reason` when it was rejected, its
-times, the caller's `time_extension_seconds`, and `workspace`, which is
-`preparing` until every part of an approved contestant's workspace is made
-and then `ready`, and null for anyone not approved. The home carries the
-contest's `title`, dates and `state`, the caller's `registration`, whether
-the caller `organises` the contest and so may not enter it, whether the
-window is `registration_open` and whether registering is `invite_only`
-or `asks_code`, the caller's own `deadline`, which is the end plus their
-extension, `now`, the server's clock when it was read, and the `tasks`
-released to them, each with its `label`, `title`, `points` and `release`. A
-task's page carries its `statement` in Markdown and its `limits`:
-`submissions`, `rate_count` in any `rate_seconds`, and `max_size` in bytes.
+times, and the `time_extension` in seconds. The home carries the contest
+`where` it is, its title as `name`, its dates and `state`, the caller's
+`registration`, whether the caller `organises` the contest and so may not
+enter it, whether the window is `registration_open` and whether registering
+is `invite_only` or `asks_code`, the caller's own `deadline`, which is the
+end plus their extension, `now`, the server's clock when it was read, and
+the `tasks` released to them, each with its `name`, `label`, `title`,
+`points` and `release`. A task's page carries its `statement` in Markdown
+and its `limits`: `submissions`, at most `rate.count` in any `rate.per`
+seconds, and `max_size` in bytes.
 For a contest the caller may not see, the home answers 404, the same as for
 one that is not there, and so does the page of a task that is not visible to
 them; the caller's own registration reads null wherever they have none.
 
-The organiser's contestants routes are in the table above. A contestant
-carries the person's `user_id`, `username`, `name`, `email` and
-`avatar_url`, all but the id null once the account is gone, the same fields
-as a person's own registration, and `workspace_error`, why the last try at a
-part of the workspace failed while it is still being made. A decision the
-registration's status does not allow is `wrong_status`, carrying the status
-as `current`; a rejection needs a `reason` (`invalid_reason`), and an
+The organiser's contestants routes are in the table above, and answer with
+the same registration and the person's `user_id` and `user`, which carries
+their `id`, `username`, `name`, `email` and `avatar_url` and is null once
+the account is gone. A decision the registration's status does not allow
+is `wrong_status`, carrying the status as `current`; a rejection needs a `reason` (`invalid_reason`), and an
 extension is between none and a year (`invalid_extension`), and one
 of more than a billion seconds either way is not taken at all
 (`validation_error`). Reopening takes a rejection back: the registration is
@@ -297,11 +306,11 @@ a session and no role; `<task>` is the task's prefix.
 | `GET <task>/submissions/{number}/log?stage=` | | its run log, as plain text |
 
 A file never passes through the platform. The browser asks for a slot for
-one file of a contestant input, and a slot is one of two kinds, told apart by
-`method`: `post` carries a `url` and the `fields` to post before the file, a
-form whose signed policy holds the file to the size declared; `multipart`,
-for a file larger than forge sends in one request, carries `part_size` and a
-`url` for each of the `parts`, each taking exactly its share with a PUT. Either works until
+one file of a contestant input, and a slot is one of two kinds: a form,
+with a `url` and the `fields` to post before the file, whose signed policy
+holds the file to the size declared; or, for a file larger than forge sends
+in one request, `part_size` and a `url` for each of the `parts`, each taking
+exactly its share with a PUT. Either works until
 `expires_at`. The browser then completes the upload, naming each part with
 the `ETag` the store answered it with, and forge measures what arrived: an
 upload carries its `status`, `verified` when it is the size declared and
@@ -333,16 +342,30 @@ that is not there, and a number that cannot be one is `validation_error`.
 
 A slot or a submit the task's rules refuse answers with the rule's code:
 `task_closed`, with its `reason`, `ended` or `submissions_closed`,
-`archived` and `not_approved` as 403; `workspace_not_ready`,
-`submission_limit` with its `limit`, `upload_not_ready` with the
-`uploads` refused, and `upload_limit`, too many open uploads, with its
-`limit` and `bytes`, as 409; `rate_limited` as 429 with the `rate` and
+`archived` and `not_approved` as 403; `submission_limit` with its `limit`,
+`upload_not_ready` with the `uploads` refused, and `upload_limit`, too many
+open uploads, with its `limit` and `bytes`, as 409; `rate_limited` as 429 with the `rate` and
 `retry_at`, which the `Retry-After` header carries too; `too_large` as 413
 with the `limit` in bytes and the `input` whose limit it is, or null for the
 task's; `upload_not_yours` as 404 with the `uploads`; and `invalid_inputs`,
 each of its `errors` naming its `input`, and `invalid_idempotency_key` as
 422.
 
+
+## Workflows
+
+`POST /api/v1/workflows` makes a workflow and needs a session and no role.
+The body names its `owner` and `name`; the owner is the caller's own
+username, or the name of an org where they hold the manager role or above,
+and forge decides which. The answer is 201 with the workflow's `owner` and
+`name`, never its id at the forge, which is built from an org's key. The
+workflow is private, and its first commit, a `workflow.yaml` named
+`<owner>/<name>` with the steps of `unicon/classic@v1`, is the caller's. An
+observer of the org, a person with no role there, an org that is not there
+and another person's username are all `forbidden`, in the same words, so the
+answer tells nobody which orgs exist. A name that breaks the rules, or a
+username that cannot name a workflow, is `invalid_name`, and a name the
+owner has already is `conflict`.
 
 ## The event door
 
@@ -387,9 +410,9 @@ so it is answered `Cache-Control: no-store`.
 grading's `status` after it. A missing or wrong bearer token is
 `invalid_token`, a body that is no report `invalid_callback`, and a grading
 that takes no reports now `grading_closed`. The same verdict sent again is
-answered the same. `grading_closed` is a 409 and not a 410: it is the
-grading's state that refuses the request, and a grading sent back to the
-queue takes its next run's envelope and reports. `invalid_callback` is a 422
+answered the same. `grading_closed` is a 410: a grading that has finished,
+or whose run has ended, never takes an envelope or a report again.
+`invalid_callback` is a 422
 like every other body that does not fit. The harness stops reporting at a
 401, 403, 404, 409 or 410 and sends a verdict again only after a 5xx or a
 429, so each of these refusals ends a run's reporting and none is retried.
@@ -403,12 +426,12 @@ grading is named under its task's prefix, where the guard checks the role,
 and a grading of any other task is not found there, the same as one that is
 not there at all, whatever the caller may do at that other task; forge
 checks the role again at the grading's own task. A grading carries its
-`workspace`, `submission_number`, `publication`, `stage`, `attempt`,
-`status`, `wait_reason`, `error`, `verdict`, `log`, `progress` (the `step`
-last reported and how many of its containers are `done` of the `total`),
-`requeues` and its times; cancelling a finished one or retrying one that is
-not finished is `wrong_status` with its `current` status, and retrying one
-with another attempt still being graded is `conflict`. A rejudge answers the
+`id`, the `submission_number` and `submitted_at`, the `publication`,
+`stage`, `attempt`, `status`, `error`, `verdict`, whether there is a `log`,
+`progress` (the `step` last reported and how many of its containers are
+`done` of the `total`) and its times; cancelling a finished one or retrying
+one that is not finished is `wrong_status` with its `current` status, and
+retrying one with another attempt still being graded is `conflict`. A rejudge answers the
 `publication` it grades against and how many attempts it `queued`,
 `cancelled` first, `left_running` and `passed_over`.
 
@@ -420,9 +443,7 @@ a `stage`, or at the first stage with one, only where that stage's `show` is
 ## Operator commands
 
 Two things only the operator does are commands beside `unicon api`, run on
-the stack with its `UNICON_*` settings. Neither is a route. Each starts
-forge with no poller or timed pass beside it, so it does what it says and
-nothing else.
+the stack with its `UNICON_*` settings. Neither is a route.
 
 ```sh
 unicon create-org acme --admin ada --description "Acme contests"
@@ -431,10 +452,9 @@ unicon create-account ada --email ada@example.org
 
 `create-org` makes the org whatever `UNICON_ORG_CREATION_OPEN` says, with
 the named user, who must already exist at the forge, as its first admin. It
-runs the whole provisioning before it returns and prints the status and the
-last step completed. It exits 0 when the org is ready and 2 when it stopped
-at a step, which it names with the reason; the poller then tries it again
-from there. A description over 255 characters is refused before forge is
+makes the whole org before it returns, and exits 0 once it is made. A step
+that fails is a refusal, printed with its reason, and running the command
+again is safe. A description over 255 characters is refused before forge is
 called.
 `create-account` makes a person's account at the forge for a deployment
 with sign-up closed and prints the first password once; the person changes
@@ -450,7 +470,8 @@ nowhere else:
 |---|---|
 | `not_found`, `upload_not_yours` | 404 |
 | `forbidden`, `ci_request_refused`, `fresh_sign_in_required`, `origin_mismatch`, `admin_only`, `reserved_path`, `registration_closed`, `is_staff`, `invite_required`, `wrong_invite_code`, `domain_not_allowed`, `task_closed`, `archived`, `not_approved` | 403 |
-| `conflict`, `sole_admin`, `contestant_conflict`, `shared_workflow_owner`, `confirmation_required`, `already_registered`, `contest_full`, `wrong_status`, `workspace_not_ready`, `submission_limit`, `upload_not_ready`, `upload_limit`, `log_too_large`, `grading_closed` | 409 |
+| `conflict`, `sole_admin`, `contestant_conflict`, `shared_workflow_owner`, `confirmation_required`, `already_registered`, `contest_full`, `wrong_status`, `submission_limit`, `upload_not_ready`, `upload_limit`, `log_too_large` | 409 |
+| `grading_closed` | 410 |
 | `payload_too_large`, `too_large` | 413 |
 | `rate_limited` | 429, with `Retry-After` |
 | `rejected`, `invalid_name`, `invalid_definition`, `invalid_path`, `invalid_reason`, `invalid_extension`, `invalid_inputs`, `invalid_idempotency_key`, `invalid_callback`, `validation_error` | 422 |
@@ -510,9 +531,8 @@ The tests load that kit as a pytest plugin, import from it what they arrange
 the fake with, and run the app over the same migrated Postgres, in-memory
 forge and setup the package tests itself with, held by `held_setup`; they
 create and drop a database of their own on the server the URL names and are
-skipped without it. Provisioning moves along with the kit's `tick`, one tick
-of the poller the app's lifespan would run, and a contestant is made with
-its `register_contestant`. The openapi diff fails when a response changed and nobody
+skipped without it. A contestant is made with the kit's
+`register_contestant`. The openapi diff fails when a response changed and nobody
 regenerated the document.
 
 The `forge` package comes from one release, named in `[tool.uv.sources]`
@@ -534,7 +554,8 @@ unicon/
   cli.py       api | openapi | create-org | create-account
   api/         routes, the session dependency, the role guard, cookie names and
                flags, the error mapping and the middleware
-  schemas/     what the API answers with, including the problem document
+  schemas/     the request bodies, the models answers go out as where they
+               hold less than the forge's record, and the problem document
 tests/
   unit/        no database
   integration/ a real Postgres and the in-memory forge, through the browser's hops

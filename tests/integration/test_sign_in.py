@@ -28,11 +28,13 @@ async def test_a_sign_in_round_trip(client: httpx.AsyncClient, forge: FakeForge)
 
     assert me.status_code == 200
     assert me.json() == {
-        "user_id": 7,
-        "username": "ada",
-        "name": "Ada Lovelace",
-        "email": "ada@example.test",
-        "avatar_url": None,
+        "user": {
+            "id": 7,
+            "username": "ada",
+            "name": "Ada Lovelace",
+            "avatar_url": None,
+            "email": "ada@example.test",
+        },
         "roles": [],
         "degraded": False,
     }
@@ -98,6 +100,11 @@ async def test_signing_in_again_ends_the_previous_session(
 async def test_the_register_url_follows_the_setting(client: httpx.AsyncClient) -> None:
     answer = await client.get("/api/v1/auth/register-url")
     assert answer.json() == {"url": "http://forge.test/user/sign_up"}
+
+
+async def test_the_forge_url_is_answered_to_anyone(client: httpx.AsyncClient) -> None:
+    answer = await client.get("/api/v1/auth/forge-url")
+    assert answer.json() == {"url": "http://forge.test"}
 
 
 async def test_the_session_cookie_is_httponly_lax_and_on_every_path(

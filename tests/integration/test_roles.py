@@ -41,31 +41,24 @@ async def test_the_holders_at_a_task_say_where_each_holds_their_role(
     assert listed.status_code == 200
     assert listed.json() == [
         {
-            "user_id": 7,
-            "username": "ada",
-            "name": "Ada Lovelace",
-            "avatar_url": None,
+            "user": {"id": 7, "username": "ada", "name": "Ada Lovelace", "avatar_url": None},
             "role": "admin",
-            "scope": {"kind": "org", "org": "acme", "contest": None, "task": None},
-            "inherited": True,
+            "at_names": {"org": "acme", "contest": None, "task": None},
         },
         {
-            "user_id": 8,
-            "username": "bob",
-            "name": None,
-            "avatar_url": None,
+            "user": {"id": 8, "username": "bob", "name": None, "avatar_url": None},
             "role": "manager",
-            "scope": {"kind": "contest", "org": "acme", "contest": "spring", "task": None},
-            "inherited": True,
+            "at_names": {"org": "acme", "contest": "spring", "task": None},
         },
         {
-            "user_id": 20,
-            "username": "carol",
-            "name": "Carol",
-            "avatar_url": "http://forge.test/avatars/carol",
+            "user": {
+                "id": 20,
+                "username": "carol",
+                "name": "Carol",
+                "avatar_url": "http://forge.test/avatars/carol",
+            },
             "role": "observer",
-            "scope": {"kind": "task", "org": "acme", "contest": "spring", "task": "sum"},
-            "inherited": False,
+            "at_names": {"org": "acme", "contest": "spring", "task": "sum"},
         },
     ]
 

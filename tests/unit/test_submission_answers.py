@@ -13,7 +13,8 @@ from forge.api.submissions import SubmittedFiles as SubmittedFilesRecord
 from forge.api.types import TaskId
 
 from unicon.api.v1.submissions import _attachment
-from unicon.schemas.submissions import GradingResult, SubmittedFiles
+from unicon.schemas.submissions import Result as ResultAnswer
+from unicon.schemas.submissions import SubmittedFiles
 
 GRADING = uuid.UUID("0192f4a4-7b7e-7000-8000-000000000001")
 
@@ -91,7 +92,7 @@ def test_a_grading_carries_what_forge_let_through_and_nothing_else(
 ) -> None:
     empty = {"outcome": None, "metrics": None, "summary": None, "tests": None, "log": False}
 
-    answer = GradingResult.of(result).model_dump(mode="json")
+    answer = ResultAnswer.model_validate(result, from_attributes=True).model_dump(mode="json")
 
     assert answer == {
         "id": str(GRADING),
@@ -116,7 +117,7 @@ def test_a_submissions_inputs_are_read_leniently() -> None:
         },
     )
 
-    answer = SubmittedFiles.of(record).model_dump(mode="json")
+    answer = SubmittedFiles.model_validate(record, from_attributes=True).model_dump(mode="json")
 
     assert answer == {
         "number": 3,
