@@ -94,7 +94,7 @@ class Submission(BaseModel):
 
 class SubmittedFileInput(BaseModel):
     """What one input of a submission was: the paths of its files in the
-    submission, each readable at the file route, and the language of a code
+    submission, each a download through the download door, and the language of a code
     input; or the value given. It is read leniently from the submission's
     `submission.json`: a member of the wrong type is left out rather than
     failing the answer.
@@ -121,9 +121,7 @@ class SubmittedFileInput(BaseModel):
 
 
 class SubmittedFiles(BaseModel):
-    """What a submission was made with, by input id, so a page can put it
-    back into the upload panel.
-    """
+    """What a submission was made with, by input id."""
 
     number: int
     inputs: dict[str, SubmittedFileInput]
