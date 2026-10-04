@@ -1937,7 +1937,7 @@
         "type": "object"
       },
       "SubmittedFileInput": {
-        "description": "What one input of a submission was: the paths of its files in the\nsubmission, each readable at the file route, and the language of a code\ninput; or the value given. It is read leniently from the submission's\n`submission.json`: a member of the wrong type is left out rather than\nfailing the answer.",
+        "description": "What one input of a submission was: the paths of its files in the\nsubmission, each a download through the download door, and the language of a code\ninput; or the value given. It is read leniently from the submission's\n`submission.json`: a member of the wrong type is left out rather than\nfailing the answer.",
         "properties": {
           "files": {
             "items": {
@@ -1987,7 +1987,7 @@
         "type": "object"
       },
       "SubmittedFiles": {
-        "description": "What a submission was made with, by input id, so a page can put it\nback into the upload panel.",
+        "description": "What a submission was made with, by input id.",
         "properties": {
           "inputs": {
             "additionalProperties": {
@@ -5686,7 +5686,7 @@
     },
     "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/submissions/{number}/files": {
       "get": {
-        "description": "Each input's files by their paths in the submission, its language, or\nits value, so a page can put them back into the upload panel.",
+        "description": "Each input's files by their paths in the submission, its language, or\nits value; each file downloads through the download door.",
         "operationId": "listMySubmissionFiles",
         "parameters": [
           {
@@ -5753,90 +5753,6 @@
           }
         },
         "summary": "What one of the caller's own submissions was made with",
-        "tags": [
-          "submissions"
-        ]
-      }
-    },
-    "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/submissions/{number}/files/{path}": {
-      "get": {
-        "description": "`path` is one of the paths the files route names, such as\n`files/submission/main.py`.",
-        "operationId": "readMySubmissionFile",
-        "parameters": [
-          {
-            "description": "The submission's number",
-            "in": "path",
-            "name": "number",
-            "required": true,
-            "schema": {
-              "description": "The submission's number",
-              "maximum": 2147483647,
-              "minimum": 1,
-              "title": "Number",
-              "type": "integer"
-            }
-          },
-          {
-            "in": "path",
-            "name": "path",
-            "required": true,
-            "schema": {
-              "title": "Path",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "org",
-            "required": true,
-            "schema": {
-              "title": "Org",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "contest",
-            "required": true,
-            "schema": {
-              "title": "Contest",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "task",
-            "required": true,
-            "schema": {
-              "title": "Task",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/octet-stream": {
-                "schema": {
-                  "format": "binary",
-                  "type": "string"
-                }
-              }
-            },
-            "description": "The file's bytes."
-          },
-          "default": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "An error, as an RFC 9457 problem document. `code` names it."
-          }
-        },
-        "summary": "One file of one of the caller's own submissions, as a download",
         "tags": [
           "submissions"
         ]

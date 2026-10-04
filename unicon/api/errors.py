@@ -74,7 +74,6 @@ STATUS = {
     "upload_not_ready": 409,
     "upload_limit": 409,
     "log_too_large": 409,
-    "file_too_large": 409,
     "invalid_inputs": 422,
     "invalid_idempotency_key": 422,
     "ci_request_refused": 403,

@@ -52,7 +52,6 @@ SESSION_ONLY = {
     "listMySubmissions",
     "getMySubmission",
     "listMySubmissionFiles",
-    "readMySubmissionFile",
     "readMySubmissionLog",
 }
 

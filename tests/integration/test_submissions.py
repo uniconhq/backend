@@ -15,6 +15,8 @@ from datetime import timedelta
 from typing import Any
 
 import httpx
+import pytest
+from forge.api.uploads import Door
 from forge.testing import FakeClock, FakeForge, Setup
 
 from tests.integration.conftest import (
@@ -29,6 +31,8 @@ from tests.integration.conftest import (
 SOURCE = b"print(sum(map(int, input().split())))\n"
 KEY = "key-0001-aaaa"
 SUBMISSIONS = f"{TASK}/submissions"
+DOWNLOADS = "/-/downloads/acme/spring/sum"
+DOWNLOAD_DOOR = "/-/downloads/door"
 MAIN = "files/submission/main.py"
 
 
@@ -81,22 +85,88 @@ async def test_a_submission_gives_back_what_it_was_made_with(
     await _submit(client, entered)
 
     files = await client.get(f"{SUBMISSIONS}/1/files")
-    source = await client.get(f"{SUBMISSIONS}/1/files/{MAIN}")
-    absent = await client.get(f"{SUBMISSIONS}/1/files/files/submission/other.py")
-    document = await client.get(f"{SUBMISSIONS}/1/files/submission.json")
 
     assert files.json() == {
         "number": 1,
         "inputs": {"submission": {"files": [MAIN], "language": "python", "value": None}},
     }
-    assert source.status_code == 200
-    assert source.content == SOURCE
-    assert source.headers["content-type"] == "application/octet-stream"
-    assert source.headers["content-disposition"] == 'attachment; filename="main.py"'
-    assert source.headers["x-content-type-options"] == "nosniff"
-    assert "sandbox" in source.headers["content-security-policy"]
-    assert (absent.status_code, absent.json()["code"]) == (404, "not_found")
-    assert (document.status_code, document.json()["code"]) == (404, "not_found")
+
+
+async def _download(client: httpx.AsyncClient, address: str) -> httpx.Response:
+    """What the proxy asks for a download, with the header it sends."""
+    return await client.get(DOWNLOAD_DOOR, headers={"X-Original-URI": address})
+
+
+async def test_the_download_door_opens_on_ones_own_file_and_reads_it_from_the_forge(
+    client: httpx.AsyncClient, entered: FakeForge
+) -> None:
+    await _submit(client, entered)
+
+    opened = await _download(client, f"{DOWNLOADS}/1/{MAIN}")
+
+    assert opened.status_code == 204, opened.text
+    door = Door(opened.headers["X-Forge-Path"], opened.headers["X-Forge-Authorization"])
+    assert door.path.endswith("/media/files/submission/main.py?ref=submission%2F1")
+    assert await entered.workspaces.fetch(door) == SOURCE
+    assert opened.headers["X-Download-Disposition"] == 'attachment; filename="main.py"'
+
+
+@pytest.mark.parametrize(
+    "address",
+    [
+        f"{DOWNLOADS}/1/files/submission/other.py",
+        f"{DOWNLOADS}/1/submission.json",
+        f"{DOWNLOADS}/2/{MAIN}",
+        f"{DOWNLOADS}/x/{MAIN}",
+        f"{DOWNLOADS}/0/{MAIN}",
+        f"{DOWNLOADS}/99999999999/{MAIN}",
+        f"{DOWNLOADS}/{'9' * 5000}/{MAIN}",
+        f"{DOWNLOADS}/1",
+        "/-/downloads/acme/spring/nothing/1/files/submission/main.py",
+        "/-/downloads/acme/autumn/sum/1/files/submission/main.py",
+        f"/-/uploads/{uuid.uuid4()}",
+        f"{DOWNLOADS}/1/files/submission/%FF.py",
+    ],
+    ids=[
+        "a file it does not name",
+        "its own document",
+        "a submission not made",
+        "not a number",
+        "zero",
+        "past what a number holds",
+        "thousands of digits",
+        "no path",
+        "a task not there",
+        "a contest not there",
+        "not a download",
+        "not utf-8",
+    ],
+)
+async def test_the_download_door_refuses_anything_else_without_saying_why(
+    client: httpx.AsyncClient, entered: FakeForge, address: str
+) -> None:
+    await _submit(client, entered)
+
+    refused = await _download(client, address)
+
+    assert refused.status_code == 403
+    assert "X-Forge-Authorization" not in refused.headers
+
+
+async def test_the_download_door_opens_for_nobody_else(
+    client: httpx.AsyncClient, entered: FakeForge, held_setup: Setup
+) -> None:
+    await _submit(client, entered)
+    await enter(client, entered, held_setup, 8)
+
+    theirs = await _download(client, f"{DOWNLOADS}/1/{MAIN}")
+    client.cookies.clear()
+    nobody = await _download(client, f"{DOWNLOADS}/1/{MAIN}")
+
+    assert theirs.status_code == 403
+    assert nobody.status_code == 401
+    assert "X-Forge-Authorization" not in theirs.headers
+    assert "X-Forge-Authorization" not in nobody.headers
 
 
 async def test_the_same_key_sent_twice_makes_one_submission(
@@ -230,9 +300,8 @@ async def test_the_submission_routes_need_a_session(
         await client.get(SUBMISSIONS),
         await client.get(f"{SUBMISSIONS}/1"),
         await client.get(f"{SUBMISSIONS}/1/files"),
-        await client.get(f"{SUBMISSIONS}/1/files/{MAIN}"),
     ]
 
     assert [(answer.status_code, answer.json()["code"]) for answer in answers] == [
         (401, "unauthenticated")
-    ] * 5
+    ] * 4
