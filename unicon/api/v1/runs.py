@@ -108,4 +108,4 @@ async def report_grading_run(request: Request, grading: uuid.UUID) -> CallbackAn
     """
     body = await raw.body(request, MAX_CALLBACK_BODY, "A report")
     status = await runs.callback(grading, request.headers.get("authorization"), body)
-    return CallbackAnswer(status=status.value)
+    return CallbackAnswer(status=status)

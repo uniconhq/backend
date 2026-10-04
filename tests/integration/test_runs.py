@@ -19,7 +19,7 @@ import httpx
 import pytest
 from forge.api import tasks
 from forge.api.runs import CI_CONFIG_PATH, CiRequest
-from forge.testing import FakeClock, FakeForge, Setup, tick
+from forge.testing import FakeClock, FakeForge, Setup
 
 from tests.integration.conftest import ORIGIN, SUM, TASK, edit_task, enter, sign_in_as, upload
 
@@ -58,24 +58,40 @@ async def _submitted(client: httpx.AsyncClient, forge: FakeForge) -> str:
     return grading
 
 
-async def _started(
-    client: httpx.AsyncClient, forge: FakeForge, setup: Setup, *, lose_answer: bool = False
-) -> Started:
+async def _started(client: httpx.AsyncClient, forge: FakeForge, setup: Setup) -> Started:
     grading = await _submitted(client, forge)
-    forge.state.lose_start_answer = lose_answer
-    await tick(setup, "gradings.dispatch")
-    [run] = forge.state.started.values()
+    [run] = forge.state.runs.values()
     assert run.variables["UNICON_GRADING_ID"] == grading
     return Started(grading, run.variables)
 
 
-def _config(forge: FakeForge, started: Started, clock: FakeClock, **options: Any) -> CiRequest:
-    return forge.grading.config_request(
-        tasks.task_id_of(SUM),
-        started.variables,
-        now=clock.now(),
-        **options,
-    )
+async def _asked(
+    client: httpx.AsyncClient,
+    forge: FakeForge,
+    clock: FakeClock,
+    monkeypatch: pytest.MonkeyPatch,
+    **options: Any,
+) -> tuple[CiRequest, httpx.Response]:
+    """carol's first submission, whose start the fake CI answers by asking
+    the platform what the run is, as the real CI does while the start is
+    under way; the question it asked and the answer it was given.
+    """
+    asked: list[tuple[CiRequest, httpx.Response]] = []
+    start = forge.grading.start_run
+
+    async def asking(as_: Any, run: Any) -> Any:
+        variables = dict(forge.grading.run_variables(run))
+        request = forge.grading.config_request(
+            tasks.task_id_of(SUM), variables, now=clock.now(), **options
+        )
+        answer = await client.post(request.target, content=request.body, headers=request.headers)
+        asked.append((request, answer))
+        return await start(as_, run)
+
+    monkeypatch.setattr(forge.grading, "start_run", asking)
+    await _submitted(client, forge)
+    [found] = asked
+    return found
 
 
 async def _envelope(client: httpx.AsyncClient, started: Started) -> dict[str, Any]:
@@ -95,35 +111,26 @@ async def _report(
     )
 
 
-def _verdict(envelope: dict[str, Any], log: str | None) -> dict[str, Any]:
+def _verdict(log: str | None) -> dict[str, Any]:
     return {
-        "schema_version": 3,
-        "grading_id": envelope["grading_id"],
-        "submission": envelope["submission"],
-        "stage": envelope["stage"],
-        "attempt": envelope["attempt"],
-        "task": envelope["task"],
-        "publication": envelope["publication"],
+        "schema_version": 4,
         "outcome": "accepted",
         "metrics": {"score": 100},
         "tests": [
             {"id": "1", "outcome": "accepted", "time_ms": 12, "memory_kb": 2048, "metrics": {}}
         ],
         "summary": "Every test passed.",
-        "resources": {"wall_ms": 900, "cpu_ms": 400, "peak_memory_kb": 2048},
         "log": log,
-        "started_at": "2026-09-26T12:00:01Z",
-        "finished_at": "2026-09-26T12:00:02Z",
     }
 
 
 async def test_the_cis_signed_question_is_answered_without_an_origin(
-    client: httpx.AsyncClient, entered: FakeForge, held_setup: Setup, clock: FakeClock
+    client: httpx.AsyncClient,
+    entered: FakeForge,
+    clock: FakeClock,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    started = await _started(client, entered, held_setup, lose_answer=True)
-    request = _config(entered, started, clock)
-
-    answered = await client.post(request.target, content=request.body, headers=request.headers)
+    request, answered = await _asked(client, entered, clock, monkeypatch)
 
     assert request.target == CI_CONFIG_PATH
     assert answered.status_code == 200, answered.text
@@ -136,17 +143,15 @@ async def test_the_cis_signed_question_is_answered_without_an_origin(
 async def test_a_question_the_ci_did_not_sign_is_refused(
     client: httpx.AsyncClient,
     entered: FakeForge,
-    held_setup: Setup,
     clock: FakeClock,
+    monkeypatch: pytest.MonkeyPatch,
     change: str,
 ) -> None:
-    started = await _started(client, entered, held_setup, lose_answer=True)
     options: dict[str, Any] = {"body": b'{"task": "acme/spring/sum"}'}
     if change == "key":
         options = {"key": b"another key"}
-    request = _config(entered, started, clock, **options)
 
-    refused = await client.post(request.target, content=request.body, headers=request.headers)
+    _, refused = await _asked(client, entered, clock, monkeypatch, **options)
 
     assert (refused.status_code, refused.json()["code"]) == (403, "ci_request_refused")
     assert refused.json()["detail"] == "The platform does not answer this request."
@@ -173,7 +178,7 @@ async def test_the_envelope_is_served_for_its_key_and_not_without_it(
     assert fetched.status_code == 200, fetched.text
     assert fetched.headers["cache-control"] == "no-store"
     envelope = fetched.json()
-    assert (envelope["schema_version"], envelope["grading_id"]) == (3, started.grading)
+    assert (envelope["schema_version"], envelope["grading_id"]) == (4, started.grading)
     assert envelope["callback"]["token"]
     for refused in (wrong, keyless):
         assert (refused.status_code, refused.json()["code"]) == (404, "not_found")
@@ -192,7 +197,7 @@ async def test_a_finished_report_leaves_the_verdict_the_contestant_reads(
     moved = await _report(
         client, envelope, {"event": "progress", "step": "run", "done": 1, "total": 1}
     )
-    verdict = _verdict(envelope, log=urlsplit(envelope["log_put"])._replace(query="").geturl())
+    verdict = _verdict(log=urlsplit(envelope["log_put"])._replace(query="").geturl())
     finished = await _report(client, envelope, {"event": "finished", "verdict": verdict})
     again = await _report(client, envelope, {"event": "finished", "verdict": verdict})
     detail = await client.get(f"{TASK}/submissions/1")
@@ -221,7 +226,7 @@ async def _finished_with_log(
     started = await _started(client, forge, setup)
     envelope = await _envelope(client, started)
     forge.objects.put(envelope["log_put"], LOG)
-    verdict = _verdict(envelope, log=urlsplit(envelope["log_put"])._replace(query="").geturl())
+    verdict = _verdict(log=urlsplit(envelope["log_put"])._replace(query="").geturl())
     finished = await _report(client, envelope, {"event": "finished", "verdict": verdict})
     assert finished.json() == {"status": "done"}, finished.text
     return verdict
@@ -324,13 +329,13 @@ async def test_a_grading_that_takes_no_reports_is_closed(
 ) -> None:
     started = await _started(client, entered, held_setup)
     envelope = await _envelope(client, started)
-    await _report(client, envelope, {"event": "finished", "verdict": _verdict(envelope, log=None)})
+    await _report(client, envelope, {"event": "finished", "verdict": _verdict(log=None)})
 
     late = await _report(client, envelope, {"event": "started"})
     fetched_late = await client.get(started.envelope)
 
     for refused in (late, fetched_late):
-        assert (refused.status_code, refused.json()["code"]) == (409, "grading_closed")
+        assert (refused.status_code, refused.json()["code"]) == (410, "grading_closed")
 
 
 async def test_a_report_past_the_bound_is_refused_before_it_is_read(

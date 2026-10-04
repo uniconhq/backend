@@ -13,7 +13,7 @@ from typing import Any
 import httpx
 import pytest
 from forge.api.types import Role
-from forge.testing import FakeForge, Setup, seed_classic, tick
+from forge.testing import FakeForge, Setup, seed_classic
 
 from tests.integration.conftest import (
     CONTEST,
@@ -58,13 +58,9 @@ async def test_the_organiser_path_from_an_org_to_a_publication(
 ) -> None:
     await seed_classic(forge)
     await sign_in(client, forge)
-    await client.post("/api/v1/orgs", json={"name": "acme"}, headers=ORIGIN)
-    await tick(held_setup, "provisioning")
-    assert (await client.get(f"{ORG}/provisioning")).json()["status"] == "ready"
+    assert (await client.post("/api/v1/orgs", json={"name": "acme"}, headers=ORIGIN)).is_success
     await client.post(f"{ORG}/contests", json={"name": "spring"}, headers=ORIGIN)
-    await tick(held_setup, "provisioning")
     await client.post(f"{CONTEST}/tasks", json={"name": "sum"}, headers=ORIGIN)
-    await tick(held_setup, "provisioning")
 
     task_yaml = await read(client, f"{TASK}/files/task.yaml")
     written = await client.put(
@@ -79,12 +75,7 @@ async def test_the_organiser_path_from_an_org_to_a_publication(
 
     assert written.status_code == 200, written.text
     first = written.json()
-    assert (first["outcome"], first["number"], first["grading_changed"]) == (
-        "published",
-        1,
-        False,
-    )
-    assert first["activation"] == "done"
+    assert (first["number"], first["grading_changed"]) == (1, False)
 
     statement = await _save(client, await _edit(client, "statement.md", "Write", "Add. Write"))
     assert (statement.json()["number"], statement.json()["grading_changed"]) == (2, False)
@@ -95,7 +86,7 @@ async def test_the_organiser_path_from_an_org_to_a_publication(
     )
     assert broken.status_code == 200
     draft = broken.json()
-    assert (draft["outcome"], draft["errors"], draft["held_back"]) == ("draft", [MISSING], [])
+    assert (draft["errors"], draft["held_back"]) == ([MISSING], [])
 
     state = (await client.get(TASK)).json()
     assert (state["head"], state["draft"], state["errors"]) == (draft["version"], True, [MISSING])
@@ -105,6 +96,8 @@ async def test_the_organiser_path_from_an_org_to_a_publication(
         (1, False),
         (2, False),
     ]
+    # The forge's id for a publication is built from keys, which stay home.
+    assert all("id" not in entry for entry in published)
 
 
 async def test_a_save_inside_plans_is_refused_naming_the_path(
@@ -165,7 +158,6 @@ async def test_a_change_kept_as_a_draft_is_published_by_an_empty_confirmed_save(
     kept = await _save(client, faster, keep_as_draft=True)
 
     assert kept.json() == {
-        "outcome": "draft",
         "version": kept.json()["version"],
         "errors": [],
         "held_back": ["plans/default.json changed"],
@@ -174,7 +166,6 @@ async def test_a_change_kept_as_a_draft_is_published_by_an_empty_confirmed_save(
 
     published = await _save(client, confirm=True)
 
-    assert published.json()["outcome"] == "published"
     assert published.json()["number"] == 2
     assert (await client.get(TASK)).json()["draft"] is False
 
@@ -214,6 +205,6 @@ async def test_a_task_rollback_is_a_save(client: httpx.AsyncClient, sum_task: Fa
     )
 
     assert rolled.status_code == 200, rolled.text
-    assert (rolled.json()["outcome"], rolled.json()["number"]) == ("published", 2)
+    assert rolled.json()["number"] == 2
     back = await read(client, f"{TASK}/files/statement.md")
     assert back["content"] == "Write the statement contestants read here.\n"

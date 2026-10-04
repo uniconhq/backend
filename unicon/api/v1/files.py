@@ -21,16 +21,8 @@ from forge.api.publications import Draft, Published
 from forge.api.types import ContestId, Role, ScopeKind, TaskId, VersionId
 
 from unicon.api.guard import PREFIX, require
-from unicon.schemas.files import (
-    Change,
-    FileContent,
-    RollbackFile,
-    TreeEntry,
-    WriteFile,
-    Written,
-    token_of,
-)
-from unicon.schemas.publications import DraftSave, PublishedSave, SaveResult, save_result
+from unicon.schemas.files import FileContent, RollbackFile, WriteFile, Written, token_of
+from unicon.schemas.publications import SaveResult
 
 
 def router_at(kind: ScopeKind) -> APIRouter:
@@ -45,9 +37,8 @@ def router_at(kind: ScopeKind) -> APIRouter:
     async def list_tree(
         organiser: Observer,
         path: Annotated[str, Query(description="The folder; the top when empty")] = "",
-    ) -> list[TreeEntry]:
-        found = await files.tree(organiser, _place(organiser), path)
-        return [TreeEntry.of(entry) for entry in found]
+    ) -> tuple[files.TreeEntry, ...]:
+        return await files.tree(organiser, _place(organiser), path)
 
     @router.get(
         "/files/{path:path}", operation_id=f"read{name}File", summary="One file at a version"
@@ -66,9 +57,8 @@ def router_at(kind: ScopeKind) -> APIRouter:
     async def list_history(
         organiser: Observer,
         path: Annotated[str | None, Query(description="One file; every file when absent")] = None,
-    ) -> list[Change]:
-        found = await files.history(organiser, _place(organiser), path)
-        return [Change.of(change) for change in found]
+    ) -> tuple[files.Change, ...]:
+        return await files.history(organiser, _place(organiser), path)
 
     @router.put(
         "/files/{path:path}",
@@ -78,7 +68,7 @@ def router_at(kind: ScopeKind) -> APIRouter:
     )
     async def write_file(
         organiser: Manager, path: str, body: WriteFile
-    ) -> Written | PublishedSave | DraftSave:
+    ) -> Written | Published | Draft:
         result = await files.write(
             organiser,
             _place(organiser),
@@ -99,7 +89,7 @@ def router_at(kind: ScopeKind) -> APIRouter:
     )
     async def roll_back_file(
         organiser: Manager, path: str, body: RollbackFile
-    ) -> Written | PublishedSave | DraftSave:
+    ) -> Written | Published | Draft:
         result = await files.rollback(
             organiser,
             _place(organiser),
@@ -122,7 +112,7 @@ def _place(organiser: Organiser) -> ContestId | TaskId:
     return contests.contest_id_of(scope)
 
 
-def _answered(result: VersionId | Published | Draft) -> Written | PublishedSave | DraftSave:
+def _answered(result: VersionId | Published | Draft) -> Written | Published | Draft:
     if isinstance(result, Published | Draft):
-        return save_result(result)
+        return result
     return Written(version=result)

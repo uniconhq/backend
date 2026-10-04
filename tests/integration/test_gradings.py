@@ -12,7 +12,7 @@ import uuid
 import httpx
 import pytest
 from forge.api.types import Role, Scope
-from forge.testing import FakeForge
+from forge.testing import FakeForge, Setup, name_places
 
 from tests.integration.conftest import CONTEST, ORIGIN, TASK, sign_in_as, upload
 
@@ -48,7 +48,7 @@ async def test_a_manager_cancels_and_retries_a_grading(
     mine = await client.get(f"{TASK}/submissions/1")
 
     assert (retried_early.status_code, retried_early.json()["code"]) == (409, "wrong_status")
-    assert retried_early.json()["current"] == "queued"
+    assert retried_early.json()["current"] == "dispatched"
     assert cancelled.status_code == 200, cancelled.text
     body = cancelled.json()
     assert (body["id"], body["status"], body["attempt"]) == (grading, "cancelled", 1)
@@ -59,7 +59,7 @@ async def test_a_manager_cancels_and_retries_a_grading(
     assert (retried.json()["attempt"], retried.json()["status"]) == (2, "queued")
     assert retried.json()["id"] != grading
     [latest] = mine.json()["gradings"]
-    assert (latest["attempt"], latest["status"]) == (2, "queued")
+    assert (latest["attempt"], latest["status"]) == (2, "dispatched")
 
 
 async def test_a_rejudge_grades_every_submission_again(
@@ -105,8 +105,9 @@ async def test_a_contestant_is_refused_every_control(
 )
 @pytest.mark.parametrize("control", ["cancel", "retry"])
 async def test_a_grading_named_under_another_task_is_no_such_grading(
-    client: httpx.AsyncClient, entered: FakeForge, scope: Scope, control: str
+    client: httpx.AsyncClient, entered: FakeForge, held_setup: Setup, scope: Scope, control: str
 ) -> None:
+    await name_places(held_setup, "acme/spring/product")
     grading = await _grading(client, entered)
     await entered.orgs.grant_role(8, scope, Role.MANAGER)
     await sign_in_as(client, entered, 8)
@@ -119,7 +120,7 @@ async def test_a_grading_named_under_another_task_is_no_such_grading(
 
     assert (foreign.status_code, foreign.json()["code"]) == (404, "not_found")
     assert foreign.json() == nobodys.json()
-    assert mine.json()["gradings"][0]["status"] == "queued"
+    assert mine.json()["gradings"][0]["status"] == "dispatched"
 
 
 async def test_the_controls_need_a_session(client: httpx.AsyncClient, entered: FakeForge) -> None:
