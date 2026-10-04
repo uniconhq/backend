@@ -45,59 +45,60 @@ Number = Annotated[int, Path(ge=1, le=NUMBER_MAX, description="The submission's 
     operation_id="createSubmission",
     summary="Submit the caller's uploads and values to the task",
     status_code=CREATED,
+    response_model=Submission,
 )
 async def create_submission(
     session: CurrentSession, scope: TaskAtPath, body: SubmitRequest
-) -> Submission:
+) -> submissions.Submission:
     """The new submission, its grading queued at each stage graded on
     submit. The same `idempotency_key` sent again answers with the
     submission it made and makes nothing. A submit the task's rules refuse
     answers with the rule's code, such as `rate_limited` with `retry_at` or
     `submission_limit` with `limit`, before anything is written.
     """
-    submission = await submissions.submit(
-        session,
-        tasks.task_id_of(scope),
-        {input: given.record() for input, given in body.inputs.items()},
-        idempotency_key=body.idempotency_key,
+    return await submissions.submit(
+        session, tasks.task_id_of(scope), body.inputs, idempotency_key=body.idempotency_key
     )
-    return Submission.of(submission)
 
 
 @router.get(
     "",
     operation_id="listMySubmissions",
     summary="The caller's own submissions of the task, newest first",
+    response_model=list[Submission],
 )
-async def list_my_submissions(session: CurrentSession, scope: TaskAtPath) -> list[Submission]:
-    found = await submissions.mine(session, tasks.task_id_of(scope))
-    return [Submission.of(submission) for submission in found]
+async def list_my_submissions(
+    session: CurrentSession, scope: TaskAtPath
+) -> tuple[submissions.Submission, ...]:
+    return await submissions.mine(session, tasks.task_id_of(scope))
 
 
 @router.get(
     "/{number}",
     operation_id="getMySubmission",
     summary="One of the caller's own submissions of the task",
+    response_model=Submission,
 )
 async def get_my_submission(
     session: CurrentSession, scope: TaskAtPath, number: Number
-) -> Submission:
+) -> submissions.Submission:
     """With what each stage's `show` lets the caller see of its grading."""
-    return Submission.of(await submissions.one(session, tasks.task_id_of(scope), number))
+    return await submissions.one(session, tasks.task_id_of(scope), number)
 
 
 @router.get(
     "/{number}/files",
     operation_id="listMySubmissionFiles",
     summary="What one of the caller's own submissions was made with",
+    response_model=SubmittedFiles,
 )
 async def list_my_submission_files(
     session: CurrentSession, scope: TaskAtPath, number: Number
-) -> SubmittedFiles:
+) -> submissions.SubmittedFiles:
     """Each input's files by their paths in the submission, its language, or
     its value, so a page can put them back into the upload panel.
     """
-    return SubmittedFiles.of(await submissions.files(session, tasks.task_id_of(scope), number))
+    return await submissions.files(session, tasks.task_id_of(scope), number)
 
 
 @router.get(

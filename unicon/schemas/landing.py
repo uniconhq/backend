@@ -5,11 +5,9 @@ holds.
 
 from datetime import datetime
 
-from forge.api.landing import PublicContest as PublicContestRecord
-from forge.api.landing import PublicStatement as PublicStatementRecord
-from forge.api.landing import PublicTask as PublicTaskRecord
-from forge.api.types import scope_of_place
 from pydantic import BaseModel
+
+from unicon.schemas.contest_home import ContestNames
 
 
 class PublicTask(BaseModel):
@@ -21,37 +19,19 @@ class PublicTask(BaseModel):
     label: str
     title: str
 
-    @classmethod
-    def of(cls, task: PublicTaskRecord) -> PublicTask:
-        return cls(name=task.name, label=task.label, title=task.title)
-
 
 class PublicContest(BaseModel):
-    """A public contest by its org and name, with its title, what it says of
-    itself and when it runs. `tasks` are its released tasks, and empty in the
-    list of contests.
+    """A public contest `where` it is, by the names of its org and itself,
+    with its title as `name`, what it says of itself and when it runs.
+    `tasks` are its released tasks, and empty in the list of contests.
     """
 
-    org: str
+    where: ContestNames
     name: str
-    title: str
     description: str
     start: datetime
     end: datetime
     tasks: list[PublicTask]
-
-    @classmethod
-    def of(cls, contest: PublicContestRecord) -> PublicContest:
-        scope = scope_of_place(contest.contest)
-        return cls(
-            org=scope.org,
-            name=str(scope.contest),
-            title=contest.name,
-            description=contest.description,
-            start=contest.start,
-            end=contest.end,
-            tasks=[PublicTask.of(task) for task in contest.tasks],
-        )
 
 
 class PublicStatement(BaseModel):
@@ -59,7 +39,3 @@ class PublicStatement(BaseModel):
 
     task: PublicTask
     statement: str
-
-    @classmethod
-    def of(cls, found: PublicStatementRecord) -> PublicStatement:
-        return cls(task=PublicTask.of(found.task), statement=found.statement)

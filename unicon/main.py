@@ -1,6 +1,5 @@
 """The app factory. Forge is started while the app starts and stopped when it
-stops, so the package's background loops run beside the routes for exactly
-as long as the process serves. Building the app reads no setting, so the
+stops. Building the app reads no setting, so the
 OpenAPI document comes out of an app forge was never started for. The
 document is served at `/openapi.json`, which the frontend generates from;
 the Swagger and ReDoc pages are not, because an API browser is not part of
@@ -14,7 +13,7 @@ from importlib.metadata import version
 import forge.api
 from fastapi import FastAPI
 
-from unicon.api import health
+from unicon.api import door, health
 from unicon.api.errors import register_error_handlers
 from unicon.api.middleware.origin import OriginCheck
 from unicon.api.middleware.request_log import RequestLog
@@ -37,6 +36,7 @@ def create_app() -> FastAPI:
     app.add_middleware(RequestLog)
     register_error_handlers(app)
     app.include_router(health.router)
+    app.include_router(door.router)
     app.include_router(v1_router)
     app.include_router(events.router)
     app.include_router(runs.router)

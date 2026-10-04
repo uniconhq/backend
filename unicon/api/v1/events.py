@@ -12,7 +12,7 @@ event that is let in is answered 204 and does nothing else.
 
 from fastapi import APIRouter, Request, Response, status
 from forge.api import events
-from forge.api.types import OrgName
+from forge.api.types import OrgId
 
 from unicon.api import raw
 
@@ -38,5 +38,5 @@ async def receive_forge_event(request: Request, org: str) -> Response:
         (request.headers[name] for name in events.SIGNATURE_HEADERS if name in request.headers),
         "",
     )
-    await events.check(OrgName(org), body, signature)
+    await events.check(OrgId(org), body, signature)
     return Response(status_code=NO_CONTENT)

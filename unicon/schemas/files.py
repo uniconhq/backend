@@ -1,17 +1,15 @@
 """What the file routes take and answer with. A file's content travels as
 text: as it is when its bytes are UTF-8, and in base64 when they are not, so
 a binary file makes the same round trip as a text one. The token a file is
-read with goes back with the write, and none creates the file.
+read with goes back with the write, and none creates the file. A folder's
+entries and the history go out as the forge's own `TreeEntry` and `Change`.
 """
 
 import base64
 import binascii
-from datetime import datetime
 from typing import Literal, Self
 
-from forge.api.files import Change as ChangeRecord
 from forge.api.files import File as FileRecord
-from forge.api.files import TreeEntry as TreeRecord
 from forge.api.types import ConflictToken
 from pydantic import BaseModel, model_validator
 
@@ -58,38 +56,6 @@ class FileContent(BaseModel):
         except UnicodeDecodeError:
             encoding, content = "base64", base64.b64encode(file.content).decode("ascii")
         return cls(path=file.path, encoding=encoding, content=content, token=str(file.token))
-
-
-class TreeEntry(BaseModel):
-    """A file or a folder directly under the folder asked about."""
-
-    path: str
-    kind: Literal["file", "directory"]
-    size: int | None
-
-    @classmethod
-    def of(cls, entry: TreeRecord) -> TreeEntry:
-        return cls(path=entry.path, kind=entry.kind.value, size=entry.size)
-
-
-class Change(BaseModel):
-    """One entry of the history: the version it made, who made it, what they
-    said about it and when.
-    """
-
-    version: str
-    author_id: int | None
-    message: str
-    at: datetime
-
-    @classmethod
-    def of(cls, change: ChangeRecord) -> Change:
-        return cls(
-            version=change.version,
-            author_id=change.author_id,
-            message=change.message,
-            at=change.at,
-        )
 
 
 class WriteFile(Encoded):

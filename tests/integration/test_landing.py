@@ -24,8 +24,8 @@ async def test_a_visitor_reads_the_public_contests_and_a_released_statement(
     contest = await client.get(f"{PUBLIC}/acme/spring")
     statement = await client.get(f"{PUBLIC}/acme/spring/tasks/sum")
 
-    assert [(entry["org"], entry["name"], entry["tasks"]) for entry in listed.json()] == [
-        ("acme", "spring", [])
+    assert [(entry["where"], entry["tasks"]) for entry in listed.json()] == [
+        ({"org": "acme", "contest": "spring"}, [])
     ]
     assert contest.json()["tasks"] == [{"name": "sum", "label": "A", "title": "sum"}]
     assert statement.json() == {

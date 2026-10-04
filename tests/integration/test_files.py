@@ -140,7 +140,6 @@ async def test_a_task_write_is_a_save_and_answers_as_one(
     written = await _put(client, f"{TASK}/files/data/testcases/1.in", "1 2\n", example["token"])
 
     assert written.status_code == 200
-    assert written.json()["outcome"] == "published"
     assert written.json()["number"] == 1
 
 

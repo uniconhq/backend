@@ -1,34 +1,21 @@
 """What the submission routes take and answer with. A submit names, for each
 of the task's contestant inputs, the uploads of its files and the language
-of a code input, or the value of a text, number or true-or-false input. A
-submission comes back with the latest attempt of its grading at each of the
-task's stages, carrying only what that stage's `show` lets its contestant
-see: `full` the outcome, the metrics, the summary, the row of every test and
-whether there is a log; `metrics` the outcome and the metrics; `hidden` the
-status alone. What is not shown is null.
+of a code input, or the value of a text, number or true-or-false input, as
+the forge's own `SubmittedInput`. A submission comes back with the latest
+attempt of its grading at each of the task's stages, carrying only what that
+stage's `show` lets its contestant see: `full` the outcome, the metrics, the
+summary, the row of every test and whether there is a log; `metrics` the
+outcome and the metrics; `hidden` the status alone. What is not shown is
+null.
 """
 
 import uuid
 from datetime import datetime
 from typing import Any, Literal
 
-from forge.api.submissions import Result as ResultRecord
-from forge.api.submissions import Submission as SubmissionRecord
-from forge.api.submissions import SubmittedFiles as SubmittedFilesRecord
-from forge.api.submissions import SubmittedInput as SubmittedInputRecord
-from pydantic import BaseModel
+from forge.api.submissions import GradingStatus, Show, SubmittedInput
+from pydantic import BaseModel, model_validator
 
-GradingStatus = Literal[
-    "queued",
-    "dispatching",
-    "dispatched",
-    "running",
-    "done",
-    "failed",
-    "cancelled",
-    "system_error",
-]
-Show = Literal["full", "metrics", "hidden"]
 Outcome = Literal[
     "accepted",
     "partial",
@@ -47,27 +34,12 @@ outcome read back is on it."""
 Value = str | int | float | bool
 
 
-class SubmittedInput(BaseModel):
-    """What is given for one input: the uploads of its files, and for a code
-    input the language chosen; or, for a text, number or true-or-false input,
-    its `value`. Forge checks it against the task's inputs.
-    """
-
-    uploads: list[uuid.UUID] = []
-    language: str | None = None
-    value: Value | None = None
-
-    def record(self) -> SubmittedInputRecord:
-        return SubmittedInputRecord(
-            uploads=tuple(self.uploads), language=self.language, value=self.value
-        )
-
-
 class SubmitRequest(BaseModel):
     """A submit: `idempotency_key` is 8 to 128 letters, digits, `-` and `_`,
     made once by the browser for this submit, so sending it again answers
     with the submission it made and makes nothing. `inputs` is keyed by the
-    id of each of the task's contestant inputs.
+    id of each of the task's contestant inputs, and forge checks them
+    against the task's inputs.
     """
 
     idempotency_key: str
@@ -86,21 +58,10 @@ class GradedTest(BaseModel):
     time_ms: int | None
     memory_kb: int | None
     metrics: dict[str, float]
-    message: str | None
-
-    @classmethod
-    def of(cls, row: dict[str, Any]) -> GradedTest:
-        return cls(
-            id=row["id"],
-            outcome=row["outcome"],
-            time_ms=row["time_ms"],
-            memory_kb=row["memory_kb"],
-            metrics=row["metrics"],
-            message=row.get("message"),
-        )
+    message: str | None = None
 
 
-class GradingResult(BaseModel):
+class Result(BaseModel):
     """One grading of a submission at one stage, as its contestant sees it:
     its id, stage, attempt and status, the stage's `show`, and of its
     verdict what that allows: the `outcome`, the named `metrics`, the
@@ -119,23 +80,6 @@ class GradingResult(BaseModel):
     tests: list[GradedTest] | None
     log: bool
 
-    @classmethod
-    def of(cls, result: ResultRecord) -> GradingResult:
-        return cls(
-            id=result.id,
-            stage=result.stage,
-            attempt=result.attempt,
-            status=result.status.value,
-            show=result.show.value,
-            outcome=result.outcome,
-            metrics=result.metrics,
-            summary=result.summary,
-            tests=[GradedTest.of(row) for row in result.tests]
-            if result.tests is not None
-            else None,
-            log=result.log,
-        )
-
 
 class Submission(BaseModel):
     """One of the caller's submissions of the task: its number among them,
@@ -145,43 +89,35 @@ class Submission(BaseModel):
 
     number: int
     submitted_at: datetime
-    gradings: list[GradingResult]
-
-    @classmethod
-    def of(cls, submission: SubmissionRecord) -> Submission:
-        return cls(
-            number=submission.number,
-            submitted_at=submission.submitted_at,
-            gradings=[GradingResult.of(result) for result in submission.gradings],
-        )
+    gradings: list[Result]
 
 
 class SubmittedFileInput(BaseModel):
     """What one input of a submission was: the paths of its files in the
     submission, each readable at the file route, and the language of a code
-    input; or the value given.
+    input; or the value given. It is read leniently from the submission's
+    `submission.json`: a member of the wrong type is left out rather than
+    failing the answer.
     """
 
     files: list[str]
     language: str | None
     value: Value | None
 
+    @model_validator(mode="before")
     @classmethod
-    def of(cls, given: object) -> SubmittedFileInput:
-        """Read leniently from the submission's `submission.json`: a member
-        of the wrong type is left out rather than failing the answer.
-        """
+    def _leniently(cls, given: Any) -> dict[str, Any]:
         found = given if isinstance(given, dict) else {}
         files = found.get("files")
         language = found.get("language")
         value = found.get("value")
-        return cls(
-            files=[path for path in files if isinstance(path, str)]
+        return {
+            "files": [path for path in files if isinstance(path, str)]
             if isinstance(files, list)
             else [],
-            language=language if isinstance(language, str) else None,
-            value=value if isinstance(value, str | int | float | bool) else None,
-        )
+            "language": language if isinstance(language, str) else None,
+            "value": value if isinstance(value, Value) else None,
+        }
 
 
 class SubmittedFiles(BaseModel):
@@ -191,13 +127,3 @@ class SubmittedFiles(BaseModel):
 
     number: int
     inputs: dict[str, SubmittedFileInput]
-
-    @classmethod
-    def of(cls, submitted: SubmittedFilesRecord) -> SubmittedFiles:
-        return cls(
-            number=submitted.number,
-            inputs={
-                str(input): SubmittedFileInput.of(given)
-                for input, given in submitted.inputs.items()
-            },
-        )

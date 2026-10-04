@@ -18,14 +18,21 @@ NO_CONTENT = status.HTTP_204_NO_CONTENT
 router = APIRouter(prefix="/me", tags=["me"])
 
 
-@router.get("", operation_id="getMe", summary="The signed-in user and their roles")
-async def get_me(session: CurrentSession) -> Me:
-    return Me.of(await identity.whoami(session))
+@router.get(
+    "", operation_id="getMe", summary="The signed-in user and their roles", response_model=Me
+)
+async def get_me(session: CurrentSession) -> identity.Me:
+    return await identity.whoami(session)
 
 
-@router.get("/sessions", operation_id="listMySessions", summary="Where this user is signed in")
-async def list_my_sessions(session: CurrentSession) -> list[SessionInfo]:
-    return [SessionInfo.of(info) for info in await sessions.list_for(session)]
+@router.get(
+    "/sessions",
+    operation_id="listMySessions",
+    summary="Where this user is signed in",
+    response_model=list[SessionInfo],
+)
+async def list_my_sessions(session: CurrentSession) -> list[sessions.SessionInfo]:
+    return await sessions.list_for(session)
 
 
 @router.delete(
