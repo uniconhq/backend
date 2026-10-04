@@ -51,7 +51,6 @@ CASES = [
     (errors.TaskClosed, 403),
     (errors.Archived, 403),
     (errors.NotApproved, 403),
-    (errors.WorkspaceNotReady, 409),
     (errors.SubmissionLimit, 409),
     (errors.RateLimited, 429),
     (errors.TooLarge, 413),
@@ -61,7 +60,7 @@ CASES = [
     (errors.InvalidIdempotencyKey, 422),
     (errors.CiRequestRefused, 403),
     (errors.InvalidToken, 401),
-    (errors.GradingClosed, 409),
+    (errors.GradingClosed, 410),
     (errors.InvalidCallback, 422),
     (PayloadTooLarge, 413),
 ]

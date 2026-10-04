@@ -1,17 +1,14 @@
 """What the save takes and answers with, and a task's publications. A save
-comes back as one of two outcomes, told apart by `outcome`: `published`,
-with the new publication, or `draft`, with the version written and either
-the errors that kept it from publishing, each at its YAML path, or what it
-held back while the contest runs.
+comes back as one of two outcomes: published, with the new publication, or a
+draft, with the version written and either the errors that kept it from
+publishing, each at its YAML path, or what it held back while the contest
+runs.
 """
 
 from datetime import datetime
-from typing import Annotated, Literal, Self
+from typing import Annotated, Any, Self
 
-from forge.api.publications import Activation, Draft, Published
-from forge.api.publications import Publication as PublicationRecord
-from forge.api.types import Problem
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, BeforeValidator, model_validator
 
 from unicon.schemas.files import Encoded
 
@@ -24,33 +21,31 @@ class DefinitionError(BaseModel):
     path: str
     message: str
 
-    @classmethod
-    def of(cls, problem: Problem) -> DefinitionError:
-        return cls(path=problem["path"], message=problem["message"])
+
+def _number_of(publication: Any) -> Any:
+    """A publication's number among its task's, from the forge's id for it,
+    which is built from the keys the task is filed under and stays home.
+    """
+    if isinstance(publication, str) and "#" in publication:
+        return int(publication.rsplit("#", 1)[1])
+    return publication
+
+
+PublicationNumber = Annotated[int, BeforeValidator(_number_of)]
+"""A publication by its number among its task's publications."""
 
 
 class Publication(BaseModel):
     """One publication: its number among the task's publications, the version
     it froze, whether it changed how the task grades and what, and when.
+    Which workflow each of its workflow names was at the forge stays out.
     """
 
-    id: str
     number: int
     version: str
     grading_changed: bool
     changes: list[str]
     at: datetime
-
-    @classmethod
-    def of(cls, publication: PublicationRecord) -> Publication:
-        return cls(
-            id=publication.id,
-            number=publication.number,
-            version=publication.version,
-            grading_changed=publication.grading_changed,
-            changes=list(publication.changes),
-            at=publication.at,
-        )
 
 
 class FileChange(Encoded):
@@ -83,56 +78,25 @@ class SaveRequest(BaseModel):
         return self
 
 
-class PublishedSave(BaseModel):
-    """A save that published. `activation` says where the task's activation
-    at the CI stands: `done` by this save, `pending` with the poller, or
-    `not_needed` because an earlier publication did it.
+class Published(BaseModel):
+    """A save that published: the new publication's number among the task's,
+    whether it changed how the task grades, and what.
     """
 
-    outcome: Literal["published"]
-    publication: str
     number: int
     grading_changed: bool
     changes: list[str]
-    activation: Activation
-
-    @classmethod
-    def of(cls, result: Published) -> PublishedSave:
-        return cls(
-            outcome="published",
-            publication=result.publication,
-            number=result.number,
-            grading_changed=result.grading_changed,
-            changes=list(result.changes),
-            activation=result.activation,
-        )
 
 
-class DraftSave(BaseModel):
+class Draft(BaseModel):
     """A save kept as a draft: the version its files were written as, the
     errors that kept it from publishing, and what it held back.
     """
 
-    outcome: Literal["draft"]
     version: str
     errors: list[DefinitionError]
     held_back: list[str]
 
-    @classmethod
-    def of(cls, result: Draft) -> DraftSave:
-        return cls(
-            outcome="draft",
-            version=result.version,
-            errors=[DefinitionError.of(problem) for problem in result.errors],
-            held_back=list(result.held_back),
-        )
 
-
-SaveResult = Annotated[PublishedSave | DraftSave, Field(discriminator="outcome")]
-
-
-def save_result(result: Published | Draft) -> PublishedSave | DraftSave:
-    """The answer for a save's result, whichever of the two it is."""
-    if isinstance(result, Published):
-        return PublishedSave.of(result)
-    return DraftSave.of(result)
+SaveResult = Published | Draft
+"""A save's answer: published, or kept as a draft."""

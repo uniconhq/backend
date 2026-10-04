@@ -31,15 +31,13 @@ def router_at(kind: ScopeKind) -> APIRouter:
         "/roles",
         operation_id=f"list{name}Roles",
         summary=f"Who holds a role at the {kind.value}",
+        response_model=list[Holder],
     )
-    async def list_roles(organiser: Observer) -> list[Holder]:
+    async def list_roles(organiser: Observer) -> tuple[roles.Holder, ...]:
         """Everyone holding a role here, each once with the highest role they
         hold, highest first, including those who hold it at a broader scope.
         """
-        return [
-            Holder.of(holder, organiser.scope)
-            for holder in await roles.holders(organiser, organiser.scope)
-        ]
+        return await roles.holders(organiser, organiser.scope)
 
     @router.post(
         "/roles",
@@ -51,7 +49,7 @@ def router_at(kind: ScopeKind) -> APIRouter:
         """A different role than the one they hold here moves them to it,
         which is how a person is promoted or demoted.
         """
-        await roles.grant(organiser, organiser.scope, body.username, Role(body.role))
+        await roles.grant(organiser, organiser.scope, body.username, body.role)
         return Response(status_code=NO_CONTENT)
 
     @router.delete(

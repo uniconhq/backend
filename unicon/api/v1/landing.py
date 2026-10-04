@@ -15,25 +15,32 @@ from unicon.schemas.landing import PublicContest, PublicStatement
 router = APIRouter(prefix="/public", tags=["public"])
 
 
-@router.get("/contests", operation_id="listPublicContests", summary="The public contests")
-async def list_public_contests() -> list[PublicContest]:
+@router.get(
+    "/contests",
+    operation_id="listPublicContests",
+    summary="The public contests",
+    response_model=list[PublicContest],
+)
+async def list_public_contests() -> tuple[landing.PublicContest, ...]:
     """Newest start first, each without its tasks."""
-    return [PublicContest.of(found) for found in await landing.contests()]
+    return await landing.contests()
 
 
 @router.get(
     "/contests/{org}/{contest}",
     operation_id="getPublicContest",
     summary="A public contest and its released tasks",
+    response_model=PublicContest,
 )
-async def get_public_contest(scope: ContestAtPath) -> PublicContest:
-    return PublicContest.of(await landing.contest(contests.contest_id_of(scope)))
+async def get_public_contest(scope: ContestAtPath) -> landing.PublicContest:
+    return await landing.contest(contests.contest_id_of(scope))
 
 
 @router.get(
     "/contests/{org}/{contest}/tasks/{task}",
     operation_id="getPublicStatement",
     summary="A released task's statement",
+    response_model=PublicStatement,
 )
-async def get_public_statement(scope: TaskAtPath) -> PublicStatement:
-    return PublicStatement.of(await landing.statement(tasks.task_id_of(scope)))
+async def get_public_statement(scope: TaskAtPath) -> landing.PublicStatement:
+    return await landing.statement(tasks.task_id_of(scope))

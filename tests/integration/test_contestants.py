@@ -8,7 +8,7 @@ refusal of a decision carries its code.
 """
 
 import httpx
-from forge.testing import FakeForge, Setup, tick
+from forge.testing import FakeForge, Setup
 
 from tests.integration.conftest import CONTEST, ORIGIN, run_contest, sign_in_as
 
@@ -31,7 +31,6 @@ async def test_a_registration_is_pending_and_the_caller_reads_it_back(
 
     assert before.status_code == 201, before.text
     assert before.json()["status"] == "pending"
-    assert before.json()["workspace"] is None
     assert mine.json() == before.json()
 
 
@@ -94,9 +93,9 @@ async def test_a_manager_decides_and_the_caller_reads_the_reason(
     await sign_in_as(client, world, 20)
     mine = await client.get(REGISTRATION)
 
-    assert [(entry["user_id"], entry["username"], entry["status"]) for entry in listed.json()] == [
-        (20, "carol", "pending")
-    ]
+    assert [
+        (entry["user_id"], entry["user"]["username"], entry["status"]) for entry in listed.json()
+    ] == [(20, "carol", "pending")]
     assert (empty.status_code, empty.json()["code"]) == (422, "invalid_reason")
     assert rejected.json()["status"] == "rejected"
     assert (approving.status_code, approving.json()["code"]) == (409, "wrong_status")
@@ -129,7 +128,6 @@ async def test_an_approved_contestant_is_given_time_and_removed(
     await sign_in_as(client, world, 7)
 
     approved = await client.post(f"{CONTESTANTS}/20/approve", headers=ORIGIN)
-    await tick(held_setup, "provisioning")
     ready = await client.get(CONTESTANTS)
     extended = await client.put(
         f"{CONTESTANTS}/20/extension", json={"seconds": 1800}, headers=ORIGIN
@@ -138,13 +136,12 @@ async def test_an_approved_contestant_is_given_time_and_removed(
     huge = await client.put(f"{CONTESTANTS}/20/extension", json={"seconds": 10**20}, headers=ORIGIN)
     removed = await client.post(f"{CONTESTANTS}/20/remove", headers=ORIGIN)
 
-    assert (approved.json()["status"], approved.json()["workspace"]) == ("approved", "preparing")
-    assert ready.json()[0]["workspace"] == "ready"
-    assert extended.json()["time_extension_seconds"] == 1800
+    assert approved.json()["status"] == "approved"
+    assert ready.json()[0]["status"] == "approved"
+    assert extended.json()["time_extension"] == 1800
     assert (negative.status_code, negative.json()["code"]) == (422, "invalid_extension")
     assert (huge.status_code, huge.json()["code"]) == (422, "validation_error")
-    assert (removed.json()["status"], removed.json()["workspace"]) == ("removed", None)
-    assert 20 not in world.state.repos[("acme", "spring.carol.desk")].writers
+    assert removed.json()["status"] == "removed"
 
 
 async def test_a_contestant_is_refused_every_decision(

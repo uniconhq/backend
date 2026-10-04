@@ -1,5 +1,6 @@
 """Sign-in as HTTP: the redirect to the host, the callback that sets the
-session cookie, sign-out, and where a person creates an account.
+session cookie, sign-out, where a person creates an account, and where the
+forge's own pages are.
 """
 
 from urllib.parse import urlencode
@@ -11,7 +12,7 @@ from forge.api.errors import SignInDenied, UniconError
 
 from unicon.api import cookies
 from unicon.api.deps import CurrentSession
-from unicon.schemas.auth import RegisterUrl
+from unicon.schemas.auth import ForgeUrl, RegisterUrl
 
 FOUND = status.HTTP_302_FOUND
 NO_CONTENT = status.HTTP_204_NO_CONTENT
@@ -94,3 +95,17 @@ async def logout(session: CurrentSession) -> Response:
 )
 async def register_url() -> RegisterUrl:
     return RegisterUrl(url=sign_in.sign_up_url())
+
+
+@router.get(
+    "/forge-url",
+    operation_id="getForgeUrl",
+    summary="Where a browser reaches the forge's own pages",
+)
+async def forge_url() -> ForgeUrl:
+    """The account lives at the forge, so the app links there for the
+    password, the email and two-factor, and signs the browser out there too.
+    Served here rather than built into the app, so one image fits every
+    deployment.
+    """
+    return ForgeUrl(url=sign_in.forge_url())

@@ -22,11 +22,11 @@ async def test_a_signed_in_person_reads_the_home_and_a_released_task(
     home = await client.get(f"{CONTEST}/home")
     page = await client.get(f"{TASK}/page")
 
-    assert [(entry["org"], entry["name"], entry["status"]) for entry in listed.json()] == [
-        ("acme", "spring", None)
+    assert [(entry["where"], entry["status"]) for entry in listed.json()] == [
+        ({"org": "acme", "contest": "spring"}, None)
     ]
     body = home.json()
-    assert (body["org"], body["name"], body["state"]) == ("acme", "spring", "published")
+    assert (body["where"], body["state"]) == ({"org": "acme", "contest": "spring"}, "published")
     assert (body["registration"], body["organises"], body["registration_open"]) == (
         None,
         False,
@@ -39,8 +39,7 @@ async def test_a_signed_in_person_reads_the_home_and_a_released_task(
     assert page.json()["statement"] == "Add two numbers.\n"
     assert page.json()["limits"] == {
         "submissions": 50,
-        "rate_count": 1,
-        "rate_seconds": 30,
+        "rate": {"count": 1, "per": 30},
         "max_size": 10 * 1024 * 1024,
     }
     assert [(entry["id"], entry["type"], entry["label"]) for entry in page.json()["inputs"]] == [

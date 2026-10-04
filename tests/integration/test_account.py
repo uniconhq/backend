@@ -7,14 +7,17 @@ from datetime import timedelta
 import httpx
 from fastapi import FastAPI
 from forge.api.types import Role, Scope
-from forge.testing import AsUser, FakeClock, FakeForge, OrgName, Visibility
+from forge.testing import AsUser, FakeClock, FakeForge, OrgId, Setup, Visibility, name_places
 
 from tests.integration.conftest import ORIGIN, sign_in
 from unicon.api.cookies import SESSION_COOKIE
 
 
-async def test_me_lists_roles_at_every_scope(client: httpx.AsyncClient, forge: FakeForge) -> None:
-    await forge.orgs.create_org(OrgName("acme"), description="Acme")
+async def test_me_lists_roles_at_every_scope(
+    client: httpx.AsyncClient, forge: FakeForge, held_setup: Setup
+) -> None:
+    await forge.orgs.create_org(OrgId("acme"), description="Acme")
+    await name_places(held_setup, "acme", "acme/spring", "acme/spring/sum")
     await forge.orgs.grant_role(7, Scope("acme"), Role.ADMIN)
     await forge.orgs.grant_role(7, Scope("acme", "spring", "sum"), Role.OBSERVER)
     await sign_in(client, forge)
@@ -22,9 +25,9 @@ async def test_me_lists_roles_at_every_scope(client: httpx.AsyncClient, forge: F
     me = await client.get("/api/v1/me")
 
     assert me.json()["roles"] == [
-        {"scope": {"kind": "org", "org": "acme", "contest": None, "task": None}, "role": "admin"},
+        {"names": {"org": "acme", "contest": None, "task": None}, "role": "admin"},
         {
-            "scope": {"kind": "task", "org": "acme", "contest": "spring", "task": "sum"},
+            "names": {"org": "acme", "contest": "spring", "task": "sum"},
             "role": "observer",
         },
     ]
@@ -39,7 +42,7 @@ async def test_a_forge_that_is_down_degrades_me(
     me = await client.get("/api/v1/me")
 
     assert me.status_code == 200
-    assert me.json()["username"] == "ada"
+    assert me.json()["user"]["username"] == "ada"
     assert me.json()["degraded"] is True
 
 
@@ -98,9 +101,10 @@ async def test_deactivating_signs_out_and_turns_the_account_off(
 
 
 async def test_a_delete_refusal_names_the_scopes(
-    client: httpx.AsyncClient, forge: FakeForge
+    client: httpx.AsyncClient, forge: FakeForge, held_setup: Setup
 ) -> None:
-    await forge.orgs.create_org(OrgName("acme"), description="Acme")
+    await forge.orgs.create_org(OrgId("acme"), description="Acme")
+    await name_places(held_setup, "acme")
     await forge.orgs.grant_role(7, Scope("acme"), Role.ADMIN)
     await sign_in(client, forge)
 

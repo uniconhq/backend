@@ -1,41 +1,21 @@
 """What the role routes take and answer with."""
 
-from typing import Literal
-
-from forge.api.roles import Holder as HolderRecord
-from forge.api.types import Scope as ScopeValue
+from forge.api.names import ScopeNames
+from forge.api.types import Role
 from pydantic import BaseModel
 
-from unicon.schemas.scope import Scope
-
-RoleName = Literal["admin", "manager", "observer"]
+from unicon.schemas.account import Person
 
 
 class Holder(BaseModel):
-    """Someone holding `role` at the scope asked about. `scope` is where
-    they hold it directly, and `inherited` is set when that is a broader
-    scope, such as an org admin listed at one of the org's contests.
+    """Someone holding `role` at the scope asked about, held directly at
+    `at_names`: that scope, or a broader one, such as the org of a contest
+    whose admin is listed at the contest.
     """
 
-    user_id: int
-    username: str
-    name: str | None
-    avatar_url: str | None
-    role: RoleName
-    scope: Scope
-    inherited: bool
-
-    @classmethod
-    def of(cls, holder: HolderRecord, asked: ScopeValue) -> Holder:
-        return cls(
-            user_id=holder.user.id,
-            username=holder.user.username,
-            name=holder.user.name,
-            avatar_url=holder.user.avatar_url,
-            role=holder.role.value,
-            scope=Scope.of(holder.at),
-            inherited=holder.at != asked,
-        )
+    user: Person
+    role: Role
+    at_names: ScopeNames
 
 
 class GrantRequest(BaseModel):
@@ -44,4 +24,4 @@ class GrantRequest(BaseModel):
     """
 
     username: str
-    role: RoleName
+    role: Role

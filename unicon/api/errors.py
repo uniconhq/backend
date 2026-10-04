@@ -67,7 +67,6 @@ STATUS = {
     "task_closed": 403,
     "archived": 403,
     "not_approved": 403,
-    "workspace_not_ready": 409,
     "submission_limit": 409,
     "rate_limited": 429,
     "too_large": 413,
@@ -75,11 +74,12 @@ STATUS = {
     "upload_not_ready": 409,
     "upload_limit": 409,
     "log_too_large": 409,
+    "file_too_large": 409,
     "invalid_inputs": 422,
     "invalid_idempotency_key": 422,
     "ci_request_refused": 403,
     "invalid_token": 401,
-    "grading_closed": 409,
+    "grading_closed": 410,
     "invalid_callback": 422,
 }
 INTERNAL = 500

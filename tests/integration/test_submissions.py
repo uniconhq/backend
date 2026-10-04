@@ -9,6 +9,7 @@ or not the caller's. Another contestant's submission is no such submission,
 and every route needs a session.
 """
 
+import hashlib
 import uuid
 from datetime import timedelta
 from typing import Any
@@ -68,8 +69,10 @@ async def test_a_submit_answers_with_its_queued_grading_and_reads_back(
         "tests": None,
         "log": False,
     }
-    assert listed.json() == [submitted.json()]
-    assert one.json() == submitted.json()
+    first = submitted.json()["gradings"][0]
+    started = {**submitted.json(), "gradings": [{**first, "status": "dispatched"}]}
+    assert listed.json() == [started]
+    assert one.json() == started
 
 
 async def test_a_submission_gives_back_what_it_was_made_with(
@@ -103,7 +106,10 @@ async def test_the_same_key_sent_twice_makes_one_submission(
     again = await _submit(client, entered)
 
     assert again.status_code == 201, again.text
-    assert again.json() == first.json()
+    assert again.json()["number"] == first.json()["number"]
+    assert [grading["id"] for grading in again.json()["gradings"]] == [
+        grading["id"] for grading in first.json()["gradings"]
+    ]
     assert len((await client.get(SUBMISSIONS)).json()) == 1
 
 
@@ -151,7 +157,12 @@ async def test_an_upload_that_is_not_checked_is_not_ready(
 ) -> None:
     slot = await client.post(
         f"{TASK}/uploads",
-        json={"input": "submission", "filename": "main.py", "size": len(SOURCE)},
+        json={
+            "input": "submission",
+            "filename": "main.py",
+            "size": len(SOURCE),
+            "sha256": hashlib.sha256(SOURCE).hexdigest(),
+        },
         headers=ORIGIN,
     )
     upload_id = slot.json()["id"]

@@ -1,23 +1,23 @@
 """The app over a real Postgres and the in-memory forge, the way
 `UNICON_FORGE=fake` runs it. The test holds forge's setup through
 `held_setup`, so the app is served without its lifespan, which would start
-forge a second time, and moves provisioning along with `tick`, one tick of
-the poller the lifespan would run.
+forge a second time.
 
 The organiser path starts from `acme`, the org made the operator's way with
 ada (7) its admin and the built-in workflow `unicon/classic@v1` public at the
 fake as bootstrap makes it, and `sum_task`, the contest acme/spring and the
-task acme/spring/sum in it made through the routes and the poller, with ada
+task acme/spring/sum in it made through the routes, with ada
 signed in. `world` adds carol (20), who holds nothing. `ORG`, `CONTEST` and
 `TASK` are the three scopes' URLs, and `ACME`, `SPRING` and `SUM` the scopes
 themselves. `run_contest` and `publish` are the two writes a test of a
 running contest starts with, and `edit_task` changes the task's settings.
-`entered` adds carol as the task's approved contestant with her workspace
-made, and `enter` makes anyone else one; `upload` sends a file the way the
+`entered` adds carol as the task's approved contestant, and `enter` makes
+anyone else one; `upload` sends a file the way the
 browser does.
 """
 
 import asyncio
+import hashlib
 import re
 from collections.abc import AsyncIterator, Awaitable, Callable
 from typing import Any
@@ -28,7 +28,7 @@ import pytest
 from fastapi import FastAPI
 from forge.api import orgs
 from forge.api.types import Scope
-from forge.testing import APP_URL, FakeForge, OrgName, Setup, seed_classic, tick
+from forge.testing import APP_URL, FakeForge, Setup, seed_classic
 
 from unicon.cli import main
 from unicon.main import create_app
@@ -105,10 +105,7 @@ async def acme(forge: FakeForge, held_setup: Setup) -> FakeForge:
     """acme, made the operator's way with ada its admin, and the built-in
     workflow public at the fake.
     """
-    record = await orgs.create_by_operator(
-        OrgName("acme"), description="Acme", admin_username="ada"
-    )
-    assert record.status == "ready"
+    await orgs.create_by_operator("acme", description="Acme", admin_username="ada")
     await seed_classic(forge)
     forge.reset_calls()
     return forge
@@ -116,16 +113,14 @@ async def acme(forge: FakeForge, held_setup: Setup) -> FakeForge:
 
 @pytest.fixture
 async def sum_task(client: httpx.AsyncClient, acme: FakeForge, held_setup: Setup) -> FakeForge:
-    """acme/spring and acme/spring/sum made through the routes, each followed
-    through the poller, with ada signed in and the task not yet saved.
+    """acme/spring and acme/spring/sum made through the routes, with ada signed
+    in and the task not yet saved.
     """
     await sign_in(client, acme)
-    asked = await client.post(f"{ORG}/contests", json={"name": "spring"}, headers=ORIGIN)
-    assert asked.status_code == 202
-    await tick(held_setup, "provisioning")
-    asked = await client.post(f"{CONTEST}/tasks", json={"name": "sum"}, headers=ORIGIN)
-    assert asked.status_code == 202
-    await tick(held_setup, "provisioning")
+    made = await client.post(f"{ORG}/contests", json={"name": "spring"}, headers=ORIGIN)
+    assert made.status_code == 201, made.text
+    made = await client.post(f"{CONTEST}/tasks", json={"name": "sum"}, headers=ORIGIN)
+    assert made.status_code == 201, made.text
     acme.reset_calls()
     return acme
 
@@ -172,7 +167,7 @@ async def publish(client: httpx.AsyncClient) -> None:
         json={"encoding": "utf-8", "content": "Add two numbers.\n", "token": statement["token"]},
         headers=ORIGIN,
     )
-    assert saved.json()["outcome"] == "published", saved.text
+    assert "number" in saved.json(), saved.text
 
 
 async def edit_task(client: httpx.AsyncClient, old: str, new: str) -> None:
@@ -192,12 +187,12 @@ async def edit_task(client: httpx.AsyncClient, old: str, new: str) -> None:
         headers=ORIGIN,
     )
     assert saved.status_code == 200, saved.text
-    assert saved.json()["outcome"] == "published", saved.text
+    assert "number" in saved.json(), saved.text
 
 
 async def enter(client: httpx.AsyncClient, forge: FakeForge, setup: Setup, user_id: int) -> None:
-    """The user registered for acme/spring through the routes, approved by
-    ada and their workspace made, leaving the client signed in as them.
+    """The user registered for acme/spring through the routes and approved by
+    ada, leaving the client signed in as them.
     """
     await sign_in_as(client, forge, user_id)
     registered = await client.post(f"{CONTEST}/registration", json={}, headers=ORIGIN)
@@ -205,15 +200,13 @@ async def enter(client: httpx.AsyncClient, forge: FakeForge, setup: Setup, user_
     await sign_in_as(client, forge, 7)
     approved = await client.post(f"{CONTEST}/contestants/{user_id}/approve", headers=ORIGIN)
     assert approved.status_code == 200, approved.text
-    for _ in range(3):
-        await tick(setup, "provisioning")
     await sign_in_as(client, forge, user_id)
 
 
 @pytest.fixture
 async def entered(client: httpx.AsyncClient, world: FakeForge, held_setup: Setup) -> FakeForge:
     """acme/spring public and running, acme/spring/sum published, and carol
-    (20) its approved contestant with her workspace made, signed in.
+    (20) its approved contestant, signed in.
     """
     await run_contest(client, visibility="public")
     await publish(client)
@@ -230,19 +223,34 @@ async def upload(
     input: str = "submission",
     filename: str = "main.py",
 ) -> dict[str, Any]:
-    """A file uploaded the way the browser does: a slot, the bytes posted
-    with its form, and the upload completed. Returns the upload.
+    """A file uploaded the way the browser does: a slot, the bytes through
+    the door, and the upload completed. Returns the upload.
     """
     slot = await client.post(
         f"{TASK}/uploads",
-        json={"input": input, "filename": filename, "size": len(content)},
+        json={
+            "input": input,
+            "filename": filename,
+            "size": len(content),
+            "sha256": hashlib.sha256(content).hexdigest(),
+        },
         headers=ORIGIN,
     )
     assert slot.status_code == 201, slot.text
-    forge.objects.post(slot.json()["fields"], content)
-    completed = await client.post(
-        f"{TASK}/uploads/{slot.json()['id']}/complete", json={}, headers=ORIGIN
-    )
+    body = slot.json()
+    if not body["ready"]:
+        door = await client.get(
+            "/-/uploads/door",
+            headers={
+                "X-Original-URI": f"/-/uploads/{body['id']}",
+                "X-Upload-Length": str(len(content)),
+            },
+        )
+        assert door.status_code == 204, door.text
+        forge.uploads.send(
+            door.headers["X-Forge-Path"], door.headers["X-Forge-Authorization"], content
+        )
+    completed = await client.post(f"{TASK}/uploads/{body['id']}/complete", headers=ORIGIN)
     assert completed.status_code == 200, completed.text
-    body: dict[str, Any] = completed.json()
-    return body
+    upload: dict[str, Any] = completed.json()
+    return upload

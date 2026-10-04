@@ -1,22 +1,39 @@
-"""What the account routes answer with."""
+"""What the account routes answer with, and a person as the other answers
+name them.
+"""
 
+import uuid
 from datetime import datetime
 
-from forge.api.identity import Me as MeRecord
-from forge.api.sessions import SessionInfo as SessionRecord
-from forge.api.types import RoleGrant
+from forge.api.names import ScopeNames
+from forge.api.types import Role
 from pydantic import BaseModel
 
-from unicon.schemas.scope import Scope
+
+class Person(BaseModel):
+    """Someone as another person sees them, by their forge id. Their email
+    stays out.
+    """
+
+    id: int
+    username: str
+    name: str | None
+    avatar_url: str | None
 
 
-class Role(BaseModel):
-    scope: Scope
-    role: str
+class Account(Person):
+    """Someone with their email, as they see themself and as the organisers
+    of a contest they registered for see them.
+    """
 
-    @classmethod
-    def of(cls, grant: RoleGrant) -> Role:
-        return cls(scope=Scope.of(grant.scope), role=grant.role.value)
+    email: str | None
+
+
+class HeldRole(BaseModel):
+    """A role the user holds, at the org, contest or task `names` reaches."""
+
+    role: Role
+    names: ScopeNames
 
 
 class Me(BaseModel):
@@ -24,25 +41,9 @@ class Me(BaseModel):
     when the forge did not answer and the identity comes from the session.
     """
 
-    user_id: int
-    username: str
-    name: str | None
-    email: str | None
-    avatar_url: str | None
-    roles: list[Role]
+    user: Account
+    roles: list[HeldRole]
     degraded: bool
-
-    @classmethod
-    def of(cls, me: MeRecord) -> Me:
-        return cls(
-            user_id=me.user.id,
-            username=me.user.username,
-            name=me.user.name,
-            email=me.user.email,
-            avatar_url=me.user.avatar_url,
-            roles=[Role.of(grant) for grant in me.roles],
-            degraded=me.degraded,
-        )
 
 
 class SessionInfo(BaseModel):
@@ -51,18 +52,8 @@ class SessionInfo(BaseModel):
     out of the answer.
     """
 
-    id: str
+    id: uuid.UUID
     created_at: datetime
     last_seen_at: datetime
     user_agent: str | None
     current: bool
-
-    @classmethod
-    def of(cls, info: SessionRecord) -> SessionInfo:
-        return cls(
-            id=info.id.hex,
-            created_at=info.created_at,
-            last_seen_at=info.last_seen_at,
-            user_agent=info.user_agent,
-            current=info.current,
-        )

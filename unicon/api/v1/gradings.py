@@ -21,7 +21,7 @@ from forge.api.errors import NotFound
 from forge.api.types import Role, ScopeKind
 
 from unicon.api.guard import PREFIX, require
-from unicon.schemas.gradings import Grading, Rejudge
+from unicon.schemas.gradings import Grading, Rejudged
 
 TASK = PREFIX[ScopeKind.TASK]
 
@@ -35,37 +35,40 @@ NO_SUCH_GRADING = "There is no such grading."
     "/gradings/{grading}/cancel",
     operation_id="cancelGrading",
     summary="Stop a grading that is not finished",
+    response_model=Grading,
 )
-async def cancel_grading(organiser: TaskManager, grading: uuid.UUID) -> Grading:
+async def cancel_grading(organiser: TaskManager, grading: uuid.UUID) -> gradings.GradingRecord:
     """The grading as it now stands, `cancelled`. A finished one is
     `wrong_status`, carrying its status as `current`.
     """
-    return Grading.of(await gradings.cancel(organiser, await _of_this_task(organiser, grading)))
+    return await gradings.cancel(organiser, await _of_this_task(organiser, grading))
 
 
 @router.post(
     "/gradings/{grading}/retry",
     operation_id="retryGrading",
     summary="Grade a finished grading again as a new attempt",
+    response_model=Grading,
 )
-async def retry_grading(organiser: TaskManager, grading: uuid.UUID) -> Grading:
+async def retry_grading(organiser: TaskManager, grading: uuid.UUID) -> gradings.GradingRecord:
     """The new attempt, queued; the old one is kept as it was. One that is
     not finished is `wrong_status`, and `conflict` while another attempt of
     it is being graded.
     """
-    return Grading.of(await gradings.retry(organiser, await _of_this_task(organiser, grading)))
+    return await gradings.retry(organiser, await _of_this_task(organiser, grading))
 
 
 @router.post(
     "/rejudge",
     operation_id="rejudgeTask",
     summary="Grade every submission of the task again against its current publication",
+    response_model=Rejudged,
 )
-async def rejudge_task(organiser: TaskManager) -> Rejudge:
+async def rejudge_task(organiser: TaskManager) -> gradings.Rejudged:
     """How many new attempts it queued, cancelled first, left to finish and
     passed over. A task with no publication is `not_found`.
     """
-    return Rejudge.of(await gradings.rejudge(organiser, tasks.task_id_of(organiser.scope)))
+    return await gradings.rejudge(organiser, tasks.task_id_of(organiser.scope))
 
 
 async def _of_this_task(organiser: Organiser, grading: uuid.UUID) -> uuid.UUID:
