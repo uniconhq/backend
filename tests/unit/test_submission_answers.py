@@ -12,7 +12,7 @@ from forge.api.submissions import GradingStatus, Result, Show
 from forge.api.submissions import SubmittedFiles as SubmittedFilesRecord
 from forge.api.types import TaskId
 
-from unicon.api.v1.submissions import _attachment
+from unicon.api.door import attachment
 from unicon.schemas.submissions import Result as ResultAnswer
 from unicon.schemas.submissions import SubmittedFiles
 
@@ -145,4 +145,4 @@ def test_a_submissions_inputs_are_read_leniently() -> None:
     ids=["plain", "a space", "quotes", "not ascii"],
 )
 def test_a_download_is_named_after_the_file(path: str, header: str) -> None:
-    assert _attachment(path) == header
+    assert attachment(path) == header
