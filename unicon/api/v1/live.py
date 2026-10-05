@@ -1,4 +1,4 @@
-"""One Server-Sent Events stream per signed-in session, carrying the nudges
+"""One Server-Sent Events stream per open tab of a signed-in session, carrying the nudges
 forge says the session may hear and nothing else: each is an event named
 by its kind, `grading`, `announcement`, `clarification` or `resync`, whose
 data is one id. A page that hears one asks for the thing again through the
@@ -7,8 +7,11 @@ stream left open in a tab is never a second way to read anything.
 
 The stream writes a comment every fifteen seconds when there is nothing to
 say, which keeps proxies from closing it and tells the server a browser has
-gone. It ends when the session does; the browser reconnects after `retry`,
-and a page polls while it cannot. The proxy must not buffer it, which the
+gone. The route waits for forge to have checked the session and
+subscribed before it answers, so a refusal is an ordinary error answer and
+never a 200 that ends at once. It ends when the session does, or when the
+same session opens more streams than forge keeps; the browser reconnects
+after `retry`, and a page polls while it cannot. The proxy must not buffer it, which the
 `X-Accel-Buffering` header asks of nginx on top of the proxy's own block
 for this path.
 """
@@ -36,9 +39,13 @@ router = APIRouter(tags=["live"])
 )
 async def stream_live_updates(session: CurrentSession) -> StreamingResponse:
     """Each event is named by its kind and carries one id."""
-    return StreamingResponse(
-        _events(live.stream(session.id)), media_type="text/event-stream", headers=HEADERS
-    )
+    nudges = live.stream(session.id)
+    try:
+        await anext(nudges)
+    except BaseException:
+        await nudges.aclose()
+        raise
+    return StreamingResponse(_events(nudges), media_type="text/event-stream", headers=HEADERS)
 
 
 async def _events(nudges: AsyncIterator[live.Nudge | None]) -> AsyncIterator[str]:
