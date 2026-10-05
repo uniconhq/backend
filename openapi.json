@@ -1143,6 +1143,17 @@
         "title": "GradingStatus",
         "type": "string"
       },
+      "Grant": {
+        "description": "What an invite gives once accepted: a contestant's place in a contest,\nwhich is eligibility to register for it, or one of the organiser roles\nat the invite's scope.",
+        "enum": [
+          "contestant",
+          "admin",
+          "manager",
+          "observer"
+        ],
+        "title": "Grant",
+        "type": "string"
+      },
       "GrantRequest": {
         "description": "Give the named user `role` at the scope, moving them from any other\nrole they hold directly there.",
         "properties": {
@@ -1228,6 +1239,173 @@
         "title": "InputType",
         "type": "string"
       },
+      "Invite": {
+        "description": "An invite: where it is to, by its names, what it grants, the username\nor the address it names, who sent it, where it stands, whether it has\nlapsed, its dates, and what became of its mail: `waiting`, `sent`,\n`failed`, or `off` where the deployment sends no mail.",
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "decided_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided At"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "expired": {
+            "title": "Expired",
+            "type": "boolean"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "grants": {
+            "$ref": "#/components/schemas/Grant"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "invited_by": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Person"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "mail_status": {
+            "$ref": "#/components/schemas/MailStatus"
+          },
+          "mailed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mailed At"
+          },
+          "status": {
+            "$ref": "#/components/schemas/InviteStatus"
+          },
+          "username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Username"
+          },
+          "where": {
+            "$ref": "#/components/schemas/ScopeNames"
+          }
+        },
+        "required": [
+          "id",
+          "where",
+          "grants",
+          "username",
+          "email",
+          "invited_by",
+          "status",
+          "expired",
+          "created_at",
+          "expires_at",
+          "decided_at",
+          "mail_status",
+          "mailed_at"
+        ],
+        "title": "Invite",
+        "type": "object"
+      },
+      "InviteRequest": {
+        "description": "Who to invite, by exactly one of `username` and `email`, to what, and\nfor how many days the invite stands, 14 unless given.",
+        "properties": {
+          "days": {
+            "anyOf": [
+              {
+                "maximum": 90.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Days"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "grants": {
+            "$ref": "#/components/schemas/Grant"
+          },
+          "username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Username"
+          }
+        },
+        "required": [
+          "grants"
+        ],
+        "title": "InviteRequest",
+        "type": "object"
+      },
+      "InviteStatus": {
+        "enum": [
+          "pending",
+          "accepted",
+          "declined",
+          "withdrawn"
+        ],
+        "title": "InviteStatus",
+        "type": "string"
+      },
       "Limits": {
         "description": "What a submit is checked against: how many submissions in all, how\noften, and how large, in bytes.",
         "properties": {
@@ -1250,6 +1428,17 @@
         ],
         "title": "Limits",
         "type": "object"
+      },
+      "MailStatus": {
+        "description": "What became of an invite's mail: `waiting` until it is handed to the\nmail server, `sent` once it took it, `failed` when it could not be sent,\nthe server refusing, not answering, or there being no address to send it\nto, and `off` where the deployment has no mail server. A mail still\n`waiting` minutes on was cut short by a restart, and is sent again from\nthe invite.",
+        "enum": [
+          "waiting",
+          "sent",
+          "failed",
+          "off"
+        ],
+        "title": "MailStatus",
+        "type": "string"
       },
       "Me": {
         "description": "The signed-in user and their roles at every scope. `degraded` is set\nwhen the forge did not answer and the identity comes from the session.",
@@ -1378,6 +1567,22 @@
           "status"
         ],
         "title": "NotReady",
+        "type": "object"
+      },
+      "OpenInviteRequest": {
+        "description": "The token after the `#` of the link an invite's mail carried.",
+        "properties": {
+          "token": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token"
+        ],
+        "title": "OpenInviteRequest",
         "type": "object"
       },
       "Person": {
@@ -3280,6 +3485,170 @@
         ]
       }
     },
+    "/api/v1/me/invites": {
+      "get": {
+        "description": "Pending ones, lapsed ones flagged, including any sent to an address the\nforge has confirmed is theirs.",
+        "operationId": "listMyInvites",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Invite"
+                  },
+                  "title": "Response Listmyinvites",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "The invites waiting for the signed-in user",
+        "tags": [
+          "invites"
+        ]
+      }
+    },
+    "/api/v1/me/invites/open": {
+      "post": {
+        "description": "Only the person the invite is for opens it; for anyone else it is no\nsuch invite. Sent in the body so the token never sits in a URL.",
+        "operationId": "openMyInvite",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpenInviteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Invite"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "The invite an invite mail's link carries",
+        "tags": [
+          "invites"
+        ]
+      }
+    },
+    "/api/v1/me/invites/{invite_id}/accept": {
+      "post": {
+        "operationId": "acceptMyInvite",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "invite_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Invite Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Invite"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Accept an invite and take what it grants",
+        "tags": [
+          "invites"
+        ]
+      }
+    },
+    "/api/v1/me/invites/{invite_id}/decline": {
+      "post": {
+        "operationId": "declineMyInvite",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "invite_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Invite Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Invite"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Decline an invite",
+        "tags": [
+          "invites"
+        ]
+      }
+    },
     "/api/v1/me/sessions": {
       "delete": {
         "operationId": "revokeAllMySessions",
@@ -4983,6 +5352,245 @@
         ]
       }
     },
+    "/api/v1/orgs/{org}/contests/{contest}/invites": {
+      "get": {
+        "description": "Newest first, whatever became of each.",
+        "operationId": "listContestInvites",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Invite"
+                  },
+                  "title": "Response Listcontestinvites",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "The invites made at the contest",
+        "tags": [
+          "invites"
+        ]
+      },
+      "post": {
+        "description": "By username or by email address, to an organiser role here, or to\na contestant's place at a contest. The mail goes out after the answer.",
+        "operationId": "createContestInvite",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InviteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Invite"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Invite someone to the contest",
+        "tags": [
+          "invites"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/invites/{invite_id}/send-again": {
+      "post": {
+        "description": "The link the earlier mail carried stops working.",
+        "operationId": "sendContestInviteAgain",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "invite_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Invite Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Invite"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Mail a pending invite again, with a new link",
+        "tags": [
+          "invites"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/invites/{invite_id}/withdraw": {
+      "post": {
+        "operationId": "withdrawContestInvite",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "invite_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Invite Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Invite"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Take a pending invite back",
+        "tags": [
+          "invites"
+        ]
+      }
+    },
     "/api/v1/orgs/{org}/contests/{contest}/questions": {
       "get": {
         "description": "Oldest first, each with every message under it.",
@@ -6474,6 +7082,281 @@
         ]
       }
     },
+    "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/invites": {
+      "get": {
+        "description": "Newest first, whatever became of each.",
+        "operationId": "listTaskInvites",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "task",
+            "required": true,
+            "schema": {
+              "title": "Task",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Invite"
+                  },
+                  "title": "Response Listtaskinvites",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "The invites made at the task",
+        "tags": [
+          "invites"
+        ]
+      },
+      "post": {
+        "description": "By username or by email address, to an organiser role here, or to\na contestant's place at a contest. The mail goes out after the answer.",
+        "operationId": "createTaskInvite",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "task",
+            "required": true,
+            "schema": {
+              "title": "Task",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InviteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Invite"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Invite someone to the task",
+        "tags": [
+          "invites"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/invites/{invite_id}/send-again": {
+      "post": {
+        "description": "The link the earlier mail carried stops working.",
+        "operationId": "sendTaskInviteAgain",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "invite_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Invite Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "task",
+            "required": true,
+            "schema": {
+              "title": "Task",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Invite"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Mail a pending invite again, with a new link",
+        "tags": [
+          "invites"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/invites/{invite_id}/withdraw": {
+      "post": {
+        "operationId": "withdrawTaskInvite",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "invite_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Invite Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "task",
+            "required": true,
+            "schema": {
+              "title": "Task",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Invite"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Take a pending invite back",
+        "tags": [
+          "invites"
+        ]
+      }
+    },
     "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/page": {
       "get": {
         "description": "The statement and the limits a submit is checked against.",
@@ -7709,6 +8592,209 @@
         "summary": "A folder's entries",
         "tags": [
           "files"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/invites": {
+      "get": {
+        "description": "Newest first, whatever became of each.",
+        "operationId": "listOrgInvites",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Invite"
+                  },
+                  "title": "Response Listorginvites",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "The invites made at the org",
+        "tags": [
+          "invites"
+        ]
+      },
+      "post": {
+        "description": "By username or by email address, to an organiser role here, or to\na contestant's place at a contest. The mail goes out after the answer.",
+        "operationId": "createOrgInvite",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InviteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Invite"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Invite someone to the org",
+        "tags": [
+          "invites"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/invites/{invite_id}/send-again": {
+      "post": {
+        "description": "The link the earlier mail carried stops working.",
+        "operationId": "sendOrgInviteAgain",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "invite_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Invite Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Invite"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Mail a pending invite again, with a new link",
+        "tags": [
+          "invites"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/invites/{invite_id}/withdraw": {
+      "post": {
+        "operationId": "withdrawOrgInvite",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "invite_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Invite Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Invite"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Take a pending invite back",
+        "tags": [
+          "invites"
         ]
       }
     },

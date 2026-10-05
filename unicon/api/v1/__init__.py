@@ -15,6 +15,7 @@ from unicon.api.v1 import (
     contests,
     files,
     gradings,
+    invites,
     landing,
     live,
     me,
@@ -31,6 +32,7 @@ router = APIRouter(prefix="/api/v1")
 router.include_router(server_time.router)
 router.include_router(auth.router)
 router.include_router(me.router)
+router.include_router(invites.mine)
 router.include_router(orgs.router)
 router.include_router(contests.router)
 router.include_router(tasks.router)
@@ -46,6 +48,7 @@ router.include_router(clarifications.router)
 router.include_router(live.router)
 for kind in ScopeKind:
     router.include_router(roles.router_at(kind))
+    router.include_router(invites.router_at(kind))
 for kind in (ScopeKind.CONTEST, ScopeKind.TASK):
     router.include_router(files.router_at(kind))
     router.include_router(announcements.router_at(kind))
