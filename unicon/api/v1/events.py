@@ -10,15 +10,21 @@ that is not a number, since nothing checks who sent it until it is read. An
 event that is let in is answered 204 at once, and only then handed to
 forge to tell the streams what it changed, so the forge never waits on that
 work and never retries a push because it was slow. The body handed on is
-the one the signature was checked over, untouched.
+the one the signature was checked over, untouched. That work fails after
+the answer has gone, so a failure is logged as `events.publish_failed` with
+the org and the kind; the pages it would have nudged catch up at their next
+poll.
 """
 
 from fastapi import APIRouter, Request, Response, status
 from forge.api import events
+from forge.api.log import get_logger
 from forge.api.types import OrgId
 from starlette.background import BackgroundTask
 
 from unicon.api import raw
+
+log = get_logger(__name__)
 
 NO_CONTENT = status.HTTP_204_NO_CONTENT
 MAX_BODY = 1024 * 1024
@@ -43,8 +49,15 @@ async def receive_forge_event(request: Request, org: str) -> Response:
     await events.check(OrgId(org), body, signature)
     kind = _first(request, events.KIND_HEADERS)
     return Response(
-        status_code=NO_CONTENT, background=BackgroundTask(events.publish, OrgId(org), kind, body)
+        status_code=NO_CONTENT, background=BackgroundTask(_publish, OrgId(org), kind, body)
     )
+
+
+async def _publish(org: OrgId, kind: str, body: bytes) -> None:
+    try:
+        await events.publish(org, kind, body)
+    except Exception:
+        log.exception("events.publish_failed", org=org, kind=kind)
 
 
 def _first(request: Request, names: tuple[str, ...]) -> str:
