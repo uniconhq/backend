@@ -146,7 +146,7 @@ async def test_a_signed_push_is_answered_and_then_publishes_the_thread_it_names(
     body = json.dumps(
         {
             "repository": {"name": "spring.u20.desk", "owner": {"login": "acme"}},
-            "issue": {"number": 1},
+            "issue": {"number": 1, "labels": [{"name": "clarification"}]},
         }
     ).encode()
     signature = hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
