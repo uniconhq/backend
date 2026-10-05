@@ -12,8 +12,9 @@ of one contest, answered ones included, which needs the observer role
 there; and, with the manager role at the contest, a reply, which leaves the
 question open, marking it answered, which closes it with or without a
 reply, taking the mark off again, and an answer made public as an
-announcement pointing at the question. A question is named by its asker's
-user id and its number among their questions in the contest.
+announcement pointing at the question. A question is named by its desk,
+`asker`: its asker's user id, or `team.<id>` for a team's, and its number
+among the desk's questions in the contest.
 """
 
 from typing import Annotated
@@ -113,7 +114,7 @@ async def list_contest_clarifications(organiser: ContestObserver) -> tuple[Clari
     response_model=Clarification,
 )
 async def reply_to_question(
-    organiser: ContestManager, asker: int, number: int, body: CommentRequest
+    organiser: ContestManager, asker: str, number: int, body: CommentRequest
 ) -> Clarification:
     """Posted as the caller."""
     return await clarifications.reply(
@@ -128,7 +129,7 @@ async def reply_to_question(
     response_model=Clarification,
 )
 async def mark_question_answered(
-    organiser: ContestManager, asker: int, number: int
+    organiser: ContestManager, asker: str, number: int
 ) -> Clarification:
     """With or without a reply first; marking a marked one changes nothing."""
     return await clarifications.mark(
@@ -143,7 +144,7 @@ async def mark_question_answered(
     response_model=Clarification,
 )
 async def unmark_question_answered(
-    organiser: ContestManager, asker: int, number: int
+    organiser: ContestManager, asker: str, number: int
 ) -> Clarification:
     """Unmarking one that is not marked changes nothing."""
     return await clarifications.unmark(
@@ -159,7 +160,7 @@ async def unmark_question_answered(
     response_model=announcements.Announcement,
 )
 async def answer_question_publicly(
-    organiser: ContestManager, asker: int, number: int, body: AnnouncementRequest
+    organiser: ContestManager, asker: str, number: int, body: AnnouncementRequest
 ) -> announcements.Announcement:
     """On the task the question names, or else on the contest, pointing at
     the question, which stays private.

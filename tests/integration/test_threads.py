@@ -108,7 +108,7 @@ async def test_a_question_is_asked_answered_followed_up_and_answered_publicly(
     page = await client.get(f"{TASK}/page/announcements")
 
     assert asked.status_code == 201, asked.text
-    assert (asked.json()["task"], asked.json()["asker"]) == ("sum", 20)
+    assert (asked.json()["task"], asked.json()["asker"]) == ("sum", "20")
     assert [entry["number"] for entry in inbox.json()] == [number]
     assert (replied.json()["answered"], replied.json()["closed"]) == (False, False)
     assert (marked.json()["answered"], marked.json()["closed"]) == (True, True)
@@ -116,7 +116,7 @@ async def test_a_question_is_asked_answered_followed_up_and_answered_publicly(
     assert [entry["answered"] for entry in everything.json()] == [True]
     assert unmarked.json()["answered"] is False
     assert public.status_code == 201, public.text
-    assert public.json()["answers"] == {"user_id": 20, "number": number}
+    assert public.json()["answers"] == {"asker": "20", "number": number}
     assert (followed.json()["answered"], followed.json()["closed"]) == (False, False)
     [own] = mine.json()
     assert [(message["from_asker"], message["body"]) for message in own["messages"]] == [
