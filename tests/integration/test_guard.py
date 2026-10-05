@@ -89,6 +89,7 @@ ROUTES: list[tuple[str, str, dict[str, Any] | None, Role, Scope]] = [
     ("GET", f"{TASK}/history", None, Role.OBSERVER, SUM),
     ("PUT", f"{TASK}/files/data/testcases/1.in", NEW_FILE, Role.MANAGER, SUM),
     ("POST", f"{TASK}/files/task.yaml/rollback", ROLLBACK, Role.MANAGER, SUM),
+    ("GET", f"{TASK}/gradings", None, Role.OBSERVER, SUM),
     ("POST", f"{TASK}/gradings/{NO_GRADING}/cancel", None, Role.MANAGER, SUM),
     ("POST", f"{TASK}/gradings/{NO_GRADING}/retry", None, Role.MANAGER, SUM),
     ("POST", f"{TASK}/rejudge", None, Role.MANAGER, SUM),
