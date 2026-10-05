@@ -4738,9 +4738,86 @@
         ]
       }
     },
+    "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/gradings": {
+      "get": {
+        "description": "At most `limit` of the task's gradings, newest first. One whose run did\nnot begin, did not report by its deadline, or was lost by the CI reads as\n`system_error` with the reason in `error`, whatever its row still says.",
+        "operationId": "listGradings",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "task",
+            "required": true,
+            "schema": {
+              "title": "Task",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Grading"
+                  },
+                  "title": "Response Listgradings",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "The task's gradings, newest first",
+        "tags": [
+          "gradings"
+        ]
+      }
+    },
     "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/gradings/{grading}/cancel": {
       "post": {
-        "description": "The grading as it now stands, `cancelled`. A finished one is\n`wrong_status`, carrying its status as `current`.",
+        "description": "The grading as it now stands, `cancelled`, one that reads as a system\nerror because its run is overdue or lost included. A finished one is\n`wrong_status`, carrying its status as `current`.",
         "operationId": "cancelGrading",
         "parameters": [
           {
@@ -4811,7 +4888,7 @@
     },
     "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/gradings/{grading}/retry": {
       "post": {
-        "description": "The new attempt, queued; the old one is kept as it was. One that is\nnot finished is `wrong_status`, and `conflict` while another attempt of\nit is being graded.",
+        "description": "The new attempt, queued. The old one is kept as it was, unless it reads\nas a system error only because its run is overdue or lost: then it is\nended with that reason, and its run cancelled at the CI. One that is not\nfinished is `wrong_status`, and `conflict` while another attempt of it\nis being graded.",
         "operationId": "retryGrading",
         "parameters": [
           {
