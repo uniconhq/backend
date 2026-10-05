@@ -83,7 +83,7 @@ origin of its `Referer`, is not the public URL, whether or not it carries a
 session. That and `SameSite=Lax` are the whole CSRF story. Three doors a
 machine calls with no browser behind it are let through, each admitted by
 what it carries rather than where it came from: forge's `EVENTS_PATH`
-followed by an org's name, where the forge pushes events under a signature;
+followed by an org's key, where the forge pushes events under a signature;
 the CI's configuration extension at forge's `CI_CONFIG_PATH`, under the
 CI's signature; and a grading run's callback at `CALLBACK_PATH` with one
 grading's id, under the run's token.
@@ -169,9 +169,20 @@ the one the route needs at the scope in the third column.
 | `GET <place>/history?path=` | observer | place | | every change, newest first |
 | `PUT <place>/files/{path}` | manager | place | `encoding`, `content`, `token`, `message`, `confirm`, `keep_as_draft` | `version` at a contest, the save's result at a task |
 | `POST <place>/files/{path}/rollback` | manager | place | `version`, `token`, `message`, `confirm`, `keep_as_draft` | as a write |
+| `GET <task>/gradings?limit=` | observer | task | | the task's gradings, newest first, each with why it failed |
 | `POST <task>/gradings/{grading}/cancel` | manager | task | | the grading, `cancelled` |
 | `POST <task>/gradings/{grading}/retry` | manager | task | | the new attempt, `queued` |
 | `POST <task>/rejudge` | manager | task | | what the rejudge did |
+| `GET <place>/announcements` | observer | place | | every announcement, closed ones included, oldest first |
+| `POST <place>/announcements` | manager | place | `title`, `body` | 201, the announcement |
+| `PATCH <place>/announcements/{number}` | manager | place | `title`, `body` | the announcement |
+| `POST <place>/announcements/{number}/close` | manager | place | | the announcement, `closed` |
+| `GET <org>/clarifications` | a role anywhere in the org | | | every question still open across the org, oldest first |
+| `GET <contest>/clarifications` | observer | contest | | every question of the contest, answered ones included |
+| `POST <contest>/clarifications/{asker}/{number}/replies` | manager | contest | `body` | the question, still open |
+| `PUT <contest>/clarifications/{asker}/{number}/answered` | manager | contest | | the question, answered and closed |
+| `DELETE <contest>/clarifications/{asker}/{number}/answered` | manager | contest | | the question, open again |
+| `POST <contest>/clarifications/{asker}/{number}/announcement` | manager | contest | `title`, `body` | 201, the announcement it made |
 
 Creating an org, a contest or a task makes the whole thing at the forge
 and the CI before the route answers, and the answer is the new thing's
@@ -246,6 +257,12 @@ in the contest they enter:
 | `GET <contest>/registration` | | the caller's registration, or null |
 | `GET <contest>/home` | | the contest's home for the caller |
 | `GET <task>/page` | | a released task's statement and limits |
+| `GET <contest>/home/announcements` | | the open announcements of the contest and of each task released to the caller |
+| `GET <task>/page/announcements` | | the open announcements of a released task |
+| `POST <contest>/questions` | `title`, `body`, `task` | 201, the question, asked privately |
+| `GET <contest>/questions` | | the caller's own questions, with every message |
+| `POST <contest>/questions/{number}/comments` | `body` | the question, opened again when it was answered |
+| `GET /api/v1/live` | | the session's live updates, as Server-Sent Events |
 
 Registering answers pending, or approved when the contest approves on its
 own. A registration the contest's rules refuse answers with the rule's code:
@@ -296,26 +313,24 @@ a session and no role; `<task>` is the task's prefix.
 
 | Route | Body | Answer |
 |---|---|---|
-| `POST <task>/uploads` | `input`, `filename`, `size`, `content_type` | 201, a slot |
-| `POST <task>/uploads/{upload}/complete` | `parts`, for a file sent in parts | the upload |
+| `POST <task>/uploads` | `input`, `filename`, `size`, `sha256`, `content_type` | 201, a slot |
+| `POST <task>/uploads/{upload}/complete` | | the upload |
 | `POST <task>/submissions` | `idempotency_key`, `inputs` | 201, the submission |
 | `GET <task>/submissions` | | the caller's own, newest first |
 | `GET <task>/submissions/{number}` | | one of them |
 | `GET <task>/submissions/{number}/files` | | what it was made with |
-| `GET <task>/submissions/{number}/files/{path}` | | one of its files, as a download |
 | `GET <task>/submissions/{number}/log?stage=` | | its run log, as plain text |
 
-A file never passes through the platform. The browser asks for a slot for
-one file of a contestant input, and a slot is one of two kinds: a form,
-with a `url` and the `fields` to post before the file, whose signed policy
-holds the file to the size declared; or, for a file larger than forge sends
-in one request, `part_size` and a `url` for each of the `parts`, each taking
-exactly its share with a PUT. Either works until
-`expires_at`. The browser then completes the upload, naming each part with
-the `ETag` the store answered it with, and forge measures what arrived: an
-upload carries its `status`, `verified` when it is the size declared and
-`rejected` when it is not, with its `size` and `sha256`. Completing again
-answers the same. An upload is its owner's alone, for one task, and anyone
+A file never passes through this process. The browser asks for a slot for
+one file of a contestant input, declaring its `size` and `sha256`, and the
+slot's `url` is the proxy's upload door, `/-/uploads/<id>`, good until
+`expires_at`; a slot that is `ready` is for a file the forge holds already,
+and nothing is sent. The browser PUTs the file there, and the proxy, having
+asked this process whether that upload may start (`unicon/api/door.py`),
+puts the body through to the forge's large-file store, which hashes what
+arrives. The browser then completes the upload, and forge asks the store
+whether it holds the file: an upload carries its `status`, `verified` once
+it does, with its `size` and `sha256`. Completing again answers the same. An upload is its owner's alone, for one task, and anyone
 else's is not found.
 
 A submit names, for each of the task's contestant inputs by id, the
@@ -333,11 +348,12 @@ are named numbers, and a test's row is its `id`, `outcome`, `time_ms`,
 `memory_kb`, each null when not measured, its own `metrics` and the
 checker's `message` or null. What is not shown is null; the route renders
 what forge gives it and nothing more. The files route answers each input's
-`files`, by their paths in the submission, its `language` or its `value`,
-and a file comes back as its bytes, `application/octet-stream`, as an
-attachment named after the file, with `nosniff` and a sandboxing content
-security policy, so nothing a contestant uploaded runs as a page of the
-platform's. Another contestant's submission is not found, the same as one
+`files`, by their paths in the submission, its `language` or its `value`.
+A file itself is downloaded through the proxy's download door,
+`/-/downloads/<org>/<contest>/<task>/<number>/<path>`, which asks this
+process whether the caller may read it and then streams it from the forge
+as an attachment named after the file, so a file of any size passes
+through the proxy and never through this process. Another contestant's submission is not found, the same as one
 that is not there, and a number that cannot be one is `validation_error`.
 
 A slot or a submit the task's rules refuse answers with the rule's code:
@@ -369,16 +385,48 @@ owner has already is `conflict`.
 
 ## The event door
 
-`POST /api/v1/events/forge/{org}`, at forge's `EVENTS_PATH`, is where the
-forge pushes an org's events, at the backend's internal URL inside the
+`POST /api/v1/events/forge/{org}`, at forge's `EVENTS_PATH`, with the org's
+key where `{org}` stands, is where the forge pushes an org's events, at the backend's internal URL inside the
 stack. A body over 1 MiB is refused as `payload_too_large` before more of
 it is read, whether its `Content-Length` says so or it runs past that with
 no length, or with a length that is not a number. The route reads the raw body and the first of forge's
 `SIGNATURE_HEADERS` the request carries, `X-Forgejo-Signature` and then
 `X-Gitea-Signature`, and hands both to `events.check`; a wrong signature
 and an org with no secret are both `forbidden`. A signed event is answered
-204 and does nothing else. The public proxy answers this path with
-404, so only the stack reaches it.
+204 at once, and only then is the same body, untouched, handed with its kind
+from `X-Forgejo-Event` or `X-Gitea-Event` to `events.publish`, which tells
+the live streams what thread it changed; the forge never waits on that. A
+failure there comes after the answer, so it is logged as
+`events.publish_failed`.
+The public proxy answers this path with 404, so only the stack reaches it.
+
+## Announcements, questions and live updates
+
+An organiser's announcement routes are served under the contest and the
+task prefixes, made by one factory, like the file routes; there is no
+delete, and a closed announcement stays readable. An announcement carries
+`where` it is by name, its `number` there, `title`, `body`, `posted_at`,
+`closed`, whether it `answers_question`, and, to an organiser, `answers`,
+the question by its asker's user id and number. A question is named by its
+asker's user id and its number among their questions in the contest, and
+carries its contest by name, the `asker`, `number`, the `task` it names,
+`title`, `body`, `asked_at`, `answered`, `closed` and every message, each
+saying whether the asker wrote it. Asking needs an approved contestant
+(`not_approved` otherwise), and an empty or too long title or text is
+`invalid_message`, naming the `field`.
+
+`GET /api/v1/live` holds one Server-Sent Events stream per open tab: each
+event is named by its kind, `grading`, `announcement`, `clarification` or
+`resync`, and its data is one id, never what changed, so a page asks for the
+thing again through the routes above. A comment every fifteen seconds keeps
+the connection open and tells the server a browser has gone. The route
+answers only once forge has checked the session and subscribed, so a
+refusal is an ordinary error. The stream ends when the session does, or
+when the same session opens more than eight, which ends the oldest, and
+the browser reconnects after five seconds. The server waits at most five
+seconds for open streams when it shuts down.
+It is sent with `X-Accel-Buffering: no`, and the proxy serves the path with
+buffering off.
 
 ## The grading run's doors
 
@@ -474,7 +522,7 @@ nowhere else:
 | `grading_closed` | 410 |
 | `payload_too_large`, `too_large` | 413 |
 | `rate_limited` | 429, with `Retry-After` |
-| `rejected`, `invalid_name`, `invalid_definition`, `invalid_path`, `invalid_reason`, `invalid_extension`, `invalid_inputs`, `invalid_idempotency_key`, `invalid_callback`, `validation_error` | 422 |
+| `rejected`, `invalid_name`, `invalid_definition`, `invalid_path`, `invalid_reason`, `invalid_extension`, `invalid_inputs`, `invalid_idempotency_key`, `invalid_callback`, `invalid_message`, `validation_error` | 422 |
 | `unauthenticated`, `session_expired` | 401, and the session cookie is cleared |
 | `invalid_token` | 401 |
 | `sign_in_invalid`, `sign_in_denied` | 400 |

@@ -7,14 +7,24 @@ with no secret, is refused as `forbidden` either way. A body over 1 MiB is
 refused as `payload_too_large` before more of it is read, whether its
 `Content-Length` says so or it runs past that with no length or a length
 that is not a number, since nothing checks who sent it until it is read. An
-event that is let in is answered 204 and does nothing else.
+event that is let in is answered 204 at once, and only then handed to
+forge to tell the streams what it changed, so the forge never waits on that
+work and never retries a push because it was slow. The body handed on is
+the one the signature was checked over, untouched. That work fails after
+the answer has gone, so a failure is logged as `events.publish_failed` with
+the org and the kind; the pages it would have nudged catch up at their next
+poll.
 """
 
 from fastapi import APIRouter, Request, Response, status
 from forge.api import events
+from forge.api.log import get_logger
 from forge.api.types import OrgId
+from starlette.background import BackgroundTask
 
 from unicon.api import raw
+
+log = get_logger(__name__)
 
 NO_CONTENT = status.HTTP_204_NO_CONTENT
 MAX_BODY = 1024 * 1024
@@ -31,12 +41,24 @@ router = APIRouter(prefix=events.EVENTS_PATH, tags=["events"])
 async def receive_forge_event(request: Request, org: str) -> Response:
     """The signature is the hex HMAC-SHA256 of the raw body under the org's
     secret, in the first of forge's signature headers the request carries,
-    `X-Forgejo-Signature` and then `X-Gitea-Signature`.
+    `X-Forgejo-Signature` and then `X-Gitea-Signature`; the event's kind is
+    in `X-Forgejo-Event` or `X-Gitea-Event`.
     """
     body = await raw.body(request, MAX_BODY, "An event's body")
-    signature = next(
-        (request.headers[name] for name in events.SIGNATURE_HEADERS if name in request.headers),
-        "",
-    )
+    signature = _first(request, events.SIGNATURE_HEADERS)
     await events.check(OrgId(org), body, signature)
-    return Response(status_code=NO_CONTENT)
+    kind = _first(request, events.KIND_HEADERS)
+    return Response(
+        status_code=NO_CONTENT, background=BackgroundTask(_publish, OrgId(org), kind, body)
+    )
+
+
+async def _publish(org: OrgId, kind: str, body: bytes) -> None:
+    try:
+        await events.publish(org, kind, body)
+    except Exception:
+        log.exception("events.publish_failed", org=org, kind=kind)
+
+
+def _first(request: Request, names: tuple[str, ...]) -> str:
+    return next((request.headers[name] for name in names if name in request.headers), "")

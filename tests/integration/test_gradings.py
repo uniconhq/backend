@@ -1,8 +1,9 @@
-"""An organiser's controls over a task's gradings, over HTTP: cancelling a
+"""An organiser's view of and controls over a task's gradings, over HTTP:
+the list, newest first with each one's reason, to an observer; cancelling a
 queued grading, and a finished one refused with its status; retrying a
 finished one as a new attempt, and one still being graded refused; and a
 rejudge queuing a new attempt of every submission's latest grading. A
-contestant is refused all three, a grading named under another task's prefix
+contestant is refused all four, a grading named under another task's prefix
 is no such grading, whatever the caller may do at either task, and the
 manager role itself is held to the guard's table.
 """
@@ -62,6 +63,29 @@ async def test_a_manager_cancels_and_retries_a_grading(
     assert (latest["attempt"], latest["status"]) == (2, "dispatched")
 
 
+async def test_an_observer_lists_the_tasks_gradings_newest_first_with_their_reasons(
+    client: httpx.AsyncClient, entered: FakeForge
+) -> None:
+    grading = await _grading(client, entered)
+    await sign_in_as(client, entered, 7)
+    await client.post(f"{TASK}/gradings/{grading}/cancel", headers=ORIGIN)
+    retried = await client.post(f"{TASK}/gradings/{grading}/retry", headers=ORIGIN)
+
+    listed = await client.get(f"{TASK}/gradings")
+    one = await client.get(f"{TASK}/gradings", params={"limit": 1})
+    too_many = await client.get(f"{TASK}/gradings", params={"limit": 501})
+
+    assert listed.status_code == 200, listed.text
+    assert [(row["id"], row["attempt"]) for row in listed.json()] == [
+        (retried.json()["id"], 2),
+        (grading, 1),
+    ]
+    assert [row["status"] for row in listed.json()] == ["dispatched", "cancelled"]
+    assert "error" in listed.json()[0]
+    assert [row["id"] for row in one.json()] == [retried.json()["id"]]
+    assert too_many.status_code == 422
+
+
 async def test_a_rejudge_grades_every_submission_again(
     client: httpx.AsyncClient, entered: FakeForge
 ) -> None:
@@ -88,6 +112,7 @@ async def test_a_contestant_is_refused_every_control(
     grading = await _grading(client, entered)
 
     answers = [
+        await client.get(f"{TASK}/gradings"),
         await client.post(f"{TASK}/gradings/{grading}/cancel", headers=ORIGIN),
         await client.post(f"{TASK}/gradings/{grading}/retry", headers=ORIGIN),
         await client.post(f"{TASK}/rejudge", headers=ORIGIN),
@@ -95,7 +120,7 @@ async def test_a_contestant_is_refused_every_control(
 
     assert [(answer.status_code, answer.json()["code"]) for answer in answers] == [
         (403, "forbidden")
-    ] * 3
+    ] * 4
 
 
 @pytest.mark.parametrize(
@@ -128,6 +153,7 @@ async def test_the_controls_need_a_session(client: httpx.AsyncClient, entered: F
     client.cookies.clear()
 
     answers = [
+        await client.get(f"{TASK}/gradings"),
         await client.post(f"{TASK}/gradings/{grading}/cancel", headers=ORIGIN),
         await client.post(f"{TASK}/gradings/{grading}/retry", headers=ORIGIN),
         await client.post(f"{TASK}/rejudge", headers=ORIGIN),
@@ -135,4 +161,4 @@ async def test_the_controls_need_a_session(client: httpx.AsyncClient, entered: F
 
     assert [(answer.status_code, answer.json()["code"]) for answer in answers] == [
         (401, "unauthenticated")
-    ] * 3
+    ] * 4

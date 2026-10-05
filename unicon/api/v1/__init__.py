@@ -7,13 +7,16 @@ from fastapi import APIRouter
 from forge.api.types import ScopeKind
 
 from unicon.api.v1 import (
+    announcements,
     auth,
+    clarifications,
     contest_home,
     contestants,
     contests,
     files,
     gradings,
     landing,
+    live,
     me,
     orgs,
     roles,
@@ -38,7 +41,11 @@ router.include_router(uploads.router)
 router.include_router(submissions.router)
 router.include_router(gradings.router)
 router.include_router(workflows.router)
+router.include_router(announcements.reading)
+router.include_router(clarifications.router)
+router.include_router(live.router)
 for kind in ScopeKind:
     router.include_router(roles.router_at(kind))
 for kind in (ScopeKind.CONTEST, ScopeKind.TASK):
     router.include_router(files.router_at(kind))
+    router.include_router(announcements.router_at(kind))
