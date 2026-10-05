@@ -39,6 +39,8 @@ CAROL = {"username": "carol", "role": "observer"}
 NEW_FILE = {"encoding": "utf-8", "content": "note\n", "token": None}
 ROLLBACK = {"version": "nowhere", "token": None}
 NO_GRADING = "0192f4a4-7b7e-7000-8000-000000000001"
+NOTE = {"title": "Welcome", "body": "Good luck."}
+COMMENT = {"body": "Yes."}
 SESSION_ONLY = {
     "createOrg",
     "getTaskRelease",
@@ -53,6 +55,12 @@ SESSION_ONLY = {
     "getMySubmission",
     "listMySubmissionFiles",
     "readMySubmissionLog",
+    "listContestAnnouncements",
+    "listTaskAnnouncements",
+    "askQuestion",
+    "listMyQuestions",
+    "followUpQuestion",
+    "listClarificationInbox",
 }
 
 ROUTES: list[tuple[str, str, dict[str, Any] | None, Role, Scope]] = [
@@ -93,6 +101,19 @@ ROUTES: list[tuple[str, str, dict[str, Any] | None, Role, Scope]] = [
     ("POST", f"{TASK}/gradings/{NO_GRADING}/cancel", None, Role.MANAGER, SUM),
     ("POST", f"{TASK}/gradings/{NO_GRADING}/retry", None, Role.MANAGER, SUM),
     ("POST", f"{TASK}/rejudge", None, Role.MANAGER, SUM),
+    ("GET", f"{CONTEST}/announcements", None, Role.OBSERVER, SPRING),
+    ("POST", f"{CONTEST}/announcements", NOTE, Role.MANAGER, SPRING),
+    ("PATCH", f"{CONTEST}/announcements/1", NOTE, Role.MANAGER, SPRING),
+    ("POST", f"{CONTEST}/announcements/1/close", None, Role.MANAGER, SPRING),
+    ("GET", f"{TASK}/announcements", None, Role.OBSERVER, SUM),
+    ("POST", f"{TASK}/announcements", NOTE, Role.MANAGER, SUM),
+    ("PATCH", f"{TASK}/announcements/1", NOTE, Role.MANAGER, SUM),
+    ("POST", f"{TASK}/announcements/1/close", None, Role.MANAGER, SUM),
+    ("GET", f"{CONTEST}/clarifications", None, Role.OBSERVER, SPRING),
+    ("POST", f"{CONTEST}/clarifications/20/1/replies", COMMENT, Role.MANAGER, SPRING),
+    ("PUT", f"{CONTEST}/clarifications/20/1/answered", None, Role.MANAGER, SPRING),
+    ("DELETE", f"{CONTEST}/clarifications/20/1/answered", None, Role.MANAGER, SPRING),
+    ("POST", f"{CONTEST}/clarifications/20/1/announcement", NOTE, Role.MANAGER, SPRING),
 ]
 EACH_ROUTE = pytest.mark.parametrize(
     ("method", "path", "body", "role", "scope"),
