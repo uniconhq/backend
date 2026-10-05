@@ -61,6 +61,10 @@ STATUS = {
     "domain_not_allowed": 403,
     "already_registered": 409,
     "contest_full": 409,
+    "invalid_invite": 422,
+    "already_invited": 409,
+    "invite_expired": 410,
+    "invite_limit": 429,
     "wrong_status": 409,
     "invalid_message": 422,
     "invalid_reason": 422,
@@ -84,7 +88,7 @@ STATUS = {
 }
 INTERNAL = 500
 CLEARS_SESSION = frozenset({"unauthenticated", "session_expired"})
-RETRY_AFTER = frozenset({"rate_limited"})
+RETRY_AFTER = frozenset({"rate_limited", "invite_limit"})
 HTTP_CODES = {404: "not_found", 405: "method_not_allowed"}
 
 WITHHELD_DETAIL = {
