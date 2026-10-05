@@ -19,6 +19,10 @@ from urllib.parse import urlsplit
 
 import httpx
 import psycopg
+import pytest
+from forge.api import events as forge_events
+from forge.api import live as forge_live
+from forge.api.errors import Unavailable
 from forge.api.live import Nudge, NudgeKind
 from forge.testing import FakeForge, Setup
 
@@ -146,7 +150,7 @@ async def test_a_signed_push_is_answered_and_then_publishes_the_thread_it_names(
     body = json.dumps(
         {
             "repository": {"name": "spring.u20.desk", "owner": {"login": "acme"}},
-            "issue": {"number": 1},
+            "issue": {"number": 1, "labels": [{"name": "clarification"}]},
         }
     ).encode()
     signature = hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
@@ -198,3 +202,44 @@ async def test_a_contestant_entered_later_reads_the_announcements_too(
     home = await client.get(f"{CONTEST}/home/announcements")
 
     assert [note["title"] for note in home.json()] == ["Welcome"]
+
+
+async def test_a_stream_forge_refuses_is_an_error_answer_and_never_a_200(
+    client: httpx.AsyncClient, entered: FakeForge, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def refused(session_id: object) -> AsyncIterator[Nudge | None]:
+        raise Unavailable("The forge did not answer.")
+        yield None
+
+    monkeypatch.setattr(forge_live, "stream", refused)
+
+    answered = await client.get("/api/v1/live")
+
+    assert (answered.status_code, answered.json()["code"]) == (503, "forge_unavailable")
+
+
+async def test_a_push_whose_publish_fails_is_answered_and_the_failure_logged(
+    client: httpx.AsyncClient,
+    entered: FakeForge,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    push = entered.state.orgs["acme"].event_push
+    assert push is not None
+    url, secret = push
+    body = b'{"repository": {"name": "spring.contest", "owner": {"login": "acme"}}}'
+    signature = hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
+
+    async def failing(*args: object) -> None:
+        raise RuntimeError("the database went away")
+
+    monkeypatch.setattr(forge_events, "publish", failing)
+
+    answered = await client.post(
+        urlsplit(url).path,
+        content=body,
+        headers={"X-Forgejo-Signature": signature, "X-Forgejo-Event": "issues"},
+    )
+
+    assert answered.status_code == 204
+    assert "events.publish_failed" in caplog.text

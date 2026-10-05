@@ -29,6 +29,7 @@ from unicon.main import create_app
 from unicon.schemas.orgs import DESCRIPTION_MAX
 
 REFUSED = 1
+SHUTDOWN_SECONDS = 5
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -85,6 +86,9 @@ def _serve(host: str, port: int) -> int:
         forwarded_allow_ips="*",
         access_log=False,
         log_config=None,
+        # A live stream never ends on its own, so without a limit one open
+        # tab holds a restart until the container is killed.
+        timeout_graceful_shutdown=SHUTDOWN_SECONDS,
     )
     return 0
 
