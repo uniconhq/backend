@@ -24,6 +24,7 @@ from unicon.api.v1 import (
     server_time,
     submissions,
     tasks,
+    teams,
     uploads,
     workflows,
 )
@@ -37,6 +38,7 @@ router.include_router(orgs.router)
 router.include_router(contests.router)
 router.include_router(tasks.router)
 router.include_router(contestants.router)
+router.include_router(teams.router)
 router.include_router(contest_home.router)
 router.include_router(landing.router)
 router.include_router(uploads.router)
