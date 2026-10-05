@@ -161,6 +161,12 @@ the one the route needs at the scope in the third column.
 | `POST <contest>/contestants/{user_id}/reopen` | manager | contest | | the registration, pending again |
 | `POST <contest>/contestants/{user_id}/remove` | manager | contest | | the registration |
 | `PUT <contest>/contestants/{user_id}/extension` | manager | contest | `seconds` | the registration |
+| `GET <contest>/organise/teams` | observer | contest | | every team, with its members and the people asking or asked in |
+| `POST <contest>/organise/teams` | manager | contest | `name`, `leader` | 201, the team |
+| `DELETE <contest>/organise/teams/{team_id}` | manager | contest | | 204 |
+| `POST <contest>/organise/teams/{team_id}/members` | manager | contest | `user_id` | the team, the person moved in from any other |
+| `DELETE <contest>/organise/teams/{team_id}/members/{user_id}` | manager | contest | | the team |
+| `PUT <contest>/organise/teams/{team_id}/leader` | manager | contest | `user_id` | the team |
 | `POST <task>/save` | manager | task | `changes`, `confirm`, `keep_as_draft`, `message` | the save's result |
 | `GET <scope>/roles` | observer | scope | | the holders |
 | `POST <scope>/roles` | manager | scope | `username`, `role` | 204 |
@@ -230,6 +236,23 @@ Withdrawing takes back a pending invite, or an accepted contestant's place
 until its person registers; anything else is `wrong_status`. A list shows
 at most 500. A username whose account has no confirmed address gets no
 mail, and its invite reads `failed`.
+
+A contestant of a contest with teams works with a session alone, and forge
+checks they are its approved contestant and, for the leader's routes, that
+they lead the team named: `GET <contest>/my-team` gives their team and the
+teams they asked or are asked into; `GET <contest>/teams` lists the teams
+with their size and the contest's `max_size`; `POST <contest>/teams` with a
+`name` makes one they lead; `POST <contest>/teams/{team_id}/request` asks to
+join, or accepts the leader's invitation, and `/cancel` takes that back;
+`POST <contest>/my-team/leave` leaves; and the leader's
+`POST <contest>/teams/{team_id}/invite` with a `username`,
+`POST .../members/{user_id}/approve` and `DELETE .../members/{user_id}` ask
+someone in, let a request in, and take someone out or turn a request down.
+Once in a team, the person's submissions, limits and questions are the
+team's, and a question on a team's desk is named `team.<id>` where a
+person's is named by their user id. Refusals: `teams_off`,
+`invalid_team_name`, `team_name_taken`, `team_full` (with `limit`),
+`in_team`, `submitted_alone`, `team_has_submissions` and `team_changed`.
 
 The person an invite is for acts on it with a session alone:
 `GET /api/v1/me/invites` lists their pending invites, lapsed ones flagged,
@@ -557,11 +580,11 @@ nowhere else:
 |---|---|
 | `not_found`, `upload_not_yours` | 404 |
 | `forbidden`, `ci_request_refused`, `fresh_sign_in_required`, `origin_mismatch`, `admin_only`, `reserved_path`, `registration_closed`, `is_staff`, `invite_required`, `wrong_invite_code`, `domain_not_allowed`, `task_closed`, `archived`, `not_approved` | 403 |
-| `conflict`, `sole_admin`, `contestant_conflict`, `shared_workflow_owner`, `confirmation_required`, `already_registered`, `contest_full`, `already_invited`, `wrong_status`, `submission_limit`, `upload_not_ready`, `upload_limit`, `log_too_large` | 409 |
+| `conflict`, `sole_admin`, `contestant_conflict`, `shared_workflow_owner`, `confirmation_required`, `already_registered`, `contest_full`, `already_invited`, `teams_off`, `team_name_taken`, `team_full`, `in_team`, `submitted_alone`, `team_has_submissions`, `team_changed`, `wrong_status`, `submission_limit`, `upload_not_ready`, `upload_limit`, `log_too_large` | 409 |
 | `grading_closed`, `invite_expired` | 410 |
 | `payload_too_large`, `too_large` | 413 |
 | `rate_limited`, `invite_limit` | 429, with `Retry-After` |
-| `rejected`, `invalid_name`, `invalid_definition`, `invalid_path`, `invalid_reason`, `invalid_extension`, `invalid_invite`, `invalid_inputs`, `invalid_idempotency_key`, `invalid_callback`, `invalid_message`, `validation_error` | 422 |
+| `rejected`, `invalid_name`, `invalid_definition`, `invalid_path`, `invalid_reason`, `invalid_extension`, `invalid_invite`, `invalid_team_name`, `invalid_inputs`, `invalid_idempotency_key`, `invalid_callback`, `invalid_message`, `validation_error` | 422 |
 | `unauthenticated`, `session_expired` | 401, and the session cookie is cleared |
 | `invalid_token` | 401 |
 | `sign_in_invalid`, `sign_in_denied` | 400 |

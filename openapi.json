@@ -131,19 +131,19 @@
         "type": "object"
       },
       "AnsweredQuestion": {
-        "description": "The clarification an announcement answers: the asker's user id and the\nquestion's number in their workspace.",
+        "description": "The clarification an announcement answers: whose desk it is in, the\nasker's user id or `team.<id>` for a team's, and the question's number\nthere.",
         "properties": {
+          "asker": {
+            "title": "Asker",
+            "type": "string"
+          },
           "number": {
             "title": "Number",
-            "type": "integer"
-          },
-          "user_id": {
-            "title": "User Id",
             "type": "integer"
           }
         },
         "required": [
-          "user_id",
+          "asker",
           "number"
         ],
         "title": "AnsweredQuestion",
@@ -200,7 +200,7 @@
         "type": "object"
       },
       "Clarification": {
-        "description": "One question: its contest by name, the asker's user id, its number in\ntheir workspace, the task it names, what it asks, when, whether it is\nanswered and whether it is open, and every message under it, oldest\nfirst.",
+        "description": "One question: its contest by name, whose desk it is in, the asker's\nuser id or `team.<id>` for a team's, its number there, the task it\nnames, what it asks, when, whether it is answered and whether it is\nopen, and every message under it, oldest first.",
         "properties": {
           "answered": {
             "title": "Answered",
@@ -213,7 +213,7 @@
           },
           "asker": {
             "title": "Asker",
-            "type": "integer"
+            "type": "string"
           },
           "body": {
             "title": "Body",
@@ -1406,6 +1406,20 @@
         "title": "InviteStatus",
         "type": "string"
       },
+      "InviteToTeamRequest": {
+        "description": "The username of the approved contestant the leader asks in.",
+        "properties": {
+          "username": {
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "username"
+        ],
+        "title": "InviteToTeamRequest",
+        "type": "object"
+      },
       "Limits": {
         "description": "What a submit is checked against: how many submissions in all, how\noften, and how large, in bytes.",
         "properties": {
@@ -1427,6 +1441,47 @@
           "max_size"
         ],
         "title": "Limits",
+        "type": "object"
+      },
+      "ListedTeam": {
+        "description": "A team as a contestant choosing one sees it: its name, its leader, and\nhow many are in it of how many the contest allows.",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "leader": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Person"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "max_size": {
+            "title": "Max Size",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "size": {
+            "title": "Size",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "leader",
+          "size",
+          "max_size"
+        ],
+        "title": "ListedTeam",
         "type": "object"
       },
       "MailStatus": {
@@ -1465,6 +1520,51 @@
         ],
         "title": "Me",
         "type": "object"
+      },
+      "Member": {
+        "description": "Someone in a team, or asking or asked to be: their id, who they are,\nor none once their account is gone, where they stand, and since when.",
+        "properties": {
+          "since": {
+            "format": "date-time",
+            "title": "Since",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/MemberStatus"
+          },
+          "user": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Person"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "user_id": {
+            "title": "User Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "user_id",
+          "user",
+          "status",
+          "since"
+        ],
+        "title": "Member",
+        "type": "object"
+      },
+      "MemberStatus": {
+        "enum": [
+          "invited",
+          "requested",
+          "member",
+          "left"
+        ],
+        "title": "MemberStatus",
+        "type": "string"
       },
       "Message": {
         "description": "One message under a question: whether the asker wrote it, what it\nsays, and when.",
@@ -1540,6 +1640,47 @@
         "title": "MyRegistration",
         "type": "object"
       },
+      "MyTeams": {
+        "description": "The caller's team in the contest, if any, the teams they are asked\ninto or have asked to join, and how many a team holds.",
+        "properties": {
+          "invited_to": {
+            "items": {
+              "$ref": "#/components/schemas/ListedTeam"
+            },
+            "title": "Invited To",
+            "type": "array"
+          },
+          "max_size": {
+            "title": "Max Size",
+            "type": "integer"
+          },
+          "requested": {
+            "items": {
+              "$ref": "#/components/schemas/ListedTeam"
+            },
+            "title": "Requested",
+            "type": "array"
+          },
+          "team": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Team"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "team",
+          "invited_to",
+          "requested",
+          "max_size"
+        ],
+        "title": "MyTeams",
+        "type": "object"
+      },
       "Named": {
         "description": "An org, a contest or a task, by the name people call it.",
         "properties": {
@@ -1585,6 +1726,32 @@
         "title": "OpenInviteRequest",
         "type": "object"
       },
+      "OrganiseTeamRequest": {
+        "description": "A new team's name, and the username of the approved contestant who\nleads it, or none for an empty team.",
+        "properties": {
+          "leader": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Leader"
+          },
+          "name": {
+            "maxLength": 120,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "OrganiseTeamRequest",
+        "type": "object"
+      },
       "Person": {
         "description": "Someone as another person sees them, by their forge id. Their email\nstays out.",
         "properties": {
@@ -1626,6 +1793,20 @@
           "avatar_url"
         ],
         "title": "Person",
+        "type": "object"
+      },
+      "PersonRequest": {
+        "description": "Who, by their user id.",
+        "properties": {
+          "user_id": {
+            "title": "User Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "user_id"
+        ],
+        "title": "PersonRequest",
         "type": "object"
       },
       "Problem": {
@@ -2659,6 +2840,74 @@
           "errors"
         ],
         "title": "TaskState",
+        "type": "object"
+      },
+      "Team": {
+        "description": "A team: its name, its leader's user id, its members, the people\nasking or asked in, and whether it has submitted anything.",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "leader": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Leader"
+          },
+          "members": {
+            "items": {
+              "$ref": "#/components/schemas/Member"
+            },
+            "title": "Members",
+            "type": "array"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "pending": {
+            "items": {
+              "$ref": "#/components/schemas/Member"
+            },
+            "title": "Pending",
+            "type": "array"
+          },
+          "submitted": {
+            "title": "Submitted",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "leader",
+          "members",
+          "pending",
+          "submitted"
+        ],
+        "title": "Team",
+        "type": "object"
+      },
+      "TeamRequest": {
+        "description": "A new team's name.",
+        "properties": {
+          "name": {
+            "maxLength": 120,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "TeamRequest",
         "type": "object"
       },
       "TreeEntry": {
@@ -4287,7 +4536,7 @@
             "required": true,
             "schema": {
               "title": "Asker",
-              "type": "integer"
+              "type": "string"
             }
           },
           {
@@ -4367,7 +4616,7 @@
             "required": true,
             "schema": {
               "title": "Asker",
-              "type": "integer"
+              "type": "string"
             }
           },
           {
@@ -4435,7 +4684,7 @@
             "required": true,
             "schema": {
               "title": "Asker",
-              "type": "integer"
+              "type": "string"
             }
           },
           {
@@ -4505,7 +4754,7 @@
             "required": true,
             "schema": {
               "title": "Asker",
-              "type": "integer"
+              "type": "string"
             }
           },
           {
@@ -5588,6 +5837,482 @@
         "summary": "Take a pending invite back",
         "tags": [
           "invites"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/my-team": {
+      "get": {
+        "operationId": "getMyTeam",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyTeams"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "The caller's team in the contest, and the teams they asked or are asked into",
+        "tags": [
+          "teams"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/my-team/leave": {
+      "post": {
+        "description": "Access to the team's workspace goes; what the team made stays its own.",
+        "operationId": "leaveTeam",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Leave the caller's team",
+        "tags": [
+          "teams"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/organise/teams": {
+      "get": {
+        "operationId": "listEveryTeam",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Team"
+                  },
+                  "title": "Response Listeveryteam",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Every team of the contest with its members",
+        "tags": [
+          "teams"
+        ]
+      },
+      "post": {
+        "operationId": "organiseCreateTeam",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrganiseTeamRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Team"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Make a team, empty or led by a named approved contestant",
+        "tags": [
+          "teams"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/organise/teams/{team_id}": {
+      "delete": {
+        "operationId": "organiseDeleteTeam",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Team Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Delete a team that has submitted nothing",
+        "tags": [
+          "teams"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/organise/teams/{team_id}/leader": {
+      "put": {
+        "operationId": "organiseSetTeamLeader",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Team Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PersonRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Team"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Make a member the team's leader",
+        "tags": [
+          "teams"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/organise/teams/{team_id}/members": {
+      "post": {
+        "operationId": "organiseMoveIntoTeam",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Team Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PersonRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Team"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Put an approved contestant in the team, out of any other",
+        "tags": [
+          "teams"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/organise/teams/{team_id}/members/{user_id}": {
+      "delete": {
+        "operationId": "organiseRemoveFromTeam",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Team Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Team"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Take someone out of the team, or drop their request or invitation",
+        "tags": [
+          "teams"
         ]
       }
     },
@@ -8525,6 +9250,446 @@
         "summary": "Say an upload's bytes are there",
         "tags": [
           "submissions"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/teams": {
+      "get": {
+        "operationId": "listTeams",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ListedTeam"
+                  },
+                  "title": "Response Listteams",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "The contest's teams, for an approved contestant choosing one",
+        "tags": [
+          "teams"
+        ]
+      },
+      "post": {
+        "operationId": "createTeam",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TeamRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Team"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Make a team, led by the caller",
+        "tags": [
+          "teams"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/teams/{team_id}/cancel": {
+      "post": {
+        "operationId": "cancelTeamRequest",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Team Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Take back a request to join a team, or decline its invitation",
+        "tags": [
+          "teams"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/teams/{team_id}/invite": {
+      "post": {
+        "operationId": "inviteToTeam",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Team Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InviteToTeamRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Team"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Ask an approved contestant into the caller's team, as its leader",
+        "tags": [
+          "teams"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/teams/{team_id}/members/{user_id}": {
+      "delete": {
+        "operationId": "removeTeamMember",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Team Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Team"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Take someone out of the team, or turn down their request, as its leader",
+        "tags": [
+          "teams"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/teams/{team_id}/members/{user_id}/approve": {
+      "post": {
+        "operationId": "approveTeamMember",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Team Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Team"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Let in someone who asked to join, as the team's leader",
+        "tags": [
+          "teams"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/teams/{team_id}/request": {
+      "post": {
+        "operationId": "requestToJoinTeam",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Team Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Team"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Ask to join a team, or accept its invitation",
+        "tags": [
+          "teams"
         ]
       }
     },

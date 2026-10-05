@@ -42,6 +42,8 @@ NO_GRADING = "0192f4a4-7b7e-7000-8000-000000000001"
 NOTE = {"title": "Welcome", "body": "Good luck."}
 COMMENT = {"body": "Yes."}
 INVITE = {"grants": "observer", "username": "carol"}
+TEAM = {"name": "Adders"}
+PERSON = {"user_id": 20}
 SESSION_ONLY = {
     "createOrg",
     "getTaskRelease",
@@ -62,6 +64,15 @@ SESSION_ONLY = {
     "listMyQuestions",
     "followUpQuestion",
     "listClarificationInbox",
+    "getMyTeam",
+    "listTeams",
+    "createTeam",
+    "requestToJoinTeam",
+    "cancelTeamRequest",
+    "leaveTeam",
+    "inviteToTeam",
+    "approveTeamMember",
+    "removeTeamMember",
 }
 
 ROUTES: list[tuple[str, str, dict[str, Any] | None, Role, Scope]] = [
@@ -127,6 +138,12 @@ ROUTES: list[tuple[str, str, dict[str, Any] | None, Role, Scope]] = [
     ("POST", f"{TASK}/invites", INVITE, Role.MANAGER, SUM),
     ("POST", f"{TASK}/invites/{NO_GRADING}/send-again", None, Role.MANAGER, SUM),
     ("POST", f"{TASK}/invites/{NO_GRADING}/withdraw", None, Role.MANAGER, SUM),
+    ("GET", f"{CONTEST}/organise/teams", None, Role.OBSERVER, SPRING),
+    ("POST", f"{CONTEST}/organise/teams", TEAM, Role.MANAGER, SPRING),
+    ("DELETE", f"{CONTEST}/organise/teams/{NO_GRADING}", None, Role.MANAGER, SPRING),
+    ("POST", f"{CONTEST}/organise/teams/{NO_GRADING}/members", PERSON, Role.MANAGER, SPRING),
+    ("DELETE", f"{CONTEST}/organise/teams/{NO_GRADING}/members/20", None, Role.MANAGER, SPRING),
+    ("PUT", f"{CONTEST}/organise/teams/{NO_GRADING}/leader", PERSON, Role.MANAGER, SPRING),
 ]
 EACH_ROUTE = pytest.mark.parametrize(
     ("method", "path", "body", "role", "scope"),
