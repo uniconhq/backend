@@ -62,6 +62,7 @@ STATUS = {
     "already_registered": 409,
     "contest_full": 409,
     "wrong_status": 409,
+    "invalid_message": 422,
     "invalid_reason": 422,
     "invalid_extension": 422,
     "task_closed": 403,
