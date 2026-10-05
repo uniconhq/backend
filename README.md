@@ -169,9 +169,20 @@ the one the route needs at the scope in the third column.
 | `GET <place>/history?path=` | observer | place | | every change, newest first |
 | `PUT <place>/files/{path}` | manager | place | `encoding`, `content`, `token`, `message`, `confirm`, `keep_as_draft` | `version` at a contest, the save's result at a task |
 | `POST <place>/files/{path}/rollback` | manager | place | `version`, `token`, `message`, `confirm`, `keep_as_draft` | as a write |
+| `GET <task>/gradings?limit=` | observer | task | | the task's gradings, newest first, each with why it failed |
 | `POST <task>/gradings/{grading}/cancel` | manager | task | | the grading, `cancelled` |
 | `POST <task>/gradings/{grading}/retry` | manager | task | | the new attempt, `queued` |
 | `POST <task>/rejudge` | manager | task | | what the rejudge did |
+| `GET <place>/announcements` | observer | place | | every announcement, closed ones included, oldest first |
+| `POST <place>/announcements` | manager | place | `title`, `body` | 201, the announcement |
+| `PATCH <place>/announcements/{number}` | manager | place | `title`, `body` | the announcement |
+| `POST <place>/announcements/{number}/close` | manager | place | | the announcement, `closed` |
+| `GET <org>/clarifications` | a role anywhere in the org | | | every question still open across the org, oldest first |
+| `GET <contest>/clarifications` | observer | contest | | every question of the contest, answered ones included |
+| `POST <contest>/clarifications/{asker}/{number}/replies` | manager | contest | `body` | the question, still open |
+| `PUT <contest>/clarifications/{asker}/{number}/answered` | manager | contest | | the question, answered and closed |
+| `DELETE <contest>/clarifications/{asker}/{number}/answered` | manager | contest | | the question, open again |
+| `POST <contest>/clarifications/{asker}/{number}/announcement` | manager | contest | `title`, `body` | 201, the announcement it made |
 
 Creating an org, a contest or a task makes the whole thing at the forge
 and the CI before the route answers, and the answer is the new thing's
@@ -246,6 +257,12 @@ in the contest they enter:
 | `GET <contest>/registration` | | the caller's registration, or null |
 | `GET <contest>/home` | | the contest's home for the caller |
 | `GET <task>/page` | | a released task's statement and limits |
+| `GET <contest>/home/announcements` | | the open announcements of the contest and of each task released to the caller |
+| `GET <task>/page/announcements` | | the open announcements of a released task |
+| `POST <contest>/questions` | `title`, `body`, `task` | 201, the question, asked privately |
+| `GET <contest>/questions` | | the caller's own questions, with every message |
+| `POST <contest>/questions/{number}/comments` | `body` | the question, opened again when it was answered |
+| `GET /api/v1/live` | | the session's live updates, as Server-Sent Events |
 
 Registering answers pending, or approved when the contest approves on its
 own. A registration the contest's rules refuse answers with the rule's code:
@@ -377,8 +394,34 @@ no length, or with a length that is not a number. The route reads the raw body a
 `SIGNATURE_HEADERS` the request carries, `X-Forgejo-Signature` and then
 `X-Gitea-Signature`, and hands both to `events.check`; a wrong signature
 and an org with no secret are both `forbidden`. A signed event is answered
-204 and does nothing else. The public proxy answers this path with
-404, so only the stack reaches it.
+204 at once, and only then is the same body, untouched, handed with its kind
+from `X-Forgejo-Event` or `X-Gitea-Event` to `events.publish`, which tells
+the live streams what thread it changed; the forge never waits on that.
+The public proxy answers this path with 404, so only the stack reaches it.
+
+## Announcements, questions and live updates
+
+An organiser's announcement routes are served under the contest and the
+task prefixes, made by one factory, like the file routes; there is no
+delete, and a closed announcement stays readable. An announcement carries
+`where` it is by name, its `number` there, `title`, `body`, `posted_at`,
+`closed`, whether it `answers_question`, and, to an organiser, `answers`,
+the question by its asker's user id and number. A question is named by its
+asker's user id and its number among their questions in the contest, and
+carries its contest by name, the `asker`, `number`, the `task` it names,
+`title`, `body`, `asked_at`, `answered`, `closed` and every message, each
+saying whether the asker wrote it. Asking needs an approved contestant
+(`not_approved` otherwise), and an empty or too long title or text is
+`invalid_message`, naming the `field`.
+
+`GET /api/v1/live` holds one Server-Sent Events stream per session: each
+event is named by its kind, `grading`, `announcement`, `clarification` or
+`resync`, and its data is one id, never what changed, so a page asks for the
+thing again through the routes above. A comment every fifteen seconds keeps
+the connection open and tells the server a browser has gone; the stream
+ends when the session does, and the browser reconnects after five seconds.
+It is sent with `X-Accel-Buffering: no`, and the proxy serves the path with
+buffering off.
 
 ## The grading run's doors
 

@@ -56,6 +56,99 @@
         "title": "Account",
         "type": "object"
       },
+      "Announcement": {
+        "description": "One announcement: where it is, by the names of its contest and task,\nits number there, what it says, when it was posted, whether it is\nclosed, whether it answers a question, and, for an organiser, which.",
+        "properties": {
+          "answers": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AnsweredQuestion"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "answers_question": {
+            "title": "Answers Question",
+            "type": "boolean"
+          },
+          "body": {
+            "title": "Body",
+            "type": "string"
+          },
+          "closed": {
+            "title": "Closed",
+            "type": "boolean"
+          },
+          "number": {
+            "title": "Number",
+            "type": "integer"
+          },
+          "posted_at": {
+            "format": "date-time",
+            "title": "Posted At",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "where": {
+            "$ref": "#/components/schemas/ScopeNames"
+          }
+        },
+        "required": [
+          "where",
+          "number",
+          "title",
+          "body",
+          "posted_at",
+          "closed",
+          "answers_question",
+          "answers"
+        ],
+        "title": "Announcement",
+        "type": "object"
+      },
+      "AnnouncementRequest": {
+        "description": "An announcement's title and text, as posted or as edited.",
+        "properties": {
+          "body": {
+            "title": "Body",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "body"
+        ],
+        "title": "AnnouncementRequest",
+        "type": "object"
+      },
+      "AnsweredQuestion": {
+        "description": "The clarification an announcement answers: the asker's user id and the\nquestion's number in their workspace.",
+        "properties": {
+          "number": {
+            "title": "Number",
+            "type": "integer"
+          },
+          "user_id": {
+            "title": "User Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "user_id",
+          "number"
+        ],
+        "title": "AnsweredQuestion",
+        "type": "object"
+      },
       "CallbackAnswer": {
         "description": "Where the grading stands once its run's report is taken.",
         "properties": {
@@ -106,6 +199,75 @@
         "title": "Change",
         "type": "object"
       },
+      "Clarification": {
+        "description": "One question: its contest by name, the asker's user id, its number in\ntheir workspace, the task it names, what it asks, when, whether it is\nanswered and whether it is open, and every message under it, oldest\nfirst.",
+        "properties": {
+          "answered": {
+            "title": "Answered",
+            "type": "boolean"
+          },
+          "asked_at": {
+            "format": "date-time",
+            "title": "Asked At",
+            "type": "string"
+          },
+          "asker": {
+            "title": "Asker",
+            "type": "integer"
+          },
+          "body": {
+            "title": "Body",
+            "type": "string"
+          },
+          "closed": {
+            "title": "Closed",
+            "type": "boolean"
+          },
+          "contest": {
+            "$ref": "#/components/schemas/ScopeNames"
+          },
+          "messages": {
+            "items": {
+              "$ref": "#/components/schemas/Message"
+            },
+            "title": "Messages",
+            "type": "array"
+          },
+          "number": {
+            "title": "Number",
+            "type": "integer"
+          },
+          "task": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Task"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "contest",
+          "asker",
+          "number",
+          "task",
+          "title",
+          "body",
+          "asked_at",
+          "answered",
+          "closed",
+          "messages"
+        ],
+        "title": "Clarification",
+        "type": "object"
+      },
       "Closed": {
         "description": "Why a task is not open, the first of these that applies.",
         "enum": [
@@ -116,6 +278,20 @@
         ],
         "title": "Closed",
         "type": "string"
+      },
+      "CommentRequest": {
+        "description": "One message under a question: a contestant's follow-up or an\norganiser's reply.",
+        "properties": {
+          "body": {
+            "title": "Body",
+            "type": "string"
+          }
+        },
+        "required": [
+          "body"
+        ],
+        "title": "CommentRequest",
+        "type": "object"
       },
       "ContestHome": {
         "description": "A contest's home for the caller. `organises` says the caller holds a\nrole at the contest, which keeps them from registering;\n`registration_open` says whether the registration window is open now,\n`invite_only` whether only invited people may register and `asks_code`\nwhether registering takes the contest's code. `deadline` is the\ncontest's end plus the caller's own extension.",
@@ -1101,6 +1277,31 @@
         "title": "Me",
         "type": "object"
       },
+      "Message": {
+        "description": "One message under a question: whether the asker wrote it, what it\nsays, and when.",
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "body": {
+            "title": "Body",
+            "type": "string"
+          },
+          "from_asker": {
+            "title": "From Asker",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "from_asker",
+          "body",
+          "at"
+        ],
+        "title": "Message",
+        "type": "object"
+      },
       "MyRegistration": {
         "description": "The caller's own registration: where it stands, when it was made and\nlast decided, why it was rejected, and how long past the contest's end\nthey may still submit, in seconds.",
         "properties": {
@@ -1405,6 +1606,36 @@
           "changes"
         ],
         "title": "Published",
+        "type": "object"
+      },
+      "QuestionRequest": {
+        "description": "A question's title and text, and the name of the task it is about,\nwhen it is about one released to the asker.",
+        "properties": {
+          "body": {
+            "title": "Body",
+            "type": "string"
+          },
+          "task": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Task"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "body"
+        ],
+        "title": "QuestionRequest",
         "type": "object"
       },
       "Rate": {
@@ -2801,7 +3032,7 @@
     },
     "/api/v1/events/forge/{org}": {
       "post": {
-        "description": "The signature is the hex HMAC-SHA256 of the raw body under the org's\nsecret, in the first of forge's signature headers the request carries,\n`X-Forgejo-Signature` and then `X-Gitea-Signature`.",
+        "description": "The signature is the hex HMAC-SHA256 of the raw body under the org's\nsecret, in the first of forge's signature headers the request carries,\n`X-Forgejo-Signature` and then `X-Gitea-Signature`; the event's kind is\nin `X-Forgejo-Event` or `X-Gitea-Event`.",
         "operationId": "receiveForgeEvent",
         "parameters": [
           {
@@ -2941,6 +3172,34 @@
         "summary": "The envelope a grading run fetches as it begins",
         "tags": [
           "runs"
+        ]
+      }
+    },
+    "/api/v1/live": {
+      "get": {
+        "description": "Each event is named by its kind and carries one id.",
+        "operationId": "streamLiveUpdates",
+        "responses": {
+          "200": {
+            "content": {
+              "text/event-stream": {}
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "The nudges the caller's session may hear, as Server-Sent Events",
+        "tags": [
+          "live"
         ]
       }
     },
@@ -3200,6 +3459,53 @@
         ]
       }
     },
+    "/api/v1/orgs/{org}/clarifications": {
+      "get": {
+        "description": "Oldest first, each only where the caller observes its contest.",
+        "operationId": "listClarificationInbox",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Clarification"
+                  },
+                  "title": "Response Listclarificationinbox",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Every question still open across the org",
+        "tags": [
+          "clarifications"
+        ]
+      }
+    },
     "/api/v1/orgs/{org}/contests": {
       "get": {
         "description": "The contests the forge lets the caller read, by name.",
@@ -3294,6 +3600,608 @@
         "summary": "Make a contest in the org",
         "tags": [
           "contests"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/announcements": {
+      "get": {
+        "description": "Oldest first, each saying whether it is closed and, when it answers\na question, which.",
+        "operationId": "manageContestAnnouncements",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Announcement"
+                  },
+                  "title": "Response Managecontestannouncements",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Every announcement here, closed ones included",
+        "tags": [
+          "announcements"
+        ]
+      },
+      "post": {
+        "description": "Posted as the caller. An empty or too long title or text is\n`invalid_message`, naming which.",
+        "operationId": "postContestAnnouncement",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnnouncementRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Announcement"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Post an announcement",
+        "tags": [
+          "announcements"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/announcements/{number}": {
+      "patch": {
+        "description": "Changed as the caller, keeping what it answers.",
+        "operationId": "editContestAnnouncement",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "title": "Number",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnnouncementRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Announcement"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Change an announcement's title and text",
+        "tags": [
+          "announcements"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/announcements/{number}/close": {
+      "post": {
+        "description": "Closing a closed one changes nothing.",
+        "operationId": "closeContestAnnouncement",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "title": "Number",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Announcement"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Close an announcement, which stays readable",
+        "tags": [
+          "announcements"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/clarifications": {
+      "get": {
+        "description": "Oldest first.",
+        "operationId": "listContestClarifications",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Clarification"
+                  },
+                  "title": "Response Listcontestclarifications",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Every question of the contest, answered ones included",
+        "tags": [
+          "clarifications"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/clarifications/{asker}/{number}/announcement": {
+      "post": {
+        "description": "On the task the question names, or else on the contest, pointing at\nthe question, which stays private.",
+        "operationId": "answerQuestionPublicly",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "asker",
+            "required": true,
+            "schema": {
+              "title": "Asker",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "title": "Number",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnnouncementRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Announcement"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Turn an answer into an announcement every contestant reads",
+        "tags": [
+          "clarifications"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/clarifications/{asker}/{number}/answered": {
+      "delete": {
+        "description": "Unmarking one that is not marked changes nothing.",
+        "operationId": "unmarkQuestionAnswered",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "asker",
+            "required": true,
+            "schema": {
+              "title": "Asker",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "title": "Number",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Clarification"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Take the answered mark off a question, opening it again",
+        "tags": [
+          "clarifications"
+        ]
+      },
+      "put": {
+        "description": "With or without a reply first; marking a marked one changes nothing.",
+        "operationId": "markQuestionAnswered",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "asker",
+            "required": true,
+            "schema": {
+              "title": "Asker",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "title": "Number",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Clarification"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Mark a question answered, closing it",
+        "tags": [
+          "clarifications"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/clarifications/{asker}/{number}/replies": {
+      "post": {
+        "description": "Posted as the caller.",
+        "operationId": "replyToQuestion",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "asker",
+            "required": true,
+            "schema": {
+              "title": "Asker",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "title": "Number",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommentRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Clarification"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Reply to a question, leaving it open",
+        "tags": [
+          "clarifications"
         ]
       }
     },
@@ -4019,6 +4927,249 @@
         ]
       }
     },
+    "/api/v1/orgs/{org}/contests/{contest}/home/announcements": {
+      "get": {
+        "description": "The contest's own first, then each released task's in the contest's\norder, each oldest first.",
+        "operationId": "listContestAnnouncements",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Announcement"
+                  },
+                  "title": "Response Listcontestannouncements",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "The open announcements of a contest and its released tasks",
+        "tags": [
+          "announcements"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/questions": {
+      "get": {
+        "description": "Oldest first, each with every message under it.",
+        "operationId": "listMyQuestions",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Clarification"
+                  },
+                  "title": "Response Listmyquestions",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "The caller's own questions in the contest",
+        "tags": [
+          "clarifications"
+        ]
+      },
+      "post": {
+        "description": "Asked as the caller. A task that is not released to them is\n`not_found`, and an empty or too long title or text `invalid_message`.",
+        "operationId": "askQuestion",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuestionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Clarification"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Ask the organisers a question, privately",
+        "tags": [
+          "clarifications"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/questions/{number}/comments": {
+      "post": {
+        "description": "On an answered question this takes the mark off and opens it.",
+        "operationId": "followUpQuestion",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "title": "Number",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommentRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Clarification"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Comment again on one's own question",
+        "tags": [
+          "clarifications"
+        ]
+      }
+    },
     "/api/v1/orgs/{org}/contests/{contest}/registration": {
       "get": {
         "description": "Null when the caller has not registered.",
@@ -4476,6 +5627,290 @@
         "summary": "Where the task's files stand",
         "tags": [
           "tasks"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/announcements": {
+      "get": {
+        "description": "Oldest first, each saying whether it is closed and, when it answers\na question, which.",
+        "operationId": "manageTaskAnnouncements",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "task",
+            "required": true,
+            "schema": {
+              "title": "Task",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Announcement"
+                  },
+                  "title": "Response Managetaskannouncements",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Every announcement here, closed ones included",
+        "tags": [
+          "announcements"
+        ]
+      },
+      "post": {
+        "description": "Posted as the caller. An empty or too long title or text is\n`invalid_message`, naming which.",
+        "operationId": "postTaskAnnouncement",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "task",
+            "required": true,
+            "schema": {
+              "title": "Task",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnnouncementRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Announcement"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Post an announcement",
+        "tags": [
+          "announcements"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/announcements/{number}": {
+      "patch": {
+        "description": "Changed as the caller, keeping what it answers.",
+        "operationId": "editTaskAnnouncement",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "title": "Number",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "task",
+            "required": true,
+            "schema": {
+              "title": "Task",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnnouncementRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Announcement"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Change an announcement's title and text",
+        "tags": [
+          "announcements"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/announcements/{number}/close": {
+      "post": {
+        "description": "Closing a closed one changes nothing.",
+        "operationId": "closeTaskAnnouncement",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "title": "Number",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "task",
+            "required": true,
+            "schema": {
+              "title": "Task",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Announcement"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Close an announcement, which stays readable",
+        "tags": [
+          "announcements"
         ]
       }
     },
@@ -5097,6 +6532,71 @@
         "summary": "A released task's page",
         "tags": [
           "contest home"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/page/announcements": {
+      "get": {
+        "description": "Oldest first.",
+        "operationId": "listTaskAnnouncements",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "task",
+            "required": true,
+            "schema": {
+              "title": "Task",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Announcement"
+                  },
+                  "title": "Response Listtaskannouncements",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "The open announcements of a released task",
+        "tags": [
+          "announcements"
         ]
       }
     },
