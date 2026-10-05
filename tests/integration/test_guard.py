@@ -41,6 +41,7 @@ ROLLBACK = {"version": "nowhere", "token": None}
 NO_GRADING = "0192f4a4-7b7e-7000-8000-000000000001"
 NOTE = {"title": "Welcome", "body": "Good luck."}
 COMMENT = {"body": "Yes."}
+INVITE = {"grants": "observer", "username": "carol"}
 SESSION_ONLY = {
     "createOrg",
     "getTaskRelease",
@@ -114,6 +115,18 @@ ROUTES: list[tuple[str, str, dict[str, Any] | None, Role, Scope]] = [
     ("PUT", f"{CONTEST}/clarifications/20/1/answered", None, Role.MANAGER, SPRING),
     ("DELETE", f"{CONTEST}/clarifications/20/1/answered", None, Role.MANAGER, SPRING),
     ("POST", f"{CONTEST}/clarifications/20/1/announcement", NOTE, Role.MANAGER, SPRING),
+    ("GET", f"{ORG}/invites", None, Role.OBSERVER, ACME),
+    ("POST", f"{ORG}/invites", INVITE, Role.MANAGER, ACME),
+    ("POST", f"{ORG}/invites/{NO_GRADING}/send-again", None, Role.MANAGER, ACME),
+    ("POST", f"{ORG}/invites/{NO_GRADING}/withdraw", None, Role.MANAGER, ACME),
+    ("GET", f"{CONTEST}/invites", None, Role.OBSERVER, SPRING),
+    ("POST", f"{CONTEST}/invites", INVITE, Role.MANAGER, SPRING),
+    ("POST", f"{CONTEST}/invites/{NO_GRADING}/send-again", None, Role.MANAGER, SPRING),
+    ("POST", f"{CONTEST}/invites/{NO_GRADING}/withdraw", None, Role.MANAGER, SPRING),
+    ("GET", f"{TASK}/invites", None, Role.OBSERVER, SUM),
+    ("POST", f"{TASK}/invites", INVITE, Role.MANAGER, SUM),
+    ("POST", f"{TASK}/invites/{NO_GRADING}/send-again", None, Role.MANAGER, SUM),
+    ("POST", f"{TASK}/invites/{NO_GRADING}/withdraw", None, Role.MANAGER, SUM),
 ]
 EACH_ROUTE = pytest.mark.parametrize(
     ("method", "path", "body", "role", "scope"),

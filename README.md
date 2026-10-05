@@ -103,7 +103,8 @@ a forge record holds may go to the browser, the forge's own type is the
 model, as for a task's release, a folder's entries, the history and a
 published save. Everywhere else a model in `unicon/schemas` lists the fields
 that go out, which leaves behind the keys the forge's ids are built from,
-another person's email, the address a session came from, the forge's ids
+another person's email (but for the address an organiser typed into an
+invite, which the scope's organisers see), the address a session came from, the forge's ids
 for a publication's workflows, and where a run put its log. Field names are
 the forge's: a contest is `where` it is, by its `org` and `contest` names,
 and its `name` is its title. An answer is sent whole, so
@@ -164,6 +165,10 @@ the one the route needs at the scope in the third column.
 | `GET <scope>/roles` | observer | scope | | the holders |
 | `POST <scope>/roles` | manager | scope | `username`, `role` | 204 |
 | `DELETE <scope>/roles/{user_id}` | manager | scope | | 204 |
+| `GET <scope>/invites` | observer | scope | | the scope's invites, newest first |
+| `POST <scope>/invites` | manager | scope | `grants`, `username` or `email`, `days` | 201, the invite |
+| `POST <scope>/invites/{invite_id}/send-again` | manager | scope | | the invite, mailed again with a new link |
+| `POST <scope>/invites/{invite_id}/withdraw` | manager | scope | | the invite, `withdrawn` |
 | `GET <place>/tree?path=` | observer | place | | a folder's entries |
 | `GET <place>/files/{path}?at=` | observer | place | | `path`, `encoding`, `content`, `token` |
 | `GET <place>/history?path=` | observer | place | | every change, newest first |
@@ -203,6 +208,40 @@ person to it, which is how a person is promoted or demoted. Forge refuses a
 manager granting admin or demoting or removing an admin (`forbidden`),
 removing the last admin of a scope (`sole_admin`), and a role for a
 contestant of that contest (`contestant_conflict`).
+
+The invite routes are served under each of the three scope prefixes too. An
+invite names a `username` or an `email`, and `grants` one of the three
+roles at the scope or, at a contest, a `contestant`'s place; it stands for
+`days`, 14 unless given and at most 90. It carries `where`, the scope's
+names, `invited_by`, its `status` (`pending`, `accepted`, `declined` or
+`withdrawn`), `expired` for a pending one past `expires_at`, and
+`mail_status`: `waiting` until the mail server takes it, `sent`, `failed`,
+or `off` on a deployment with no mail server. The mail goes out after the
+route answers, so a mail server that is down never fails the click. Forge
+refuses a manager inviting an admin (`forbidden`), a contestant's place
+anywhere but a contest, a target that is both or neither, and someone who
+holds it already or could not take it (`invalid_invite`), the same pending
+invite twice (`already_invited`), and an org's thousand-and-first invite of
+a day (`invite_limit`). Sending again makes a new link, so the old one
+stops working, and gives the invite its whole lifetime again, a lapsed one
+included; it is refused within ten minutes of the last mail
+(`invite_limit`) and where the deployment sends no mail (`invalid_invite`).
+Withdrawing takes back a pending invite, or an accepted contestant's place
+until its person registers; anything else is `wrong_status`. A list shows
+at most 500. A username whose account has no confirmed address gets no
+mail, and its invite reads `failed`.
+
+The person an invite is for acts on it with a session alone:
+`GET /api/v1/me/invites` lists their pending invites, lapsed ones flagged,
+including any sent to an address the forge has confirmed is theirs;
+`POST /api/v1/me/invites/open` with the `token` after the `#` of the mail's
+link opens one, in the body so the token never sits in a URL;
+`POST /api/v1/me/invites/{invite_id}/accept` takes what it grants and
+`/decline` grants nothing, and either on a decided invite is
+`wrong_status`. Anyone else's invite is `not_found`, a lapsed one is
+`invite_expired` (410), and a link opened while the forge cannot say whose
+address it is answers `forge_unavailable`. Accepting a contestant's place lets
+the person register for an invite-only contest and see a hidden one.
 
 ## Files and the save
 
@@ -518,11 +557,11 @@ nowhere else:
 |---|---|
 | `not_found`, `upload_not_yours` | 404 |
 | `forbidden`, `ci_request_refused`, `fresh_sign_in_required`, `origin_mismatch`, `admin_only`, `reserved_path`, `registration_closed`, `is_staff`, `invite_required`, `wrong_invite_code`, `domain_not_allowed`, `task_closed`, `archived`, `not_approved` | 403 |
-| `conflict`, `sole_admin`, `contestant_conflict`, `shared_workflow_owner`, `confirmation_required`, `already_registered`, `contest_full`, `wrong_status`, `submission_limit`, `upload_not_ready`, `upload_limit`, `log_too_large` | 409 |
-| `grading_closed` | 410 |
+| `conflict`, `sole_admin`, `contestant_conflict`, `shared_workflow_owner`, `confirmation_required`, `already_registered`, `contest_full`, `already_invited`, `wrong_status`, `submission_limit`, `upload_not_ready`, `upload_limit`, `log_too_large` | 409 |
+| `grading_closed`, `invite_expired` | 410 |
 | `payload_too_large`, `too_large` | 413 |
-| `rate_limited` | 429, with `Retry-After` |
-| `rejected`, `invalid_name`, `invalid_definition`, `invalid_path`, `invalid_reason`, `invalid_extension`, `invalid_inputs`, `invalid_idempotency_key`, `invalid_callback`, `invalid_message`, `validation_error` | 422 |
+| `rate_limited`, `invite_limit` | 429, with `Retry-After` |
+| `rejected`, `invalid_name`, `invalid_definition`, `invalid_path`, `invalid_reason`, `invalid_extension`, `invalid_invite`, `invalid_inputs`, `invalid_idempotency_key`, `invalid_callback`, `invalid_message`, `validation_error` | 422 |
 | `unauthenticated`, `session_expired` | 401, and the session cookie is cleared |
 | `invalid_token` | 401 |
 | `sign_in_invalid`, `sign_in_denied` | 400 |
@@ -532,7 +571,7 @@ nowhere else:
 `sole_admin` carries `scopes`, each `{"kind", "name"}`,
 `contestant_conflict` carries `contests`, `shared_workflow_owner` carries
 `workflows`, `admin_only` carries `keys`, `reserved_path` carries `paths`,
-`confirmation_required` carries `changes`, `invalid_definition` carries
+`confirmation_required` carries `changes`, `already_invited` carries `invite`, the one held already, `invalid_definition` carries
 `errors`, each `{"path", "message"}`, `invalid_path` carries `path`,
 `wrong_status` carries `current`, and the refusals of an upload or a submit
 carry what the section above names, so the browser can show what stands in
