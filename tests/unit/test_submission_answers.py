@@ -1,14 +1,17 @@
 """What a contestant is answered with is what forge gives and nothing more: a
-grading carries exactly the verdict its stage's `show` let through, a
-submission's inputs are read leniently from its `submission.json`, and a
-file's download is named after the file, quoted when its name is not plain.
+grading carries exactly what the task's test groups let through, its numbers
+as JSON numbers, a submission's inputs are read leniently from its
+`submission.json`, and a file's download is named after the file, quoted
+when its name is not plain.
 """
 
+import json
 import uuid
-from typing import Any
+from datetime import UTC, datetime
+from decimal import Decimal
 
 import pytest
-from forge.api.submissions import GradingStatus, Result, Show
+from forge.api.submissions import GradingStatus, GroupShown, Result, Show
 from forge.api.submissions import SubmittedFiles as SubmittedFilesRecord
 from forge.api.types import TaskId
 
@@ -17,92 +20,87 @@ from unicon.schemas.submissions import Result as ResultAnswer
 from unicon.schemas.submissions import SubmittedFiles
 
 GRADING = uuid.UUID("0192f4a4-7b7e-7000-8000-000000000001")
+REVEAL = datetime(2026, 9, 26, 15, tzinfo=UTC)
 
 
-def _result(
-    show: Show,
-    *,
-    outcome: str | None = None,
-    metrics: dict[str, Any] | None = None,
-    summary: str | None = None,
-    tests: tuple[dict[str, Any], ...] | None = None,
-    log: bool = False,
-) -> Result:
-    return Result(
-        id=GRADING,
-        stage="default",
-        attempt=2,
-        status=GradingStatus.DONE,
-        show=show,
-        outcome=outcome,
-        metrics=metrics,
-        summary=summary,
-        tests=tests,
-        log=log,
-    )
-
-
-@pytest.mark.parametrize(
-    ("result", "shown"),
-    [
-        (_result(Show.HIDDEN), {}),
-        (
-            _result(Show.METRICS, outcome="accepted", metrics={"score": 100}),
-            {"outcome": "accepted", "metrics": {"score": 100}},
-        ),
-        (
-            _result(
-                Show.FULL,
-                outcome="accepted",
-                metrics={"score": 100},
-                summary="All passed.",
-                tests=(
-                    {
-                        "id": "1",
-                        "outcome": "accepted",
-                        "time_ms": 12,
-                        "memory_kb": None,
-                        "metrics": {"points": 1},
-                    },
-                ),
-                log=True,
-            ),
-            {
-                "outcome": "accepted",
-                "metrics": {"score": 100},
-                "summary": "All passed.",
-                "tests": [
-                    {
-                        "id": "1",
-                        "outcome": "accepted",
-                        "time_ms": 12,
-                        "memory_kb": None,
-                        "metrics": {"points": 1.0},
-                        "message": None,
-                    }
-                ],
-                "log": True,
-            },
-        ),
-    ],
-    ids=["hidden", "metrics", "full"],
-)
-def test_a_grading_carries_what_forge_let_through_and_nothing_else(
-    result: Result, shown: dict[str, object]
-) -> None:
-    empty = {"outcome": None, "metrics": None, "summary": None, "tests": None, "log": False}
+def test_a_grading_being_run_carries_its_status_alone() -> None:
+    result = Result(GRADING, 2, GradingStatus.RUNNING, None, None, (), {})
 
     answer = ResultAnswer.model_validate(result, from_attributes=True).model_dump(mode="json")
 
     assert answer == {
         "id": str(GRADING),
-        "stage": "default",
         "attempt": 2,
-        "status": "done",
-        "show": result.show.value,
-        **empty,
-        **shown,
+        "status": "running",
+        "stopped": None,
+        "outcome": None,
+        "groups": [],
+        "values": {},
     }
+
+
+def test_a_grading_carries_each_group_as_forge_let_it_through() -> None:
+    row = {
+        "test": "samples/1",
+        "outcome": "accepted",
+        "values": {"time_ms": 12, "fraction": Decimal("0.25")},
+    }
+    result = Result(
+        GRADING,
+        1,
+        GradingStatus.DONE,
+        None,
+        "wrong_answer",
+        (
+            GroupShown("samples", Show.ALWAYS, "accepted", (row,), None),
+            GroupShown("small", Show.VERDICT, "wrong_answer", None, REVEAL),
+            GroupShown("large", Show.AFTER_CLOSE, None, None, REVEAL),
+        ),
+        {"log": "", "score": Decimal("1.5")},
+    )
+
+    answer = ResultAnswer.model_validate(result, from_attributes=True)
+
+    assert answer.model_dump(mode="json") == {
+        "id": str(GRADING),
+        "attempt": 1,
+        "status": "done",
+        "stopped": None,
+        "outcome": "wrong_answer",
+        "groups": [
+            {
+                "group": "samples",
+                "show": "always",
+                "outcome": "accepted",
+                "tests": [
+                    {
+                        "test": "samples/1",
+                        "outcome": "accepted",
+                        "values": {"time_ms": 12, "fraction": 0.25},
+                    }
+                ],
+                "shown_at": None,
+            },
+            {
+                "group": "small",
+                "show": "verdict",
+                "outcome": "wrong_answer",
+                "tests": None,
+                "shown_at": "2026-09-26T15:00:00Z",
+            },
+            {
+                "group": "large",
+                "show": "after_close",
+                "outcome": None,
+                "tests": None,
+                "shown_at": "2026-09-26T15:00:00Z",
+            },
+        ],
+        "values": {"log": "", "score": 1.5},
+    }
+    served = json.loads(answer.model_dump_json())
+    assert served["values"]["score"] == 1.5
+    assert served["groups"][0]["tests"][0]["values"]["fraction"] == 0.25
 
 
 def test_a_submissions_inputs_are_read_leniently() -> None:
@@ -110,7 +108,8 @@ def test_a_submissions_inputs_are_read_leniently() -> None:
         TaskId("acme/spring/sum"),
         3,
         {
-            "submission": {"files": ["files/submission/main.py", 7], "language": "python"},
+            "submission": {"files": ["files/submission/main.py", 7]},
+            "language": {"value": "python"},
             "alpha": {"value": 0.5},
             "odd": ["not", "an", "object"],
             "weights": {"files": "files/weights/model.bin", "value": {"nested": True}},
@@ -122,14 +121,11 @@ def test_a_submissions_inputs_are_read_leniently() -> None:
     assert answer == {
         "number": 3,
         "inputs": {
-            "submission": {
-                "files": ["files/submission/main.py"],
-                "language": "python",
-                "value": None,
-            },
-            "alpha": {"files": [], "language": None, "value": 0.5},
-            "odd": {"files": [], "language": None, "value": None},
-            "weights": {"files": [], "language": None, "value": None},
+            "submission": {"files": ["files/submission/main.py"], "value": None},
+            "language": {"files": [], "value": "python"},
+            "alpha": {"files": [], "value": 0.5},
+            "odd": {"files": [], "value": None},
+            "weights": {"files": [], "value": None},
         },
     }
 

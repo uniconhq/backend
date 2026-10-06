@@ -89,8 +89,9 @@ async def retry_grading(organiser: TaskManager, grading: uuid.UUID) -> gradings.
     response_model=Rejudged,
 )
 async def rejudge_task(organiser: TaskManager) -> gradings.Rejudged:
-    """How many new attempts it queued, cancelled first, left to finish and
-    passed over. A task with no publication is `not_found`.
+    """How many new attempts it queued, and how many earlier attempts it
+    cancelled first and left to finish. A task with no publication is
+    `not_found`.
     """
     return await gradings.rejudge(organiser, tasks.task_id_of(organiser.scope))
 

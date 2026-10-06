@@ -216,23 +216,23 @@ async def test_a_slot_the_task_does_not_take_is_refused_with_its_code(
 
     assert (refused.status_code, refused.json()["code"]) == (status, code)
     if code == "too_large":
-        assert (refused.json()["limit"], refused.json()["input"]) == (10 * MIB, None)
+        assert (refused.json()["limit"], refused.json()["input"]) == (10 * MIB, "submission")
 
 
 async def test_a_person_who_may_not_submit_is_refused_a_slot(
     client: httpx.AsyncClient, world: FakeForge, held_setup: Setup, clock: FakeClock
 ) -> None:
-    await run_contest(client, visibility="public")
+    await run_contest(client, visibility="everyone")
     await publish(client)
     await sign_in_as(client, world, 20)
     unregistered = await client.post(UPLOADS, json=_ask(1), headers=ORIGIN)
     await enter(client, world, held_setup, 8)
     clock.advance(timedelta(hours=4))
-    ended = await client.post(UPLOADS, json=_ask(1), headers=ORIGIN)
+    closed = await client.post(UPLOADS, json=_ask(1), headers=ORIGIN)
 
     assert (unregistered.status_code, unregistered.json()["code"]) == (403, "not_approved")
-    assert (ended.status_code, ended.json()["code"]) == (403, "task_closed")
-    assert ended.json()["reason"] == "ended"
+    assert (closed.status_code, closed.json()["code"]) == (403, "task_closed")
+    assert closed.json()["reason"] == "closed"
 
 
 async def test_the_upload_routes_need_a_session(

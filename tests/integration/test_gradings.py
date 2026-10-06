@@ -27,11 +27,14 @@ async def _grading(client: httpx.AsyncClient, forge: FakeForge) -> str:
         f"{TASK}/submissions",
         json={
             "idempotency_key": "key-0001-aaaa",
-            "inputs": {"submission": {"uploads": [made["id"]], "language": "python"}},
+            "inputs": {
+                "submission": {"uploads": [made["id"]]},
+                "language": {"value": "python"},
+            },
         },
         headers=ORIGIN,
     )
-    grading: str = submitted.json()["gradings"][0]["id"]
+    grading: str = submitted.json()["grading"]["id"]
     return grading
 
 
@@ -53,13 +56,13 @@ async def test_a_manager_cancels_and_retries_a_grading(
     assert cancelled.status_code == 200, cancelled.text
     body = cancelled.json()
     assert (body["id"], body["status"], body["attempt"]) == (grading, "cancelled", 1)
-    assert (body["submission_number"], body["stage"]) == (1, "default")
+    assert (body["submission_number"], body["result"]) == (1, None)
     assert body["finished_at"] is not None
     assert (again.status_code, again.json()["current"]) == (409, "cancelled")
     assert retried.status_code == 200, retried.text
     assert (retried.json()["attempt"], retried.json()["status"]) == (2, "queued")
     assert retried.json()["id"] != grading
-    [latest] = mine.json()["gradings"]
+    latest = mine.json()["grading"]
     assert (latest["attempt"], latest["status"]) == (2, "dispatched")
 
 
@@ -97,12 +100,7 @@ async def test_a_rejudge_grades_every_submission_again(
 
     assert rejudged.status_code == 200, rejudged.text
     body = rejudged.json()
-    assert (body["queued"], body["cancelled"], body["left_running"], body["passed_over"]) == (
-        1,
-        0,
-        0,
-        0,
-    )
+    assert (body["queued"], body["cancelled"], body["left_running"]) == (1, 0, 0)
     assert body["publication"]
 
 
@@ -145,7 +143,7 @@ async def test_a_grading_named_under_another_task_is_no_such_grading(
 
     assert (foreign.status_code, foreign.json()["code"]) == (404, "not_found")
     assert foreign.json() == nobodys.json()
-    assert mine.json()["gradings"][0]["status"] == "dispatched"
+    assert mine.json()["grading"]["status"] == "dispatched"
 
 
 async def test_the_controls_need_a_session(client: httpx.AsyncClient, entered: FakeForge) -> None:

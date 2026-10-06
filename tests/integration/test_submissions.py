@@ -39,7 +39,10 @@ MAIN = "files/submission/main.py"
 def _submit_body(*uploads: str, key: str = KEY) -> dict[str, Any]:
     return {
         "idempotency_key": key,
-        "inputs": {"submission": {"uploads": list(uploads), "language": "python"}},
+        "inputs": {
+            "submission": {"uploads": list(uploads)},
+            "language": {"value": "python"},
+        },
     }
 
 
@@ -59,22 +62,19 @@ async def test_a_submit_answers_with_its_queued_grading_and_reads_back(
 
     assert submitted.status_code == 201, submitted.text
     body = submitted.json()
-    assert (body["number"], body["submitted_at"]) == (1, "2026-09-26T12:00:00Z")
-    [grading] = body["gradings"]
+    grading = body.pop("grading")
     uuid.UUID(grading.pop("id"))
+    assert body == {"number": 1, "submitted_at": "2026-09-26T12:00:00Z", "late_days": 0}
     assert grading == {
-        "stage": "default",
         "attempt": 1,
         "status": "queued",
-        "show": "full",
+        "stopped": None,
         "outcome": None,
-        "metrics": None,
-        "summary": None,
-        "tests": None,
-        "log": False,
+        "groups": [],
+        "values": {},
     }
-    first = submitted.json()["gradings"][0]
-    started = {**submitted.json(), "gradings": [{**first, "status": "dispatched"}]}
+    first = submitted.json()["grading"]
+    started = {**submitted.json(), "grading": {**first, "status": "dispatched"}}
     assert listed.json() == [started]
     assert one.json() == started
 
@@ -88,7 +88,10 @@ async def test_a_submission_gives_back_what_it_was_made_with(
 
     assert files.json() == {
         "number": 1,
-        "inputs": {"submission": {"files": [MAIN], "language": "python", "value": None}},
+        "inputs": {
+            "submission": {"files": [MAIN], "value": None},
+            "language": {"files": [], "value": "python"},
+        },
     }
 
 
@@ -177,9 +180,7 @@ async def test_the_same_key_sent_twice_makes_one_submission(
 
     assert again.status_code == 201, again.text
     assert again.json()["number"] == first.json()["number"]
-    assert [grading["id"] for grading in again.json()["gradings"]] == [
-        grading["id"] for grading in first.json()["gradings"]
-    ]
+    assert again.json()["grading"]["id"] == first.json()["grading"]["id"]
     assert len((await client.get(SUBMISSIONS)).json()) == 1
 
 
@@ -203,7 +204,7 @@ async def test_a_submit_past_the_tasks_submissions_is_refused_with_the_limit(
     client: httpx.AsyncClient, entered: FakeForge, clock: FakeClock
 ) -> None:
     await sign_in_as(client, entered, 7)
-    await edit_task(client, "submissions: 50", "submissions: 1")
+    await edit_task(client, "test_groups:", "submissions: {max: 1}\ntest_groups:")
     await sign_in_as(client, entered, 20)
     await _submit(client, entered)
     clock.advance(timedelta(minutes=1))
@@ -248,12 +249,12 @@ async def test_inputs_that_do_not_fit_the_task_are_refused_at_their_input(
 ) -> None:
     made = await upload(client, entered, SOURCE)
     body = _submit_body(made["id"])
-    body["inputs"]["submission"]["language"] = "cobol"
+    body["inputs"]["language"] = {"value": "cobol"}
 
     refused = await client.post(SUBMISSIONS, json=body, headers=ORIGIN)
 
     assert (refused.status_code, refused.json()["code"]) == (422, "invalid_inputs")
-    assert refused.json()["errors"][0]["input"] == "submission"
+    assert refused.json()["errors"][0]["input"] == "language"
 
 
 async def test_another_contestants_submission_is_no_such_submission(
