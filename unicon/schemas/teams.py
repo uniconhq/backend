@@ -10,6 +10,7 @@ from forge.api.types import MemberStatus
 from pydantic import BaseModel, Field
 
 from unicon.schemas.account import Person
+from unicon.schemas.contestants import Seconds
 
 
 class Member(BaseModel):
@@ -25,7 +26,9 @@ class Member(BaseModel):
 
 class Team(BaseModel):
     """A team: its name, its leader's user id, its members, the people
-    asking or asked in, and whether it has submitted anything.
+    asking or asked in, whether it has submitted anything, and its
+    extension: how long, in seconds, it moves the due and the close of the
+    tasks in `extension_tasks`, or of every task when that is null.
     """
 
     id: uuid.UUID
@@ -34,6 +37,8 @@ class Team(BaseModel):
     members: list[Member]
     pending: list[Member]
     submitted: bool
+    time_extension: Seconds
+    extension_tasks: list[str] | None
 
 
 class ListedTeam(BaseModel):

@@ -24,7 +24,7 @@ async def _register_carol(client: httpx.AsyncClient, world: FakeForge) -> httpx.
 async def test_a_registration_is_pending_and_the_caller_reads_it_back(
     client: httpx.AsyncClient, world: FakeForge
 ) -> None:
-    await run_contest(client, visibility="public")
+    await run_contest(client, visibility="everyone")
 
     before = await _register_carol(client, world)
     mine = await client.get(REGISTRATION)
@@ -37,7 +37,7 @@ async def test_a_registration_is_pending_and_the_caller_reads_it_back(
 async def test_a_second_registration_answers_with_its_code(
     client: httpx.AsyncClient, world: FakeForge
 ) -> None:
-    await run_contest(client, visibility="public")
+    await run_contest(client, visibility="everyone")
     await _register_carol(client, world)
 
     again = await client.post(REGISTRATION, json={}, headers=ORIGIN)
@@ -49,7 +49,7 @@ async def test_a_second_registration_answers_with_its_code(
 async def test_an_organiser_registering_is_staff(
     client: httpx.AsyncClient, world: FakeForge
 ) -> None:
-    await run_contest(client, visibility="public")
+    await run_contest(client, visibility="everyone")
 
     refused = await client.post(REGISTRATION, json={}, headers=ORIGIN)
 
@@ -80,7 +80,7 @@ async def test_no_registration_reads_as_null(client: httpx.AsyncClient, world: F
 async def test_a_manager_decides_and_the_caller_reads_the_reason(
     client: httpx.AsyncClient, world: FakeForge
 ) -> None:
-    await run_contest(client, visibility="public")
+    await run_contest(client, visibility="everyone")
     await _register_carol(client, world)
     await sign_in_as(client, world, 7)
 
@@ -106,7 +106,7 @@ async def test_a_manager_decides_and_the_caller_reads_the_reason(
 async def test_a_rejection_is_taken_back_and_then_approved(
     client: httpx.AsyncClient, world: FakeForge
 ) -> None:
-    await run_contest(client, visibility="public")
+    await run_contest(client, visibility="everyone")
     await _register_carol(client, world)
     await sign_in_as(client, world, 7)
 
@@ -123,7 +123,7 @@ async def test_a_rejection_is_taken_back_and_then_approved(
 async def test_an_approved_contestant_is_given_time_and_removed(
     client: httpx.AsyncClient, world: FakeForge, held_setup: Setup
 ) -> None:
-    await run_contest(client, visibility="public")
+    await run_contest(client, visibility="everyone")
     await _register_carol(client, world)
     await sign_in_as(client, world, 7)
 
@@ -132,14 +132,25 @@ async def test_an_approved_contestant_is_given_time_and_removed(
     extended = await client.put(
         f"{CONTESTANTS}/20/extension", json={"seconds": 1800}, headers=ORIGIN
     )
+    on_sum = await client.put(
+        f"{CONTESTANTS}/20/extension", json={"seconds": 900, "tasks": ["sum"]}, headers=ORIGIN
+    )
+    unknown = await client.put(
+        f"{CONTESTANTS}/20/extension", json={"seconds": 60, "tasks": ["nothing"]}, headers=ORIGIN
+    )
+    none_named = await client.put(
+        f"{CONTESTANTS}/20/extension", json={"seconds": 60, "tasks": []}, headers=ORIGIN
+    )
     negative = await client.put(f"{CONTESTANTS}/20/extension", json={"seconds": -1}, headers=ORIGIN)
     huge = await client.put(f"{CONTESTANTS}/20/extension", json={"seconds": 10**20}, headers=ORIGIN)
     removed = await client.post(f"{CONTESTANTS}/20/remove", headers=ORIGIN)
 
     assert approved.json()["status"] == "approved"
     assert ready.json()[0]["status"] == "approved"
-    assert extended.json()["time_extension"] == 1800
-    assert (negative.status_code, negative.json()["code"]) == (422, "invalid_extension")
+    assert (extended.json()["time_extension"], extended.json()["extension_tasks"]) == (1800, None)
+    assert (on_sum.json()["time_extension"], on_sum.json()["extension_tasks"]) == (900, ["sum"])
+    for refused in (unknown, none_named, negative):
+        assert (refused.status_code, refused.json()["code"]) == (422, "invalid_extension")
     assert (huge.status_code, huge.json()["code"]) == (422, "validation_error")
     assert removed.json()["status"] == "removed"
 
@@ -147,7 +158,7 @@ async def test_an_approved_contestant_is_given_time_and_removed(
 async def test_a_contestant_is_refused_every_decision(
     client: httpx.AsyncClient, world: FakeForge
 ) -> None:
-    await run_contest(client, visibility="public")
+    await run_contest(client, visibility="everyone")
     await _register_carol(client, world)
 
     answers = [
