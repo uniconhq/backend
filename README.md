@@ -160,13 +160,14 @@ the one the route needs at the scope in the third column.
 | `POST <contest>/contestants/{user_id}/reject` | manager | contest | `reason` | the registration |
 | `POST <contest>/contestants/{user_id}/reopen` | manager | contest | | the registration, pending again |
 | `POST <contest>/contestants/{user_id}/remove` | manager | contest | | the registration |
-| `PUT <contest>/contestants/{user_id}/extension` | manager | contest | `seconds` | the registration |
+| `PUT <contest>/contestants/{user_id}/extension` | manager | contest | `seconds`, `tasks` | the registration |
 | `GET <contest>/organise/teams` | observer | contest | | every team, with its members and the people asking or asked in |
 | `POST <contest>/organise/teams` | manager | contest | `name`, `leader` | 201, the team |
 | `DELETE <contest>/organise/teams/{team_id}` | manager | contest | | 204 |
 | `POST <contest>/organise/teams/{team_id}/members` | manager | contest | `user_id` | the team, the person moved in from any other |
 | `DELETE <contest>/organise/teams/{team_id}/members/{user_id}` | manager | contest | | the team |
 | `PUT <contest>/organise/teams/{team_id}/leader` | manager | contest | `user_id` | the team |
+| `PUT <contest>/organise/teams/{team_id}/extension` | manager | contest | `seconds`, `tasks` | the team |
 | `POST <task>/save` | manager | task | `changes`, `confirm`, `keep_as_draft`, `message` | the save's result |
 | `GET <scope>/roles` | observer | scope | | the holders |
 | `POST <scope>/roles` | manager | scope | `username`, `role` | 204 |
@@ -248,8 +249,8 @@ join, or accepts the leader's invitation, and `/cancel` takes that back;
 `POST <contest>/teams/{team_id}/invite` with a `username`,
 `POST .../members/{user_id}/approve` and `DELETE .../members/{user_id}` ask
 someone in, let a request in, and take someone out or turn a request down.
-Once in a team, the person's submissions, limits and questions are the
-team's, and a question on a team's desk is named `team.<id>` where a
+Once in a team, the person's submissions, the caps they count against,
+their extension and their questions are the team's, and a question on a team's desk is named `team.<id>` where a
 person's is named by their user id. Refusals: `teams_off`,
 `invalid_team_name`, `team_name_taken`, `team_full` (with `limit`),
 `in_team`, `submitted_alone`, `team_has_submissions` and `team_changed`.
@@ -285,27 +286,30 @@ A task is published by saving it. A write to a task's file, a rollback
 there, and `POST <task>/save` are each a save, which `publications.save`
 runs; the save route takes several files at once, each with its token. A save inside
 `plans/` is `reserved_path`, and a manager's change to the task's name, its
-`limits` or `statement.md` is `admin_only`. A save that checks publishes,
+`submissions` or `statement.md` is `admin_only`. A save that checks publishes,
 and one that does not is kept as a draft: its files are written, nothing is
-published, and the last publication keeps grading. While the contest runs,
-a save that changes how the task grades is `confirmation_required`, listing
-what would change, and nothing is written. The same save with `confirm`
+published, and the last publication keeps grading. Once the contest has
+started, and until it is archived, a save that changes how the task grades
+is `confirmation_required`, listing what would change, and nothing is
+written. The same save with `confirm`
 publishes. A save with `keep_as_draft` is written as a draft that says what
 it held back and publishes nothing, on any save, and an empty save with
 `confirm` publishes that draft later.
 
 A save answers with what it published or with the draft it kept. A
-publication carries the `publication`, its `number`, `grading_changed` and
-the `changes`; a draft carries the `version` written, the `errors`, each
+publication carries the `publication`, its `number`, `grading_changed`, the
+`changes`, and the `notes` the save makes of the task beside publishing it,
+such as which steps it seals until the reveal; a draft carries the `version` written, the `errors`, each
 `{path, message}`, and what it `held_back`. `GET <task>` answers the version at the head, the
 latest publication or none, whether the head is a draft, and the draft's
 errors, worked out again on every read.
 
 `GET <task>/release` is what a contestant is told, and needs only a session:
 whether the task is `released`, `visible` and `open` to the caller now by
-the server's clock, and the first reason it is `closed`. Nothing is released
-before the task's first publication, and a task whose contest is hidden from
-the caller is not found.
+the server's clock, and the first reason it is `closed`: `not_released`,
+`archived` or `closed`. Nothing is released before the task's first
+publication, nor a task the contest's `tasks` does not list, and a task
+whose contest is hidden from the caller is not found.
 
 ## Contestants and visitors
 
@@ -318,7 +322,7 @@ in the contest they enter:
 | `POST <contest>/registration` | `invite_code` | 201, the caller's registration |
 | `GET <contest>/registration` | | the caller's registration, or null |
 | `GET <contest>/home` | | the contest's home for the caller |
-| `GET <task>/page` | | a released task's statement and limits |
+| `GET <task>/page` | | a released task's statement, its submission caps and the form of its inputs |
 | `GET <contest>/home/announcements` | | the open announcements of the contest and of each task released to the caller |
 | `GET <task>/page/announcements` | | the open announcements of a released task |
 | `POST <contest>/questions` | `title`, `body`, `task` | 201, the question, asked privately |
@@ -331,16 +335,23 @@ own. A registration the contest's rules refuse answers with the rule's code:
 `registration_closed`, `is_staff`, `invite_required`, `wrong_invite_code` and
 `domain_not_allowed` as 403, `already_registered` and `contest_full` as 409.
 A registration carries its `status`, the `reason` when it was rejected, its
-times, and the `time_extension` in seconds. The home carries the contest
-`where` it is, its title as `name`, its dates and `state`, the caller's
-`registration`, whether the caller `organises` the contest and so may not
-enter it, whether the window is `registration_open` and whether registering
-is `invite_only` or `asks_code`, the caller's own `deadline`, which is the
-end plus their extension, `now`, the server's clock when it was read, and
-the `tasks` released to them, each with its `name`, `label`, `title`,
-`points` and `release`. A task's page carries its `statement` in Markdown
-and its `limits`: `submissions`, at most `rate.count` in any `rate.per`
-seconds, and `max_size` in bytes.
+times, and the person's own extension: the `time_extension` in seconds, on
+the `extension_tasks` by name, or on every task when that is null. The home
+carries the contest `where` it is, its title as `name`, its dates and
+`state`, the caller's `registration`, whether the caller `organises` the
+contest and so may not enter it, whether the window is `registration_open`
+and whether registering is `invite_only` or `asks_code`, `now`, the
+server's clock when it was read, and the `tasks` released to them, each
+with its `name`, `label`, `title`, `worth`, the most points it gives or
+null, its `release`, and when it falls `due`, null when it has none, and
+`closes` for the caller, their extension on it included. A task's page
+carries the same, its `statement` in Markdown, its `submissions`: at most
+`max` in all and `rate.count` in any `rate.per` seconds, and its `inputs`,
+the form the submit panel is built from: each input's `id`, `type`
+(`text`, `number`, `boolean`, `enum`, `file` or `folder`), `label`, the
+`options` of an enum, whether it takes one file `per_test`, the `default` a
+value takes when it is left out, `min` and `max` of a number, and
+`max_size`, the most its files may total in bytes.
 For a contest the caller may not see, the home answers 404, the same as for
 one that is not there, and so does the page of a task that is not visible to
 them; the caller's own registration reads null wherever they have none.
@@ -349,17 +360,23 @@ The organiser's contestants routes are in the table above, and answer with
 the same registration and the person's `user_id` and `user`, which carries
 their `id`, `username`, `name`, `email` and `avatar_url` and is null once
 the account is gone. A decision the registration's status does not allow
-is `wrong_status`, carrying the status as `current`; a rejection needs a `reason` (`invalid_reason`), and an
-extension is between none and a year (`invalid_extension`), and one
-of more than a billion seconds either way is not taken at all
-(`validation_error`). Reopening takes a rejection back: the registration is
+is `wrong_status`, carrying the status as `current`; a rejection needs a `reason` (`invalid_reason`). An
+extension moves the person's due and close on the named `tasks`, or on
+every task when it names none, in place of any they had, and holds while
+they work alone; in a team, the team's holds, which
+`PUT <contest>/organise/teams/{team_id}/extension` gives the same way. It
+is between none and a year, names tasks the contest lists, and neither lets
+a row submit to a task whose reveal has passed nor leaves one of its
+submissions after the due or the close it was made before
+(`invalid_extension`); one of more than a billion seconds either way is not
+taken at all (`validation_error`). Reopening takes a rejection back: the registration is
 pending again with its reason cleared, and since it takes a place again it
 is refused with `contest_full` when none is free and `is_staff` when the
 person holds a role at the contest by now.
 
 A visitor with no session calls the routes under `/api/v1/public`, which
 read no cookie: `GET /api/v1/public/contests`, every contest whose
-`visibility` is `public` and that is published; `GET
+`visibility` is `everyone` and that is published; `GET
 /api/v1/public/contests/{org}/{contest}`, one of them with its released
 tasks; and `GET /api/v1/public/contests/{org}/{contest}/tasks/{task}`, a
 released task's statement. Anything else answers 404 there. Every
@@ -381,10 +398,12 @@ a session and no role; `<task>` is the task's prefix.
 | `GET <task>/submissions` | | the caller's own, newest first |
 | `GET <task>/submissions/{number}` | | one of them |
 | `GET <task>/submissions/{number}/files` | | what it was made with |
-| `GET <task>/submissions/{number}/log?stage=` | | its run log, as plain text |
 
 A file never passes through this process. The browser asks for a slot for
-one file of a contestant input, declaring its `size` and `sha256`, and the
+one file of a contestant `file` or `folder` input, declaring where it goes
+under the input as its `filename`, one name for a file input, a path for a
+folder input and `<group>/<test>` with or without an ending for an input
+that takes a file per test, and its `size` and `sha256`, and the
 slot's `url` is the proxy's upload door, `/-/uploads/<id>`, good until
 `expires_at`; a slot that is `ready` is for a file the forge holds already,
 and nothing is sent. The browser PUTs the file there, and the proxy, having
@@ -396,21 +415,26 @@ it does, with its `size` and `sha256`. Completing again answers the same. An upl
 else's is not found.
 
 A submit names, for each of the task's contestant inputs by id, the
-`uploads` of its files and the `language` of a code input, or the `value` of
-a text, number or true-or-false input, with an `idempotency_key` the browser
-makes once per submit, 8 to 128 letters, digits, `-` and `_`. The same key
-sent again answers with the submission it made and makes nothing. A
-submission carries its `number`, `submitted_at` and `gradings`, the latest
-attempt at each of the task's stages, each with its `id`, `stage`,
-`attempt`, `status`, the stage's `show`, and of the verdict what `show`
-lets the contestant see: `full` the `outcome`, `metrics`, `summary`,
-`tests` and whether there is a `log`, `metrics` the outcome and metrics,
-`hidden` the status alone. An outcome is one of the runner's list, metrics
-are named numbers, and a test's row is its `id`, `outcome`, `time_ms`,
-`memory_kb`, each null when not measured, its own `metrics` and the
-checker's `message` or null. What is not shown is null; the route renders
-what forge gives it and nothing more. The files route answers each input's
-`files`, by their paths in the submission, its `language` or its `value`.
+`uploads` of its files, or the `value` of a text, number, true-or-false or
+enum input, the language of a program being an enum input of its own, with
+an `idempotency_key` the browser makes once per submit, 8 to 128 letters,
+digits, `-` and `_`; a value left out takes its default. The same key sent
+again answers with the submission it made and makes nothing. A submission
+carries its `number`, `submitted_at`, `late_days`, how many started days
+after the caller's due it was made, and its `grading`, the latest attempt,
+with its `id`, `attempt` and `status`, and once it is `done`, what the
+task's test groups let the contestant see now: what `stopped` the run, the
+`outcome` over the groups shown, the `values` reported once, and each of
+the `groups` with its `group` name, its `show`, its `outcome` and its
+`tests`, each test's row being its `test`, `<group>/<test>`, its `outcome`
+and its `values`. A group shown `always` carries everything; `verdict` its
+outcome, and its tests from the task's reveal; `after_close` its name and,
+as `shown_at`, when the rest is shown. What is not shown is null, and a run
+that failed on the platform's side is `running` to its contestant, with
+nothing else. An outcome is one of the runner's list, and a value a number
+or text. The route renders what forge gives it and nothing more. The files
+route answers each input's `files`, by their paths in the submission, or
+its `value`.
 A file itself is downloaded through the proxy's download door,
 `/-/downloads/<org>/<contest>/<task>/<number>/<path>`, which asks this
 process whether the caller may read it and then streams it from the forge
@@ -419,13 +443,12 @@ through the proxy and never through this process. Another contestant's submissio
 that is not there, and a number that cannot be one is `validation_error`.
 
 A slot or a submit the task's rules refuse answers with the rule's code:
-`task_closed`, with its `reason`, `ended` or `submissions_closed`,
-`archived` and `not_approved` as 403; `submission_limit` with its `limit`,
+`task_closed`, with its `reason`, `closed` once the task has closed for
+the caller, `archived` and `not_approved` as 403; `submission_limit` with its `limit`,
 `upload_not_ready` with the `uploads` refused, and `upload_limit`, too many
 open uploads, with its `limit` and `bytes`, as 409; `rate_limited` as 429 with the `rate` and
 `retry_at`, which the `Retry-After` header carries too; `too_large` as 413
-with the `limit` in bytes and the `input` whose limit it is, or null for the
-task's; `upload_not_yours` as 404 with the `uploads`; and `invalid_inputs`,
+with the `limit` in bytes and the `input` whose limit it is; `upload_not_yours` as 404 with the `uploads`; and `invalid_inputs`,
 each of its `errors` naming its `input`, and `invalid_idempotency_key` as
 422.
 
@@ -438,7 +461,8 @@ username, or the name of an org where they hold the manager role or above,
 and forge decides which. The answer is 201 with the workflow's `owner` and
 `name`, never its id at the forge, which is built from an org's key. The
 workflow is private, and its first commit, a `workflow.yaml` named
-`<owner>/<name>` with the steps of `unicon/classic@v1`, is the caller's. An
+`<owner>/<name>` with the inputs, test fields, steps and report of
+`unicon/classic@v2`, is the caller's. An
 observer of the org, a person with no role there, an org that is not there
 and another person's username are all `forbidden`, in the same words, so the
 answer tells nobody which orgs exist. A name that breaks the rules, or a
@@ -515,16 +539,17 @@ passed, `grading_closed`. It carries the run's callback token,
 so it is answered `Cache-Control: no-store`.
 
 `POST /api/v1/gradings/{grading}/callback` takes a run's report, `started`,
-`progress` or `finished` with the verdict, at most 4 MiB, handing the
+`progress` or `finished` with the result, at most 4 MiB, handing the
 `Authorization` header and the raw body to `runs.callback`, and answers the
 grading's `status` after it. A missing or wrong bearer token is
 `invalid_token`, a body that is no report `invalid_callback`, and a grading
-that takes no reports now `grading_closed`. The same verdict sent again is
-answered the same. `grading_closed` is a 410: a grading that has finished,
+that takes no reports now `grading_closed`. The same result sent again is
+answered the same. Forge reads the body itself, every number exactly as the
+run wrote it. `grading_closed` is a 410: a grading that has finished,
 or whose run has ended, never takes an envelope or a report again.
 `invalid_callback` is a 422
 like every other body that does not fit. The harness stops reporting at a
-401, 403, 404, 409 or 410 and sends a verdict again only after a 5xx or a
+401, 403, 404, 409 or 410 and sends a result again only after a 5xx or a
 429, so each of these refusals ends a run's reporting and none is retried.
 The request log never records the query or a header, so neither the key nor
 the token reaches it.
@@ -537,18 +562,16 @@ and a grading of any other task is not found there, the same as one that is
 not there at all, whatever the caller may do at that other task; forge
 checks the role again at the grading's own task. A grading carries its
 `id`, the `submission_number` and `submitted_at`, the `publication`,
-`stage`, `attempt`, `status`, `error`, `verdict`, whether there is a `log`,
+`attempt`, `status`, `error`, the `result` (what `stopped` the run, every
+test's row in `tests`, the `values` reported once and the `error` it stopped
+on), whether there is a `log`,
 `progress` (the `step` last reported and how many of its containers are
 `done` of the `total`) and its times; cancelling a finished one or retrying
 one that is not finished is `wrong_status` with its `current` status, and
 retrying one with another attempt still being graded is `conflict`. A rejudge answers the
 `publication` it grades against and how many attempts it `queued`,
-`cancelled` first, `left_running` and `passed_over`.
-
-A contestant reads the run log of their own submission's latest attempt at
-a `stage`, or at the first stage with one, only where that stage's `show` is
-`full`; anywhere else it is `not_found`, and one larger than forge serves is
-`log_too_large`. It is answered as plain text with the download's headers.
+`cancelled` first and `left_running`. A run's log names every test, hidden
+ones too, so no contestant reads it.
 
 ## Operator commands
 
@@ -580,7 +603,7 @@ nowhere else:
 |---|---|
 | `not_found`, `upload_not_yours` | 404 |
 | `forbidden`, `ci_request_refused`, `fresh_sign_in_required`, `origin_mismatch`, `admin_only`, `reserved_path`, `registration_closed`, `is_staff`, `invite_required`, `wrong_invite_code`, `domain_not_allowed`, `task_closed`, `archived`, `not_approved` | 403 |
-| `conflict`, `sole_admin`, `contestant_conflict`, `shared_workflow_owner`, `confirmation_required`, `already_registered`, `contest_full`, `already_invited`, `teams_off`, `team_name_taken`, `team_full`, `in_team`, `submitted_alone`, `team_has_submissions`, `team_changed`, `wrong_status`, `submission_limit`, `upload_not_ready`, `upload_limit`, `log_too_large` | 409 |
+| `conflict`, `sole_admin`, `contestant_conflict`, `shared_workflow_owner`, `confirmation_required`, `already_registered`, `contest_full`, `already_invited`, `teams_off`, `team_name_taken`, `team_full`, `in_team`, `submitted_alone`, `team_has_submissions`, `team_changed`, `wrong_status`, `submission_limit`, `upload_not_ready`, `upload_limit` | 409 |
 | `grading_closed`, `invite_expired` | 410 |
 | `payload_too_large`, `too_large` | 413 |
 | `rate_limited`, `invite_limit` | 429, with `Retry-After` |
