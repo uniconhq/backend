@@ -14,6 +14,7 @@ from forge.api.release import TaskRelease
 from pydantic import BaseModel
 
 from unicon.schemas.contestants import MyRegistration
+from unicon.schemas.exact import Exact
 from unicon.schemas.submissions import Value
 
 
@@ -48,7 +49,7 @@ class TaskEntry(BaseModel):
     name: str
     label: str
     title: str
-    worth: int | float | None
+    worth: Exact | None
     release: TaskRelease
     due: datetime | None
     closes: datetime | None
@@ -126,7 +127,7 @@ class TaskPage(BaseModel):
     name: str
     label: str
     title: str
-    worth: int | float | None
+    worth: Exact | None
     statement: str
     submissions: Submissions
     inputs: list[InputField]

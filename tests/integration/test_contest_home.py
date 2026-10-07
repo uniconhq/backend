@@ -37,7 +37,7 @@ async def test_a_signed_in_person_reads_the_home_and_a_released_task(
     assert [
         (task["name"], task["label"], task["worth"], task["release"]["open"])
         for task in body["tasks"]
-    ] == [("sum", "A", 100, True)]
+    ] == [("sum", "A", "100", True)]
     assert (body["tasks"][0]["due"], body["tasks"][0]["closes"]) == (None, body["end"])
     assert page.json()["statement"] == "Add two numbers.\n"
     assert page.json()["submissions"] == {"max": 50, "rate": {"count": 1, "per": 30}}
