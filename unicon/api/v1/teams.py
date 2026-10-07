@@ -4,12 +4,13 @@ join one, takes the request back and leaves, with a session alone, since
 forge checks they are the contest's approved contestant. The leader asks
 someone in, lets a request in and removes a member, and forge checks the
 caller leads the team named. Organisers list every team with the observer
-role at the contest, and make, delete and mend them with manager. Every
-refusal comes back with forge's code, such as `team_full`, `in_team` or
-`submitted_alone`.
+role at the contest, and make, delete and mend them, and give one more
+time, with manager. Every refusal comes back with forge's code, such as
+`team_full`, `in_team` or `submitted_alone`.
 """
 
 import uuid
+from datetime import timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Response, status
@@ -19,6 +20,7 @@ from forge.api.types import Role, ScopeKind
 
 from unicon.api.deps import CurrentSession
 from unicon.api.guard import PREFIX, ContestAtPath, require
+from unicon.schemas.contestants import ExtensionRequest
 from unicon.schemas.teams import (
     InviteToTeamRequest,
     ListedTeam,
@@ -220,4 +222,29 @@ async def organise_lead(
 ) -> teams.Team:
     return await teams.organise_lead(
         organiser, contests.contest_id_of(organiser.scope), team_id, body.user_id
+    )
+
+
+@router.put(
+    f"{ORGANISE}/{{team_id}}/extension",
+    operation_id="organiseExtendTeam",
+    summary="Give a team more time on the contest's tasks",
+    response_model=Team,
+)
+async def organise_extend(
+    organiser: ContestManager, team_id: uuid.UUID, body: ExtensionRequest
+) -> teams.Team:
+    """It moves the team's due and close on the named tasks, or on every
+    task when none are named, in place of any extension it had; zero takes
+    it away. One that names a task the contest does not list, would let the
+    team submit to a task whose reveal has passed, or would leave one of its
+    submissions after the due or the close it was made before is
+    `invalid_extension`.
+    """
+    return await teams.organise_extend(
+        organiser,
+        contests.contest_id_of(organiser.scope),
+        team_id,
+        timedelta(seconds=body.seconds),
+        tasks=body.tasks,
     )

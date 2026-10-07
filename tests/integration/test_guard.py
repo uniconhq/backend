@@ -44,6 +44,7 @@ COMMENT = {"body": "Yes."}
 INVITE = {"grants": "observer", "username": "carol"}
 TEAM = {"name": "Adders"}
 PERSON = {"user_id": 20}
+SECONDS = {"seconds": 60}
 SESSION_ONLY = {
     "createOrg",
     "getTaskRelease",
@@ -57,7 +58,6 @@ SESSION_ONLY = {
     "listMySubmissions",
     "getMySubmission",
     "listMySubmissionFiles",
-    "readMySubmissionLog",
     "listContestAnnouncements",
     "listTaskAnnouncements",
     "askQuestion",
@@ -107,9 +107,10 @@ ROUTES: list[tuple[str, str, dict[str, Any] | None, Role, Scope]] = [
     ("GET", f"{TASK}/tree", None, Role.OBSERVER, SUM),
     ("GET", f"{TASK}/files/task.yaml", None, Role.OBSERVER, SUM),
     ("GET", f"{TASK}/history", None, Role.OBSERVER, SUM),
-    ("PUT", f"{TASK}/files/data/testcases/1.in", NEW_FILE, Role.MANAGER, SUM),
+    ("PUT", f"{TASK}/files/tests/main/1/input", NEW_FILE, Role.MANAGER, SUM),
     ("POST", f"{TASK}/files/task.yaml/rollback", ROLLBACK, Role.MANAGER, SUM),
     ("GET", f"{TASK}/gradings", None, Role.OBSERVER, SUM),
+    ("GET", f"{TASK}/gradings/{NO_GRADING}/log", None, Role.OBSERVER, SUM),
     ("POST", f"{TASK}/gradings/{NO_GRADING}/cancel", None, Role.MANAGER, SUM),
     ("POST", f"{TASK}/gradings/{NO_GRADING}/retry", None, Role.MANAGER, SUM),
     ("POST", f"{TASK}/rejudge", None, Role.MANAGER, SUM),
@@ -144,6 +145,7 @@ ROUTES: list[tuple[str, str, dict[str, Any] | None, Role, Scope]] = [
     ("POST", f"{CONTEST}/organise/teams/{NO_GRADING}/members", PERSON, Role.MANAGER, SPRING),
     ("DELETE", f"{CONTEST}/organise/teams/{NO_GRADING}/members/20", None, Role.MANAGER, SPRING),
     ("PUT", f"{CONTEST}/organise/teams/{NO_GRADING}/leader", PERSON, Role.MANAGER, SPRING),
+    ("PUT", f"{CONTEST}/organise/teams/{NO_GRADING}/extension", SECONDS, Role.MANAGER, SPRING),
 ]
 EACH_ROUTE = pytest.mark.parametrize(
     ("method", "path", "body", "role", "scope"),

@@ -4,7 +4,7 @@
 forge a second time.
 
 The organiser path starts from `acme`, the org made the operator's way with
-ada (7) its admin and the built-in workflow `unicon/classic@v1` public at the
+ada (7) its admin and the built-in workflow `unicon/classic@v2` public at the
 fake as bootstrap makes it, and `sum_task`, the contest acme/spring and the
 task acme/spring/sum in it made through the routes, with ada
 signed in. `world` adds carol (20), who holds nothing. `ORG`, `CONTEST` and
@@ -205,10 +205,10 @@ async def enter(client: httpx.AsyncClient, forge: FakeForge, setup: Setup, user_
 
 @pytest.fixture
 async def entered(client: httpx.AsyncClient, world: FakeForge, held_setup: Setup) -> FakeForge:
-    """acme/spring public and running, acme/spring/sum published, and carol
+    """acme/spring open to everyone and running, acme/spring/sum published, and carol
     (20) its approved contestant, signed in.
     """
-    await run_contest(client, visibility="public")
+    await run_contest(client, visibility="everyone")
     await publish(client)
     await enter(client, world, held_setup, 20)
     world.reset_calls()

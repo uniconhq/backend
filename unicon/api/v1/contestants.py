@@ -137,13 +137,23 @@ async def remove_contestant(organiser: ContestManager, user_id: int) -> contesta
 @router.put(
     f"{CONTEST}/contestants/{{user_id}}/extension",
     operation_id="extendContestant",
-    summary="Give one person more time past the contest's end",
+    summary="Give one person more time on the contest's tasks",
     response_model=Contestant,
 )
 async def extend_contestant(
     organiser: ContestManager, user_id: int, body: ExtensionRequest
 ) -> contestants.Registration:
-    """In place of any extension they had; zero takes it away."""
+    """It moves their due and close on the named tasks, or on every task
+    when none are named, in place of any extension they had; zero takes it
+    away. It holds while they work alone; in a team, the team's holds. One
+    that names a task the contest does not list, would let them submit to
+    a task whose reveal has passed, or would leave one of their submissions
+    after the due or the close it was made before is `invalid_extension`.
+    """
     return await contestants.extend(
-        organiser, _contest(organiser), user_id, timedelta(seconds=body.seconds)
+        organiser,
+        _contest(organiser),
+        user_id,
+        timedelta(seconds=body.seconds),
+        tasks=body.tasks,
     )

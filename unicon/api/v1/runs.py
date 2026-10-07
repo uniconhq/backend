@@ -25,7 +25,7 @@ from unicon.schemas.gradings import CallbackAnswer
 
 MAX_CONFIG_BODY = 1024 * 1024
 MAX_CALLBACK_BODY = 4 * 1024 * 1024
-"""A finished report carries the verdict with a row for every test, so its
+"""A finished report carries the result with a row for every test, so its
 bound is wider than the CI's question."""
 NO_STORE = {"Cache-Control": "no-store"}
 JSON_OBJECT = {"application/json": {"schema": {"type": "object"}}}
@@ -96,15 +96,15 @@ async def get_grading_envelope(grading: uuid.UUID, key: str = "") -> JSONRespons
     operation_id="reportGradingRun",
     summary="A grading run reports how it stands",
     openapi_extra=_raw_body(
-        "`started`, `progress` with `step`, `done` and `total`, or `finished` with `verdict`."
+        "`started`, `progress` with `step`, `done` and `total`, or `finished` with `result`."
     ),
 )
 async def report_grading_run(request: Request, grading: uuid.UUID) -> CallbackAnswer:
     """Under `Authorization: Bearer <token>`, the run's own token: `started`,
-    `progress` with the step and its counts, or `finished` with the verdict.
+    `progress` with the step and its counts, or `finished` with the result.
     A missing or wrong token is `invalid_token`, a body that is no report
     `invalid_callback`, and a grading that takes no reports now
-    `grading_closed`. The same verdict sent again is answered the same.
+    `grading_closed`. The same result sent again is answered the same.
     """
     body = await raw.body(request, MAX_CALLBACK_BODY, "A report")
     status = await runs.callback(grading, request.headers.get("authorization"), body)

@@ -1,9 +1,11 @@
 """The team routes: a contestant makes a team and another joins it once the
 leader lets them in, both submit as the team, and an organiser lists and
-mends the contest's teams. Forge's refusals come back with their codes, and
-a contestant cannot reach the organisers' routes.
+mends the contest's teams and gives one more time. Forge's refusals come
+back with their codes, and a contestant cannot reach the organisers'
+routes.
 """
 
+import re
 from datetime import timedelta
 
 import httpx
@@ -25,10 +27,8 @@ ORGANISE = f"{CONTEST}/organise/teams"
 async def _teams_on(client: httpx.AsyncClient, forge: FakeForge, size: int = 2) -> None:
     await sign_in_as(client, forge, 7)
     settings = (await client.get(f"{CONTEST}/files/contest.yaml")).json()
-    content = settings["content"].rstrip("\n")
-    if "teams:" in content:
-        content = content.split("teams:")[0].rstrip("\n")
-    content += f"\nteams:\n  enabled: true\n  max_size: {size}\n"
+    content = re.sub(r"(?m)^team_size: .*\n?", "", settings["content"]).rstrip("\n")
+    content += f"\nteam_size: {size}\n"
     written = await client.put(
         f"{CONTEST}/files/contest.yaml",
         json={"encoding": "utf-8", "content": content, "token": settings["token"]},
@@ -42,7 +42,10 @@ async def _submit(client: httpx.AsyncClient, forge: FakeForge, key: str) -> http
     return await client.post(
         f"{TASK}/submissions",
         json={
-            "inputs": {"submission": {"uploads": [made["id"]], "language": "python"}},
+            "inputs": {
+                "submission": {"uploads": [made["id"]]},
+                "language": {"value": "python"},
+            },
             "idempotency_key": key,
         },
         headers=ORIGIN,
@@ -94,19 +97,26 @@ async def test_the_refusals_come_back_with_their_codes(
     client: httpx.AsyncClient, entered: FakeForge, held_setup: Setup
 ) -> None:
     entered.add_user(21, "dan")
+    entered.add_user(22, "erin")
     await enter(client, entered, held_setup, 21)
     refused = await client.post(TEAMS, json={"name": "Early"}, headers=ORIGIN)
     assert (refused.status_code, refused.json()["code"]) == (409, "teams_off")
-    await _teams_on(client, entered, size=1)
+    await enter(client, entered, held_setup, 22)
+    await _teams_on(client, entered, size=2)
 
     await sign_in_as(client, entered, 20)
     team = (await client.post(TEAMS, json={"name": "Adders"}, headers=ORIGIN)).json()
-    full = await client.post(
-        f"{TEAMS}/{team['id']}/invite", json={"username": "dan"}, headers=ORIGIN
-    )
-    assert (full.status_code, full.json()["code"], full.json()["limit"]) == (409, "team_full", 1)
-
+    await client.post(f"{TEAMS}/{team['id']}/invite", json={"username": "dan"}, headers=ORIGIN)
     await sign_in_as(client, entered, 21)
+    joined = await client.post(f"{TEAMS}/{team['id']}/request", headers=ORIGIN)
+    assert joined.status_code == 200, joined.text
+    await sign_in_as(client, entered, 20)
+    full = await client.post(
+        f"{TEAMS}/{team['id']}/invite", json={"username": "erin"}, headers=ORIGIN
+    )
+    assert (full.status_code, full.json()["code"], full.json()["limit"]) == (409, "team_full", 2)
+
+    await sign_in_as(client, entered, 22)
     taken = await client.post(TEAMS, json={"name": "adders"}, headers=ORIGIN)
     assert (taken.status_code, taken.json()["code"]) == (409, "team_name_taken")
     not_leader = await client.delete(f"{TEAMS}/{team['id']}/members/20", headers=ORIGIN)
@@ -132,3 +142,37 @@ async def test_an_organiser_lists_and_mends_teams(
     gone = await client.delete(f"{ORGANISE}/{empty['id']}/members/20", headers=ORIGIN)
     assert gone.status_code == 200
     assert (await client.get(ORGANISE)).json() == []
+
+
+async def test_an_organiser_gives_a_team_more_time_on_a_task(
+    client: httpx.AsyncClient, entered: FakeForge, held_setup: Setup
+) -> None:
+    await _teams_on(client, entered)
+    team = (
+        await client.post(ORGANISE, json={"name": "Late", "leader": "carol"}, headers=ORIGIN)
+    ).json()
+
+    extended = await client.put(
+        f"{ORGANISE}/{team['id']}/extension",
+        json={"seconds": 3600, "tasks": ["sum"]},
+        headers=ORIGIN,
+    )
+    unknown = await client.put(
+        f"{ORGANISE}/{team['id']}/extension",
+        json={"seconds": 3600, "tasks": ["nothing"]},
+        headers=ORIGIN,
+    )
+    await sign_in_as(client, entered, 20)
+    home = await client.get(f"{CONTEST}/home")
+    refused = await client.put(
+        f"{ORGANISE}/{team['id']}/extension", json={"seconds": 60}, headers=ORIGIN
+    )
+
+    assert extended.status_code == 200, extended.text
+    assert (extended.json()["time_extension"], extended.json()["extension_tasks"]) == (
+        3600,
+        ["sum"],
+    )
+    assert (unknown.status_code, unknown.json()["code"]) == (422, "invalid_extension")
+    assert home.json()["tasks"][0]["closes"] == "2026-09-26T16:00:00Z"
+    assert (refused.status_code, refused.json()["code"]) == (403, "forbidden")
