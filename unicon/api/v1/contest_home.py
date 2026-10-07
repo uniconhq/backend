@@ -41,8 +41,9 @@ async def list_my_contests(session: CurrentSession) -> tuple[contest_home.Contes
 async def get_contest_home(
     session: CurrentSession, scope: ContestAtPath
 ) -> contest_home.ContestHome:
-    """The contest's dates, the caller's registration and own deadline, the
-    server's clock, and the tasks released to the caller.
+    """The contest's dates, the caller's registration, the server's clock,
+    and the tasks released to the caller, each with when it falls due and
+    closes for them.
     """
     return await contest_home.home(session, contests.contest_id_of(scope))
 
@@ -54,5 +55,8 @@ async def get_contest_home(
     response_model=TaskPage,
 )
 async def get_task_page(session: CurrentSession, scope: TaskAtPath) -> contest_home.TaskPage:
-    """The statement and the limits a submit is checked against."""
+    """The statement, the caps a submit is counted against, the form of the
+    inputs a contestant gives, and when it falls due and closes for the
+    caller.
+    """
     return await contest_home.task(session, tasks.task_id_of(scope))

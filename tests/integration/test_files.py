@@ -31,21 +31,23 @@ async def test_a_tasks_top_folder_lists_its_starter_files(
     client: httpx.AsyncClient, sum_task: FakeForge
 ) -> None:
     listed = await client.get(f"{TASK}/tree")
-    inside = await client.get(f"{TASK}/tree", params={"path": "data"})
+    inside = await client.get(f"{TASK}/tree", params={"path": "tests/main"})
 
     assert listed.status_code == 200
     entries = {entry["path"]: entry["kind"] for entry in listed.json()}
     assert entries["task.yaml"] == "file"
     assert entries["statement.md"] == "file"
-    assert entries["data"] == "directory"
-    assert [entry["path"] for entry in inside.json()] == ["data/testcases"]
+    assert (entries["public"], entries["tests"]) == ("directory", "directory")
+    assert [entry["path"] for entry in inside.json()] == ["tests/main/1"]
 
 
 async def test_a_contest_write_answers_its_version_and_shows_in_the_history(
     client: httpx.AsyncClient, sum_task: FakeForge
 ) -> None:
     before = await read(client, f"{CONTEST}/files/contest.yaml")
-    changed = before["content"].replace('description: ""', "description: Our spring round")
+    changed = before["content"].replace(
+        "state: draft", "description: Our spring round\nstate: draft"
+    )
 
     written = await _put(
         client, f"{CONTEST}/files/contest.yaml", changed, before["token"], message="Describe"
@@ -70,13 +72,13 @@ async def test_a_write_with_a_stale_token_is_a_conflict_and_writes_nothing(
     client: httpx.AsyncClient, sum_task: FakeForge
 ) -> None:
     before = await read(client, f"{CONTEST}/files/contest.yaml")
-    first = before["content"].replace('description: ""', "description: One")
+    first = before["content"].replace("state: draft", "description: One\nstate: draft")
     await _put(client, f"{CONTEST}/files/contest.yaml", first, before["token"])
 
     stale = await _put(
         client,
         f"{CONTEST}/files/contest.yaml",
-        before["content"].replace('description: ""', "description: Two"),
+        before["content"].replace("state: draft", "description: Two\nstate: draft"),
         before["token"],
     )
 
@@ -135,9 +137,9 @@ async def test_a_rollback_writes_the_older_file_back_as_a_new_change(
 async def test_a_task_write_is_a_save_and_answers_as_one(
     client: httpx.AsyncClient, sum_task: FakeForge
 ) -> None:
-    example = await read(client, f"{TASK}/files/data/testcases/1.in")
+    example = await read(client, f"{TASK}/files/tests/main/1/input")
 
-    written = await _put(client, f"{TASK}/files/data/testcases/1.in", "1 2\n", example["token"])
+    written = await _put(client, f"{TASK}/files/tests/main/1/input", "1 2\n", example["token"])
 
     assert written.status_code == 200
     assert written.json()["number"] == 1
@@ -164,7 +166,7 @@ async def test_a_contest_file_that_does_not_validate_is_refused_with_its_errors(
     client: httpx.AsyncClient, sum_task: FakeForge
 ) -> None:
     before = await read(client, f"{CONTEST}/files/contest.yaml")
-    broken = before["content"].replace("visibility: signed-in", "visibility: everyone")
+    broken = before["content"].replace("visibility: signed-in", "visibility: public")
 
     refused = await _put(client, f"{CONTEST}/files/contest.yaml", broken, before["token"])
 

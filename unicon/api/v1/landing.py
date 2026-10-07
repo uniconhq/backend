@@ -1,5 +1,5 @@
 """The routes a visitor with no session calls, under `/public`: the contests
-whose `visibility` is `public`, one of them with its released tasks, and a
+whose `visibility` is `everyone`, one of them with its released tasks, and a
 released task's statement. They read no cookie and answer only what is
 public; any other contest or task answers as not found, the same as one that
 is not there. The contest and task are read from the path the way every

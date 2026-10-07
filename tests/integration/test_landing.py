@@ -16,7 +16,7 @@ PUBLIC = "/api/v1/public/contests"
 async def test_a_visitor_reads_the_public_contests_and_a_released_statement(
     client: httpx.AsyncClient, sum_task: FakeForge
 ) -> None:
-    await run_contest(client, visibility="public")
+    await run_contest(client, visibility="everyone")
     await publish(client)
     client.cookies.clear()
 
@@ -56,7 +56,7 @@ async def test_what_is_not_public_answers_as_not_found(
 async def test_a_task_not_released_yet_is_not_found(
     client: httpx.AsyncClient, sum_task: FakeForge
 ) -> None:
-    await run_contest(client, visibility="public")
+    await run_contest(client, visibility="everyone")
     client.cookies.clear()
 
     unpublished = await client.get(f"{PUBLIC}/acme/spring/tasks/sum")
@@ -69,7 +69,7 @@ async def test_a_task_not_released_yet_is_not_found(
 async def test_every_other_route_refuses_a_request_with_no_session(
     client: httpx.AsyncClient, sum_task: FakeForge
 ) -> None:
-    await run_contest(client, visibility="public")
+    await run_contest(client, visibility="everyone")
     client.cookies.clear()
 
     answers = [

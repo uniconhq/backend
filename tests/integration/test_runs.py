@@ -2,11 +2,13 @@
 Origin: the CI's question about a run answered when its signature checks
 over the bytes as they were sent and refused when it does not or its body
 was changed; the envelope served for its key and not without it; and the
-run's reports taken under its token, a finished one leaving the verdict the
-contestant then reads as the stage shows it, with the run's log. A wrong or
-missing token, a body that is no report, a body past the bound, and a report
-or an envelope fetch for a grading that is over are each refused with their
-code.
+run's reports taken under its token, a finished one leaving the result the
+contestant then reads as the task's test groups show it, its numbers as
+they were written, and the organisers read whole; and the run's log, read
+by an observer of the task as plain text that runs nothing, and never by
+its contestant. A wrong or missing token, a body that is no report, a
+body past the bound, and a report or an envelope fetch for a grading that
+is over are each refused with their code.
 """
 
 import json
@@ -21,7 +23,7 @@ from forge.api import tasks
 from forge.api.runs import CI_CONFIG_PATH, CiRequest
 from forge.testing import FakeClock, FakeForge, Setup
 
-from tests.integration.conftest import ORIGIN, SUM, TASK, edit_task, enter, sign_in_as, upload
+from tests.integration.conftest import ORIGIN, SUM, TASK, edit_task, sign_in_as, upload
 
 SOURCE = b"print(sum(map(int, input().split())))\n"
 LOG = b"compile: ok\nrun 1: accepted\n"
@@ -50,11 +52,14 @@ async def _submitted(client: httpx.AsyncClient, forge: FakeForge) -> str:
         f"{TASK}/submissions",
         json={
             "idempotency_key": "key-0001-aaaa",
-            "inputs": {"submission": {"uploads": [made["id"]], "language": "python"}},
+            "inputs": {
+                "submission": {"uploads": [made["id"]]},
+                "language": {"value": "python"},
+            },
         },
         headers=ORIGIN,
     )
-    grading: str = submitted.json()["gradings"][0]["id"]
+    grading: str = submitted.json()["grading"]["id"]
     return grading
 
 
@@ -106,22 +111,25 @@ async def _report(
 ) -> httpx.Response:
     callback = urlsplit(envelope["callback"]["url"]).path
     given = envelope["callback"]["token"] if token is None else token
+    content = body if isinstance(body, bytes) else json.dumps(body).encode()
     return await client.post(
-        callback, content=json.dumps(body).encode(), headers={"Authorization": f"Bearer {given}"}
+        callback, content=content, headers={"Authorization": f"Bearer {given}"}
     )
 
 
-def _verdict(log: str | None) -> dict[str, Any]:
-    return {
-        "schema_version": 4,
-        "outcome": "accepted",
-        "metrics": {"score": 100},
-        "tests": [
-            {"id": "1", "outcome": "accepted", "time_ms": 12, "memory_kb": 2048, "metrics": {}}
-        ],
-        "summary": "Every test passed.",
-        "log": log,
-    }
+REPORT = (
+    b'{"event": "finished", "result": {"schema_version": 5, "stopped": null, '
+    b'"stopped_by": null, "tests": [{"test": "main/1", "outcome": "accepted", '
+    b'"values": {"time_ms": 12.5, "memory_kb": 2048}}], '
+    b'"values": {"log": ""}, "run_log": %s, "error": null}}'
+)
+"""A finished report as the harness writes it, a number with a point in it
+included, with the run log's URL put in."""
+ROW = {"test": "main/1", "outcome": "accepted", "values": {"time_ms": 12.5, "memory_kb": 2048}}
+
+
+def _finished(log: str | None) -> bytes:
+    return REPORT % json.dumps(log).encode()
 
 
 async def test_the_cis_signed_question_is_answered_without_an_origin(
@@ -178,15 +186,16 @@ async def test_the_envelope_is_served_for_its_key_and_not_without_it(
     assert fetched.status_code == 200, fetched.text
     assert fetched.headers["cache-control"] == "no-store"
     envelope = fetched.json()
-    assert (envelope["schema_version"], envelope["grading_id"]) == (4, started.grading)
+    assert (envelope["schema_version"], envelope["grading_id"]) == (5, started.grading)
+    assert envelope["secrets"] == {}
     assert envelope["callback"]["token"]
     for refused in (wrong, keyless):
         assert (refused.status_code, refused.json()["code"]) == (404, "not_found")
     submission = await client.get(f"{TASK}/submissions/1")
-    assert submission.json()["gradings"][0]["status"] == "running"
+    assert submission.json()["grading"]["status"] == "running"
 
 
-async def test_a_finished_report_leaves_the_verdict_the_contestant_reads(
+async def test_a_finished_report_leaves_the_result_the_contestant_reads(
     client: httpx.AsyncClient, entered: FakeForge, held_setup: Setup
 ) -> None:
     started = await _started(client, entered, held_setup)
@@ -197,99 +206,168 @@ async def test_a_finished_report_leaves_the_verdict_the_contestant_reads(
     moved = await _report(
         client, envelope, {"event": "progress", "step": "run", "done": 1, "total": 1}
     )
-    verdict = _verdict(log=urlsplit(envelope["log_put"])._replace(query="").geturl())
-    finished = await _report(client, envelope, {"event": "finished", "verdict": verdict})
-    again = await _report(client, envelope, {"event": "finished", "verdict": verdict})
+    report = _finished(urlsplit(envelope["log_put"])._replace(query="").geturl())
+    finished = await _report(client, envelope, report)
+    again = await _report(client, envelope, report)
     detail = await client.get(f"{TASK}/submissions/1")
     run_log = await client.get(f"{TASK}/submissions/1/log")
 
     assert [began.json(), moved.json()] == [{"status": "running"}] * 2
     assert finished.json() == again.json() == {"status": "done"}
-    [grading] = detail.json()["gradings"]
-    assert (grading["status"], grading["outcome"], grading["metrics"]) == (
+    grading = detail.json()["grading"]
+    assert (grading["status"], grading["stopped"], grading["outcome"]) == (
         "done",
+        None,
         "accepted",
-        {"score": 100},
     )
-    assert (grading["summary"], grading["log"]) == ("Every test passed.", True)
-    assert grading["tests"] == [{**row, "message": None} for row in verdict["tests"]]
+    assert grading["groups"] == [
+        {
+            "group": "main",
+            "show": "always",
+            "outcome": "accepted",
+            "tests": [ROW],
+            "shown_at": None,
+            "ran": True,
+        }
+    ]
+    assert grading["values"] == {"log": ""}
+    assert b'"time_ms":12.5' in detail.content
+    assert (run_log.status_code, run_log.json()["code"]) == (404, "not_found")
+
+
+async def test_the_organisers_read_the_result_whole_with_its_log(
+    client: httpx.AsyncClient, entered: FakeForge, held_setup: Setup
+) -> None:
+    await _finished_with_log(client, entered, held_setup)
+    await sign_in_as(client, entered, 7)
+
+    [grading] = (await client.get(f"{TASK}/gradings")).json()
+
+    assert (grading["status"], grading["log"]) == ("done", True)
+    assert grading["result"] == {
+        "stopped": None,
+        "tests": [ROW],
+        "values": {"log": ""},
+        "error": None,
+    }
+
+
+async def test_an_observer_reads_a_gradings_log_as_plain_text_that_runs_nothing(
+    client: httpx.AsyncClient, entered: FakeForge, held_setup: Setup
+) -> None:
+    grading = await _finished_with_log(client, entered, held_setup)
+    await sign_in_as(client, entered, 7)
+
+    run_log = await client.get(f"{TASK}/gradings/{grading}/log")
+
     assert run_log.status_code == 200, run_log.text
     assert run_log.content == LOG
     assert run_log.headers["content-type"] == "text/plain; charset=utf-8"
     assert run_log.headers["x-content-type-options"] == "nosniff"
+    assert run_log.headers["content-security-policy"] == "default-src 'none'; sandbox"
+    assert run_log.headers["cache-control"] == "private, no-store"
+
+
+async def test_a_log_larger_than_is_read_back_is_refused_with_the_limit(
+    client: httpx.AsyncClient, entered: FakeForge, held_setup: Setup
+) -> None:
+    grading = await _finished_with_log(client, entered, held_setup, b"x" * (9 * MIB + 1))
+    await sign_in_as(client, entered, 7)
+
+    refused = await client.get(f"{TASK}/gradings/{grading}/log")
+
+    assert (refused.status_code, refused.json()["code"]) == (409, "log_too_large")
+    assert refused.json()["limit"] == 9 * MIB
+
+
+async def test_a_grading_whose_run_wrote_no_log_has_none_to_read(
+    client: httpx.AsyncClient, entered: FakeForge, held_setup: Setup
+) -> None:
+    started = await _started(client, entered, held_setup)
+    envelope = await _envelope(client, started)
+    finished = await _report(client, envelope, _finished(None))
+    await sign_in_as(client, entered, 7)
+
+    missing = await client.get(f"{TASK}/gradings/{started.grading}/log")
+
+    assert finished.json() == {"status": "done"}, finished.text
+    assert (missing.status_code, missing.json()["code"]) == (404, "not_found")
 
 
 async def _finished_with_log(
-    client: httpx.AsyncClient, forge: FakeForge, setup: Setup
-) -> dict[str, Any]:
-    """carol's first submission graded, its run's log written; the verdict."""
+    client: httpx.AsyncClient, forge: FakeForge, setup: Setup, log: bytes = LOG
+) -> str:
+    """carol's first submission graded, its run's log written; its grading's
+    id.
+    """
     started = await _started(client, forge, setup)
     envelope = await _envelope(client, started)
-    forge.objects.put(envelope["log_put"], LOG)
-    verdict = _verdict(log=urlsplit(envelope["log_put"])._replace(query="").geturl())
-    finished = await _report(client, envelope, {"event": "finished", "verdict": verdict})
+    forge.objects.put(envelope["log_put"], log)
+    report = _finished(urlsplit(envelope["log_put"])._replace(query="").geturl())
+    finished = await _report(client, envelope, report)
     assert finished.json() == {"status": "done"}, finished.text
-    return verdict
+    return started.grading
 
 
 @pytest.mark.parametrize(
-    ("show", "shown"),
-    [
-        (
-            "metrics",
-            {"outcome": "accepted", "metrics": {"score": 100}, "summary": None, "tests": None},
-        ),
-        ("hidden", {"outcome": None, "metrics": None, "summary": None, "tests": None}),
-    ],
+    ("show", "outcome"),
+    [("verdict", "accepted"), ("after_close", None)],
 )
-async def test_a_stage_that_shows_less_answers_with_less_and_no_log(
+async def test_a_group_that_shows_less_answers_with_less_until_the_reveal(
     client: httpx.AsyncClient,
     entered: FakeForge,
     held_setup: Setup,
     show: str,
-    shown: dict[str, Any],
+    outcome: str | None,
 ) -> None:
     await sign_in_as(client, entered, 7)
-    stages = f"\nstages:\n  - id: default\n    show: {show}\n\nlimits:"
-    await edit_task(client, "\nlimits:", stages)
+    await edit_task(client, "main: {each: 100}", f"main: {{pass: 100, show: {show}}}")
     await sign_in_as(client, entered, 20)
     await _finished_with_log(client, entered, held_setup)
 
     detail = await client.get(f"{TASK}/submissions/1")
     listed = await client.get(f"{TASK}/submissions")
-    run_log = await client.get(f"{TASK}/submissions/1/log")
 
-    [grading] = detail.json()["gradings"]
-    assert (grading["status"], grading["show"], grading["log"]) == ("done", show, False)
-    assert {name: grading[name] for name in shown} == shown
+    grading = detail.json()["grading"]
+    assert (grading["status"], grading["outcome"]) == ("done", outcome)
+    assert grading["groups"] == [
+        {
+            "group": "main",
+            "show": show,
+            "outcome": outcome,
+            "tests": None,
+            "shown_at": "2026-09-26T15:00:00Z",
+            "ran": True,
+        }
+    ]
     assert listed.json() == [detail.json()]
-    assert (run_log.status_code, run_log.json()["code"]) == (404, "not_found")
 
 
-async def test_another_contestants_log_is_no_such_log(
+async def test_a_run_that_failed_on_the_platforms_side_is_still_being_graded_to_its_contestant(
     client: httpx.AsyncClient, entered: FakeForge, held_setup: Setup
 ) -> None:
-    await _finished_with_log(client, entered, held_setup)
-    await enter(client, entered, held_setup, 8)
+    started = await _started(client, entered, held_setup)
+    envelope = await _envelope(client, started)
+    failed = {
+        "schema_version": 5,
+        "stopped": "system_error",
+        "stopped_by": None,
+        "tests": [{"test": "main/1", "outcome": "skipped", "values": {}}],
+        "values": {},
+        "run_log": None,
+        "error": "The run step's container did not start.",
+    }
 
-    refused = await client.get(f"{TASK}/submissions/1/log")
-    await sign_in_as(client, entered, 20)
-    own = await client.get(f"{TASK}/submissions/1/log")
+    finished = await _report(client, envelope, {"event": "finished", "result": failed})
+    detail = await client.get(f"{TASK}/submissions/1")
+    await sign_in_as(client, entered, 7)
+    [row] = (await client.get(f"{TASK}/gradings")).json()
 
-    assert (refused.status_code, refused.json()["code"]) == (404, "not_found")
-    assert (own.status_code, own.content) == (200, LOG)
-
-
-async def test_a_submission_with_no_log_has_none_to_read(
-    client: httpx.AsyncClient, entered: FakeForge
-) -> None:
-    await _submitted(client, entered)
-
-    missing = await client.get(f"{TASK}/submissions/1/log")
-    other_stage = await client.get(f"{TASK}/submissions/1/log", params={"stage": "hidden"})
-
-    for refused in (missing, other_stage):
-        assert (refused.status_code, refused.json()["code"]) == (404, "not_found")
+    assert finished.json() == {"status": "system_error"}
+    assert detail.json()["grading"]["status"] == "running"
+    assert (detail.json()["grading"]["stopped"], detail.json()["grading"]["groups"]) == (None, [])
+    assert (row["status"], row["error"]) == ("system_error", failed["error"])
+    assert row["result"]["stopped"] == "system_error"
 
 
 @pytest.mark.parametrize(
@@ -329,7 +407,7 @@ async def test_a_grading_that_takes_no_reports_is_closed(
 ) -> None:
     started = await _started(client, entered, held_setup)
     envelope = await _envelope(client, started)
-    await _report(client, envelope, {"event": "finished", "verdict": _verdict(log=None)})
+    await _report(client, envelope, _finished(None))
 
     late = await _report(client, envelope, {"event": "started"})
     fetched_late = await client.get(started.envelope)

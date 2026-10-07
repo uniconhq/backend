@@ -27,7 +27,7 @@ async def test_a_person_makes_a_workflow_under_their_own_name(
     assert made.json() == {"owner": "bob", "name": "tuned"}
     repo = acme.state.repos[("bob", "tuned.workflow")]
     assert repo.private is True
-    assert b"name: bob/tuned\n" in repo.files["workflow.yaml"]
+    assert repo.files["workflow.yaml"].startswith(b"# bob/tuned, a workflow.")
 
 
 @pytest.mark.parametrize("role", [Role.MANAGER, Role.ADMIN])

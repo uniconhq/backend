@@ -28,10 +28,17 @@ from tests.integration.conftest import (
     sign_in_as,
 )
 
-MISSING = {
-    "path": "inputs.setter[0].value",
-    "message": "There is no file under data/hidden/ in the task.",
-}
+MISSING = [
+    {
+        "path": "tests/main/",
+        "message": "main is a folder of tests/ but not a group in test_groups: list it, or move "
+        "its tests.",
+    },
+    {
+        "path": "test_groups.hidden",
+        "message": "There is no folder tests/hidden/ with a test in it.",
+    },
+]
 
 
 def _change(path: str, content: str, token: str | None) -> dict[str, Any]:
@@ -67,7 +74,7 @@ async def test_the_organiser_path_from_an_org_to_a_publication(
         f"{TASK}/files/task.yaml",
         json={
             "encoding": "utf-8",
-            "content": task_yaml["content"].replace("value: 2.0", "value: 3.0"),
+            "content": task_yaml["content"].replace("time_limit: 2", "time_limit: 3"),
             "token": task_yaml["token"],
         },
         headers=ORIGIN,
@@ -75,21 +82,21 @@ async def test_the_organiser_path_from_an_org_to_a_publication(
 
     assert written.status_code == 200, written.text
     first = written.json()
-    assert (first["number"], first["grading_changed"]) == (1, False)
+    assert (first["number"], first["grading_changed"], first["notes"]) == (1, False, [])
 
     statement = await _save(client, await _edit(client, "statement.md", "Write", "Add. Write"))
     assert (statement.json()["number"], statement.json()["grading_changed"]) == (2, False)
 
     broken = await _save(
         client,
-        await _edit(client, "task.yaml", "value: data/testcases/", "value: data/hidden/"),
+        await _edit(client, "task.yaml", "main: {each: 100}", "hidden: {each: 100}"),
     )
     assert broken.status_code == 200
     draft = broken.json()
-    assert (draft["errors"], draft["held_back"]) == ([MISSING], [])
+    assert (draft["errors"], draft["held_back"]) == (MISSING, [])
 
     state = (await client.get(TASK)).json()
-    assert (state["head"], state["draft"], state["errors"]) == (draft["version"], True, [MISSING])
+    assert (state["head"], state["draft"], state["errors"]) == (draft["version"], True, MISSING)
     assert state["latest"]["number"] == 2
     published = (await client.get(f"{TASK}/publications")).json()
     assert [(entry["number"], entry["grading_changed"]) for entry in published] == [
@@ -103,11 +110,11 @@ async def test_the_organiser_path_from_an_org_to_a_publication(
 async def test_a_save_inside_plans_is_refused_naming_the_path(
     client: httpx.AsyncClient, sum_task: FakeForge
 ) -> None:
-    refused = await _save(client, _change("plans/default.json", "{}", None))
+    refused = await _save(client, _change("plans/plan.json", "{}", None))
 
     assert refused.status_code == 403
     assert refused.json()["code"] == "reserved_path"
-    assert refused.json()["paths"] == ["plans/default.json"]
+    assert refused.json()["paths"] == ["plans/plan.json"]
 
 
 async def test_a_managers_change_to_the_statement_is_refused(
@@ -134,33 +141,33 @@ async def running(client: httpx.AsyncClient, sum_task: FakeForge) -> FakeForge:
 async def test_a_grading_change_while_the_contest_runs_asks_first(
     client: httpx.AsyncClient, running: FakeForge
 ) -> None:
-    faster = await _edit(client, "task.yaml", "value: 2.0", "value: 1.0")
+    faster = await _edit(client, "task.yaml", "time_limit: 2", "time_limit: 1")
 
     asked = await _save(client, faster)
 
     assert asked.status_code == 409
     assert asked.json()["code"] == "confirmation_required"
-    assert asked.json()["changes"] == ["plans/default.json changed"]
+    assert asked.json()["changes"] == ["plans/plan.json changed"]
     assert len((await client.get(f"{TASK}/publications")).json()) == 1
 
     confirmed = await _save(client, faster, confirm=True)
 
     assert confirmed.status_code == 200
     assert (confirmed.json()["number"], confirmed.json()["grading_changed"]) == (2, True)
-    assert confirmed.json()["changes"] == ["plans/default.json changed"]
+    assert confirmed.json()["changes"] == ["plans/plan.json changed"]
 
 
 async def test_a_change_kept_as_a_draft_is_published_by_an_empty_confirmed_save(
     client: httpx.AsyncClient, running: FakeForge
 ) -> None:
-    faster = await _edit(client, "task.yaml", "value: 2.0", "value: 1.0")
+    faster = await _edit(client, "task.yaml", "time_limit: 2", "time_limit: 1")
 
     kept = await _save(client, faster, keep_as_draft=True)
 
     assert kept.json() == {
         "version": kept.json()["version"],
         "errors": [],
-        "held_back": ["plans/default.json changed"],
+        "held_back": ["plans/plan.json changed"],
     }
     assert (await client.get(TASK)).json()["draft"] is True
 

@@ -1,8 +1,8 @@
 """What a signed-in person reads of a contest, over HTTP: the list of contests
-they see with their status, a contest's home with its released tasks and
-their own deadline, and a released task's page with its statement and
-limits. A contest they may not see and a task that is not visible answer as
-not found.
+they see with their status, a contest's home with its released tasks, each
+with its worth and when it closes for them, and a released task's page with
+its statement, its submission caps and the form of its inputs. A contest
+they may not see and a task that is not visible answer as not found.
 """
 
 import httpx
@@ -33,24 +33,45 @@ async def test_a_signed_in_person_reads_the_home_and_a_released_task(
         True,
     )
     assert body["asks_code"] is False
-    assert body["deadline"] == body["end"] == "2026-09-26T15:00:00Z"
     assert body["now"] == "2026-09-26T12:00:00Z"
-    assert [(task["name"], task["release"]["open"]) for task in body["tasks"]] == [("sum", True)]
+    assert [
+        (task["name"], task["label"], task["worth"], task["release"]["open"])
+        for task in body["tasks"]
+    ] == [("sum", "A", 100, True)]
+    assert (body["tasks"][0]["due"], body["tasks"][0]["closes"]) == (None, body["end"])
     assert page.json()["statement"] == "Add two numbers.\n"
-    assert page.json()["limits"] == {
-        "submissions": 50,
-        "rate": {"count": 1, "per": 30},
-        "max_size": 10 * 1024 * 1024,
-    }
-    assert [(entry["id"], entry["type"], entry["label"]) for entry in page.json()["inputs"]] == [
-        ("submission", "code", "Your solution")
+    assert page.json()["submissions"] == {"max": 50, "rate": {"count": 1, "per": 30}}
+    assert (page.json()["due"], page.json()["closes"]) == (None, "2026-09-26T15:00:00Z")
+    assert page.json()["inputs"] == [
+        {
+            "id": "submission",
+            "type": "file",
+            "label": "Your solution",
+            "options": None,
+            "per_test": False,
+            "default": None,
+            "min": None,
+            "max": None,
+            "max_size": 10 * 1024 * 1024,
+        },
+        {
+            "id": "language",
+            "type": "enum",
+            "label": "language",
+            "options": ["python"],
+            "per_test": False,
+            "default": None,
+            "min": None,
+            "max": None,
+            "max_size": 10 * 1024 * 1024,
+        },
     ]
 
 
 async def test_the_home_carries_the_callers_registration(
     client: httpx.AsyncClient, world: FakeForge
 ) -> None:
-    await run_contest(client, visibility="public")
+    await run_contest(client, visibility="everyone")
     await sign_in_as(client, world, 20)
     await client.post(f"{CONTEST}/registration", json={}, headers=ORIGIN)
 
