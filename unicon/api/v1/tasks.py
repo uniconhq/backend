@@ -1,10 +1,12 @@
-"""Making a task in a contest, listing the contest's tasks, where a task's
-files stand against its publications, its publications, and the save, which
-is how a task is published. Creating needs the manager role at the contest
-and makes the task before it answers. The task's own routes need the
-observer role at the task, and the save the manager role. Whether a task is
-released to the caller needs only a session: it is what a contestant is
-told, and a contest hidden from the caller answers as no such task.
+"""Making a task in a contest, listing the contest's tasks, by name or each
+with where it stands and its timeline, where a task's files stand against
+its publications, its publications, the form of the workflow it names, and
+the save, which is how a task is published. Creating needs the manager role
+at the contest and makes the task before it answers, and the lists the
+observer role there. The task's own routes need the observer role at the
+task, and the save the manager role. Whether a task is released to the
+caller needs only a session: it is what a contestant is told, and a contest
+hidden from the caller answers as no such task.
 """
 
 from typing import Annotated
@@ -18,7 +20,7 @@ from forge.api.types import Named as NamedRecord
 
 from unicon.api.deps import CurrentSession
 from unicon.api.guard import PREFIX, TaskAtPath, require
-from unicon.schemas.contests import CreateTask, Named, TaskState
+from unicon.schemas.contests import CreateTask, Named, TaskStanding, TaskState
 from unicon.schemas.files import token_of
 from unicon.schemas.publications import Publication, SaveRequest, SaveResult
 
@@ -60,6 +62,21 @@ async def list_tasks(organiser: ContestObserver) -> tuple[NamedRecord, ...]:
 
 
 @router.get(
+    f"{CONTEST}/organise/tasks",
+    operation_id="listTaskStandings",
+    summary="The contest's tasks in its order, each with where it stands and its timeline",
+    response_model=list[TaskStanding],
+)
+async def list_task_standings(organiser: ContestObserver) -> tuple[tasks.TaskStanding, ...]:
+    """Every task the contest's `tasks` lists, in that order, each with its
+    letter, its latest publication, whether a draft sits on it and the
+    draft's errors, and its timeline. A task the contest does not list is
+    not here. Settings that do not read are `not_found`.
+    """
+    return await tasks.standing(organiser, contests.contest_id_of(organiser.scope))
+
+
+@router.get(
     TASK,
     operation_id="getTask",
     summary="Where the task's files stand",
@@ -89,6 +106,22 @@ async def get_task_release(session: CurrentSession, scope: TaskAtPath) -> releas
 )
 async def list_task_publications(organiser: TaskObserver) -> tuple[publications.Publication, ...]:
     return await publications.list(organiser, tasks.task_id_of(organiser.scope))
+
+
+@router.get(
+    f"{TASK}/workflow-form",
+    operation_id="getTaskWorkflowForm",
+    summary="The inputs and test fields of the workflow the task names",
+)
+async def get_task_workflow_form(organiser: TaskObserver) -> publications.WorkflowForm:
+    """The workflow `task.yaml` names as it is saved now, a draft included,
+    with each input it declares and each field every test has, in the
+    workflow's order. A workflow declares no defaults; a contestant input's
+    `default` is the task's own. A `task.yaml` that is missing or does not
+    read, names no workflow or one that cannot be read answers with
+    `problem`, the reason, and no inputs, so the form can mend it.
+    """
+    return await publications.workflow_form(organiser, tasks.task_id_of(organiser.scope))
 
 
 @router.post(
