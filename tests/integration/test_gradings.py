@@ -206,7 +206,12 @@ async def test_a_save_that_changes_how_the_task_grades_says_how_many_it_regraded
 
     assert saved.status_code == 200, saved.text
     body = saved.json()
-    assert (body["grading_changed"], body["regraded"], body["notes"]) == (True, 1, [])
+    assert (body["grading_changed"], body["regraded"]) == (True, 1)
+    assert body["notes"] == [
+        "Each group's most points: main 100.",
+        "sum reveals at 2026-09-26T15:00:00+00:00.",
+        "This save moves Standings.",
+    ]
 
 
 async def test_a_contestant_is_refused_every_control(
