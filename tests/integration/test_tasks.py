@@ -3,8 +3,9 @@ request answers, and the contest lists it. A new task's head is a draft with
 nothing wrong and no publication; a task in a contest that is not there is
 not found. An observer of the contest reads its tasks in its order, each with
 its letter, where it stands and its timeline from its entry, a failed save's
-errors included; and an observer of a task reads the form of the workflow it
-names, or why there is none.
+errors included, and settings that do not read are told with their errors;
+and an observer of a task reads the form of the workflow it names, or why
+there is none, and whether the task has a graded submission.
 """
 
 import httpx
@@ -121,6 +122,19 @@ async def test_a_tasks_entry_sets_its_timeline_and_a_failed_save_shows_its_error
     assert row["state"]["errors"] == broken.json()["errors"]
 
 
+async def test_settings_that_do_not_read_are_told_with_their_errors(
+    client: httpx.AsyncClient, sum_task: FakeForge
+) -> None:
+    [settings] = [repo for repo in sum_task.state.repos.values() if "contest.yaml" in repo.files]
+    settings.files["contest.yaml"] = b"name: Spring\nstart: soon\n"
+
+    refused = await client.get(STANDINGS)
+
+    assert (refused.status_code, refused.json()["code"]) == (422, "invalid_definition")
+    assert refused.json()["detail"].startswith("contest.yaml ")
+    assert "start" in {error["path"] for error in refused.json()["errors"]}
+
+
 async def test_the_workflow_form_gives_the_inputs_and_test_fields_the_task_names(
     client: httpx.AsyncClient, sum_task: FakeForge
 ) -> None:
@@ -128,7 +142,11 @@ async def test_the_workflow_form_gives_the_inputs_and_test_fields_the_task_names
 
     assert form.status_code == 200, form.text
     body = form.json()
-    assert (body["workflow"], body["problem"]) == ("unicon/classic@v2", None)
+    assert (body["workflow"], body["problem"], body["graded"]) == (
+        "unicon/classic@v2",
+        None,
+        False,
+    )
     assert [(found["id"], found["contestant"]) for found in body["inputs"]] == [
         ("submission", True),
         ("language", True),

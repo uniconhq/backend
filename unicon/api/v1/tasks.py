@@ -71,7 +71,8 @@ async def list_task_standings(organiser: ContestObserver) -> tuple[tasks.TaskSta
     """Every task the contest's `tasks` lists, in that order, each with its
     letter, its latest publication, whether a draft sits on it and the
     draft's errors, and its timeline. A task the contest does not list is
-    not here. Settings that do not read are `not_found`.
+    not here. Settings that do not read are `invalid_definition`, naming
+    `contest.yaml`, with every one of its `errors` at its path.
     """
     return await tasks.standing(organiser, contests.contest_id_of(organiser.scope))
 
@@ -119,7 +120,9 @@ async def get_task_workflow_form(organiser: TaskObserver) -> publications.Workfl
     workflow's order. A workflow declares no defaults; a contestant input's
     `default` is the task's own. A `task.yaml` that is missing or does not
     read, names no workflow or one that cannot be read answers with
-    `problem`, the reason, and no inputs, so the form can mend it.
+    `problem`, the reason, and no inputs, so the form can mend it. Either
+    way `graded` says whether the task has a graded submission, from when
+    on a save refuses a test group it adds without its `show`.
     """
     return await publications.workflow_form(organiser, tasks.task_id_of(organiser.scope))
 
