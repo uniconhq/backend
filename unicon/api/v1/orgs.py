@@ -1,7 +1,10 @@
-"""Making an org, and what its admin changes about it afterwards. Creating
-makes the org before it answers, and the caller is its first admin from
-then on. Whether anyone signed in may create an org is the deployment's
-setting, and forge refuses when it is off.
+"""Making an org, reading what it says about itself, and what its admin
+changes about it afterwards. Creating makes the org before it answers, and
+the caller is its first admin from then on. Whether anyone signed in may
+create an org is the deployment's setting, and forge refuses when it is
+off. Anyone holding a role in the org, at it or at anything in it, reads
+its display name and description as they stand at the forge, and only its
+admin changes them.
 """
 
 from typing import Annotated
@@ -13,7 +16,7 @@ from forge.api.types import Named as NamedRecord
 from forge.api.types import OrgId, Role, ScopeKind
 
 from unicon.api.deps import CurrentSession
-from unicon.api.guard import PREFIX, require
+from unicon.api.guard import PREFIX, anywhere, require
 from unicon.schemas.contests import Named
 from unicon.schemas.orgs import CreateOrg, UpdateOrg
 
@@ -35,6 +38,20 @@ router = APIRouter(tags=["orgs"])
 async def create_org(session: CurrentSession, body: CreateOrg) -> NamedRecord:
     """The caller becomes the org's first admin."""
     return await orgs.create(session, body.name, description=body.description)
+
+
+@router.get(
+    ORG,
+    operation_id="getOrg",
+    summary="The org's display name and description",
+)
+async def get_org(
+    organiser: Annotated[Organiser, Depends(anywhere())],
+) -> orgs.OrgProfile:
+    """As they stand at the forge; `display_name` is null while the org has
+    none of its own.
+    """
+    return await orgs.read(organiser, OrgId(organiser.scope.org))
 
 
 @router.patch(
