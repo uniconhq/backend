@@ -1,5 +1,6 @@
-"""What the grading routes answer with: a grading as an organiser reads it,
-what a rejudge did, and where a grading stands after its run reports.
+"""What the grading routes take and answer with: the sentence a grading is
+cancelled with, a grading as an organiser reads it, what a rejudge did, and
+where a grading stands after its run reports.
 """
 
 import uuid
@@ -35,11 +36,18 @@ class RunResult(BaseModel):
     error: str | None
 
 
+class CancelRequest(BaseModel):
+    """Why staff end the submission, a sentence its contestant reads."""
+
+    reason: str
+
+
 class Grading(BaseModel):
     """One grading as an organiser managing its task reads it: the
     submission by its number, the publication it grades against, its
-    attempt, where it stands, the reason it failed, its result, whether its
-    log was written, the last progress its run reported, and its times.
+    attempt, where it stands, the reason it failed, the sentence staff
+    cancelled it with, its result, whether its log was written, the last
+    progress its run reported, and its times.
     """
 
     id: uuid.UUID
@@ -49,6 +57,7 @@ class Grading(BaseModel):
     attempt: int
     status: GradingStatus
     error: str | None
+    cancel_reason: str | None
     result: RunResult | None
     log: bool
     progress: GradingProgress | None

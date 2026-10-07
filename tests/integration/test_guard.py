@@ -45,6 +45,7 @@ INVITE = {"grants": "observer", "username": "carol"}
 TEAM = {"name": "Adders"}
 PERSON = {"user_id": 20}
 SECONDS = {"seconds": 60}
+CANCEL = {"reason": "Not counted."}
 SESSION_ONLY = {
     "createOrg",
     "getTaskRelease",
@@ -111,7 +112,7 @@ ROUTES: list[tuple[str, str, dict[str, Any] | None, Role, Scope]] = [
     ("POST", f"{TASK}/files/task.yaml/rollback", ROLLBACK, Role.MANAGER, SUM),
     ("GET", f"{TASK}/gradings", None, Role.OBSERVER, SUM),
     ("GET", f"{TASK}/gradings/{NO_GRADING}/log", None, Role.OBSERVER, SUM),
-    ("POST", f"{TASK}/gradings/{NO_GRADING}/cancel", None, Role.MANAGER, SUM),
+    ("POST", f"{TASK}/gradings/{NO_GRADING}/cancel", CANCEL, Role.MANAGER, SUM),
     ("POST", f"{TASK}/gradings/{NO_GRADING}/retry", None, Role.MANAGER, SUM),
     ("POST", f"{TASK}/rejudge", None, Role.MANAGER, SUM),
     ("GET", f"{CONTEST}/announcements", None, Role.OBSERVER, SPRING),

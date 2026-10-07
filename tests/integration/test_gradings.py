@@ -1,24 +1,30 @@
 """An organiser's view of and controls over a task's gradings, over HTTP:
 the list, newest first with each one's reason, to an observer; cancelling a
-queued grading, and a finished one refused with its status; retrying a
-finished one as a new attempt, and one still being graded refused; a
-rejudge queuing a new attempt of every submission's latest grading; and a
-grading's run log, none for one not yet run. A contestant is refused all
-five, a grading named under another task's prefix is no such grading,
-whatever the caller may do at either task, and the manager role itself is
-held to the guard's table.
+grading that reads as a system error with a sentence its contestant then
+reads, and refusing one that is not, a sentence that is not one and an
+earlier attempt; retrying a finished one as a new attempt, and one still
+being graded refused; a rejudge queuing a new attempt of every submission's
+latest grading; and a grading's run log, none for one not yet run. A
+contestant is refused all five, a grading named under another task's prefix
+is no such grading, whatever the caller may do at either task, and the
+manager role itself is held to the guard's table.
 """
 
 import uuid
+from datetime import timedelta
 
 import httpx
 import pytest
 from forge.api.types import Role, Scope
-from forge.testing import FakeForge, Setup, name_places
+from forge.testing import FakeClock, FakeForge, Setup, name_places
 
 from tests.integration.conftest import CONTEST, ORIGIN, TASK, sign_in_as, upload
 
 SOURCE = b"print(sum(map(int, input().split())))\n"
+REASON = {"reason": "The checker crashed on this one; it is not counted."}
+STUCK = timedelta(hours=2)
+"""How long a dispatched grading waits for a machine before it reads as a
+system error."""
 
 
 async def _grading(client: httpx.AsyncClient, forge: FakeForge) -> str:
@@ -39,40 +45,82 @@ async def _grading(client: httpx.AsyncClient, forge: FakeForge) -> str:
     return grading
 
 
-async def test_a_manager_cancels_and_retries_a_grading(
+async def test_a_manager_cancels_a_grading_in_system_error_saying_why(
+    client: httpx.AsyncClient, entered: FakeForge, clock: FakeClock
+) -> None:
+    grading = await _grading(client, entered)
+    await sign_in_as(client, entered, 7)
+    cancel = f"{TASK}/gradings/{grading}/cancel"
+
+    waiting = await client.post(cancel, json=REASON, headers=ORIGIN)
+    clock.advance(STUCK)
+    unsaid = await client.post(cancel, json={"reason": "  "}, headers=ORIGIN)
+    no_body = await client.post(cancel, headers=ORIGIN)
+    cancelled = await client.post(cancel, json=REASON, headers=ORIGIN)
+    again = await client.post(cancel, json=REASON, headers=ORIGIN)
+    listed = await client.get(f"{TASK}/gradings")
+    await sign_in_as(client, entered, 20)
+    mine = await client.get(f"{TASK}/submissions/1")
+
+    assert (waiting.status_code, waiting.json()["code"]) == (409, "wrong_status")
+    assert waiting.json()["current"] == "dispatched"
+    assert (unsaid.status_code, unsaid.json()["code"]) == (422, "invalid_reason")
+    assert (no_body.status_code, no_body.json()["code"]) == (422, "validation_error")
+    assert cancelled.status_code == 200, cancelled.text
+    body = cancelled.json()
+    assert (body["id"], body["status"], body["attempt"]) == (grading, "cancelled", 1)
+    assert body["cancel_reason"] == REASON["reason"]
+    assert body["error"]
+    assert (body["submission_number"], body["result"]) == (1, None)
+    assert body["finished_at"] is not None
+    assert (again.status_code, again.json()["current"]) == (409, "cancelled")
+    assert listed.json()[0]["cancel_reason"] == REASON["reason"]
+    assert mine.json()["grading"]["status"] == "cancelled"
+    assert mine.json()["grading"]["reason"] == REASON["reason"]
+
+
+async def test_a_grading_being_run_tells_its_contestant_no_reason(
     client: httpx.AsyncClient, entered: FakeForge
+) -> None:
+    await _grading(client, entered)
+
+    mine = await client.get(f"{TASK}/submissions/1")
+
+    assert (mine.json()["grading"]["status"], mine.json()["grading"]["reason"]) == (
+        "dispatched",
+        None,
+    )
+
+
+async def test_a_manager_retries_a_stuck_grading_and_cancels_only_the_latest_attempt(
+    client: httpx.AsyncClient, entered: FakeForge, clock: FakeClock
 ) -> None:
     grading = await _grading(client, entered)
     await sign_in_as(client, entered, 7)
 
     retried_early = await client.post(f"{TASK}/gradings/{grading}/retry", headers=ORIGIN)
-    cancelled = await client.post(f"{TASK}/gradings/{grading}/cancel", headers=ORIGIN)
-    again = await client.post(f"{TASK}/gradings/{grading}/cancel", headers=ORIGIN)
+    clock.advance(STUCK)
     retried = await client.post(f"{TASK}/gradings/{grading}/retry", headers=ORIGIN)
+    earlier = await client.post(f"{TASK}/gradings/{grading}/cancel", json=REASON, headers=ORIGIN)
     await sign_in_as(client, entered, 20)
     mine = await client.get(f"{TASK}/submissions/1")
 
     assert (retried_early.status_code, retried_early.json()["code"]) == (409, "wrong_status")
     assert retried_early.json()["current"] == "dispatched"
-    assert cancelled.status_code == 200, cancelled.text
-    body = cancelled.json()
-    assert (body["id"], body["status"], body["attempt"]) == (grading, "cancelled", 1)
-    assert (body["submission_number"], body["result"]) == (1, None)
-    assert body["finished_at"] is not None
-    assert (again.status_code, again.json()["current"]) == (409, "cancelled")
     assert retried.status_code == 200, retried.text
     assert (retried.json()["attempt"], retried.json()["status"]) == (2, "queued")
     assert retried.json()["id"] != grading
+    assert (earlier.status_code, earlier.json()["code"]) == (409, "conflict")
     latest = mine.json()["grading"]
     assert (latest["attempt"], latest["status"]) == (2, "dispatched")
 
 
 async def test_an_observer_lists_the_tasks_gradings_newest_first_with_their_reasons(
-    client: httpx.AsyncClient, entered: FakeForge
+    client: httpx.AsyncClient, entered: FakeForge, clock: FakeClock
 ) -> None:
     grading = await _grading(client, entered)
     await sign_in_as(client, entered, 7)
-    await client.post(f"{TASK}/gradings/{grading}/cancel", headers=ORIGIN)
+    clock.advance(STUCK)
     retried = await client.post(f"{TASK}/gradings/{grading}/retry", headers=ORIGIN)
 
     listed = await client.get(f"{TASK}/gradings")
@@ -84,8 +132,9 @@ async def test_an_observer_lists_the_tasks_gradings_newest_first_with_their_reas
         (retried.json()["id"], 2),
         (grading, 1),
     ]
-    assert [row["status"] for row in listed.json()] == ["dispatched", "cancelled"]
-    assert "error" in listed.json()[0]
+    assert [row["status"] for row in listed.json()] == ["dispatched", "system_error"]
+    assert listed.json()[1]["error"]
+    assert [row["cancel_reason"] for row in listed.json()] == [None, None]
     assert [row["id"] for row in one.json()] == [retried.json()["id"]]
     assert too_many.status_code == 422
 
@@ -93,15 +142,14 @@ async def test_an_observer_lists_the_tasks_gradings_newest_first_with_their_reas
 async def test_a_rejudge_grades_every_submission_again(
     client: httpx.AsyncClient, entered: FakeForge
 ) -> None:
-    grading = await _grading(client, entered)
+    await _grading(client, entered)
     await sign_in_as(client, entered, 7)
-    await client.post(f"{TASK}/gradings/{grading}/cancel", headers=ORIGIN)
 
     rejudged = await client.post(f"{TASK}/rejudge", headers=ORIGIN)
 
     assert rejudged.status_code == 200, rejudged.text
     body = rejudged.json()
-    assert (body["queued"], body["cancelled"], body["left_running"]) == (1, 0, 0)
+    assert (body["queued"], body["cancelled"], body["left_running"]) == (0, 0, 1)
     assert body["publication"]
 
 
@@ -113,7 +161,7 @@ async def test_a_contestant_is_refused_every_control(
     answers = [
         await client.get(f"{TASK}/gradings"),
         await client.get(f"{TASK}/gradings/{grading}/log"),
-        await client.post(f"{TASK}/gradings/{grading}/cancel", headers=ORIGIN),
+        await client.post(f"{TASK}/gradings/{grading}/cancel", json=REASON, headers=ORIGIN),
         await client.post(f"{TASK}/gradings/{grading}/retry", headers=ORIGIN),
         await client.post(f"{TASK}/rejudge", headers=ORIGIN),
     ]
@@ -138,8 +186,12 @@ async def test_a_grading_named_under_another_task_is_no_such_grading(
     await sign_in_as(client, entered, 8)
     product = f"{CONTEST}/tasks/product"
 
-    foreign = await client.post(f"{product}/gradings/{grading}/{control}", headers=ORIGIN)
-    nobodys = await client.post(f"{product}/gradings/{uuid.uuid4()}/{control}", headers=ORIGIN)
+    foreign = await client.post(
+        f"{product}/gradings/{grading}/{control}", json=REASON, headers=ORIGIN
+    )
+    nobodys = await client.post(
+        f"{product}/gradings/{uuid.uuid4()}/{control}", json=REASON, headers=ORIGIN
+    )
     await sign_in_as(client, entered, 20)
     mine = await client.get(f"{TASK}/submissions/1")
 
@@ -187,7 +239,7 @@ async def test_the_controls_need_a_session(client: httpx.AsyncClient, entered: F
     answers = [
         await client.get(f"{TASK}/gradings"),
         await client.get(f"{TASK}/gradings/{grading}/log"),
-        await client.post(f"{TASK}/gradings/{grading}/cancel", headers=ORIGIN),
+        await client.post(f"{TASK}/gradings/{grading}/cancel", json=REASON, headers=ORIGIN),
         await client.post(f"{TASK}/gradings/{grading}/retry", headers=ORIGIN),
         await client.post(f"{TASK}/rejudge", headers=ORIGIN),
     ]

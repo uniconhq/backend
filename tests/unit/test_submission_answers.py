@@ -36,7 +36,20 @@ def test_a_grading_being_run_carries_its_status_alone() -> None:
         "outcome": None,
         "groups": [],
         "values": {},
+        "reason": None,
     }
+
+
+def test_a_grading_staff_cancelled_carries_their_sentence() -> None:
+    result = Result(GRADING, 1, GradingStatus.CANCELLED, None, None, (), {}, "Not counted.")
+
+    answer = ResultAnswer.model_validate(result, from_attributes=True).model_dump(mode="json")
+
+    assert (answer["status"], answer["reason"], answer["groups"]) == (
+        "cancelled",
+        "Not counted.",
+        [],
+    )
 
 
 def test_a_grading_carries_each_group_as_forge_let_it_through() -> None:
@@ -109,6 +122,7 @@ def test_a_grading_carries_each_group_as_forge_let_it_through() -> None:
             },
         ],
         "values": {"log": "", "score": 1.5},
+        "reason": None,
     }
     served = json.loads(answer.model_dump_json())
     assert served["values"]["score"] == 1.5

@@ -79,7 +79,9 @@ class Result(BaseModel):
     it: its id, attempt and status, and once it is done, what stopped the
     run, the outcome over the groups shown, each test group as its `show`
     allows and the values reported once. A run that failed on the
-    platform's side is `running` to its contestant, with nothing else.
+    platform's side is `running` to its contestant, with nothing else, until
+    staff end it: then it is `cancelled`, with `reason`, the sentence they
+    gave, which is null on every other status.
     """
 
     id: uuid.UUID
@@ -89,6 +91,7 @@ class Result(BaseModel):
     outcome: Outcome | None
     groups: list[GroupShown]
     values: dict[str, Reported]
+    reason: str | None
 
 
 class Submission(BaseModel):

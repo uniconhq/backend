@@ -1,11 +1,12 @@
 """An organiser's view of and controls over a task's gradings: the list of
 them, newest first, each with where it stands and why it failed, and a
 grading's run log, which need the observer role at the task; and, with the
-manager role there, cancelling one that is not finished, at the CI too when
-a run of it is there; retrying a finished one as a new attempt against the
-publication it graded against, a stuck one included, whose old run is
-cancelled; and rejudging every submission's latest attempt against the
-task's current publication.
+manager role there, cancelling the latest attempt of a submission that
+reads as a system error, with a sentence its contestant reads, when a
+regrade would only repeat the fault; retrying a finished one as a new
+attempt against the publication it graded against, a stuck one included,
+whose old run is cancelled; and rejudging every submission's latest attempt
+against the task's current publication.
 
 A grading is named by its id under its task's prefix, which is where the
 guard reads the scope the role is checked at, as for every other organiser
@@ -27,7 +28,7 @@ from forge.api.errors import NotFound
 from forge.api.types import Role, ScopeKind
 
 from unicon.api.guard import PREFIX, require
-from unicon.schemas.gradings import Grading, Rejudged
+from unicon.schemas.gradings import CancelRequest, Grading, Rejudged
 
 TASK = PREFIX[ScopeKind.TASK]
 
@@ -85,15 +86,21 @@ async def read_grading_log(organiser: TaskObserver, grading: uuid.UUID) -> Respo
 @router.post(
     "/gradings/{grading}/cancel",
     operation_id="cancelGrading",
-    summary="Stop a grading that is not finished",
+    summary="End a submission whose grading is a system error, saying why",
     response_model=Grading,
 )
-async def cancel_grading(organiser: TaskManager, grading: uuid.UUID) -> gradings.GradingRecord:
-    """The grading as it now stands, `cancelled`, one that reads as a system
-    error because its run is overdue or lost included. A finished one is
-    `wrong_status`, carrying its status as `current`.
+async def cancel_grading(
+    organiser: TaskManager, grading: uuid.UUID, body: CancelRequest
+) -> gradings.GradingRecord:
+    """The grading as it now stands, `cancelled` with `cancel_reason`, the
+    sentence its contestant reads; one that reads as a system error because
+    its run is overdue or lost keeps that as its `error`. A sentence that is
+    empty or over 500 characters is `invalid_reason`, a grading that is not
+    a system error `wrong_status` with its status as `current`, and an
+    earlier attempt of a submission graded again `conflict`, since the
+    latest is the one to cancel.
     """
-    return await gradings.cancel(organiser, await _of_this_task(organiser, grading))
+    return await gradings.cancel(organiser, await _of_this_task(organiser, grading), body.reason)
 
 
 @router.post(
