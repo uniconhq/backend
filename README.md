@@ -182,6 +182,7 @@ the one the route needs at the scope in the third column.
 | `PUT <place>/files/{path}` | manager | place | `encoding`, `content`, `token`, `message`, `confirm`, `keep_as_draft` | `version` at a contest, the save's result at a task |
 | `POST <place>/files/{path}/rollback` | manager | place | `version`, `token`, `message`, `confirm`, `keep_as_draft` | as a write |
 | `GET <task>/gradings?limit=` | observer | task | | the task's gradings, newest first, each with why it failed |
+| `GET <task>/gradings/{grading}/log` | observer | task | | the grading's run log, as plain text |
 | `POST <task>/gradings/{grading}/cancel` | manager | task | | the grading, `cancelled` |
 | `POST <task>/gradings/{grading}/retry` | manager | task | | the new attempt, `queued` |
 | `POST <task>/rejudge` | manager | task | | what the rejudge did |
@@ -429,7 +430,9 @@ the `groups` with its `group` name, its `show`, its `outcome` and its
 `tests`, each test's row being its `test`, `<group>/<test>`, its `outcome`
 and its `values`. A group shown `always` carries everything; `verdict` its
 outcome, and its tests from the task's reveal; `after_close` its name and,
-as `shown_at`, when the rest is shown. What is not shown is null, and a run
+as `shown_at`, when the rest is shown. A group with `ran` false did not
+run on this grading: it has no outcome, no tests and nothing held back,
+and the outcome over the groups leaves it out. What is not shown is null, and a run
 that failed on the platform's side is `running` to its contestant, with
 nothing else. An outcome is one of the runner's list, and a value a number
 or text. The route renders what forge gives it and nothing more. The files
@@ -571,7 +574,12 @@ one that is not finished is `wrong_status` with its `current` status, and
 retrying one with another attempt still being graded is `conflict`. A rejudge answers the
 `publication` it grades against and how many attempts it `queued`,
 `cancelled` first and `left_running`. A run's log names every test, hidden
-ones too, so no contestant reads it.
+ones too, so no contestant reads it. An observer of the task reads a
+grading's log as `text/plain; charset=utf-8`, with `X-Content-Type-Options:
+nosniff` and `Content-Security-Policy: default-src 'none'; sandbox`, so the
+browser neither guesses its type nor runs anything in it. A grading with no
+log is `not_found`, and a log larger than the 9 MiB read back is
+`log_too_large`, a 409 with the `limit` in bytes.
 
 ## Operator commands
 
