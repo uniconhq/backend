@@ -136,8 +136,15 @@ either refuses with `forbidden` or returns the `Organiser` the route hands
 to its action. A name in the path that is not there is `forbidden` too,
 unless the caller holds the role above it, when it is `not_found`, so no
 route tells anyone else which contests or tasks exist. The action takes that
-value and reads no roles itself, so a request reads them once. No route
-checks a role any other way. Every answer that shows a name takes it from
+value and reads no roles itself, so a request reads them once. A few reads
+are open to anyone holding any role at a scope or at anything in it, and the
+action narrows what each reads: their dependency, `anywhere(at)`, asks as
+`require(Role.OBSERVER, at)` does first, so an observer there costs the
+same one read, and for someone holding roles only further in reads them
+once more to find one, handing the route the `Organiser` at that narrower
+scope. Holding none there, or naming a scope that is not there, is
+`forbidden`, "This needs a role at `<address>` or at anything in it." No
+route checks a role any other way. Every answer that shows a name takes it from
 the record forge returns, never from an id.
 
 Below, `<org>`, `<contest>` and `<task>` stand for the three prefixes,
@@ -147,7 +154,7 @@ the one the route needs at the scope in the third column.
 | Route | Needs | At | Body | Answer |
 |---|---|---|---|---|
 | `POST /api/v1/orgs` | a session | | `name`, `description` | 201, the org's `name` |
-| `GET <org>` | observer | org | | the org's `display_name` and `description` |
+| `GET <org>` | a role at the org or in it | org | | the org's `display_name` and `description` |
 | `PATCH <org>` | admin | org | `description`, `display_name` | 204 |
 | `POST <org>/contests` | manager | org | `name`, `title` | 201, the contest's `name` |
 | `GET <org>/contests` | observer | org | | the contests by name |
@@ -156,7 +163,7 @@ the one the route needs at the scope in the third column.
 | `GET <contest>/organise/tasks` | observer | contest | | the tasks the contest lists, in its order, each with its letter, state and timeline |
 | `GET <task>` | observer | task | | the task's state |
 | `GET <task>/publications` | observer | task | | the publications, oldest first |
-| `GET <task>/workflow-form` | observer | task | | the inputs and test fields of the workflow the task names, or the `problem` |
+| `GET <task>/workflow-form` | observer | task | | the inputs and test fields of the workflow the task names, or the `problem`, and whether the task is `graded` |
 | `GET <task>/release` | a session | | | whether the caller sees the task and may submit to it now, or 404 when the contest is hidden from them |
 | `GET <contest>/contestants` | observer | contest | | every registration, oldest first |
 | `POST <contest>/contestants/{user_id}/approve` | manager | contest | | the registration |
@@ -185,13 +192,13 @@ the one the route needs at the scope in the third column.
 | `GET <place>/history?path=` | observer | place | | every change, newest first |
 | `PUT <place>/files/{path}` | manager | place | `encoding`, `content` or, at a task, `upload`, `token`, `message`, `confirm`, `keep_as_draft` | `version` at a contest, the save's result at a task |
 | `POST <place>/files/{path}/rollback` | manager | place | `version`, `token`, `message`, `confirm`, `keep_as_draft` | as a write |
-| `GET <task>/gradings?limit=` | observer | task | | the task's gradings, newest first, each with why it failed |
+| `GET <task>/gradings?limit=` | observer | task | | the task's gradings, newest first, each as the feed gives it |
 | `GET <task>/gradings/{grading}/log` | observer | task | | the grading's run log, as plain text |
 | `POST <task>/gradings/{grading}/cancel` | manager | task | `reason` | the grading, `cancelled` with its `cancel_reason` |
 | `POST <task>/gradings/{grading}/retry` | manager | task | | the new attempt, `queued` |
 | `POST <task>/rejudge` | manager | task | | what the rejudge did |
-| `GET <contest>/gradings?task=&user=&team=&status=&limit=` | observer | contest | | the contest's gradings, newest first, each with its `task` and `by` |
-| `GET <contest>/gradings/queue` | observer | contest | | how many are `queued` and `dispatched` |
+| `GET <contest>/gradings?task=&user=&team=&status=&limit=` | a role at the contest or at one of its tasks | contest | | the gradings of the tasks the caller observes, newest first, each with its `task`, `label` and `by` |
+| `GET <contest>/gradings/queue` | a role at the contest or at one of its tasks | contest | | how many of theirs are `queued` and `dispatched` |
 | `GET <place>/announcements` | observer | place | | every announcement, closed ones included, oldest first |
 | `POST <place>/announcements` | manager | place | `title`, `body` | 201, the announcement |
 | `PATCH <place>/announcements/{number}` | manager | place | `title`, `body` | the announcement |
@@ -207,8 +214,9 @@ Creating an org, a contest or a task makes the whole thing at the forge
 and the CI before the route answers, and the answer is the new thing's
 `name`. A step that fails is refused with its reason, and asking again is
 safe. An org's description is at most 255 characters, the most the forge
-takes, on both the create and the change. `GET <org>` gives its observers
-the display name and description as they stand at the forge, `display_name`
+takes, on both the create and the change. `GET <org>` gives anyone
+holding a role in the org, at it or at anything in it, the display name and
+description as they stand at the forge, `display_name`
 null while the org has none of its own. The person who asked becomes the
 org's admin. Whether anyone signed in may ask is forge's
 `UNICON_ORG_CREATION_OPEN`; with it off the route answers `forbidden`.
@@ -307,8 +315,9 @@ it held back and publishes nothing, on any save, and an empty save with
 
 A save answers with what it published or with the draft it kept. A
 publication carries the `publication`, its `number`, `grading_changed`, the
-`changes`, and the `notes` the save makes of the task beside publishing it,
-such as which steps it seals until the reveal; a draft carries the `version` written, the `errors`, each
+`changes`, the `notes` the save makes of the task beside publishing it,
+such as which steps it seals until the reveal, and how many submissions it
+`regraded`, queued to be graded again against it; a draft carries the `version` written, the `errors`, each
 `{path, message}`, and what it `held_back`. `GET <task>` answers the version at the head, the
 latest publication or none, whether the head is a draft, and the draft's
 errors, worked out again on every read.
@@ -320,7 +329,9 @@ as `GET <task>` gives it, and its `timeline` from its entry, each time at
 its default where the entry gives none: `worth`, null on a task that gives
 no points or has no publication, `release_at`, `due` and `late_per_day`,
 both null on a task with no due, and `closes`. A task the contest does not
-list is not on it.
+list is not on it. Settings that do not read answer `invalid_definition`, a
+422 naming `contest.yaml`, with each of its `errors` at its `path`, as a
+save of them would be refused.
 
 `GET <task>/workflow-form` is what the form over `task.yaml` is built from,
 for an observer of the task: the `workflow` the task names as it is saved
@@ -331,6 +342,8 @@ workflow's order. A workflow declares no defaults; a contestant input's
 `default` is the task's own. A `task.yaml` that is missing or does not
 read, names no workflow, or names one that cannot be read answers with
 `problem`, the reason, and no inputs, so the form can still mend it.
+Either way `graded` says whether the task has a graded submission, from
+when on a save refuses a test group it adds without its `show`.
 
 A file too large to type, such as a dataset, goes into a task as an upload.
 A manager of the task asks `POST <task>/organise/uploads` for a slot,
@@ -612,7 +625,8 @@ and a grading of any other task is not found there, the same as one that is
 not there at all, whatever the caller may do at that other task; forge
 checks the role again at the grading's own task. A grading carries its
 `id`, the `submission_number` and `submitted_at`, the `publication`,
-`attempt`, `status`, `error`, the line for staff, `cancel_reason`, the
+`attempt`, `latest`, whether that is its submission's latest attempt, the
+one staff cancel or retry, worked out over every attempt of it, `status`, `error`, the line for staff, `cancel_reason`, the
 sentence staff cancelled it with, the `result` (what `stopped` the run, every
 test's row in `tests`, the `values` reported once and the `error` it stopped
 on), whether there is a `log`,
@@ -621,12 +635,14 @@ on), whether there is a `log`,
 sentence the contestant reads, trimmed, of 1 to 500 characters
 (`invalid_reason` otherwise), and cancels the latest attempt of a
 submission that reads as `system_error`, stored or because its run is
-overdue or lost, which keeps that as its `error`; a rejudge then leaves it
-as it is and a retry grades it again. Cancelling one that is not a system
-error, or retrying one that is not finished, is `wrong_status` with its
-`current` status; cancelling an earlier attempt of a submission graded
-again, or retrying one with another attempt still being graded, is
-`conflict`. A rejudge answers the
+overdue or lost, which keeps that as its `error`: cancelling ends the
+submission, which a rejudge leaves as it is and a retry refuses. Cancelling
+one that is not a system error, retrying one that is not finished, or
+retrying a submission staff cancelled, is `wrong_status` with its `current`
+status, `cancelled` for the last; cancelling or retrying an earlier attempt
+of a submission graded again, or retrying one with another attempt still
+being graded, is `conflict`. `GET <task>/gradings` serves each grading as
+the feed below does, with its task's name and label and who submitted it. A rejudge answers the
 `publication` it grades against and how many attempts it `queued`,
 `cancelled` first and `left_running`. A run's log names every test, hidden
 ones too, so no contestant reads it. An observer of the task reads a
@@ -636,22 +652,31 @@ browser neither guesses its type nor runs anything in it. A grading with no
 log is `not_found`, and a log larger than the 9 MiB read back is
 `log_too_large`, a 409 with the `limit` in bytes.
 
-An observer of a contest reads the gradings of all its tasks as one feed,
-`GET <contest>/gradings`, newest first, at most `limit` (100 unless given,
-at most 500). Each row is the `grading` as above, its `task` by name, and
-`by`, who made the submission: a contestant by `user_id` and username as
+Anyone holding a role at a contest or at any of its tasks reads the
+gradings of the tasks they observe as one feed, `GET <contest>/gradings`,
+newest first, at most `limit` (100 unless given, at most 500): an observer
+of the contest, or of its org, every task's, and someone holding a role at
+some of its tasks alone those tasks', a task they do not observe giving no
+rows. Each row is the `grading` as above, its `task` by name, its `label`,
+the letter of its place in the contest's `tasks`, null once the contest no
+longer lists it or its settings do not read, and `by`, who made the
+submission: a contestant by `user_id` and username as
 `name`, or a team by its id as `team` and its `name`, the name null once
 the account or the team is gone. Every attempt is a row of its own, so a
 submission graded again shows more than once. `task` narrows the feed to a
-task by name, `user` to the submissions a contestant made on their own, by
-username, `team` to a team's, by id, and `status` to the gradings that
-read as it, an overdue or lost one counting as `system_error`; a task,
-username or team the contest does not have gives no rows.
+task by name, `user` to the submissions a contestant made, on their own
+and in their teams while they were in them, by username, `team` to a
+team's, by id, and `status` to the gradings that read as it, an overdue or
+lost one counting as `system_error`; a task, username or team the contest
+does not have gives no rows. A `user` that breaks Forgejo's rule for a
+username (letters, digits, `-`, `_` and `.`, beginning and ending with a
+letter or a digit, no two of `-`, `_` and `.` side by side, at most 40
+characters), or a `team` that is not a UUID, is a `validation_error`.
 `GET <contest>/gradings/queue` counts the contest's gradings waiting for a
 machine, `queued`, whose run is not started yet, and `dispatched`, whose
 run the CI holds until a machine takes it, when asked; one overdue or lost
-reads as a system error and is not counted. Both need the observer role at
-the contest itself.
+reads as a system error and is not counted, over the same tasks the feed
+reads.
 
 ## Operator commands
 
