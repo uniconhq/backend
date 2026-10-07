@@ -4,7 +4,8 @@ over the bytes as they were sent and refused when it does not or its body
 was changed; the envelope served for its key and not without it; and the
 run's reports taken under its token, a finished one leaving the result the
 contestant then reads as the task's test groups show it, its numbers as
-they were written, and the organisers read whole; and the run's log, read
+they were written, and the organisers read whole, the task's form then
+saying it has a graded submission; and the run's log, read
 by an observer of the task as plain text that runs nothing, and never by
 its contestant. A wrong or missing token, a body that is no report, a
 body past the bound, and a report or an envelope fetch for a grading that
@@ -241,9 +242,13 @@ async def test_the_organisers_read_the_result_whole_with_its_log(
     await _finished_with_log(client, entered, held_setup)
     await sign_in_as(client, entered, 7)
 
-    [grading] = (await client.get(f"{TASK}/gradings")).json()
+    [entry] = (await client.get(f"{TASK}/gradings")).json()
+    form = (await client.get(f"{TASK}/workflow-form")).json()
 
-    assert (grading["status"], grading["log"]) == ("done", True)
+    grading = entry["grading"]
+    assert (grading["status"], grading["log"], grading["latest"]) == ("done", True, True)
+    assert entry["by"] == {"user_id": 20, "team": None, "name": "carol"}
+    assert form["graded"] is True
     assert grading["result"] == {
         "stopped": None,
         "tests": [ROW],
@@ -361,7 +366,8 @@ async def test_a_run_that_failed_on_the_platforms_side_is_still_being_graded_to_
     finished = await _report(client, envelope, {"event": "finished", "result": failed})
     detail = await client.get(f"{TASK}/submissions/1")
     await sign_in_as(client, entered, 7)
-    [row] = (await client.get(f"{TASK}/gradings")).json()
+    [entry] = (await client.get(f"{TASK}/gradings")).json()
+    row = entry["grading"]
 
     assert finished.json() == {"status": "system_error"}
     assert detail.json()["grading"]["status"] == "running"

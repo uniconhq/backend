@@ -162,6 +162,20 @@
         "title": "CallbackAnswer",
         "type": "object"
       },
+      "CancelRequest": {
+        "description": "Why staff end the submission, a sentence its contestant reads.",
+        "properties": {
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "CancelRequest",
+        "type": "object"
+      },
       "Change": {
         "description": "One entry of a place's history: the version it made, who made it, what\nthey said about it and when.",
         "properties": {
@@ -618,6 +632,89 @@
         "title": "CreateWorkflow",
         "type": "object"
       },
+      "DeclaredField": {
+        "description": "One field every test of the workflow has: its name, its type and its\noptions on an enum.",
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "options": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Options"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "type",
+          "options"
+        ],
+        "title": "DeclaredField",
+        "type": "object"
+      },
+      "DeclaredInput": {
+        "description": "One input a workflow declares, as the task form shows it: its id, its\ntype, whether the contestant gives it, its options on an enum, whether\nit is given once per test, and whether a task may leave it out. A\nworkflow gives no defaults: a contestant input's `default` is the\ntask's, in `task.yaml`.",
+        "properties": {
+          "contestant": {
+            "title": "Contestant",
+            "type": "boolean"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "optional": {
+            "title": "Optional",
+            "type": "boolean"
+          },
+          "options": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Options"
+          },
+          "per_test": {
+            "title": "Per Test",
+            "type": "boolean"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "contestant",
+          "options",
+          "per_test",
+          "optional"
+        ],
+        "title": "DeclaredInput",
+        "type": "object"
+      },
       "DefinitionError": {
         "description": "One thing wrong with a definition file: its YAML path, \"\" for the file\nas a whole, and a sentence a form shows beside that field.",
         "properties": {
@@ -706,12 +803,60 @@
         "title": "ExtensionRequest",
         "type": "object"
       },
+      "FeedEntry": {
+        "description": "One grading among a task's or a contest's: the grading as an\norganiser reads it, its task by name, null for a task the platform has\nno name for, its `label`, the letter of its place in the contest's\n`tasks`, null once the contest no longer lists it or its settings do\nnot read, and `by`, who made the submission: a contestant by `user_id`\nand username as `name`, or a team by its id as `team` and its `name`,\nthe name null once the account or the team is gone.",
+        "properties": {
+          "by": {
+            "$ref": "#/components/schemas/Submitter"
+          },
+          "grading": {
+            "$ref": "#/components/schemas/Grading"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "task": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Task"
+          }
+        },
+        "required": [
+          "grading",
+          "task",
+          "label",
+          "by"
+        ],
+        "title": "FeedEntry",
+        "type": "object"
+      },
       "FileChange": {
-        "description": "One file of a save, with the token it was read with, or null for a\nfile the save creates.",
+        "description": "One file of a save, typed or uploaded for this path, with the token it\nwas read with, or null for a file the save creates.",
         "properties": {
           "content": {
-            "title": "Content",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content"
           },
           "encoding": {
             "default": "utf-8",
@@ -736,10 +881,21 @@
               }
             ],
             "title": "Token"
+          },
+          "upload": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Upload"
           }
         },
         "required": [
-          "content",
           "path",
           "token"
         ],
@@ -747,7 +903,7 @@
         "type": "object"
       },
       "FileContent": {
-        "description": "One file at one version, with the token a write presents back.",
+        "description": "One file at one version, with the token a write presents back, and\n`upload` when it is a file an organiser uploaded: its `content` is then\nthe pointer to the bytes, never opened as text, and `upload` the size\nand SHA-256 of what it holds. A typed file has none.",
         "properties": {
           "content": {
             "title": "Content",
@@ -768,13 +924,24 @@
           "token": {
             "title": "Token",
             "type": "string"
+          },
+          "upload": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UploadInfo"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
           "path",
           "encoding",
           "content",
-          "token"
+          "token",
+          "upload"
         ],
         "title": "FileContent",
         "type": "object"
@@ -842,11 +1009,22 @@
         "type": "object"
       },
       "Grading": {
-        "description": "One grading as an organiser managing its task reads it: the\nsubmission by its number, the publication it grades against, its\nattempt, where it stands, the reason it failed, its result, whether its\nlog was written, the last progress its run reported, and its times.",
+        "description": "One grading as an organiser managing its task reads it: the\nsubmission by its number, the publication it grades against, its\nattempt and whether that is the submission's `latest`, the one staff\ncancel or retry, where it stands, the reason it failed, the sentence\nstaff cancelled it with, its result, whether its log was written, the\nlast progress its run reported, and its times.",
         "properties": {
           "attempt": {
             "title": "Attempt",
             "type": "integer"
+          },
+          "cancel_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cancel Reason"
           },
           "deadline_at": {
             "anyOf": [
@@ -899,6 +1077,10 @@
             "format": "uuid",
             "title": "Id",
             "type": "string"
+          },
+          "latest": {
+            "title": "Latest",
+            "type": "boolean"
           },
           "log": {
             "title": "Log",
@@ -964,8 +1146,10 @@
           "submitted_at",
           "publication",
           "attempt",
+          "latest",
           "status",
           "error",
+          "cancel_reason",
           "result",
           "log",
           "progress",
@@ -1003,7 +1187,7 @@
         "type": "object"
       },
       "GradingStatus": {
-        "description": "Where one grading stands. `queued` waits for its run to be started,\nwhich happens as soon as the request that made it commits; `dispatched`\nis held by the CI, waiting for a machine or checking out; `running` has\nhad its envelope fetched by the harness. It ends `done` with a result,\n`cancelled` by an organiser, or `system_error`, a grading that failed for\na reason of the platform's, never a grade: its run could not be started,\nor did not report before its deadline.",
+        "description": "Where one grading stands. `queued` waits for its run to be started,\nwhich happens as soon as the request that made it commits; `dispatched`\nis held by the CI, waiting for a machine or checking out; `running` has\nhad its envelope fetched by the harness. It ends `done` with a result,\n`system_error`, a grading that failed for a reason of the platform's,\nnever a grade: its run could not be started, or did not report before\nits deadline; or `cancelled`, by staff ending one in `system_error`, or\nby a rejudge replacing one still being graded.",
         "enum": [
           "queued",
           "dispatched",
@@ -1757,6 +1941,32 @@
         "title": "OpenInviteRequest",
         "type": "object"
       },
+      "OrgProfile": {
+        "description": "An org's own fields at the forge, which its admin changes: the name it\nis shown under, none while it has none of its own, and its description.",
+        "properties": {
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          }
+        },
+        "required": [
+          "display_name",
+          "description"
+        ],
+        "title": "OrgProfile",
+        "type": "object"
+      },
       "OrganiseTeamRequest": {
         "description": "A new team's name, and the username of the approved contestant who\nleads it, or none for an empty team.",
         "properties": {
@@ -1999,7 +2209,7 @@
         "type": "object"
       },
       "Published": {
-        "description": "A save that published: the new publication's number among the task's,\nwhether it changed how the task grades, and what, and the notes the save\nmakes of the task beside publishing it, such as which steps it seals\nuntil the reveal.",
+        "description": "A save that published: the new publication's number among the task's,\nwhether it changed how the task grades, and what, the notes the save\nmakes of the task beside publishing it, such as which steps it seals\nuntil the reveal, and how many submissions it `regraded`, queued to be\ngraded again against it.",
         "properties": {
           "changes": {
             "items": {
@@ -2022,13 +2232,18 @@
           "number": {
             "title": "Number",
             "type": "integer"
+          },
+          "regraded": {
+            "title": "Regraded",
+            "type": "integer"
           }
         },
         "required": [
           "number",
           "grading_changed",
           "changes",
-          "notes"
+          "notes",
+          "regraded"
         ],
         "title": "Published",
         "type": "object"
@@ -2061,6 +2276,25 @@
           "body"
         ],
         "title": "QuestionRequest",
+        "type": "object"
+      },
+      "QueueDepth": {
+        "description": "How many of a contest's gradings wait for a machine: `queued`, whose\nrun is not started yet, and `dispatched`, whose run the CI holds until a\nmachine takes it.",
+        "properties": {
+          "dispatched": {
+            "title": "Dispatched",
+            "type": "integer"
+          },
+          "queued": {
+            "title": "Queued",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "queued",
+          "dispatched"
+        ],
+        "title": "QueueDepth",
         "type": "object"
       },
       "Rate": {
@@ -2178,7 +2412,7 @@
         "type": "object"
       },
       "Result": {
-        "description": "The latest attempt of a submission's grading, as its contestant sees\nit: its id, attempt and status, and once it is done, what stopped the\nrun, the outcome over the groups shown, each test group as its `show`\nallows and the values reported once. A run that failed on the\nplatform's side is `running` to its contestant, with nothing else.",
+        "description": "The latest attempt of a submission's grading, as its contestant sees\nit: its id, attempt and status, and once it is done, what stopped the\nrun, the outcome over the groups shown, each test group as its `show`\nallows and the values reported once. A run that failed on the\nplatform's side is `running` to its contestant, with nothing else, until\nstaff end it: then it is `cancelled`, with `reason`, the sentence they\ngave, which is null on every other status.",
         "properties": {
           "attempt": {
             "title": "Attempt",
@@ -2217,6 +2451,17 @@
               }
             ],
             "title": "Outcome"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
           },
           "status": {
             "$ref": "#/components/schemas/GradingStatus"
@@ -2268,7 +2513,8 @@
           "stopped",
           "outcome",
           "groups",
-          "values"
+          "values",
+          "reason"
         ],
         "title": "Result",
         "type": "object"
@@ -2771,6 +3017,52 @@
         "title": "SubmittedInput",
         "type": "object"
       },
+      "Submitter": {
+        "description": "Who made a submission, as an organiser recognises them: a contestant,\nby user id and username, or a team, by id and name. The name is none\nonce the account or the team is gone, or when the forge did not say.",
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "team": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Team"
+          },
+          "user_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Id"
+          }
+        },
+        "required": [
+          "user_id",
+          "team",
+          "name"
+        ],
+        "title": "Submitter",
+        "type": "object"
+      },
       "TaskEntry": {
         "description": "A task released to the caller: its name, the label its place in the\ncontest gives it, its title, the most points it gives, null on a task\nthat gives none, whether they may submit to it now, and when it falls\ndue, null when it has no due, and closes for them, their extension on it\nincluded.",
         "properties": {
@@ -2838,6 +3130,41 @@
           "closes"
         ],
         "title": "TaskEntry",
+        "type": "object"
+      },
+      "TaskFileUploadRequest": {
+        "description": "One file an organiser puts into the task: the `path` it goes to in the\ntask's files, its size in bytes, the SHA-256 of its content in lowercase\nhex and, when the browser knows it, its content type.",
+        "properties": {
+          "content_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content Type"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "sha256": {
+            "title": "Sha256",
+            "type": "string"
+          },
+          "size": {
+            "title": "Size",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "path",
+          "size",
+          "sha256"
+        ],
+        "title": "TaskFileUploadRequest",
         "type": "object"
       },
       "TaskPage": {
@@ -2959,6 +3286,32 @@
           "closed"
         ],
         "title": "TaskRelease",
+        "type": "object"
+      },
+      "TaskStanding": {
+        "description": "One task of a contest as its organisers work from it: the task by\nname, its letter by its place in the contest's `tasks`, where its files\nstand as `GET <task>` gives it, and its timeline from its entry, each\ntime at its default where the entry gives none: `worth`, null on a task\nthat gives no points or has no publication, `release_at`, `due` and\n`late_per_day`, both null on a task with no due, and `closes`.",
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/components/schemas/TaskState"
+          },
+          "task": {
+            "$ref": "#/components/schemas/Named"
+          },
+          "timeline": {
+            "$ref": "#/components/schemas/Timeline"
+          }
+        },
+        "required": [
+          "task",
+          "label",
+          "state",
+          "timeline"
+        ],
+        "title": "TaskStanding",
         "type": "object"
       },
       "TaskState": {
@@ -3087,7 +3440,72 @@
         "title": "TeamRequest",
         "type": "object"
       },
+      "Timeline": {
+        "description": "A task's timeline in its contest, from its entry in `contest.yaml`,\neach time at its default where the entry gives none: `worth`, the most\npoints it gives, 100 unless the entry says, and none on a task whose\nlatest publication gives no points or that has none; `release_at`, the\ncontest's start unless the entry says; `due`, after which a submission\nis late, and `late_per_day`, the fraction a started late day takes off,\n1 unless the entry says, both none on a task with no due; and `closes`,\nthe contest's end unless the entry says.",
+        "properties": {
+          "closes": {
+            "format": "date-time",
+            "title": "Closes",
+            "type": "string"
+          },
+          "due": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due"
+          },
+          "late_per_day": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Late Per Day"
+          },
+          "release_at": {
+            "format": "date-time",
+            "title": "Release At",
+            "type": "string"
+          },
+          "worth": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Worth"
+          }
+        },
+        "required": [
+          "worth",
+          "release_at",
+          "due",
+          "late_per_day",
+          "closes"
+        ],
+        "title": "Timeline",
+        "type": "object"
+      },
       "TreeEntry": {
+        "description": "One entry of a folder: a file, with the size of what its commit\nholds, or a folder. `upload` tells an uploaded file from a typed one.",
         "properties": {
           "kind": {
             "$ref": "#/components/schemas/EntryKind"
@@ -3106,12 +3524,23 @@
               }
             ],
             "title": "Size"
+          },
+          "upload": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UploadInfo"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
           "path",
           "kind",
-          "size"
+          "size",
+          "upload"
         ],
         "title": "TreeEntry",
         "type": "object"
@@ -3143,7 +3572,7 @@
         "type": "object"
       },
       "Upload": {
-        "description": "Where one upload stands: the input it is for, its name and content\ntype, the size and digest declared for it, and its status. `verified` is\nan upload a submit may name.",
+        "description": "Where one upload stands: the input it is for, empty for a file an\norganiser puts into the task, its name and content type, the size and\ndigest declared for it, and its status. `verified` is an upload a submit\nor a save may name.",
         "properties": {
           "content_type": {
             "anyOf": [
@@ -3191,6 +3620,25 @@
           "status"
         ],
         "title": "Upload",
+        "type": "object"
+      },
+      "UploadInfo": {
+        "description": "What a file that is an upload holds: the size and SHA-256 of the\nbytes the forge's large-file store keeps for it. Its commit holds the\npointer to them, which is what `content` and `size` describe, so it is\nnever opened as text, and it is changed by uploading it again.",
+        "properties": {
+          "digest": {
+            "title": "Digest",
+            "type": "string"
+          },
+          "size": {
+            "title": "Size",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "size",
+          "digest"
+        ],
+        "title": "UploadInfo",
         "type": "object"
       },
       "UploadRequest": {
@@ -3262,6 +3710,63 @@
         "title": "Workflow",
         "type": "object"
       },
+      "WorkflowForm": {
+        "description": "What the task form is built from: the workflow the task's `task.yaml`\nnames, as written, the inputs it declares and its test fields, in the\norder the workflow gives them, or `problem`, the reason there are none:\nno `task.yaml` or one that does not read as YAML, no workflow named, or\none that cannot be read or is in an old format; and `graded`, whether\nthe task has a graded submission, from when on a save refuses a test\ngroup it adds without its `show` (T10).",
+        "properties": {
+          "graded": {
+            "default": false,
+            "title": "Graded",
+            "type": "boolean"
+          },
+          "inputs": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/DeclaredInput"
+            },
+            "title": "Inputs",
+            "type": "array"
+          },
+          "problem": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Problem"
+          },
+          "test": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/DeclaredField"
+            },
+            "title": "Test",
+            "type": "array"
+          },
+          "workflow": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workflow"
+          }
+        },
+        "required": [
+          "workflow",
+          "inputs",
+          "test",
+          "problem",
+          "graded"
+        ],
+        "title": "WorkflowForm",
+        "type": "object"
+      },
       "WriteFile": {
         "description": "One file written, `token` being the one it was read with or null for\na new file. For a task this is a save, and `confirm` and\n`keep_as_draft` do what they do for one.",
         "properties": {
@@ -3318,6 +3823,80 @@
         "title": "WriteFile",
         "type": "object"
       },
+      "WriteTaskFile": {
+        "description": "One file of a task written, as a save: typed content or an upload\nmade for this path, `token` being the one it was read with or null for\na new file, and `confirm` and `keep_as_draft` doing what they do for a\nsave.",
+        "properties": {
+          "confirm": {
+            "default": false,
+            "title": "Confirm",
+            "type": "boolean"
+          },
+          "content": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content"
+          },
+          "encoding": {
+            "default": "utf-8",
+            "enum": [
+              "utf-8",
+              "base64"
+            ],
+            "title": "Encoding",
+            "type": "string"
+          },
+          "keep_as_draft": {
+            "default": false,
+            "title": "Keep As Draft",
+            "type": "boolean"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Token"
+          },
+          "upload": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Upload"
+          }
+        },
+        "required": [
+          "token"
+        ],
+        "title": "WriteTaskFile",
+        "type": "object"
+      },
       "Written": {
         "description": "A contest's file written: the version the change made.",
         "properties": {
@@ -3337,7 +3916,7 @@
   "info": {
     "summary": "Contests on top of a git host, a CI and an object store",
     "title": "Unicon API",
-    "version": "0.2.0"
+    "version": "0.3.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -4163,6 +4742,47 @@
       }
     },
     "/api/v1/orgs/{org}": {
+      "get": {
+        "description": "As they stand at the forge; `display_name` is null while the org has\nnone of its own.",
+        "operationId": "getOrg",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrgProfile"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "The org's display name and description",
+        "tags": [
+          "orgs"
+        ]
+      },
       "patch": {
         "operationId": "updateOrg",
         "parameters": [
@@ -5550,6 +6170,201 @@
         ]
       }
     },
+    "/api/v1/orgs/{org}/contests/{contest}/gradings": {
+      "get": {
+        "description": "At most `limit` gradings of the contest's tasks the caller observes,\nnewest first, every attempt a row of its own, so a submission graded\nagain shows more than once. One whose run is overdue or lost reads as\n`system_error` with the reason, and a filter by status takes it as it\nreads. A task, username or team the contest does not have, or a task\nthe caller does not observe, gives no rows; a username that breaks the\nforge's rule for one is a `validation_error`.",
+        "operationId": "listContestGradings",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          },
+          {
+            "description": "One task, by name",
+            "in": "query",
+            "name": "task",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "One task, by name",
+              "title": "Task"
+            }
+          },
+          {
+            "description": "One contestant's submissions, their own and their teams', by username",
+            "in": "query",
+            "name": "user",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 40,
+                  "pattern": "^[A-Za-z0-9](?:[-._]?[A-Za-z0-9])*$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "One contestant's submissions, their own and their teams', by username",
+              "title": "User"
+            }
+          },
+          {
+            "description": "One team's submissions",
+            "in": "query",
+            "name": "team",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "One team's submissions",
+              "title": "Team"
+            }
+          },
+          {
+            "description": "As the grading reads",
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/GradingStatus"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "As the grading reads",
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/FeedEntry"
+                  },
+                  "title": "Response Listcontestgradings",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "The contest's gradings as one feed, newest first",
+        "tags": [
+          "gradings"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/gradings/queue": {
+      "get": {
+        "description": "`queued`, whose run is not started yet, and `dispatched`, whose run\nthe CI holds until a machine takes it, counted when asked over the\ncontest's tasks the caller observes. One that is overdue or lost reads\nas a system error and is not counted.",
+        "operationId": "getContestQueueDepth",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueueDepth"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "How many of the contest's gradings wait for a machine",
+        "tags": [
+          "gradings"
+        ]
+      }
+    },
     "/api/v1/orgs/{org}/contests/{contest}/history": {
       "get": {
         "operationId": "listContestHistory",
@@ -6063,6 +6878,62 @@
         "summary": "Leave the caller's team",
         "tags": [
           "teams"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/organise/tasks": {
+      "get": {
+        "description": "Every task the contest's `tasks` lists, in that order, each with its\nletter, its latest publication, whether a draft sits on it and the\ndraft's errors, and its timeline. A task the contest does not list is\nnot here. Settings that do not read are `invalid_definition`, naming\n`contest.yaml`, with every one of its `errors` at its path.",
+        "operationId": "listTaskStandings",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TaskStanding"
+                  },
+                  "title": "Response Listtaskstandings",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "The contest's tasks in its order, each with where it stands and its timeline",
+        "tags": [
+          "tasks"
         ]
       }
     },
@@ -7536,6 +8407,7 @@
         ]
       },
       "put": {
+        "description": "A save of the task. A file named by its `upload` is one the\ncaller uploaded for this path: one that is not theirs for it is\n`invalid_inputs`, and one whose bytes have not arrived\n`upload_not_ready`.",
         "operationId": "writeTaskFile",
         "parameters": [
           {
@@ -7579,7 +8451,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/WriteFile"
+                "$ref": "#/components/schemas/WriteTaskFile"
               }
             }
           },
@@ -7710,7 +8582,7 @@
     },
     "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/gradings": {
       "get": {
-        "description": "At most `limit` of the task's gradings, newest first. One whose run did\nnot begin, did not report by its deadline, or was lost by the CI reads as\n`system_error` with the reason in `error`, whatever its row still says.",
+        "description": "At most `limit` of the task's gradings, newest first, each as the feed\ngives it, with who submitted it. One whose run did not begin, did not\nreport by its deadline, or was lost by the CI reads as `system_error`\nwith the reason in `error`, whatever its row still says.",
         "operationId": "listGradings",
         "parameters": [
           {
@@ -7759,7 +8631,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "$ref": "#/components/schemas/Grading"
+                    "$ref": "#/components/schemas/FeedEntry"
                   },
                   "title": "Response Listgradings",
                   "type": "array"
@@ -7787,7 +8659,7 @@
     },
     "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/gradings/{grading}/cancel": {
       "post": {
-        "description": "The grading as it now stands, `cancelled`, one that reads as a system\nerror because its run is overdue or lost included. A finished one is\n`wrong_status`, carrying its status as `current`.",
+        "description": "The grading as it now stands, `cancelled` with `cancel_reason`, the\nsentence its contestant reads; one that reads as a system error because\nits run is overdue or lost keeps that as its `error`. A sentence that is\nempty or over 500 characters is `invalid_reason`, a grading that is not\na system error `wrong_status` with its status as `current`, and an\nearlier attempt of a submission graded again `conflict`, since the\nlatest is the one to cancel.",
         "operationId": "cancelGrading",
         "parameters": [
           {
@@ -7828,6 +8700,16 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CancelRequest"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "content": {
@@ -7850,7 +8732,7 @@
             "description": "An error, as an RFC 9457 problem document. `code` names it."
           }
         },
-        "summary": "Stop a grading that is not finished",
+        "summary": "End a submission whose grading is a system error, saying why",
         "tags": [
           "gradings"
         ]
@@ -7929,7 +8811,7 @@
     },
     "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/gradings/{grading}/retry": {
       "post": {
-        "description": "The new attempt, queued. The old one is kept as it was, unless it reads\nas a system error only because its run is overdue or lost: then it is\nended with that reason, and its run cancelled at the CI. One that is not\nfinished is `wrong_status`, and `conflict` while another attempt of it\nis being graded.",
+        "description": "The new attempt, queued. The old one is kept as it was, unless it reads\nas a system error only because its run is overdue or lost: then it is\nended with that reason, and its run cancelled at the CI. One that is not\nfinished is `wrong_status` with its status as `current`, and so is a\nsubmission staff cancelled, which that ended, as `cancelled`; an earlier\nattempt of a submission graded again is `conflict`, since the latest is\nthe one to retry, and so is one while another attempt of it is being\ngraded.",
         "operationId": "retryGrading",
         "parameters": [
           {
@@ -8352,6 +9234,78 @@
         "summary": "Take a pending invite back",
         "tags": [
           "invites"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/organise/uploads": {
+      "post": {
+        "description": "The address to send the file to, or `ready` for a file the task's\nplace at the forge already holds. Nothing is in the task until a save\nnames the upload for the same path. A path that leaves the task is\n`invalid_path`, and a name, digest or size that is not one\n`invalid_inputs`, naming the path.",
+        "operationId": "requestTaskFileUploadSlot",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "task",
+            "required": true,
+            "schema": {
+              "title": "Task",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TaskFileUploadRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Slot"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Ask for a slot to upload one file into the task at a path",
+        "tags": [
+          "submissions",
+          "files"
         ]
       }
     },
@@ -8858,7 +9812,7 @@
     },
     "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/save": {
       "post": {
-        "description": "A valid save publishes and one that is not is kept as a draft with its\nerrors. While the contest runs, a save that changes how the task grades\nis refused as `confirmation_required` unless it is confirmed or kept as a\ndraft.",
+        "description": "A valid save publishes and one that is not is kept as a draft with its\nerrors. While the contest runs, a save that changes how the task grades\nis refused as `confirmation_required` unless it is confirmed or kept as a\ndraft. A change naming an upload writes the pointer to the file the\ncaller uploaded for that path; one that is not theirs for this task and\npath is `invalid_inputs`, and one whose bytes have not arrived\n`upload_not_ready`.",
         "operationId": "saveTask",
         "parameters": [
           {
@@ -9365,7 +10319,7 @@
     },
     "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/uploads/{upload}/complete": {
       "post": {
-        "description": "Forge asks the forge whether the place holds the object: `verified`\nwhen it does, `upload_not_ready` when it does not. The forge keeps\nnothing that is not what its address named, so an upload either arrived\nas declared or did not arrive. Asked again, it answers the same.",
+        "description": "Forge asks the forge whether the place holds the object: `verified`\nwhen it does, `upload_not_ready` when it does not. The forge keeps\nnothing that is not what its address named, so an upload either arrived\nas declared or did not arrive. Asked again, it answers the same. A\ncontestant's upload and an organiser's are completed alike.",
         "operationId": "completeUpload",
         "parameters": [
           {
@@ -9431,6 +10385,67 @@
         "summary": "Say an upload's bytes are there",
         "tags": [
           "submissions"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/workflow-form": {
+      "get": {
+        "description": "The workflow `task.yaml` names as it is saved now, a draft included,\nwith each input it declares and each field every test has, in the\nworkflow's order. A workflow declares no defaults; a contestant input's\n`default` is the task's own. A `task.yaml` that is missing or does not\nread, names no workflow or one that cannot be read answers with\n`problem`, the reason, and no inputs, so the form can mend it. Either\nway `graded` says whether the task has a graded submission, from when\non a save refuses a test group it adds without its `show`.",
+        "operationId": "getTaskWorkflowForm",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "task",
+            "required": true,
+            "schema": {
+              "title": "Task",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkflowForm"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "The inputs and test fields of the workflow the task names",
+        "tags": [
+          "tasks"
         ]
       }
     },
