@@ -12,8 +12,9 @@ from datetime import datetime
 from forge.api.gradings import GradingStatus, Submitter
 from pydantic import BaseModel
 
+from unicon.schemas.exact import Reported
 from unicon.schemas.publications import PublicationNumber
-from unicon.schemas.submissions import GradedTest, Outcome, Reported
+from unicon.schemas.submissions import GradedTest, Outcome
 
 USERNAME_PATTERN = r"^[A-Za-z0-9](?:[-._]?[A-Za-z0-9])*$"
 """Letters, digits, `-`, `_` and `.`, beginning and ending with a letter or
@@ -40,7 +41,7 @@ class RunResult(BaseModel):
 
     stopped: Outcome | None
     tests: list[GradedTest]
-    values: dict[str, Reported]
+    values: Reported
     error: str | None
 
 

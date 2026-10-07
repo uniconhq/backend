@@ -1,16 +1,19 @@
 """What a contestant is answered with is what forge gives and nothing more: a
 grading carries exactly what the task's test groups let through, a group
-that did not run on it marked so, its numbers as JSON numbers, a
-submission's inputs are read leniently from its `submission.json`, and a
-file's download is named after the file, quoted when its name is not plain.
+that did not run on it marked so, its numbers and its points as exact
+decimal strings, a submission's inputs are read leniently from its
+`submission.json`, and a file's download is named after the file, quoted
+when its name is not plain.
 """
 
 import json
 import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
+from fractions import Fraction
 
 import pytest
+from forge.api.boards import Points
 from forge.api.submissions import GradingStatus, GroupShown, Result, Show
 from forge.api.submissions import SubmittedFiles as SubmittedFilesRecord
 from forge.api.types import TaskId
@@ -35,8 +38,10 @@ def test_a_grading_being_run_carries_its_status_alone() -> None:
         "stopped": None,
         "outcome": None,
         "groups": [],
-        "values": {},
+        "values": {"numbers": {}, "texts": {}},
         "reason": None,
+        "points": None,
+        "factor": None,
     }
 
 
@@ -90,11 +95,15 @@ def test_a_grading_carries_each_group_as_forge_let_it_through() -> None:
                     {
                         "test": "samples/1",
                         "outcome": "accepted",
-                        "values": {"time_ms": 12, "fraction": 0.25},
+                        "values": {"numbers": {"time_ms": "12", "fraction": "0.25"}, "texts": {}},
+                        "credit": None,
+                        "best": None,
                     }
                 ],
                 "shown_at": None,
                 "ran": True,
+                "points": None,
+                "max": None,
             },
             {
                 "group": "small",
@@ -103,6 +112,8 @@ def test_a_grading_carries_each_group_as_forge_let_it_through() -> None:
                 "tests": None,
                 "shown_at": "2026-09-26T15:00:00Z",
                 "ran": True,
+                "points": None,
+                "max": None,
             },
             {
                 "group": "large",
@@ -111,6 +122,8 @@ def test_a_grading_carries_each_group_as_forge_let_it_through() -> None:
                 "tests": None,
                 "shown_at": "2026-09-26T15:00:00Z",
                 "ran": True,
+                "points": None,
+                "max": None,
             },
             {
                 "group": "extra",
@@ -119,14 +132,66 @@ def test_a_grading_carries_each_group_as_forge_let_it_through() -> None:
                 "tests": [],
                 "shown_at": None,
                 "ran": False,
+                "points": None,
+                "max": None,
             },
         ],
-        "values": {"log": "", "score": 1.5},
+        "values": {"numbers": {"score": "1.5"}, "texts": {"log": ""}},
         "reason": None,
+        "points": None,
+        "factor": None,
     }
-    served = json.loads(answer.model_dump_json())
-    assert served["values"]["score"] == 1.5
-    assert served["groups"][0]["tests"][0]["values"]["fraction"] == 0.25
+
+
+def test_numbers_are_served_as_exact_decimals_and_text_stays_text() -> None:
+    row = {
+        "test": "main/1",
+        "outcome": "accepted",
+        "values": {"loss": Decimal("0.1000000000000000000000000001"), "label": "12.5"},
+        "credit": Fraction(1, 3),
+        "best": Decimal("0.05"),
+    }
+    result = Result(
+        GRADING,
+        1,
+        GradingStatus.DONE,
+        None,
+        "accepted",
+        (
+            GroupShown(
+                "main",
+                Show.ALWAYS,
+                "accepted",
+                (row,),
+                None,
+                points=Fraction(85, 3),
+                max=Fraction(85),
+            ),
+            GroupShown("large", Show.AFTER_CLOSE, None, None, REVEAL, max=Fraction(15)),
+        ),
+        {"total": 10**20},
+        points=Points(Fraction(85, 3), Fraction(15), REVEAL),
+        factor=Fraction(9, 10),
+    )
+
+    served = json.loads(ResultAnswer.model_validate(result, from_attributes=True).model_dump_json())
+
+    [main, large] = served["groups"]
+    [test] = main["tests"]
+    assert test["values"] == {
+        "numbers": {"loss": "0.1000000000000000000000000001"},
+        "texts": {"label": "12.5"},
+    }
+    assert (test["credit"], test["best"]) == ("0." + "3" * 30, "0.05")
+    assert (main["points"], main["max"]) == ("28." + "3" * 28, "85")
+    assert (large["points"], large["max"]) == (None, "15")
+    assert served["values"] == {"numbers": {"total": "100000000000000000000"}, "texts": {}}
+    assert served["points"] == {
+        "shown": "28." + "3" * 28,
+        "pending": "15",
+        "pending_until": "2026-09-26T15:00:00Z",
+    }
+    assert served["factor"] == "0.9"
 
 
 def test_a_submissions_inputs_are_read_leniently() -> None:

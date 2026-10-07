@@ -126,7 +126,16 @@ REPORT = (
 )
 """A finished report as the harness writes it, a number with a point in it
 included, with the run log's URL put in."""
-ROW = {"test": "main/1", "outcome": "accepted", "values": {"time_ms": 12.5, "memory_kb": 2048}}
+ROW = {
+    "test": "main/1",
+    "outcome": "accepted",
+    "values": {"numbers": {"time_ms": "12.5", "memory_kb": "2048"}, "texts": {}},
+    "credit": None,
+    "best": None,
+}
+"""The report's row as organisers read it, its numbers exact."""
+SCORED_ROW = {**ROW, "credit": "1"}
+"""The same row as its contestant reads it, scored."""
 
 
 def _finished(log: str | None) -> bytes:
@@ -226,13 +235,19 @@ async def test_a_finished_report_leaves_the_result_the_contestant_reads(
             "group": "main",
             "show": "always",
             "outcome": "accepted",
-            "tests": [ROW],
+            "tests": [SCORED_ROW],
             "shown_at": None,
             "ran": True,
+            "points": "100",
+            "max": "100",
         }
     ]
-    assert grading["values"] == {"log": ""}
-    assert b'"time_ms":12.5' in detail.content
+    assert grading["values"] == {"numbers": {}, "texts": {"log": ""}}
+    assert (grading["points"], grading["factor"]) == (
+        {"shown": "100", "pending": "0", "pending_until": None},
+        "1",
+    )
+    assert b'"time_ms":"12.5"' in detail.content
     assert (run_log.status_code, run_log.json()["code"]) == (404, "not_found")
 
 
@@ -252,7 +267,7 @@ async def test_the_organisers_read_the_result_whole_with_its_log(
     assert grading["result"] == {
         "stopped": None,
         "tests": [ROW],
-        "values": {"log": ""},
+        "values": {"numbers": {}, "texts": {"log": ""}},
         "error": None,
     }
 
@@ -343,8 +358,15 @@ async def test_a_group_that_shows_less_answers_with_less_until_the_reveal(
             "tests": None,
             "shown_at": "2026-09-26T15:00:00Z",
             "ran": True,
+            "points": "100" if outcome else None,
+            "max": "100",
         }
     ]
+    assert grading["points"] == (
+        {"shown": "100", "pending": "0", "pending_until": None}
+        if outcome
+        else {"shown": "0", "pending": "100", "pending_until": "2026-09-26T15:00:00Z"}
+    )
     assert listed.json() == [detail.json()]
 
 
