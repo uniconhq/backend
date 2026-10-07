@@ -1,12 +1,14 @@
 """What the grading routes take and answer with: the sentence a grading is
-cancelled with, a grading as an organiser reads it, what a rejudge did, and
-where a grading stands after its run reports.
+cancelled with, a grading as an organiser reads it, one in a contest's feed
+with its task and who submitted it, what a rejudge did, and where a grading
+stands after its run reports. Who submitted and a contest's queue depth go
+out as the forge's own `Submitter` and `QueueDepth`.
 """
 
 import uuid
 from datetime import datetime
 
-from forge.api.gradings import GradingStatus
+from forge.api.gradings import GradingStatus, Submitter
 from pydantic import BaseModel
 
 from unicon.schemas.publications import PublicationNumber
@@ -66,6 +68,19 @@ class Grading(BaseModel):
     started_at: datetime | None
     finished_at: datetime | None
     deadline_at: datetime | None
+
+
+class FeedEntry(BaseModel):
+    """One grading in a contest's feed: the grading as an organiser reads it,
+    its task by name, null when the forge no longer lists the task, and
+    `by`, who made the submission: a contestant by `user_id` and username as
+    `name`, or a team by its id as `team` and its `name`, the name null once
+    the account or the team is gone.
+    """
+
+    grading: Grading
+    task: str | None
+    by: Submitter
 
 
 class Rejudged(BaseModel):
