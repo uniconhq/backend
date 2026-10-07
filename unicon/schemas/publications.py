@@ -10,7 +10,7 @@ from typing import Annotated, Any, Self
 
 from pydantic import BaseModel, BeforeValidator, model_validator
 
-from unicon.schemas.files import Encoded
+from unicon.schemas.files import EncodedOrUploaded
 
 
 class DefinitionError(BaseModel):
@@ -48,9 +48,9 @@ class Publication(BaseModel):
     at: datetime
 
 
-class FileChange(Encoded):
-    """One file of a save, with the token it was read with, or null for a
-    file the save creates.
+class FileChange(EncodedOrUploaded):
+    """One file of a save, typed or uploaded for this path, with the token it
+    was read with, or null for a file the save creates.
     """
 
     path: str

@@ -30,14 +30,27 @@ class UploadRequest(BaseModel):
     content_type: str | None = None
 
 
+class TaskFileUploadRequest(BaseModel):
+    """One file an organiser puts into the task: the `path` it goes to in the
+    task's files, its size in bytes, the SHA-256 of its content in lowercase
+    hex and, when the browser knows it, its content type.
+    """
+
+    path: str
+    size: int
+    sha256: str
+    content_type: str | None = None
+
+
 UploadSlot = Slot
 """A slot, the forge's own record."""
 
 
 class Upload(BaseModel):
-    """Where one upload stands: the input it is for, its name and content
-    type, the size and digest declared for it, and its status. `verified` is
-    an upload a submit may name.
+    """Where one upload stands: the input it is for, empty for a file an
+    organiser puts into the task, its name and content type, the size and
+    digest declared for it, and its status. `verified` is an upload a submit
+    or a save may name.
     """
 
     id: uuid.UUID

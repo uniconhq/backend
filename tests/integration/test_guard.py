@@ -46,6 +46,7 @@ TEAM = {"name": "Adders"}
 PERSON = {"user_id": 20}
 SECONDS = {"seconds": 60}
 CANCEL = {"reason": "Not counted."}
+TASK_FILE = {"path": "data/weights.bin", "size": 1, "sha256": "0" * 64}
 SESSION_ONLY = {
     "createOrg",
     "getTaskRelease",
@@ -115,6 +116,7 @@ ROUTES: list[tuple[str, str, dict[str, Any] | None, Role, Scope]] = [
     ("POST", f"{TASK}/gradings/{NO_GRADING}/cancel", CANCEL, Role.MANAGER, SUM),
     ("POST", f"{TASK}/gradings/{NO_GRADING}/retry", None, Role.MANAGER, SUM),
     ("POST", f"{TASK}/rejudge", None, Role.MANAGER, SUM),
+    ("POST", f"{TASK}/organise/uploads", TASK_FILE, Role.MANAGER, SUM),
     ("GET", f"{CONTEST}/announcements", None, Role.OBSERVER, SPRING),
     ("POST", f"{CONTEST}/announcements", NOTE, Role.MANAGER, SPRING),
     ("PATCH", f"{CONTEST}/announcements/1", NOTE, Role.MANAGER, SPRING),

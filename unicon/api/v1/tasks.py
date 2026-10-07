@@ -101,12 +101,18 @@ async def save_task(organiser: TaskManager, body: SaveRequest) -> Published | Dr
     """A valid save publishes and one that is not is kept as a draft with its
     errors. While the contest runs, a save that changes how the task grades
     is refused as `confirmation_required` unless it is confirmed or kept as a
-    draft.
+    draft. A change naming an upload writes the pointer to the file the
+    caller uploaded for that path; one that is not theirs for this task and
+    path is `invalid_inputs`, and one whose bytes have not arrived
+    `upload_not_ready`.
     """
     return await publications.save(
         organiser,
         tasks.task_id_of(organiser.scope),
-        {change.path: Edit(change.data(), token_of(change.token)) for change in body.changes},
+        {
+            change.path: Edit(change.edit_content(), token_of(change.token))
+            for change in body.changes
+        },
         confirm=body.confirm,
         keep_as_draft=body.keep_as_draft,
         message=body.message,
