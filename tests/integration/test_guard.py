@@ -3,9 +3,12 @@ a caller holding the role just below the one it needs at the scope it names,
 with the refusal naming that role and scope, and admitted for a caller
 holding exactly that role there. A role held at a broader scope counts, one
 held at a narrower scope does not reach up, and a request reads the caller's
-roles once. Every route under an org is in the table below but the ones that
-need only a session, such as those a contestant calls, so a route added there
-is held to the guard the day it exists. Every route anywhere that needs no
+roles once. The few reads open to any role at a scope or anything in it are
+in a table of their own: a role at the scope or at any narrower one is
+admitted, and none there is refused naming the address. Every route under an
+org is in one of the two tables but the ones that need only a session, such
+as those a contestant calls, so a route added there is held to the guard the
+day it exists. Every route anywhere that needs no
 session at all is in a list of its own, so a route that forgets the session
 is caught the day it exists too.
 """
@@ -78,7 +81,6 @@ SESSION_ONLY = {
 }
 
 ROUTES: list[tuple[str, str, dict[str, Any] | None, Role, Scope]] = [
-    ("GET", ORG, None, Role.OBSERVER, ACME),
     ("PATCH", ORG, {"description": "Acme"}, Role.ADMIN, ACME),
     ("GET", f"{ORG}/roles", None, Role.OBSERVER, ACME),
     ("POST", f"{ORG}/roles", CAROL, Role.MANAGER, ACME),
@@ -120,8 +122,6 @@ ROUTES: list[tuple[str, str, dict[str, Any] | None, Role, Scope]] = [
     ("POST", f"{TASK}/gradings/{NO_GRADING}/retry", None, Role.MANAGER, SUM),
     ("POST", f"{TASK}/rejudge", None, Role.MANAGER, SUM),
     ("POST", f"{TASK}/organise/uploads", TASK_FILE, Role.MANAGER, SUM),
-    ("GET", f"{CONTEST}/gradings", None, Role.OBSERVER, SPRING),
-    ("GET", f"{CONTEST}/gradings/queue", None, Role.OBSERVER, SPRING),
     ("GET", f"{CONTEST}/announcements", None, Role.OBSERVER, SPRING),
     ("POST", f"{CONTEST}/announcements", NOTE, Role.MANAGER, SPRING),
     ("PATCH", f"{CONTEST}/announcements/1", NOTE, Role.MANAGER, SPRING),
@@ -155,6 +155,17 @@ ROUTES: list[tuple[str, str, dict[str, Any] | None, Role, Scope]] = [
     ("PUT", f"{CONTEST}/organise/teams/{NO_GRADING}/leader", PERSON, Role.MANAGER, SPRING),
     ("PUT", f"{CONTEST}/organise/teams/{NO_GRADING}/extension", SECONDS, Role.MANAGER, SPRING),
 ]
+ANY_ROLE: list[tuple[str, Scope]] = [
+    (ORG, ACME),
+    (f"{CONTEST}/gradings", SPRING),
+    (f"{CONTEST}/gradings/queue", SPRING),
+]
+"""The reads open to anyone holding a role at the scope or at anything in it,
+each a GET."""
+INSIDE = {ACME: [ACME, SPRING, SUM], SPRING: [SPRING, SUM]}
+EACH_OPEN_ROUTE = pytest.mark.parametrize(
+    ("path", "scope"), ANY_ROLE, ids=[path.removeprefix(ORG) or "/" for path, _ in ANY_ROLE]
+)
 EACH_ROUTE = pytest.mark.parametrize(
     ("method", "path", "body", "role", "scope"),
     ROUTES,
@@ -174,14 +185,17 @@ def test_every_route_under_an_org_is_guarded_and_in_the_table() -> None:
         if path.startswith("/api/v1/orgs")
     ]
     guarded = {route.operation_id for _, route in under_orgs if _is_guarded(route)}
+    tables = [(method, path) for method, path, *_ in ROUTES] + [
+        ("GET", path) for path, _ in ANY_ROLE
+    ]
     listed = {
         route.operation_id
-        for method, path, *_ in ROUTES
+        for method, path in tables
         for pattern, route in under_orgs
         if route.methods == {method} and pattern.fullmatch(path)
     }
 
-    assert len(listed) == len(ROUTES)
+    assert len(listed) == len(tables)
     assert guarded == listed
     assert {route.operation_id for _, route in under_orgs} == guarded | SESSION_ONLY
 
@@ -277,6 +291,56 @@ async def test_a_caller_holding_the_role_is_admitted(
     admitted = await _call(client, method, path, body)
 
     assert admitted.status_code not in (401, 403), admitted.text
+
+
+@EACH_OPEN_ROUTE
+async def test_an_open_read_is_refused_to_a_caller_holding_no_role_in_its_scope(
+    client: httpx.AsyncClient, world: FakeForge, path: str, scope: Scope
+) -> None:
+    await _as_bob(client, world, None, scope)
+
+    refused = await client.get(path)
+
+    assert refused.status_code == 403, refused.text
+    assert refused.json()["code"] == "forbidden"
+    assert refused.json()["detail"] == f"This needs a role at {scope.name} or at anything in it."
+
+
+@EACH_OPEN_ROUTE
+async def test_an_open_read_admits_a_role_at_its_scope_or_anything_in_it(
+    client: httpx.AsyncClient, world: FakeForge, path: str, scope: Scope
+) -> None:
+    for user_id, inside in enumerate(INSIDE[scope], start=30):
+        world.add_user(user_id, f"holder{user_id}")
+        await world.orgs.grant_role(user_id, inside, Role.OBSERVER)
+        await sign_in_as(client, world, user_id)
+
+        admitted = await client.get(path)
+
+        assert admitted.status_code == 200, (inside, admitted.text)
+
+
+@EACH_OPEN_ROUTE
+async def test_an_open_read_needs_a_session(
+    client: httpx.AsyncClient, world: FakeForge, path: str, scope: Scope
+) -> None:
+    client.cookies.clear()
+
+    refused = await client.get(path)
+
+    assert (refused.status_code, refused.json()["code"]) == (401, "unauthenticated")
+
+
+@EACH_OPEN_ROUTE
+async def test_an_open_read_reads_an_observers_roles_once(
+    client: httpx.AsyncClient, world: FakeForge, path: str, scope: Scope
+) -> None:
+    await _as_bob(client, world, Role.OBSERVER, scope)
+
+    world.reset_calls()
+    await client.get(path)
+
+    assert len(world.calls_to("roles_of")) == 1
 
 
 @SCOPES

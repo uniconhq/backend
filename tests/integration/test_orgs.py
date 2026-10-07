@@ -1,7 +1,7 @@
 """Creating an org makes it before the request answers, with the caller its
 admin, a failure answers with the forge's refusal and leaves the name free,
-an observer of the org reads what it says about itself and only its admin
-changes it, and a description is at most 255 characters.
+anyone holding a role in the org, at it or at anything in it, reads what
+it says about itself and only its admin changes it, and a description is at most 255 characters.
 """
 
 import httpx
@@ -95,18 +95,22 @@ async def test_an_observer_of_the_org_reads_what_it_says_about_itself(
     assert forge.calls_to("update_org") == []
 
 
-async def test_a_role_below_the_org_alone_reads_nothing_of_it(
+async def test_a_role_anywhere_in_the_org_reads_what_it_says_and_none_reads_nothing(
     client: httpx.AsyncClient, forge: FakeForge, held_setup: Setup
 ) -> None:
     await forge.orgs.create_org(OrgId("acme"), description="Acme")
-    await name_places(held_setup, "acme", "acme/spring")
+    await forge.orgs.create_org(OrgId("globex"), description="Globex")
+    await name_places(held_setup, "acme", "acme/spring", "globex")
     await forge.orgs.grant_role(7, Scope("acme", "spring"), Role.ADMIN)
     await sign_in(client, forge)
 
-    refused = await client.get(ORG)
+    admitted = await client.get(ORG)
+    refused = await client.get("/api/v1/orgs/globex")
     client.cookies.clear()
     anonymous = await client.get(ORG)
 
+    assert admitted.status_code == 200, admitted.text
+    assert admitted.json()["description"] == "Acme"
     assert (refused.status_code, refused.json()["code"]) == (403, "forbidden")
     assert (anonymous.status_code, anonymous.json()["code"]) == (401, "unauthenticated")
 

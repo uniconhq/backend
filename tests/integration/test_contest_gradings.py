@@ -4,15 +4,15 @@ attempt, its task by name and letter and who submitted it, narrowed by
 task, by username, by team and by status, a stuck grading read as
 `system_error` and one staff cancelled with their sentence; a username or a
 team that cannot be one a validation error; and the queue depth, counted by
-status. Someone holding a role at a task alone, and a contestant, are
-refused both, and both need a session.
+status. Someone holding a role at some of its tasks alone reads both over
+those tasks, a contestant is refused both, and both need a session.
 """
 
 from datetime import timedelta
 
 import httpx
-from forge.api.types import Role
-from forge.testing import FakeClock, FakeForge, Setup
+from forge.api.types import Role, Scope
+from forge.testing import FakeClock, FakeForge, Setup, name_places
 
 from tests.integration.conftest import CONTEST, ORIGIN, SUM, TASK, enter, sign_in_as, upload
 
@@ -153,17 +153,46 @@ async def test_the_queue_depth_counts_the_gradings_waiting_by_status(
     assert stuck.json() == {"queued": 0, "dispatched": 0}
 
 
-async def test_a_role_at_a_task_alone_or_none_is_refused_the_feed_and_the_queue(
-    client: httpx.AsyncClient, entered: FakeForge
+async def test_a_role_at_some_tasks_reads_their_gradings_alone(
+    client: httpx.AsyncClient, entered: FakeForge, held_setup: Setup
+) -> None:
+    await name_places(held_setup, "acme/spring/product")
+    carols = await _submit(client, entered)
+    await entered.orgs.grant_role(8, SUM, Role.MANAGER)
+    entered.add_user(30, "dave")
+    await entered.orgs.grant_role(30, Scope("acme", "spring", "product"), Role.OBSERVER)
+
+    await sign_in_as(client, entered, 8)
+    of_sum = [await client.get(FEED), await client.get(QUEUE)]
+    await sign_in_as(client, entered, 30)
+    of_product = [
+        await client.get(FEED),
+        await client.get(QUEUE),
+        await client.get(FEED, params={"task": "sum"}),
+    ]
+
+    assert [answer.status_code for answer in (*of_sum, *of_product)] == [200] * 5
+    assert [row["grading"]["id"] for row in of_sum[0].json()] == [carols]
+    assert of_sum[1].json() == {"queued": 0, "dispatched": 1}
+    assert (of_product[0].json(), of_product[2].json()) == ([], [])
+    assert of_product[1].json() == {"queued": 0, "dispatched": 0}
+
+
+async def test_no_role_in_the_contest_is_refused_the_feed_and_the_queue(
+    client: httpx.AsyncClient, entered: FakeForge, held_setup: Setup
 ) -> None:
     await _submit(client, entered)
     as_contestant = [await client.get(FEED), await client.get(QUEUE)]
-    await entered.orgs.grant_role(8, SUM, Role.MANAGER)
+    await name_places(held_setup, "acme/autumn")
+    await entered.orgs.grant_role(8, Scope("acme", "autumn"), Role.ADMIN)
     await sign_in_as(client, entered, 8)
-    as_task_manager = [await client.get(FEED), await client.get(QUEUE)]
+    elsewhere = [await client.get(FEED), await client.get(QUEUE)]
 
-    for refused in (*as_contestant, *as_task_manager):
+    for refused in (*as_contestant, *elsewhere):
         assert (refused.status_code, refused.json()["code"]) == (403, "forbidden")
+        assert refused.json()["detail"] == (
+            "This needs a role at acme/spring or at anything in it."
+        )
 
 
 async def test_the_feed_and_the_queue_need_a_session(
