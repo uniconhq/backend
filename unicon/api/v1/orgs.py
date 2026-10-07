@@ -1,7 +1,9 @@
-"""Making an org, and what its admin changes about it afterwards. Creating
-makes the org before it answers, and the caller is its first admin from
-then on. Whether anyone signed in may create an org is the deployment's
-setting, and forge refuses when it is off.
+"""Making an org, reading what it says about itself, and what its admin
+changes about it afterwards. Creating makes the org before it answers, and
+the caller is its first admin from then on. Whether anyone signed in may
+create an org is the deployment's setting, and forge refuses when it is
+off. An observer of the org reads its display name and description as they
+stand at the forge, and only its admin changes them.
 """
 
 from typing import Annotated
@@ -35,6 +37,20 @@ router = APIRouter(tags=["orgs"])
 async def create_org(session: CurrentSession, body: CreateOrg) -> NamedRecord:
     """The caller becomes the org's first admin."""
     return await orgs.create(session, body.name, description=body.description)
+
+
+@router.get(
+    ORG,
+    operation_id="getOrg",
+    summary="The org's display name and description",
+)
+async def get_org(
+    organiser: Annotated[Organiser, Depends(require(Role.OBSERVER))],
+) -> orgs.OrgProfile:
+    """As they stand at the forge; `display_name` is null while the org has
+    none of its own.
+    """
+    return await orgs.read(organiser, OrgId(organiser.scope.org))
 
 
 @router.patch(

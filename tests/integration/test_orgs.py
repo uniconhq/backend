@@ -1,13 +1,13 @@
 """Creating an org makes it before the request answers, with the caller its
 admin, a failure answers with the forge's refusal and leaves the name free,
-only the org's admin changes what it says about itself, and a description is
-at most 255 characters.
+an observer of the org reads what it says about itself and only its admin
+changes it, and a description is at most 255 characters.
 """
 
 import httpx
 import pytest
 from forge.api.errors import Unavailable
-from forge.api.types import Role
+from forge.api.types import Role, Scope
 from forge.testing import FakeForge, OrgId, Setup, name_places
 
 from tests.integration.conftest import ACME, ORG, ORIGIN, sign_in
@@ -75,6 +75,40 @@ async def test_an_admin_changes_the_orgs_description(
     assert changed.status_code == 204
     org = forge.state.orgs["acme"]
     assert (org.description, org.display_name) == ("Acme contests", "Acme Inc.")
+    read = await client.get(ORG)
+    assert read.status_code == 200, read.text
+    assert read.json() == {"display_name": "Acme Inc.", "description": "Acme contests"}
+
+
+async def test_an_observer_of_the_org_reads_what_it_says_about_itself(
+    client: httpx.AsyncClient, forge: FakeForge, held_setup: Setup
+) -> None:
+    await forge.orgs.create_org(OrgId("acme"), description="Acme")
+    await name_places(held_setup, "acme")
+    await forge.orgs.grant_role(7, ACME, Role.OBSERVER)
+    await sign_in(client, forge)
+
+    read = await client.get(ORG)
+
+    assert read.status_code == 200, read.text
+    assert read.json() == {"display_name": None, "description": "Acme"}
+    assert forge.calls_to("update_org") == []
+
+
+async def test_a_role_below_the_org_alone_reads_nothing_of_it(
+    client: httpx.AsyncClient, forge: FakeForge, held_setup: Setup
+) -> None:
+    await forge.orgs.create_org(OrgId("acme"), description="Acme")
+    await name_places(held_setup, "acme", "acme/spring")
+    await forge.orgs.grant_role(7, Scope("acme", "spring"), Role.ADMIN)
+    await sign_in(client, forge)
+
+    refused = await client.get(ORG)
+    client.cookies.clear()
+    anonymous = await client.get(ORG)
+
+    assert (refused.status_code, refused.json()["code"]) == (403, "forbidden")
+    assert (anonymous.status_code, anonymous.json()["code"]) == (401, "unauthenticated")
 
 
 async def test_a_manager_may_not_change_the_org(

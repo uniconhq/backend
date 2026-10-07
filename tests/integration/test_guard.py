@@ -78,6 +78,7 @@ SESSION_ONLY = {
 }
 
 ROUTES: list[tuple[str, str, dict[str, Any] | None, Role, Scope]] = [
+    ("GET", ORG, None, Role.OBSERVER, ACME),
     ("PATCH", ORG, {"description": "Acme"}, Role.ADMIN, ACME),
     ("GET", f"{ORG}/roles", None, Role.OBSERVER, ACME),
     ("POST", f"{ORG}/roles", CAROL, Role.MANAGER, ACME),
