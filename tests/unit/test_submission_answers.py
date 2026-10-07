@@ -1,8 +1,8 @@
 """What a contestant is answered with is what forge gives and nothing more: a
-grading carries exactly what the task's test groups let through, its numbers
-as JSON numbers, a submission's inputs are read leniently from its
-`submission.json`, and a file's download is named after the file, quoted
-when its name is not plain.
+grading carries exactly what the task's test groups let through, a group
+that did not run on it marked so, its numbers as JSON numbers, a
+submission's inputs are read leniently from its `submission.json`, and a
+file's download is named after the file, quoted when its name is not plain.
 """
 
 import json
@@ -55,6 +55,7 @@ def test_a_grading_carries_each_group_as_forge_let_it_through() -> None:
             GroupShown("samples", Show.ALWAYS, "accepted", (row,), None),
             GroupShown("small", Show.VERDICT, "wrong_answer", None, REVEAL),
             GroupShown("large", Show.AFTER_CLOSE, None, None, REVEAL),
+            GroupShown("extra", Show.ALWAYS, None, (), None, ran=False),
         ),
         {"log": "", "score": Decimal("1.5")},
     )
@@ -80,6 +81,7 @@ def test_a_grading_carries_each_group_as_forge_let_it_through() -> None:
                     }
                 ],
                 "shown_at": None,
+                "ran": True,
             },
             {
                 "group": "small",
@@ -87,6 +89,7 @@ def test_a_grading_carries_each_group_as_forge_let_it_through() -> None:
                 "outcome": "wrong_answer",
                 "tests": None,
                 "shown_at": "2026-09-26T15:00:00Z",
+                "ran": True,
             },
             {
                 "group": "large",
@@ -94,6 +97,15 @@ def test_a_grading_carries_each_group_as_forge_let_it_through() -> None:
                 "outcome": None,
                 "tests": None,
                 "shown_at": "2026-09-26T15:00:00Z",
+                "ran": True,
+            },
+            {
+                "group": "extra",
+                "show": "always",
+                "outcome": None,
+                "tests": [],
+                "shown_at": None,
+                "ran": False,
             },
         ],
         "values": {"log": "", "score": 1.5},

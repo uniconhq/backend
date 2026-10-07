@@ -4,8 +4,9 @@ over the bytes as they were sent and refused when it does not or its body
 was changed; the envelope served for its key and not without it; and the
 run's reports taken under its token, a finished one leaving the result the
 contestant then reads as the task's test groups show it, its numbers as
-they were written, and the organisers read whole; the run's log is not the
-contestant's to read. A wrong or missing token, a body that is no report, a
+they were written, and the organisers read whole; and the run's log, read
+by an observer of the task as plain text that runs nothing, and never by
+its contestant. A wrong or missing token, a body that is no report, a
 body past the bound, and a report or an envelope fetch for a grading that
 is over are each refused with their code.
 """
@@ -118,7 +119,7 @@ async def _report(
 
 REPORT = (
     b'{"event": "finished", "result": {"schema_version": 5, "stopped": null, '
-    b'"tests": [{"test": "main/1", "outcome": "accepted", '
+    b'"stopped_by": null, "tests": [{"test": "main/1", "outcome": "accepted", '
     b'"values": {"time_ms": 12.5, "memory_kb": 2048}}], '
     b'"values": {"log": ""}, "run_log": %s, "error": null}}'
 )
@@ -220,7 +221,14 @@ async def test_a_finished_report_leaves_the_result_the_contestant_reads(
         "accepted",
     )
     assert grading["groups"] == [
-        {"group": "main", "show": "always", "outcome": "accepted", "tests": [ROW], "shown_at": None}
+        {
+            "group": "main",
+            "show": "always",
+            "outcome": "accepted",
+            "tests": [ROW],
+            "shown_at": None,
+            "ran": True,
+        }
     ]
     assert grading["values"] == {"log": ""}
     assert b'"time_ms":12.5' in detail.content
@@ -244,14 +252,61 @@ async def test_the_organisers_read_the_result_whole_with_its_log(
     }
 
 
-async def _finished_with_log(client: httpx.AsyncClient, forge: FakeForge, setup: Setup) -> None:
-    """carol's first submission graded, its run's log written."""
+async def test_an_observer_reads_a_gradings_log_as_plain_text_that_runs_nothing(
+    client: httpx.AsyncClient, entered: FakeForge, held_setup: Setup
+) -> None:
+    grading = await _finished_with_log(client, entered, held_setup)
+    await sign_in_as(client, entered, 7)
+
+    run_log = await client.get(f"{TASK}/gradings/{grading}/log")
+
+    assert run_log.status_code == 200, run_log.text
+    assert run_log.content == LOG
+    assert run_log.headers["content-type"] == "text/plain; charset=utf-8"
+    assert run_log.headers["x-content-type-options"] == "nosniff"
+    assert run_log.headers["content-security-policy"] == "default-src 'none'; sandbox"
+    assert run_log.headers["cache-control"] == "private, no-store"
+
+
+async def test_a_log_larger_than_is_read_back_is_refused_with_the_limit(
+    client: httpx.AsyncClient, entered: FakeForge, held_setup: Setup
+) -> None:
+    grading = await _finished_with_log(client, entered, held_setup, b"x" * (9 * MIB + 1))
+    await sign_in_as(client, entered, 7)
+
+    refused = await client.get(f"{TASK}/gradings/{grading}/log")
+
+    assert (refused.status_code, refused.json()["code"]) == (409, "log_too_large")
+    assert refused.json()["limit"] == 9 * MIB
+
+
+async def test_a_grading_whose_run_wrote_no_log_has_none_to_read(
+    client: httpx.AsyncClient, entered: FakeForge, held_setup: Setup
+) -> None:
+    started = await _started(client, entered, held_setup)
+    envelope = await _envelope(client, started)
+    finished = await _report(client, envelope, _finished(None))
+    await sign_in_as(client, entered, 7)
+
+    missing = await client.get(f"{TASK}/gradings/{started.grading}/log")
+
+    assert finished.json() == {"status": "done"}, finished.text
+    assert (missing.status_code, missing.json()["code"]) == (404, "not_found")
+
+
+async def _finished_with_log(
+    client: httpx.AsyncClient, forge: FakeForge, setup: Setup, log: bytes = LOG
+) -> str:
+    """carol's first submission graded, its run's log written; its grading's
+    id.
+    """
     started = await _started(client, forge, setup)
     envelope = await _envelope(client, started)
-    forge.objects.put(envelope["log_put"], LOG)
+    forge.objects.put(envelope["log_put"], log)
     report = _finished(urlsplit(envelope["log_put"])._replace(query="").geturl())
     finished = await _report(client, envelope, report)
     assert finished.json() == {"status": "done"}, finished.text
+    return started.grading
 
 
 @pytest.mark.parametrize(
@@ -282,6 +337,7 @@ async def test_a_group_that_shows_less_answers_with_less_until_the_reveal(
             "outcome": outcome,
             "tests": None,
             "shown_at": "2026-09-26T15:00:00Z",
+            "ran": True,
         }
     ]
     assert listed.json() == [detail.json()]
@@ -295,6 +351,7 @@ async def test_a_run_that_failed_on_the_platforms_side_is_still_being_graded_to_
     failed = {
         "schema_version": 5,
         "stopped": "system_error",
+        "stopped_by": None,
         "tests": [{"test": "main/1", "outcome": "skipped", "values": {}}],
         "values": {},
         "run_log": None,

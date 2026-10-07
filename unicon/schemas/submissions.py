@@ -60,8 +60,10 @@ class GradedTest(BaseModel):
 
 class GroupShown(BaseModel):
     """One test group as the contestant sees it now: its name, its `show`,
-    its outcome once its verdict is shown, its tests once they are, and when
-    what is held back is shown, null once nothing is.
+    its outcome once its verdict is shown, its tests once they are, when
+    what is held back is shown, null once nothing is, and whether it ran on
+    this grading. A group that did not run has no outcome, no tests and
+    nothing held back.
     """
 
     group: str
@@ -69,6 +71,7 @@ class GroupShown(BaseModel):
     outcome: Outcome | None
     tests: list[GradedTest] | None
     shown_at: datetime | None
+    ran: bool
 
 
 class Result(BaseModel):

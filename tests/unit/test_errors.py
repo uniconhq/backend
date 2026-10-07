@@ -58,6 +58,7 @@ CASES = [
     (errors.UploadNotReady, 409),
     (errors.InvalidInputs, 422),
     (errors.InvalidIdempotencyKey, 422),
+    (errors.LogTooLarge, 409),
     (errors.CiRequestRefused, 403),
     (errors.InvalidToken, 401),
     (errors.GradingClosed, 410),
@@ -135,6 +136,7 @@ REFUSALS = [
     (errors.TooLarge("Too big.", limit=1024, input="notes"), 413, "input"),
     (errors.UploadNotYours("Not yours.", uploads=[UPLOAD]), 404, "uploads"),
     (errors.UploadNotReady("Not there.", uploads=[UPLOAD]), 409, "uploads"),
+    (errors.LogTooLarge("Too long to show.", limit=9 * 1024 * 1024), 409, "limit"),
     (
         errors.InvalidInputs("No.", errors=[{"input": "submission", "message": "No."}]),
         422,

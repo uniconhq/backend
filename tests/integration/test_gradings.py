@@ -1,11 +1,12 @@
 """An organiser's view of and controls over a task's gradings, over HTTP:
 the list, newest first with each one's reason, to an observer; cancelling a
 queued grading, and a finished one refused with its status; retrying a
-finished one as a new attempt, and one still being graded refused; and a
-rejudge queuing a new attempt of every submission's latest grading. A
-contestant is refused all four, a grading named under another task's prefix
-is no such grading, whatever the caller may do at either task, and the
-manager role itself is held to the guard's table.
+finished one as a new attempt, and one still being graded refused; a
+rejudge queuing a new attempt of every submission's latest grading; and a
+grading's run log, none for one not yet run. A contestant is refused all
+five, a grading named under another task's prefix is no such grading,
+whatever the caller may do at either task, and the manager role itself is
+held to the guard's table.
 """
 
 import uuid
@@ -111,6 +112,7 @@ async def test_a_contestant_is_refused_every_control(
 
     answers = [
         await client.get(f"{TASK}/gradings"),
+        await client.get(f"{TASK}/gradings/{grading}/log"),
         await client.post(f"{TASK}/gradings/{grading}/cancel", headers=ORIGIN),
         await client.post(f"{TASK}/gradings/{grading}/retry", headers=ORIGIN),
         await client.post(f"{TASK}/rejudge", headers=ORIGIN),
@@ -118,7 +120,7 @@ async def test_a_contestant_is_refused_every_control(
 
     assert [(answer.status_code, answer.json()["code"]) for answer in answers] == [
         (403, "forbidden")
-    ] * 4
+    ] * 5
 
 
 @pytest.mark.parametrize(
@@ -146,12 +148,45 @@ async def test_a_grading_named_under_another_task_is_no_such_grading(
     assert mine.json()["grading"]["status"] == "dispatched"
 
 
+@pytest.mark.parametrize(
+    "scope",
+    [Scope("acme", "spring", "product"), Scope("acme", "spring")],
+    ids=["observing the other task alone", "observing both tasks"],
+)
+async def test_a_log_named_under_another_task_is_no_such_grading(
+    client: httpx.AsyncClient, entered: FakeForge, held_setup: Setup, scope: Scope
+) -> None:
+    await name_places(held_setup, "acme/spring/product")
+    grading = await _grading(client, entered)
+    await entered.orgs.grant_role(8, scope, Role.OBSERVER)
+    await sign_in_as(client, entered, 8)
+    product = f"{CONTEST}/tasks/product"
+
+    foreign = await client.get(f"{product}/gradings/{grading}/log")
+    nobodys = await client.get(f"{product}/gradings/{uuid.uuid4()}/log")
+
+    assert (foreign.status_code, foreign.json()["code"]) == (404, "not_found")
+    assert foreign.json() == nobodys.json()
+
+
+async def test_a_grading_not_yet_run_has_no_log(
+    client: httpx.AsyncClient, entered: FakeForge
+) -> None:
+    grading = await _grading(client, entered)
+    await sign_in_as(client, entered, 7)
+
+    missing = await client.get(f"{TASK}/gradings/{grading}/log")
+
+    assert (missing.status_code, missing.json()["code"]) == (404, "not_found")
+
+
 async def test_the_controls_need_a_session(client: httpx.AsyncClient, entered: FakeForge) -> None:
     grading = await _grading(client, entered)
     client.cookies.clear()
 
     answers = [
         await client.get(f"{TASK}/gradings"),
+        await client.get(f"{TASK}/gradings/{grading}/log"),
         await client.post(f"{TASK}/gradings/{grading}/cancel", headers=ORIGIN),
         await client.post(f"{TASK}/gradings/{grading}/retry", headers=ORIGIN),
         await client.post(f"{TASK}/rejudge", headers=ORIGIN),
@@ -159,4 +194,4 @@ async def test_the_controls_need_a_session(client: httpx.AsyncClient, entered: F
 
     assert [(answer.status_code, answer.json()["code"]) for answer in answers] == [
         (401, "unauthenticated")
-    ] * 4
+    ] * 5

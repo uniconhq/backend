@@ -1003,7 +1003,7 @@
         "type": "object"
       },
       "GradingStatus": {
-        "description": "Where one grading stands. `queued` waits for its run to be started,\nwhich happens as soon as the request that made it commits; `dispatched`\nis held by the CI, waiting for a machine or checking out; `running` has\nhad its envelope fetched by the harness. It ends `done` with a verdict,\n`cancelled` by an organiser, or `system_error`, a grading that failed for\na reason of the platform's, never a grade: its run could not be started,\nor did not report before its deadline.",
+        "description": "Where one grading stands. `queued` waits for its run to be started,\nwhich happens as soon as the request that made it commits; `dispatched`\nis held by the CI, waiting for a machine or checking out; `running` has\nhad its envelope fetched by the harness. It ends `done` with a result,\n`cancelled` by an organiser, or `system_error`, a grading that failed for\na reason of the platform's, never a grade: its run could not be started,\nor did not report before its deadline.",
         "enum": [
           "queued",
           "dispatched",
@@ -1045,7 +1045,7 @@
         "type": "object"
       },
       "GroupShown": {
-        "description": "One test group as the contestant sees it now: its name, its `show`,\nits outcome once its verdict is shown, its tests once they are, and when\nwhat is held back is shown, null once nothing is.",
+        "description": "One test group as the contestant sees it now: its name, its `show`,\nits outcome once its verdict is shown, its tests once they are, when\nwhat is held back is shown, null once nothing is, and whether it ran on\nthis grading. A group that did not run has no outcome, no tests and\nnothing held back.",
         "properties": {
           "group": {
             "title": "Group",
@@ -1072,6 +1072,10 @@
               }
             ],
             "title": "Outcome"
+          },
+          "ran": {
+            "title": "Ran",
+            "type": "boolean"
           },
           "show": {
             "$ref": "#/components/schemas/Show"
@@ -1108,7 +1112,8 @@
           "show",
           "outcome",
           "tests",
-          "shown_at"
+          "shown_at",
+          "ran"
         ],
         "title": "GroupShown",
         "type": "object"
@@ -7846,6 +7851,77 @@
           }
         },
         "summary": "Stop a grading that is not finished",
+        "tags": [
+          "gradings"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/gradings/{grading}/log": {
+      "get": {
+        "description": "The log of the grading's run. A grading with no log is `not_found`,\nthe same as one that is not there, and a log larger than the platform\nreads back is `log_too_large` with the `limit` in bytes.",
+        "operationId": "readGradingLog",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "grading",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Grading",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "task",
+            "required": true,
+            "schema": {
+              "title": "Task",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/plain; charset=utf-8": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "The log, as the run wrote it."
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "The run log of one of the task's gradings",
         "tags": [
           "gradings"
         ]
