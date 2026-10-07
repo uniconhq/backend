@@ -1,8 +1,9 @@
 """What the grading routes take and answer with: the sentence a grading is
-cancelled with, a grading as an organiser reads it, one in a contest's feed
-with its task and who submitted it, what a rejudge did, and where a grading
-stands after its run reports. Who submitted and a contest's queue depth go
-out as the forge's own `Submitter` and `QueueDepth`.
+cancelled with, a grading as an organiser reads it, one among a task's or a
+contest's with its task and who submitted it, what a rejudge did, and where
+a grading stands after its run reports. Who submitted and a contest's queue
+depth go out as the forge's own `Submitter` and `QueueDepth`. A username
+the feed is narrowed by keeps the forge's rule for one.
 """
 
 import uuid
@@ -13,6 +14,11 @@ from pydantic import BaseModel
 
 from unicon.schemas.publications import PublicationNumber
 from unicon.schemas.submissions import GradedTest, Outcome, Reported
+
+USERNAME_PATTERN = r"^[A-Za-z0-9](?:[-._]?[A-Za-z0-9])*$"
+"""Letters, digits, `-`, `_` and `.`, beginning and ending with a letter or
+a digit, no two of `-`, `_` and `.` side by side: Forgejo's rule."""
+USERNAME_MAX = 40
 
 
 class GradingProgress(BaseModel):
@@ -47,9 +53,10 @@ class CancelRequest(BaseModel):
 class Grading(BaseModel):
     """One grading as an organiser managing its task reads it: the
     submission by its number, the publication it grades against, its
-    attempt, where it stands, the reason it failed, the sentence staff
-    cancelled it with, its result, whether its log was written, the last
-    progress its run reported, and its times.
+    attempt and whether that is the submission's `latest`, the one staff
+    cancel or retry, where it stands, the reason it failed, the sentence
+    staff cancelled it with, its result, whether its log was written, the
+    last progress its run reported, and its times.
     """
 
     id: uuid.UUID
@@ -57,6 +64,7 @@ class Grading(BaseModel):
     submitted_at: datetime
     publication: PublicationNumber
     attempt: int
+    latest: bool
     status: GradingStatus
     error: str | None
     cancel_reason: str | None
@@ -71,15 +79,18 @@ class Grading(BaseModel):
 
 
 class FeedEntry(BaseModel):
-    """One grading in a contest's feed: the grading as an organiser reads it,
-    its task by name, null when the forge no longer lists the task, and
-    `by`, who made the submission: a contestant by `user_id` and username as
-    `name`, or a team by its id as `team` and its `name`, the name null once
-    the account or the team is gone.
+    """One grading among a task's or a contest's: the grading as an
+    organiser reads it, its task by name, null for a task the platform has
+    no name for, its `label`, the letter of its place in the contest's
+    `tasks`, null once the contest no longer lists it or its settings do
+    not read, and `by`, who made the submission: a contestant by `user_id`
+    and username as `name`, or a team by its id as `team` and its `name`,
+    the name null once the account or the team is gone.
     """
 
     grading: Grading
     task: str | None
+    label: str | None
     by: Submitter
 
 

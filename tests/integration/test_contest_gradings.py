@@ -1,9 +1,11 @@
 """A contest's gradings over HTTP, for an observer of the contest: the feed,
-newest first, each row the grading with its task by name and who submitted
-it, narrowed by task, by username, by team and by status, a stuck grading
-read as `system_error` and one staff cancelled with their sentence; and the
-queue depth, counted by status. Someone holding a role at a task alone, and
-a contestant, are refused both, and both need a session.
+newest first, each row the grading, whether it is its submission's latest
+attempt, its task by name and letter and who submitted it, narrowed by
+task, by username, by team and by status, a stuck grading read as
+`system_error` and one staff cancelled with their sentence; a username or a
+team that cannot be one a validation error; and the queue depth, counted by
+status. Someone holding a role at a task alone, and a contestant, are
+refused both, and both need a session.
 """
 
 from datetime import timedelta
@@ -58,7 +60,8 @@ async def test_an_observer_reads_the_contests_gradings_newest_first(
     assert listed.status_code == 200, listed.text
     rows = listed.json()
     assert [row["grading"]["id"] for row in rows] == [bobs, carols]
-    assert [row["task"] for row in rows] == ["sum", "sum"]
+    assert [(row["task"], row["label"]) for row in rows] == [("sum", "A"), ("sum", "A")]
+    assert [row["grading"]["latest"] for row in rows] == [True, True]
     assert [row["by"] for row in rows] == [
         {"user_id": 8, "team": None, "name": "bob"},
         {"user_id": 20, "team": None, "name": "carol"},
@@ -119,11 +122,17 @@ async def test_a_query_that_is_not_one_is_a_validation_error(
         await client.get(FEED, params={"limit": 0}),
         await client.get(FEED, params={"status": "lost"}),
         await client.get(FEED, params={"team": "not-a-team"}),
+        await client.get(FEED, params={"user": "bob/repos"}),
+        await client.get(FEED, params={"user": "../admin"}),
+        await client.get(FEED, params={"user": "-bob"}),
+        await client.get(FEED, params={"user": "bo..b"}),
+        await client.get(FEED, params={"user": "b" * 41}),
     ]
 
     assert [(answer.status_code, answer.json()["code"]) for answer in answers] == [
         (422, "validation_error")
-    ] * 4
+    ] * 9
+    assert (await client.get(FEED, params={"user": "b" * 40})).status_code == 200
 
 
 async def test_the_queue_depth_counts_the_gradings_waiting_by_status(

@@ -1,17 +1,19 @@
 """An organiser's view of and controls over a task's gradings: the list of
-them, newest first, each with where it stands and why it failed, and a
-grading's run log, which need the observer role at the task; and, with the
-manager role there, cancelling the latest attempt of a submission that
-reads as a system error, with a sentence its contestant reads, when a
-regrade would only repeat the fault; retrying a finished one as a new
-attempt against the publication it graded against, a stuck one included,
-whose old run is cancelled; and rejudging every submission's latest attempt
-against the task's current publication.
+them, newest first, each with who submitted it, where it stands, why it
+failed and whether it is its submission's latest attempt, and a grading's
+run log, which need the observer role at the task; and, with the manager
+role there, cancelling the latest attempt of a submission that reads as a
+system error, with a sentence its contestant reads, when a regrade would
+only repeat the fault; retrying a submission's latest attempt once it is
+finished as a new attempt against the publication it graded against, a
+stuck one included, whose old run is cancelled; and rejudging every
+submission's latest attempt against the task's current publication.
 
 An observer of a contest reads the gradings of all its tasks as one feed,
-newest first, each with its task and who submitted it, narrowed by task,
-by a contestant's username, by team and by status; and how many of them
-wait for a machine, `queued` and `dispatched`, counted when asked.
+newest first, each with its task's name and letter and who submitted it,
+narrowed by task, by a contestant's username, by team and by status; and
+how many of them wait for a machine, `queued` and `dispatched`, counted
+when asked.
 
 A grading is named by its id under its task's prefix, which is where the
 guard reads the scope the role is checked at, as for every other organiser
@@ -27,14 +29,21 @@ import uuid
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Query, Response
-from forge.api import contests, gradings, tasks
+from forge.api import contests, gradings, names, tasks
 from forge.api.access import Organiser
 from forge.api.errors import NotFound
 from forge.api.gradings import GradingStatus
 from forge.api.types import Role, ScopeKind, TaskId
 
 from unicon.api.guard import PREFIX, require
-from unicon.schemas.gradings import CancelRequest, FeedEntry, Grading, Rejudged
+from unicon.schemas.gradings import (
+    USERNAME_MAX,
+    USERNAME_PATTERN,
+    CancelRequest,
+    FeedEntry,
+    Grading,
+    Rejudged,
+)
 
 CONTEST = PREFIX[ScopeKind.CONTEST]
 TASK = PREFIX[ScopeKind.TASK]
@@ -59,16 +68,18 @@ LOG_HEADERS = {
     "/gradings",
     operation_id="listGradings",
     summary="The task's gradings, newest first",
-    response_model=list[Grading],
+    response_model=list[FeedEntry],
 )
 async def list_gradings(
     organiser: TaskObserver, limit: Annotated[int, Query(ge=1, le=LIST_MOST)] = 100
-) -> tuple[gradings.GradingRecord, ...]:
-    """At most `limit` of the task's gradings, newest first. One whose run did
-    not begin, did not report by its deadline, or was lost by the CI reads as
-    `system_error` with the reason in `error`, whatever its row still says.
+) -> list[dict[str, Any]]:
+    """At most `limit` of the task's gradings, newest first, each as the feed
+    gives it, with who submitted it. One whose run did not begin, did not
+    report by its deadline, or was lost by the CI reads as `system_error`
+    with the reason in `error`, whatever its row still says.
     """
-    return await gradings.list(organiser, tasks.task_id_of(organiser.scope), limit=limit)
+    rows = await gradings.list(organiser, tasks.task_id_of(organiser.scope), limit=limit)
+    return [_entry(row) for row in rows]
 
 
 @router.get(
@@ -122,8 +133,11 @@ async def retry_grading(organiser: TaskManager, grading: uuid.UUID) -> gradings.
     """The new attempt, queued. The old one is kept as it was, unless it reads
     as a system error only because its run is overdue or lost: then it is
     ended with that reason, and its run cancelled at the CI. One that is not
-    finished is `wrong_status`, and `conflict` while another attempt of it
-    is being graded.
+    finished is `wrong_status` with its status as `current`, and so is a
+    submission staff cancelled, which that ended, as `cancelled`; an earlier
+    attempt of a submission graded again is `conflict`, since the latest is
+    the one to retry, and so is one while another attempt of it is being
+    graded.
     """
     return await gradings.retry(organiser, await _of_this_task(organiser, grading))
 
@@ -150,34 +164,45 @@ async def rejudge_task(organiser: TaskManager) -> gradings.Rejudged:
 )
 async def list_contest_gradings(
     organiser: ContestObserver,
+    org: str,
+    contest: str,
     task: Annotated[str | None, Query(description="One task, by name")] = None,
     user: Annotated[
-        str | None, Query(description="One contestant's own submissions, by username")
+        str | None,
+        Query(
+            description="One contestant's submissions, their own and their teams', by username",
+            pattern=USERNAME_PATTERN,
+            max_length=USERNAME_MAX,
+        ),
     ] = None,
     team: Annotated[uuid.UUID | None, Query(description="One team's submissions")] = None,
     status: Annotated[GradingStatus | None, Query(description="As the grading reads")] = None,
     limit: Annotated[int, Query(ge=1, le=LIST_MOST)] = 100,
 ) -> list[dict[str, Any]]:
-    """At most `limit` gradings of the contest's tasks, newest first, every
-    attempt a row of its own, so a submission graded again shows more than
-    once. One whose run is overdue or lost reads as `system_error` with the
-    reason, and a filter by status takes it as it reads. A task, username or
-    team the contest does not have gives no rows.
+    """At most `limit` gradings of the contest's tasks the caller observes,
+    newest first, every attempt a row of its own, so a submission graded
+    again shows more than once. One whose run is overdue or lost reads as
+    `system_error` with the reason, and a filter by status takes it as it
+    reads. A task, username or team the contest does not have, or a task
+    the caller does not observe, gives no rows; a username that breaks the
+    forge's rule for one is a `validation_error`.
     """
-    contest = contests.contest_id_of(organiser.scope)
-    names = {found.id: found.name for found in await tasks.list(organiser, contest)}
     task_id: TaskId | None = None
     if task is not None:
-        named = {name: TaskId(id_) for id_, name in names.items()}
-        if task not in named:
+        try:
+            task_id = tasks.task_id_of(await names.scope_at(org, contest, task))
+        except NotFound:
             return []
-        task_id = named[task]
     rows = await gradings.feed(
-        organiser, contest, task=task_id, user=user, team=team, status=status, limit=limit
+        organiser,
+        contests.contest_id_of(organiser.scope),
+        task=task_id,
+        user=user,
+        team=team,
+        status=status,
+        limit=limit,
     )
-    return [
-        {"grading": row.grading, "task": names.get(row.grading.task), "by": row.by} for row in rows
-    ]
+    return [_entry(row) for row in rows]
 
 
 @feed.get(
@@ -187,10 +212,15 @@ async def list_contest_gradings(
 )
 async def get_contest_queue_depth(organiser: ContestObserver) -> gradings.QueueDepth:
     """`queued`, whose run is not started yet, and `dispatched`, whose run
-    the CI holds until a machine takes it, counted when asked. One that is
-    overdue or lost reads as a system error and is not counted.
+    the CI holds until a machine takes it, counted when asked over the
+    contest's tasks the caller observes. One that is overdue or lost reads
+    as a system error and is not counted.
     """
     return await gradings.queue_depth(organiser, contests.contest_id_of(organiser.scope))
+
+
+def _entry(row: gradings.FeedEntry) -> dict[str, Any]:
+    return {"grading": row.grading, "task": row.task_name, "label": row.label, "by": row.by}
 
 
 async def _of_this_task(organiser: Organiser, grading: uuid.UUID) -> uuid.UUID:
