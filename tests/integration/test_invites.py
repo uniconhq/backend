@@ -90,10 +90,12 @@ async def test_nobody_else_lists_opens_accepts_or_declines_someone_elses_invite(
 async def test_an_email_invite_lets_its_person_register_for_an_invite_only_contest(
     client: httpx.AsyncClient, world: FakeForge, held_setup: Setup
 ) -> None:
-    await run_contest(client, visibility="public")
+    await run_contest(client, visibility="everyone")
     settings = await client.get(f"{CONTEST}/files/contest.yaml")
-    content = settings.json()["content"].replace("mode: open", "mode: invite-only")
-    assert "mode: invite-only" in content
+    content = settings.json()["content"].replace(
+        "visibility: everyone", "visibility: everyone\nregistration: {invite_only: true}"
+    )
+    assert "invite_only: true" in content
     written = await client.put(
         f"{CONTEST}/files/contest.yaml",
         json={"encoding": "utf-8", "content": content, "token": settings.json()["token"]},

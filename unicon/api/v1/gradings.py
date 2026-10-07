@@ -1,23 +1,26 @@
 """An organiser's view of and controls over a task's gradings: the list of
-them, newest first, each with where it stands and why it failed, which
-needs the observer role at the task; and, with the manager role there,
-cancelling one that is not finished, at the CI too when a run of it is
-there; retrying a finished one as a new attempt against the publication it
-graded against, a stuck one included, whose old run is cancelled; and
-rejudging every submission's latest attempt against the task's current
-publication.
+them, newest first, each with where it stands and why it failed, and a
+grading's run log, which need the observer role at the task; and, with the
+manager role there, cancelling one that is not finished, at the CI too when
+a run of it is there; retrying a finished one as a new attempt against the
+publication it graded against, a stuck one included, whose old run is
+cancelled; and rejudging every submission's latest attempt against the
+task's current publication.
 
 A grading is named by its id under its task's prefix, which is where the
 guard reads the scope the role is checked at, as for every other organiser
 route. A grading of any other task is no such grading here, whatever roles
 the caller holds there, so a path names one grading of one task or nothing.
 Forge checks the role again at the grading's own task.
+
+A log is plain text that the browser is told not to guess the type of and
+that runs nothing, so a log is never rendered as a page of the platform's.
 """
 
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Response
 from forge.api import gradings, tasks
 from forge.api.access import Organiser
 from forge.api.errors import NotFound
@@ -34,6 +37,12 @@ TaskManager = Annotated[Organiser, Depends(require(Role.MANAGER, ScopeKind.TASK)
 TaskObserver = Annotated[Organiser, Depends(require(Role.OBSERVER, ScopeKind.TASK))]
 NO_SUCH_GRADING = "There is no such grading."
 LIST_MOST = 500
+LOG = "text/plain; charset=utf-8"
+LOG_HEADERS = {
+    "X-Content-Type-Options": "nosniff",
+    "Content-Security-Policy": "default-src 'none'; sandbox",
+    "Cache-Control": "private, no-store",
+}
 
 
 @router.get(
@@ -50,6 +59,27 @@ async def list_gradings(
     `system_error` with the reason in `error`, whatever its row still says.
     """
     return await gradings.list(organiser, tasks.task_id_of(organiser.scope), limit=limit)
+
+
+@router.get(
+    "/gradings/{grading}/log",
+    operation_id="readGradingLog",
+    summary="The run log of one of the task's gradings",
+    response_class=Response,
+    responses={
+        200: {
+            "description": "The log, as the run wrote it.",
+            "content": {LOG: {"schema": {"type": "string"}}},
+        }
+    },
+)
+async def read_grading_log(organiser: TaskObserver, grading: uuid.UUID) -> Response:
+    """The log of the grading's run. A grading with no log is `not_found`,
+    the same as one that is not there, and a log larger than the platform
+    reads back is `log_too_large` with the `limit` in bytes.
+    """
+    content = await gradings.run_log(organiser, await _of_this_task(organiser, grading))
+    return Response(content=content, media_type=LOG, headers=LOG_HEADERS)
 
 
 @router.post(
@@ -89,8 +119,9 @@ async def retry_grading(organiser: TaskManager, grading: uuid.UUID) -> gradings.
     response_model=Rejudged,
 )
 async def rejudge_task(organiser: TaskManager) -> gradings.Rejudged:
-    """How many new attempts it queued, cancelled first, left to finish and
-    passed over. A task with no publication is `not_found`.
+    """How many new attempts it queued, and how many earlier attempts it
+    cancelled first and left to finish. A task with no publication is
+    `not_found`.
     """
     return await gradings.rejudge(organiser, tasks.task_id_of(organiser.scope))
 

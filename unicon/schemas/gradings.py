@@ -9,7 +9,7 @@ from forge.api.gradings import GradingStatus
 from pydantic import BaseModel
 
 from unicon.schemas.publications import PublicationNumber
-from unicon.schemas.submissions import GradedTest, Outcome
+from unicon.schemas.submissions import GradedTest, Outcome, Reported
 
 
 class GradingProgress(BaseModel):
@@ -22,34 +22,34 @@ class GradingProgress(BaseModel):
     total: int
 
 
-class Verdict(BaseModel):
-    """What a run's verdict says of the submission: its outcome, its named
-    numbers, its summary and a row for every test. Where the run put its log
-    and the forge's names for what it graded stay out.
+class RunResult(BaseModel):
+    """What a run's result says of the submission: what stopped the run,
+    null when nothing did, a row for every test, the values reported once,
+    and, when it stopped on `system_error`, the sentence for staff saying
+    why. Where the run put its log stays out.
     """
 
-    outcome: Outcome
-    metrics: dict[str, float]
-    summary: str
+    stopped: Outcome | None
     tests: list[GradedTest]
+    values: dict[str, Reported]
+    error: str | None
 
 
 class Grading(BaseModel):
     """One grading as an organiser managing its task reads it: the
-    submission by its number, the publication it grades against, its stage
-    and attempt, where it stands, the reason it failed, its verdict, whether
-    its log was written, the last progress its run reported, and its times.
+    submission by its number, the publication it grades against, its
+    attempt, where it stands, the reason it failed, its result, whether its
+    log was written, the last progress its run reported, and its times.
     """
 
     id: uuid.UUID
     submission_number: int
     submitted_at: datetime
     publication: PublicationNumber
-    stage: str
     attempt: int
     status: GradingStatus
     error: str | None
-    verdict: Verdict | None
+    result: RunResult | None
     log: bool
     progress: GradingProgress | None
     queued_at: datetime
@@ -62,16 +62,14 @@ class Grading(BaseModel):
 class Rejudged(BaseModel):
     """What a rejudge did: the publication the new attempts grade against,
     how many it queued, how many unfinished attempts against an older
-    publication it cancelled first, how many it left to finish against the
-    current one, and how many it passed over because the current
-    publication no longer has their stage.
+    publication it cancelled first, and how many it left to finish against
+    the current one.
     """
 
     publication: PublicationNumber
     queued: int
     cancelled: int
     left_running: int
-    passed_over: int
 
 
 class CallbackAnswer(BaseModel):

@@ -36,9 +36,9 @@ async def request_upload_slot(
     session: CurrentSession, scope: TaskAtPath, body: UploadRequest
 ) -> uploads.Slot:
     """The address to send the file to, or `ready` for a file the forge
-    already holds, which needs no upload at all. A file the input does not
-    take is `invalid_inputs` and one over the input's or the task's size
-    `too_large`, naming the limit.
+    already holds, which needs no upload at all. A path the input does not
+    take is `invalid_inputs` and a file over the input's `max_size`
+    `too_large`, naming the limit and the input.
     """
     return await uploads.slot(
         session,
