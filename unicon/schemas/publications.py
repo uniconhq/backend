@@ -80,15 +80,17 @@ class SaveRequest(BaseModel):
 
 class Published(BaseModel):
     """A save that published: the new publication's number among the task's,
-    whether it changed how the task grades, and what, and the notes the save
+    whether it changed how the task grades, and what, the notes the save
     makes of the task beside publishing it, such as which steps it seals
-    until the reveal.
+    until the reveal, and how many submissions it `regraded`, queued to be
+    graded again against it.
     """
 
     number: int
     grading_changed: bool
     changes: list[str]
     notes: list[str]
+    regraded: int
 
 
 class Draft(BaseModel):

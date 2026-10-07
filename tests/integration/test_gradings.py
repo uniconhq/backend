@@ -5,11 +5,11 @@ that reads as a system error with a sentence its contestant then reads, and
 refusing one that is not, a sentence that is not one and an earlier
 attempt; retrying a finished one as a new attempt, and refusing one still
 being graded, an earlier attempt and a submission staff cancelled; a
-rejudge queuing a new attempt of every submission's latest grading; and a
-grading's run log, none for one not yet run. A contestant is refused all
-five, a grading named under another task's prefix is no such grading,
-whatever the caller may do at either task, and the manager role itself is
-held to the guard's table.
+rejudge, and a save that changes how the task grades, queuing a new attempt
+of every submission's latest grading; and a grading's run log, none for one
+not yet run. A contestant is refused all five, a grading named under
+another task's prefix is no such grading, whatever the caller may do at
+either task, and the manager role itself is held to the guard's table.
 """
 
 import uuid
@@ -20,7 +20,7 @@ import pytest
 from forge.api.types import Role, Scope
 from forge.testing import FakeClock, FakeForge, Setup, name_places
 
-from tests.integration.conftest import CONTEST, ORIGIN, TASK, sign_in_as, upload
+from tests.integration.conftest import CONTEST, ORIGIN, TASK, read, sign_in_as, upload
 
 SOURCE = b"print(sum(map(int, input().split())))\n"
 REASON = {"reason": "The checker crashed on this one; it is not counted."}
@@ -185,6 +185,28 @@ async def test_a_rejudge_leaves_a_grading_against_the_current_publication_to_fin
     assert rejudged.status_code == 200, rejudged.text
     body = rejudged.json()
     assert (body["queued"], body["cancelled"], body["left_running"]) == (0, 0, 1)
+
+
+async def test_a_save_that_changes_how_the_task_grades_says_how_many_it_regraded(
+    client: httpx.AsyncClient, entered: FakeForge
+) -> None:
+    await _grading(client, entered)
+    await sign_in_as(client, entered, 7)
+    task = await read(client, f"{TASK}/files/task.yaml")
+
+    saved = await client.put(
+        f"{TASK}/files/task.yaml",
+        json={
+            "content": task["content"].replace("time_limit: 2", "time_limit: 1"),
+            "token": task["token"],
+            "confirm": True,
+        },
+        headers=ORIGIN,
+    )
+
+    assert saved.status_code == 200, saved.text
+    body = saved.json()
+    assert (body["grading_changed"], body["regraded"], body["notes"]) == (True, 1, [])
 
 
 async def test_a_contestant_is_refused_every_control(
