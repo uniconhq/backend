@@ -1102,6 +1102,15 @@
         "title": "ExtensionRequest",
         "type": "object"
       },
+      "Fallback": {
+        "description": "Why a submission counts as its last good result in place of its\nlatest attempt, a system error or staff cancelled: staff asked so on\nthat attempt, or the contest's `on_system_error` says so.",
+        "enum": [
+          "staff",
+          "contest"
+        ],
+        "title": "Fallback",
+        "type": "string"
+      },
       "FeedEntry": {
         "description": "One grading among a task's or a contest's: the grading as an\norganiser reads it, its task by name, null for a task the platform has\nno name for, its `label`, the letter of its place in the contest's\n`tasks`, null once the contest no longer lists it or its settings do\nnot read, and `by`, who made the submission: a contestant by `user_id`\nand username as `name`, or a team by its id as `team` and its `name`,\nthe name null once the account or the team is gone.",
         "properties": {
@@ -1326,7 +1335,7 @@
         "type": "object"
       },
       "Grading": {
-        "description": "One grading as an organiser managing its task reads it: the\nsubmission by its number, the publication it grades against, its\nattempt and whether that is the submission's `latest`, the one staff\ncancel or retry, where it stands, the reason it failed, the sentence\nstaff cancelled it with, its result, whether its log was written, the\nlast progress its run reported, and its times.",
+        "description": "One grading as an organiser managing its task reads it: the\nsubmission by its number, the publication it grades against, its\nattempt and whether that is the submission's `latest`, the one staff\ncancel or retry, where it stands, the reason it failed, the sentence\nstaff cancelled it with, its result, whether its log was written, the\nlast progress its run reported, and its times.\n\nOn a latest attempt that is a system error or staff cancelled,\n`last_good` is the latest earlier attempt that finished with a result,\nand `fallback` why its submission counts as that attempt now: `staff`,\nwho asked so on this one, or `contest`, whose `on_system_error` is\n`last_result`; null while it counts as still grading, or void once\ncancelled. `falls_back` is staff having asked so on this one.",
         "properties": {
           "attempt": {
             "title": "Attempt",
@@ -1378,6 +1387,20 @@
             ],
             "title": "Error"
           },
+          "fallback": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Fallback"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "falls_back": {
+            "title": "Falls Back",
+            "type": "boolean"
+          },
           "finished_at": {
             "anyOf": [
               {
@@ -1394,6 +1417,17 @@
             "format": "uuid",
             "title": "Id",
             "type": "string"
+          },
+          "last_good": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Good"
           },
           "latest": {
             "title": "Latest",
@@ -1474,7 +1508,10 @@
           "dispatched_at",
           "started_at",
           "finished_at",
-          "deadline_at"
+          "deadline_at",
+          "falls_back",
+          "last_good",
+          "fallback"
         ],
         "title": "Grading",
         "type": "object"
@@ -9511,6 +9548,146 @@
           }
         },
         "summary": "End a submission whose grading is a system error, saying why",
+        "tags": [
+          "gradings"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/gradings/{grading}/fallback": {
+      "delete": {
+        "description": "The grading as it now stands, its submission counting as the contest's\n`on_system_error` says. A grading with no fallback of staff's changes\nnothing.",
+        "operationId": "clearGradingFallback",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "grading",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Grading",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "task",
+            "required": true,
+            "schema": {
+              "title": "Task",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Grading"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Take back staff's fallback on a grading",
+        "tags": [
+          "gradings"
+        ]
+      },
+      "put": {
+        "description": "The grading as it now stands, its `fallback` `staff`: its submission\ncounts as `last_good`, the latest earlier attempt that finished with a\nresult, whatever the contest's `on_system_error` says, on the boards,\nto its contestant and under the task's limit. Asked again, it changes\nnothing. A grading that is neither a system error nor staff cancelled is\n`wrong_status` with its status as `current`; an earlier attempt of a\nsubmission graded again, and a submission with no earlier result, are\n`conflict`.",
+        "operationId": "fallBackGrading",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "grading",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Grading",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "task",
+            "required": true,
+            "schema": {
+              "title": "Task",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Grading"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Count a broken grading's submission as its last good result",
         "tags": [
           "gradings"
         ]
