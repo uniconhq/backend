@@ -196,6 +196,8 @@ the one the route needs at the scope in the third column.
 | `GET <task>/gradings/{grading}/log` | observer | task | | the grading's run log, as plain text |
 | `POST <task>/gradings/{grading}/cancel` | manager | task | `reason` | the grading, `cancelled` with its `cancel_reason` |
 | `POST <task>/gradings/{grading}/retry` | manager | task | | the new attempt, `queued` |
+| `PUT <task>/gradings/{grading}/fallback` | manager | task | | the grading, its submission counting as `last_good`, `fallback` `staff` |
+| `DELETE <task>/gradings/{grading}/fallback` | manager | task | | the grading, counting as the contest's `on_system_error` says |
 | `POST <task>/rejudge` | manager | task | | what the rejudge did |
 | `GET <contest>/gradings?task=&user=&team=&status=&limit=` | a role at the contest or at one of its tasks | contest | | the gradings of the tasks the caller observes, newest first, each with its `task`, `label` and `by` |
 | `GET <contest>/gradings/queue` | a role at the contest or at one of its tasks | contest | | how many of theirs are `queued` and `dispatched` |
@@ -688,7 +690,16 @@ one that is not a system error, retrying one that is not finished, or
 retrying a submission staff cancelled, is `wrong_status` with its `current`
 status, `cancelled` for the last; cancelling or retrying an earlier attempt
 of a submission graded again, or retrying one with another attempt still
-being graded, is `conflict`. `GET <task>/gradings` serves each grading as
+being graded, is `conflict`. A submission whose latest attempt is a
+`system_error`, or staff cancelled, counts as still grading, or void once
+cancelled, unless a fallback counts its last good result: the contest's
+`on_system_error: last_result`, or staff's `PUT .../fallback` on that
+attempt, which `DELETE .../fallback` takes back. Such an attempt carries
+`last_good`, the latest earlier attempt that finished with a result, and
+`fallback`, `staff` or `contest` while one is in force and null otherwise,
+with `falls_back` saying whether staff asked. Falling back on one that is
+neither is `wrong_status`; on an earlier attempt, or a submission with no
+earlier result, `conflict`. `GET <task>/gradings` serves each grading as
 the feed below does, with its task's name and label and who submitted it. A rejudge answers the
 `publication` it grades against and how many attempts it `queued`,
 `cancelled` first and `left_running`. A run's log names every test, hidden
