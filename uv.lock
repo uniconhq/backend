@@ -1366,7 +1366,7 @@ dev = [
 
 [[package]]
 name = "unicon-forge"
-version = "0.15.0"
+version = "0.16.0"
 source = { directory = "../forge" }
 dependencies = [
     { name = "alembic" },
