@@ -158,7 +158,7 @@
         "type": "string"
       },
       "Board": {
-        "description": "One board as the reader sees it now. `shown_at` is set, with no rows,\nwhile its scope shows nothing yet: the time its first group is shown.",
+        "description": "One board as the reader sees it now. `nothing_shown` is true, with no\nrows, while its scope shows nothing yet; `shown_at` is then the time its\nfirst group is shown, null while no task it covers is released.",
         "properties": {
           "board": {
             "title": "Board",
@@ -177,6 +177,10 @@
             },
             "title": "Not In View",
             "type": "array"
+          },
+          "nothing_shown": {
+            "title": "Nothing Shown",
+            "type": "boolean"
           },
           "over": {
             "$ref": "#/components/schemas/Over"
@@ -223,6 +227,7 @@
           "tasks",
           "not_in_view",
           "rows",
+          "nothing_shown",
           "shown_at"
         ],
         "title": "Board",
@@ -576,11 +581,12 @@
         "type": "object"
       },
       "Closed": {
-        "description": "Why a task is not open to a row, the first of these that applies.",
+        "description": "Why a task is not open to a row, the first of these that applies; and,\nto a person who holds no approved row, `not_approved` where it is\notherwise open, as a submit would be refused.",
         "enum": [
           "not_released",
           "archived",
-          "closed"
+          "closed",
+          "not_approved"
         ],
         "title": "Closed",
         "type": "string"
@@ -2928,7 +2934,7 @@
         "type": "object"
       },
       "Result": {
-        "description": "The latest attempt of a submission's grading, as its contestant sees\nit: its id, attempt and status, and once it is done, what stopped the\nrun, the outcome over the groups shown, each test group as its `show`\nallows and the values reported once. A run that failed on the\nplatform's side is `running` to its contestant, with nothing else, until\nstaff end it: then it is `cancelled`, with `reason`, the sentence they\ngave, which is null on every other status. Once done on a task that\ngives points, it carries its `points` and the late `factor` they\ninclude; both are null otherwise.",
+        "description": "The latest attempt of a submission's grading, as its contestant sees\nit: its id, attempt and status, and once it is done, what stopped the\nrun, the outcome over the groups shown, each test group as its `show`\nallows, the values reported once, and `folded`, each per-test value\nwith a fold, folded over the tests shown, a test without it counting as\nits worst bound. A run that failed on the platform's side is `running`\nto its contestant, with nothing else, until staff end it: then it is\n`cancelled`, with `reason`, the sentence they gave, which is null on\nevery other status. Once done on a task that gives points, it carries\nits `points` and the late `factor` they include; both are null\notherwise. While a sealed step's stop is held to the reveal, nothing of\nthe run is shown: every group reads as hidden.",
         "properties": {
           "attempt": {
             "title": "Attempt",
@@ -2948,6 +2954,17 @@
               }
             ],
             "title": "Factor"
+          },
+          "folded": {
+            "additionalProperties": {
+              "examples": [
+                "82.5"
+              ],
+              "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+              "type": "string"
+            },
+            "title": "Folded",
+            "type": "object"
           },
           "groups": {
             "items": {
@@ -3041,6 +3058,7 @@
           "outcome",
           "groups",
           "values",
+          "folded",
           "reason",
           "points",
           "factor"
@@ -3694,7 +3712,7 @@
         "type": "object"
       },
       "TaskPage": {
-        "description": "A task as the caller reads it: its statement in Markdown, the caps a\nsubmit is counted against, the inputs a contestant gives, and when it\nfalls due and closes for them, and nothing else the task holds.",
+        "description": "A task as the caller reads it: its statement in Markdown, the caps a\nsubmit is counted against, the inputs a contestant gives, when it falls\ndue and closes for them, and `marks`, how many of their row's\nsubmissions they may mark for the `marked` boards, null unless such a\nboard covers the task and they are an approved contestant; and nothing\nelse the task holds.",
         "properties": {
           "closes": {
             "anyOf": [
@@ -3730,6 +3748,17 @@
           "label": {
             "title": "Label",
             "type": "string"
+          },
+          "marks": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Marks"
           },
           "name": {
             "title": "Name",
@@ -3775,7 +3804,8 @@
           "inputs",
           "release",
           "due",
-          "closes"
+          "closes",
+          "marks"
         ],
         "title": "TaskPage",
         "type": "object"
@@ -7538,7 +7568,7 @@
     },
     "/api/v1/orgs/{org}/contests/{contest}/organise/boards": {
       "get": {
-        "description": "Every row on both, unless a row is picked: then `now` is the board\nas that row sees it, its own row and the rows its `rows` gives. A row\nis a contestant or a team, never both.",
+        "description": "Every row on both, unless a row is picked: then only the boards that\nrow sees, `now` as it sees it, its own row and the rows its `rows`\ngives. A row is a contestant or a team, never both; one that is not a\nrow of the contest is not found.",
         "operationId": "listOrganisedBoards",
         "parameters": [
           {
