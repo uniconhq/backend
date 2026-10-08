@@ -2,8 +2,8 @@
 visitor with no cookie among them, an ICPC board's penalty charging its
 earlier attempt, its numbers exact decimal strings and
 only the reader's own row carrying its grading count and counted
-submissions; organisers every board `now` and `final`, with a row to read
-`now` as, and nobody else; and a row's marks on a task, up to the task's
+submissions; organisers every board `now` and `final`, with a row of the contest to read
+the boards it sees `now` as, and nobody else; and a row's marks on a task, up to the task's
 `marks`, refused on another's submission and frozen at the row's close.
 """
 
@@ -125,6 +125,7 @@ def _standings(cell: dict[str, Any]) -> dict[str, Any]:
                 "cells": {"sum": cell},
             }
         ],
+        "nothing_shown": False,
         "shown_at": None,
     }
 
@@ -168,6 +169,7 @@ async def test_organisers_read_every_board_now_and_final_and_nobody_else_does(
 
     organised = await client.get(ORGANISE)
     as_carol = await client.get(ORGANISE, params={"user_id": 20})
+    nobody = await client.get(ORGANISE, params={"user_id": 99})
     both = await client.get(
         ORGANISE, params={"user_id": 20, "team": "0192f4a4-7b7e-7000-8000-000000000001"}
     )
@@ -179,7 +181,9 @@ async def test_organisers_read_every_board_now_and_final_and_nobody_else_does(
     assert standings["notes"] == []
     assert (staff["now"]["board"], staff["now"]["who"]) == ("Staff", "organisers")
     assert staff["now"]["rows"][0]["keys"] == ["100"]
-    assert as_carol.json()[0]["now"] == _standings(OWN_CELL)
+    [carols] = as_carol.json()
+    assert carols["now"] == _standings(OWN_CELL)
+    assert (nobody.status_code, nobody.json()["code"]) == (404, "not_found")
     assert (both.status_code, both.json()["code"]) == (422, "rejected")
 
 
@@ -191,6 +195,7 @@ async def test_a_row_marks_its_own_submissions_up_to_the_tasks_marks_until_its_c
     clock.advance(timedelta(minutes=1))
     await _graded(client, entered, "key-0002-bbbb", outcome="wrong_answer")
 
+    page = await client.get(f"{TASK}/page")
     held = await client.get(MARKS)
     marked = await client.put(f"{MARKS}/1", headers=ORIGIN)
     again = await client.put(f"{MARKS}/1", headers=ORIGIN)
@@ -204,6 +209,7 @@ async def test_a_row_marks_its_own_submissions_up_to_the_tasks_marks_until_its_c
     frozen = await client.put(f"{MARKS}/1", headers=ORIGIN)
 
     closes = "2026-09-26T15:00:00Z"
+    assert page.json()["marks"] == 1
     assert held.json() == {"numbers": [], "most": 1, "closes_at": closes, "frozen": False}
     assert marked.json() == again.json() == {**held.json(), "numbers": [1]}
     assert (over.status_code, over.json()["code"], over.json()["limit"]) == (409, "mark_limit", 1)
@@ -227,8 +233,10 @@ async def test_a_task_no_marked_board_covers_takes_no_marks(
 ) -> None:
     await _settings(client, entered, SETTINGS)
 
+    page = await client.get(f"{TASK}/page")
     refused = await client.get(MARKS)
 
+    assert page.json()["marks"] is None
     assert (refused.status_code, refused.json()["code"]) == (409, "marks_off")
 
 

@@ -127,8 +127,9 @@ class BoardRow(BaseModel):
 
 
 class Board(BaseModel):
-    """One board as the reader sees it now. `shown_at` is set, with no rows,
-    while its scope shows nothing yet: the time its first group is shown.
+    """One board as the reader sees it now. `nothing_shown` is true, with no
+    rows, while its scope shows nothing yet; `shown_at` is then the time its
+    first group is shown, null while no task it covers is released.
     """
 
     board: str
@@ -139,6 +140,7 @@ class Board(BaseModel):
     tasks: list[BoardTask]
     not_in_view: list[NotInView]
     rows: list[BoardRow]
+    nothing_shown: bool
     shown_at: datetime | None
 
     @model_validator(mode="before")
@@ -157,6 +159,7 @@ class Board(BaseModel):
             "tasks": found["tasks"],
             "not_in_view": found["not_in_view"],
             "rows": found["rows"],
+            "nothing_shown": found["nothing_shown"],
             "shown_at": found["shown_at"] if found["nothing_shown"] else None,
         }
 

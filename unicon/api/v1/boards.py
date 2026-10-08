@@ -67,7 +67,7 @@ async def list_public_boards(scope: ContestAtPath) -> tuple[boards.Standings, ..
     tags=["public"],
 )
 async def get_public_board(scope: ContestAtPath, board: BoardName) -> boards.Standings:
-    return _named(await boards.seen(None, contests.contest_id_of(scope)), board)
+    return _named(await boards.seen(None, contests.contest_id_of(scope), board), board)
 
 
 @router.get(
@@ -92,7 +92,7 @@ async def list_boards(
 async def get_board(
     session: CurrentSession, scope: ContestAtPath, board: BoardName
 ) -> boards.Standings:
-    return _named(await boards.seen(session, contests.contest_id_of(scope)), board)
+    return _named(await boards.seen(session, contests.contest_id_of(scope), board), board)
 
 
 @router.get(
@@ -108,9 +108,10 @@ async def list_organised_boards(
     ] = None,
     team: Annotated[uuid.UUID | None, Query(description="Read `now` as this team does")] = None,
 ) -> tuple[boards.OrganisedBoard, ...]:
-    """Every row on both, unless a row is picked: then `now` is the board
-    as that row sees it, its own row and the rows its `rows` gives. A row
-    is a contestant or a team, never both.
+    """Every row on both, unless a row is picked: then only the boards that
+    row sees, `now` as it sees it, its own row and the rows its `rows`
+    gives. A row is a contestant or a team, never both; one that is not a
+    row of the contest is not found.
     """
     if user_id is not None and team is not None:
         raise Rejected("Pick a contestant or a team, not both.")
