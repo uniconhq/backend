@@ -39,6 +39,7 @@ def test_a_grading_being_run_carries_its_status_alone() -> None:
         "outcome": None,
         "groups": [],
         "values": {"numbers": {}, "texts": {}},
+        "folded": {},
         "reason": None,
         "points": None,
         "factor": None,
@@ -137,6 +138,7 @@ def test_a_grading_carries_each_group_as_forge_let_it_through() -> None:
             },
         ],
         "values": {"numbers": {"score": "1.5"}, "texts": {"log": ""}},
+        "folded": {},
         "reason": None,
         "points": None,
         "factor": None,
@@ -172,6 +174,7 @@ def test_numbers_are_served_as_exact_decimals_and_text_stays_text() -> None:
         {"total": 10**20},
         points=Points(Fraction(85, 3), Fraction(15), REVEAL),
         factor=Fraction(9, 10),
+        folded={"time_ms": Fraction(1, 3)},
     )
 
     served = json.loads(ResultAnswer.model_validate(result, from_attributes=True).model_dump_json())
@@ -192,6 +195,7 @@ def test_numbers_are_served_as_exact_decimals_and_text_stays_text() -> None:
         "pending_until": "2026-09-26T15:00:00Z",
     }
     assert served["factor"] == "0.9"
+    assert served["folded"] == {"time_ms": "0." + "3" * 30}
 
 
 def test_a_submissions_inputs_are_read_leniently() -> None:

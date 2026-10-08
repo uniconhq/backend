@@ -98,12 +98,15 @@ class Result(BaseModel):
     """The latest attempt of a submission's grading, as its contestant sees
     it: its id, attempt and status, and once it is done, what stopped the
     run, the outcome over the groups shown, each test group as its `show`
-    allows and the values reported once. A run that failed on the
-    platform's side is `running` to its contestant, with nothing else, until
-    staff end it: then it is `cancelled`, with `reason`, the sentence they
-    gave, which is null on every other status. Once done on a task that
-    gives points, it carries its `points` and the late `factor` they
-    include; both are null otherwise.
+    allows, the values reported once, and `folded`, each per-test value
+    with a fold, folded over the tests shown, a test without it counting as
+    its worst bound. A run that failed on the platform's side is `running`
+    to its contestant, with nothing else, until staff end it: then it is
+    `cancelled`, with `reason`, the sentence they gave, which is null on
+    every other status. Once done on a task that gives points, it carries
+    its `points` and the late `factor` they include; both are null
+    otherwise. While a sealed step's stop is held to the reveal, nothing of
+    the run is shown: every group reads as hidden.
     """
 
     id: uuid.UUID
@@ -113,6 +116,7 @@ class Result(BaseModel):
     outcome: Outcome | None
     groups: list[GroupShown]
     values: Reported
+    folded: dict[str, Exact]
     reason: str | None
     points: Points | None
     factor: Exact | None
