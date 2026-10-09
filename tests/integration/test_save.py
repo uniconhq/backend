@@ -82,7 +82,12 @@ async def test_the_organiser_path_from_an_org_to_a_publication(
 
     assert written.status_code == 200, written.text
     first = written.json()
-    assert (first["number"], first["grading_changed"], first["notes"]) == (1, False, [])
+    assert (first["number"], first["grading_changed"]) == (1, False)
+    assert first["notes"] == [
+        "Each group's most points: main 100.",
+        "sum reveals at 2026-10-03T17:00:00+00:00.",
+        "sum joins Standings.",
+    ]
 
     statement = await _save(client, await _edit(client, "statement.md", "Write", "Add. Write"))
     assert (statement.json()["number"], statement.json()["grading_changed"]) == (2, False)

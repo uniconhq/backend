@@ -14,6 +14,7 @@ from forge.api.release import TaskRelease
 from pydantic import BaseModel
 
 from unicon.schemas.contestants import MyRegistration
+from unicon.schemas.exact import Exact
 from unicon.schemas.submissions import Value
 
 
@@ -48,7 +49,7 @@ class TaskEntry(BaseModel):
     name: str
     label: str
     title: str
-    worth: int | float | None
+    worth: Exact | None
     release: TaskRelease
     due: datetime | None
     closes: datetime | None
@@ -119,17 +120,21 @@ class InputField(BaseModel):
 
 class TaskPage(BaseModel):
     """A task as the caller reads it: its statement in Markdown, the caps a
-    submit is counted against, the inputs a contestant gives, and when it
-    falls due and closes for them, and nothing else the task holds.
+    submit is counted against, the inputs a contestant gives, when it falls
+    due and closes for them, and `marks`, how many of their row's
+    submissions they may mark for the `marked` boards, null unless such a
+    board covers the task and they are an approved contestant; and nothing
+    else the task holds.
     """
 
     name: str
     label: str
     title: str
-    worth: int | float | None
+    worth: Exact | None
     statement: str
     submissions: Submissions
     inputs: list[InputField]
     release: TaskRelease
     due: datetime | None
     closes: datetime | None
+    marks: int | None
