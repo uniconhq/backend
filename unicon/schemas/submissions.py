@@ -6,7 +6,9 @@ grading, carrying only what the task's test groups let its contestant see
 now: each group by its `show`, `always` with its outcome and its tests,
 `verdict` with its outcome and its tests once the task reveals, and
 `after_close` with its name and when it is shown. What is not shown is
-null.
+null. On a task that gives points, a result carries its points, each group
+shown its points and most points, and each test row its credit, every one an
+exact decimal string.
 """
 
 import uuid
@@ -15,6 +17,8 @@ from typing import Any, Literal
 
 from forge.api.submissions import GradingStatus, Show, SubmittedInput
 from pydantic import BaseModel, model_validator
+
+from unicon.schemas.exact import Exact, Reported
 
 Outcome = Literal[
     "accepted",
@@ -32,8 +36,6 @@ take one of. Forge keeps a result only once it matches the runner's schema,
 so every outcome read back is on it."""
 Value = str | int | float | bool
 """A value a contestant gives: text, a number, or true or false."""
-Reported = int | float | str
-"""A value a run reported: a number, or text of at most 10,000 characters."""
 
 
 class SubmitRequest(BaseModel):
@@ -50,12 +52,16 @@ class SubmitRequest(BaseModel):
 
 class GradedTest(BaseModel):
     """One test's row of a result: its id, `<group>/<test>`, its outcome,
-    and the values its steps reported for it.
+    and the values its steps reported for it. Scored, it carries its credit,
+    from 0 to 1, and, on a relative credit, the best value that credit is
+    measured against; both are null otherwise.
     """
 
     test: str
     outcome: Outcome
-    values: dict[str, Reported]
+    values: Reported
+    credit: Exact | None = None
+    best: Exact | None = None
 
 
 class GroupShown(BaseModel):
@@ -63,7 +69,8 @@ class GroupShown(BaseModel):
     its outcome once its verdict is shown, its tests once they are, when
     what is held back is shown, null once nothing is, and whether it ran on
     this grading. A group that did not run has no outcome, no tests and
-    nothing held back.
+    nothing held back. On a task that gives points, `max` is the most the
+    group gives and `points` what it gave, once its verdict is shown.
     """
 
     group: str
@@ -72,16 +79,34 @@ class GroupShown(BaseModel):
     tests: list[GradedTest] | None
     shown_at: datetime | None
     ran: bool
+    points: Exact | None
+    max: Exact | None
+
+
+class Points(BaseModel):
+    """A submission's points as its contestant sees them: those shown, those
+    still pending on groups whose verdict is not shown yet, and when they
+    are shown, null when none are pending.
+    """
+
+    shown: Exact
+    pending: Exact
+    pending_until: datetime | None
 
 
 class Result(BaseModel):
     """The latest attempt of a submission's grading, as its contestant sees
     it: its id, attempt and status, and once it is done, what stopped the
     run, the outcome over the groups shown, each test group as its `show`
-    allows and the values reported once. A run that failed on the
-    platform's side is `running` to its contestant, with nothing else, until
-    staff end it: then it is `cancelled`, with `reason`, the sentence they
-    gave, which is null on every other status.
+    allows, the values reported once, and `folded`, each per-test value
+    with a fold, folded over the tests shown, a test without it counting as
+    its worst bound. A run that failed on the platform's side is `running`
+    to its contestant, with nothing else, until staff end it: then it is
+    `cancelled`, with `reason`, the sentence they gave, which is null on
+    every other status. Once done on a task that gives points, it carries
+    its `points` and the late `factor` they include; both are null
+    otherwise. While a sealed step's stop is held to the reveal, nothing of
+    the run is shown: every group reads as hidden.
     """
 
     id: uuid.UUID
@@ -90,8 +115,11 @@ class Result(BaseModel):
     stopped: Outcome | None
     outcome: Outcome | None
     groups: list[GroupShown]
-    values: dict[str, Reported]
+    values: Reported
+    folded: dict[str, Exact]
     reason: str | None
+    points: Points | None
+    factor: Exact | None
 
 
 class Submission(BaseModel):

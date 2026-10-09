@@ -196,6 +196,8 @@ the one the route needs at the scope in the third column.
 | `GET <task>/gradings/{grading}/log` | observer | task | | the grading's run log, as plain text |
 | `POST <task>/gradings/{grading}/cancel` | manager | task | `reason` | the grading, `cancelled` with its `cancel_reason` |
 | `POST <task>/gradings/{grading}/retry` | manager | task | | the new attempt, `queued` |
+| `PUT <task>/gradings/{grading}/fallback` | manager | task | | the grading, its submission counting as `last_good`, `fallback` `staff` |
+| `DELETE <task>/gradings/{grading}/fallback` | manager | task | | the grading, counting as the contest's `on_system_error` says |
 | `POST <task>/rejudge` | manager | task | | what the rejudge did |
 | `GET <contest>/gradings?task=&user=&team=&status=&limit=` | a role at the contest or at one of its tasks | contest | | the gradings of the tasks the caller observes, newest first, each with its `task`, `label` and `by` |
 | `GET <contest>/gradings/queue` | a role at the contest or at one of its tasks | contest | | how many of theirs are `queued` and `dispatched` |
@@ -485,7 +487,14 @@ task's test groups let the contestant see now: what `stopped` the run, the
 `outcome` over the groups shown, the `values` reported once, and each of
 the `groups` with its `group` name, its `show`, its `outcome` and its
 `tests`, each test's row being its `test`, `<group>/<test>`, its `outcome`
-and its `values`. A group shown `always` carries everything; `verdict` its
+and its `values`. On a task that gives points, the grading carries its
+`points`, those `shown`, those `pending` on groups not shown yet and
+`pending_until`, and the late `factor` they include; each group its `max`,
+and its `points` once its verdict is shown; each test row its `credit`,
+and `best` on a relative credit. Every number is served exactly, as a
+string of plain decimal digits, to 30 significant digits when it is no
+decimal, and `values` come split into `numbers` and `texts`, so text that
+looks like a number stays text. A group shown `always` carries everything; `verdict` its
 outcome, and its tests from the task's reveal; `after_close` its name and,
 as `shown_at`, when the rest is shown. A group with `ran` false did not
 run on this grading: it has no outcome, no tests and nothing held back,
@@ -513,6 +522,46 @@ open uploads, with its `limit` and `bytes`, as 409; `rate_limited` as 429 with t
 with the `limit` in bytes and the `input` whose limit it is; `upload_not_yours` as 404 with the `uploads`; and `invalid_inputs`,
 each of its `errors` naming its `input`, and `invalid_idempotency_key` as
 422.
+
+## Boards and marks
+
+A contest's boards are computed by forge on each read, the same ranking for
+every reader, cut to the rows the board's `rows` gives them.
+
+| Route | Who | Answer |
+|---|---|---|
+| `GET /api/v1/public/contests/{org}/{contest}/boards` | anyone, no cookie | the boards for `everyone` |
+| `GET /api/v1/public/contests/{org}/{contest}/boards/{board}` | anyone, no cookie | one of them |
+| `GET <contest>/boards` | a session | the boards the caller's audience sees |
+| `GET <contest>/boards/{board}` | a session | one of them |
+| `GET <contest>/organise/boards?user_id=&team=` | observer at the contest | every board, `now` and `final`, with its `notes` |
+| `GET <task>/marks` | a session | the marks the caller's row holds on the task |
+| `PUT <task>/marks/{number}` | a session | the marks, with the submission marked |
+| `DELETE <task>/marks/{number}` | a session | the marks, with its mark taken off |
+
+A board carries its `board` name, `over`, `select` and `who`, its `keys`,
+each `{by, better, per_attempt}`, the `tasks` it covers, each `{id,
+label, worth}`, `not_in_view`, what of a task is in its scope and not yet
+in its numbers, with when it joins, and its `rows` in rank order. A row
+carries its `rank`, shared by ties, whose it is as `row`, `{user_id, team,
+name}`, its number on each key in `keys`, and its `cells` by task name,
+each with `counting`, its `numbers` by key, and `attempts`; only the
+reader's own row carries `grading`, how many of its submissions are not
+graded yet, and `submissions`, the numbers it counts. Every number is an
+exact decimal string. A board whose scope shows nothing yet has no rows
+and its `shown_at`. A board the reader may not see is not found.
+Organisers read `now`, every row, or, given a contestant's `user_id` or a
+team's id as `team`, `now` as that row sees it; `final`, as after every
+reveal; and `notes`, what the board asks of its tasks that does not hold.
+Both a `user_id` and a `team` is `rejected`.
+
+A row, a contestant or a team, marks up to the task's `marks` of its own
+submissions for the `marked` boards, until its close on the task. Marks
+carry the `numbers` marked, the `most`, `closes_at` and whether they are
+`frozen`. Marking twice or unmarking what is not marked changes nothing. A
+task with no marks is `marks_off` and one more than it takes is
+`mark_limit` with its `limit`, both 409; a change after the close is
+`marks_frozen`, 403; another row's submission is not found.
 
 
 ## Workflows
@@ -641,7 +690,16 @@ one that is not a system error, retrying one that is not finished, or
 retrying a submission staff cancelled, is `wrong_status` with its `current`
 status, `cancelled` for the last; cancelling or retrying an earlier attempt
 of a submission graded again, or retrying one with another attempt still
-being graded, is `conflict`. `GET <task>/gradings` serves each grading as
+being graded, is `conflict`. A submission whose latest attempt is a
+`system_error`, or staff cancelled, counts as still grading, or void once
+cancelled, unless a fallback counts its last good result: the contest's
+`on_system_error: last_result`, or staff's `PUT .../fallback` on that
+attempt, which `DELETE .../fallback` takes back. Such an attempt carries
+`last_good`, the latest earlier attempt that finished with a result, and
+`fallback`, `staff` or `contest` while one is in force and null otherwise,
+with `falls_back` saying whether staff asked. Falling back on one that is
+neither is `wrong_status`; on an earlier attempt, or a submission with no
+earlier result, `conflict`. `GET <task>/gradings` serves each grading as
 the feed below does, with its task's name and label and who submitted it. A rejudge answers the
 `publication` it grades against and how many attempts it `queued`,
 `cancelled` first and `left_running`. A run's log names every test, hidden
@@ -707,8 +765,8 @@ nowhere else:
 | Code | Status |
 |---|---|
 | `not_found`, `upload_not_yours` | 404 |
-| `forbidden`, `ci_request_refused`, `fresh_sign_in_required`, `origin_mismatch`, `admin_only`, `reserved_path`, `registration_closed`, `is_staff`, `invite_required`, `wrong_invite_code`, `domain_not_allowed`, `task_closed`, `archived`, `not_approved` | 403 |
-| `conflict`, `sole_admin`, `contestant_conflict`, `shared_workflow_owner`, `confirmation_required`, `already_registered`, `contest_full`, `already_invited`, `teams_off`, `team_name_taken`, `team_full`, `in_team`, `submitted_alone`, `team_has_submissions`, `team_changed`, `wrong_status`, `submission_limit`, `upload_not_ready`, `upload_limit` | 409 |
+| `forbidden`, `ci_request_refused`, `fresh_sign_in_required`, `origin_mismatch`, `admin_only`, `reserved_path`, `registration_closed`, `is_staff`, `invite_required`, `wrong_invite_code`, `domain_not_allowed`, `task_closed`, `archived`, `not_approved`, `marks_frozen` | 403 |
+| `conflict`, `sole_admin`, `contestant_conflict`, `shared_workflow_owner`, `confirmation_required`, `already_registered`, `contest_full`, `already_invited`, `teams_off`, `team_name_taken`, `team_full`, `in_team`, `submitted_alone`, `team_has_submissions`, `team_changed`, `wrong_status`, `submission_limit`, `upload_not_ready`, `upload_limit`, `marks_off`, `mark_limit` | 409 |
 | `grading_closed`, `invite_expired` | 410 |
 | `payload_too_large`, `too_large` | 413 |
 | `rate_limited`, `invite_limit` | 429, with `Retry-After` |

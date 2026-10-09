@@ -149,6 +149,304 @@
         "title": "AnsweredQuestion",
         "type": "object"
       },
+      "Better": {
+        "enum": [
+          "higher",
+          "lower"
+        ],
+        "title": "Better",
+        "type": "string"
+      },
+      "Board": {
+        "description": "One board as the reader sees it now. `nothing_shown` is true, with no\nrows, while its scope shows nothing yet; `shown_at` is then the time its\nfirst group is shown, null while no task it covers is released.",
+        "properties": {
+          "board": {
+            "title": "Board",
+            "type": "string"
+          },
+          "keys": {
+            "items": {
+              "$ref": "#/components/schemas/BoardKey"
+            },
+            "title": "Keys",
+            "type": "array"
+          },
+          "not_in_view": {
+            "items": {
+              "$ref": "#/components/schemas/NotInView"
+            },
+            "title": "Not In View",
+            "type": "array"
+          },
+          "nothing_shown": {
+            "title": "Nothing Shown",
+            "type": "boolean"
+          },
+          "over": {
+            "$ref": "#/components/schemas/Over"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/BoardRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "select": {
+            "$ref": "#/components/schemas/Select"
+          },
+          "shown_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shown At"
+          },
+          "tasks": {
+            "items": {
+              "$ref": "#/components/schemas/BoardTask"
+            },
+            "title": "Tasks",
+            "type": "array"
+          },
+          "who": {
+            "$ref": "#/components/schemas/Who"
+          }
+        },
+        "required": [
+          "board",
+          "over",
+          "select",
+          "who",
+          "keys",
+          "tasks",
+          "not_in_view",
+          "rows",
+          "nothing_shown",
+          "shown_at"
+        ],
+        "title": "Board",
+        "type": "object"
+      },
+      "BoardCell": {
+        "description": "A row's cell on a task: whether it counts, its number on each key it\nhas one for, by the key's `by`, while it counts, and its attempts.\n`grading`, how many of the row's submissions are not graded yet, and\n`submissions`, the numbers of those it counts, several under\n`best_per_group`, come only in the reader's own row, and are null in\nevery other.",
+        "properties": {
+          "attempts": {
+            "title": "Attempts",
+            "type": "integer"
+          },
+          "counting": {
+            "title": "Counting",
+            "type": "boolean"
+          },
+          "grading": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grading"
+          },
+          "numbers": {
+            "additionalProperties": {
+              "examples": [
+                "82.5"
+              ],
+              "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+              "type": "string"
+            },
+            "title": "Numbers",
+            "type": "object"
+          },
+          "submissions": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Submissions"
+          }
+        },
+        "required": [
+          "counting",
+          "numbers",
+          "attempts",
+          "grading",
+          "submissions"
+        ],
+        "title": "BoardCell",
+        "type": "object"
+      },
+      "BoardKey": {
+        "description": "One key rows are ranked on, in turn: what it ranks by, `points`,\n`penalty` or a declared value, which way is better, null for a value no\ncovered task gives a direction, and, on `penalty`, the minutes each\nattempt before the counted submission charges; a `per_attempt` of 0\ncharges nothing, so the minute submitted is all it ranks on.",
+        "properties": {
+          "better": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Better"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "by": {
+            "title": "By",
+            "type": "string"
+          },
+          "per_attempt": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Per Attempt"
+          }
+        },
+        "required": [
+          "by",
+          "better",
+          "per_attempt"
+        ],
+        "title": "BoardKey",
+        "type": "object"
+      },
+      "BoardRow": {
+        "description": "A row on the board: its rank, shared by rows tied on every key, whose\nit is, its number on each of the board's keys in turn, null where it\nhas none, and its cell on each task by the task's name.",
+        "properties": {
+          "cells": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/BoardCell"
+            },
+            "title": "Cells",
+            "type": "object"
+          },
+          "keys": {
+            "items": {
+              "anyOf": [
+                {
+                  "examples": [
+                    "82.5"
+                  ],
+                  "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "title": "Keys",
+            "type": "array"
+          },
+          "rank": {
+            "title": "Rank",
+            "type": "integer"
+          },
+          "row": {
+            "$ref": "#/components/schemas/BoardRowOwner"
+          }
+        },
+        "required": [
+          "rank",
+          "row",
+          "keys",
+          "cells"
+        ],
+        "title": "BoardRow",
+        "type": "object"
+      },
+      "BoardRowOwner": {
+        "description": "Whose a row is: a contestant by `user_id`, or a team by its id as\n`team`, and its name, a team's own or a contestant's username, empty\nwhen the forge gives none.",
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "team": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Team"
+          },
+          "user_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Id"
+          }
+        },
+        "required": [
+          "user_id",
+          "team",
+          "name"
+        ],
+        "title": "BoardRowOwner",
+        "type": "object"
+      },
+      "BoardTask": {
+        "description": "A task the board covers: its name as `id`, its `label`, the letter of\nits place in the contest, and its `worth`, null on a task that gives no\npoints.",
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "worth": {
+            "anyOf": [
+              {
+                "examples": [
+                  "82.5"
+                ],
+                "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Worth"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "worth"
+        ],
+        "title": "BoardTask",
+        "type": "object"
+      },
       "CallbackAnswer": {
         "description": "Where the grading stands once its run's report is taken.",
         "properties": {
@@ -283,11 +581,12 @@
         "type": "object"
       },
       "Closed": {
-        "description": "Why a task is not open to a row, the first of these that applies.",
+        "description": "Why a task is not open to a row, the first of these that applies; and,\nto a person who holds no approved row, `not_approved` where it is\notherwise open, as a submit would be refused.",
         "enum": [
           "not_released",
           "archived",
-          "closed"
+          "closed",
+          "not_approved"
         ],
         "title": "Closed",
         "type": "string"
@@ -803,6 +1102,15 @@
         "title": "ExtensionRequest",
         "type": "object"
       },
+      "Fallback": {
+        "description": "Why a submission counts as its last good result in place of its\nlatest attempt, a system error or staff cancelled: staff asked so on\nthat attempt, or the contest's `on_system_error` says so.",
+        "enum": [
+          "staff",
+          "contest"
+        ],
+        "title": "Fallback",
+        "type": "string"
+      },
       "FeedEntry": {
         "description": "One grading among a task's or a contest's: the grading as an\norganiser reads it, its task by name, null for a task the platform has\nno name for, its `label`, the letter of its place in the contest's\n`tasks`, null once the contest no longer lists it or its settings do\nnot read, and `by`, who made the submission: a contestant by `user_id`\nand username as `name`, or a team by its id as `team` and its `name`,\nthe name null once the account or the team is gone.",
         "properties": {
@@ -961,8 +1269,38 @@
         "type": "object"
       },
       "GradedTest": {
-        "description": "One test's row of a result: its id, `<group>/<test>`, its outcome,\nand the values its steps reported for it.",
+        "description": "One test's row of a result: its id, `<group>/<test>`, its outcome,\nand the values its steps reported for it. Scored, it carries its credit,\nfrom 0 to 1, and, on a relative credit, the best value that credit is\nmeasured against; both are null otherwise.",
         "properties": {
+          "best": {
+            "anyOf": [
+              {
+                "examples": [
+                  "82.5"
+                ],
+                "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Best"
+          },
+          "credit": {
+            "anyOf": [
+              {
+                "examples": [
+                  "82.5"
+                ],
+                "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Credit"
+          },
           "outcome": {
             "enum": [
               "accepted",
@@ -983,33 +1321,21 @@
             "type": "string"
           },
           "values": {
-            "additionalProperties": {
-              "anyOf": [
-                {
-                  "type": "integer"
-                },
-                {
-                  "type": "number"
-                },
-                {
-                  "type": "string"
-                }
-              ]
-            },
-            "title": "Values",
-            "type": "object"
+            "$ref": "#/components/schemas/Reported"
           }
         },
         "required": [
           "test",
           "outcome",
-          "values"
+          "values",
+          "credit",
+          "best"
         ],
         "title": "GradedTest",
         "type": "object"
       },
       "Grading": {
-        "description": "One grading as an organiser managing its task reads it: the\nsubmission by its number, the publication it grades against, its\nattempt and whether that is the submission's `latest`, the one staff\ncancel or retry, where it stands, the reason it failed, the sentence\nstaff cancelled it with, its result, whether its log was written, the\nlast progress its run reported, and its times.",
+        "description": "One grading as an organiser managing its task reads it: the\nsubmission by its number, the publication it grades against, its\nattempt and whether that is the submission's `latest`, the one staff\ncancel or retry, where it stands, the reason it failed, the sentence\nstaff cancelled it with, its result, whether its log was written, the\nlast progress its run reported, and its times.\n\nOn a latest attempt that is a system error or staff cancelled,\n`last_good` is the latest earlier attempt that finished with a result,\nand `fallback` why its submission counts as that attempt now: `staff`,\nwho asked so on this one, or `contest`, whose `on_system_error` is\n`last_result`; null while it counts as still grading, or void once\ncancelled. `falls_back` is staff having asked so on this one.",
         "properties": {
           "attempt": {
             "title": "Attempt",
@@ -1061,6 +1387,20 @@
             ],
             "title": "Error"
           },
+          "fallback": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Fallback"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "falls_back": {
+            "title": "Falls Back",
+            "type": "boolean"
+          },
           "finished_at": {
             "anyOf": [
               {
@@ -1077,6 +1417,17 @@
             "format": "uuid",
             "title": "Id",
             "type": "string"
+          },
+          "last_good": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Good"
           },
           "latest": {
             "title": "Latest",
@@ -1157,7 +1508,10 @@
           "dispatched_at",
           "started_at",
           "finished_at",
-          "deadline_at"
+          "deadline_at",
+          "falls_back",
+          "last_good",
+          "fallback"
         ],
         "title": "Grading",
         "type": "object"
@@ -1229,11 +1583,26 @@
         "type": "object"
       },
       "GroupShown": {
-        "description": "One test group as the contestant sees it now: its name, its `show`,\nits outcome once its verdict is shown, its tests once they are, when\nwhat is held back is shown, null once nothing is, and whether it ran on\nthis grading. A group that did not run has no outcome, no tests and\nnothing held back.",
+        "description": "One test group as the contestant sees it now: its name, its `show`,\nits outcome once its verdict is shown, its tests once they are, when\nwhat is held back is shown, null once nothing is, and whether it ran on\nthis grading. A group that did not run has no outcome, no tests and\nnothing held back. On a task that gives points, `max` is the most the\ngroup gives and `points` what it gave, once its verdict is shown.",
         "properties": {
           "group": {
             "title": "Group",
             "type": "string"
+          },
+          "max": {
+            "anyOf": [
+              {
+                "examples": [
+                  "82.5"
+                ],
+                "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max"
           },
           "outcome": {
             "anyOf": [
@@ -1256,6 +1625,21 @@
               }
             ],
             "title": "Outcome"
+          },
+          "points": {
+            "anyOf": [
+              {
+                "examples": [
+                  "82.5"
+                ],
+                "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Points"
           },
           "ran": {
             "title": "Ran",
@@ -1297,7 +1681,9 @@
           "outcome",
           "tests",
           "shown_at",
-          "ran"
+          "ran",
+          "points",
+          "max"
         ],
         "title": "GroupShown",
         "type": "object"
@@ -1695,6 +2081,39 @@
         "title": "MailStatus",
         "type": "string"
       },
+      "Marks": {
+        "description": "The marks the caller's row holds on a task for its `marked` boards:\nthe numbers of the submissions marked, the most it may hold, and the\nrow's close on the task, after which they are frozen.",
+        "properties": {
+          "closes_at": {
+            "format": "date-time",
+            "title": "Closes At",
+            "type": "string"
+          },
+          "frozen": {
+            "title": "Frozen",
+            "type": "boolean"
+          },
+          "most": {
+            "title": "Most",
+            "type": "integer"
+          },
+          "numbers": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Numbers",
+            "type": "array"
+          }
+        },
+        "required": [
+          "numbers",
+          "most",
+          "closes_at",
+          "frozen"
+        ],
+        "title": "Marks",
+        "type": "object"
+      },
       "Me": {
         "description": "The signed-in user and their roles at every scope. `degraded` is set\nwhen the forge did not answer and the identity comes from the session.",
         "properties": {
@@ -1910,6 +2329,42 @@
         "title": "Named",
         "type": "object"
       },
+      "NotInView": {
+        "description": "What of a task is in the board's scope and not in its numbers yet:\nthe groups whose verdict is not shown, and, on a board ranking a value,\nthe `verdict` groups whose tests are not shown, with when they join.",
+        "properties": {
+          "groups": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Groups",
+            "type": "array"
+          },
+          "shown_at": {
+            "format": "date-time",
+            "title": "Shown At",
+            "type": "string"
+          },
+          "task": {
+            "title": "Task",
+            "type": "string"
+          },
+          "tests_of": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Tests Of",
+            "type": "array"
+          }
+        },
+        "required": [
+          "task",
+          "groups",
+          "tests_of",
+          "shown_at"
+        ],
+        "title": "NotInView",
+        "type": "object"
+      },
       "NotReady": {
         "description": "Deliberately not a problem document: an orchestrator reads the status in\na fixed place. What failed underneath is in the log and not here.",
         "properties": {
@@ -1993,6 +2448,41 @@
         "title": "OrganiseTeamRequest",
         "type": "object"
       },
+      "OrganisedBoard": {
+        "description": "A board as organisers read it: `now`, every row given, or as the row\npicked sees it; `final`, every group of its scope counted as after the\nreveal; and what it asks of the tasks it covers that does not hold, each\na sentence, which the save reported when the tasks were published.",
+        "properties": {
+          "final": {
+            "$ref": "#/components/schemas/Board"
+          },
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Notes",
+            "type": "array"
+          },
+          "now": {
+            "$ref": "#/components/schemas/Board"
+          }
+        },
+        "required": [
+          "now",
+          "final",
+          "notes"
+        ],
+        "title": "OrganisedBoard",
+        "type": "object"
+      },
+      "Over": {
+        "description": "Which test groups a board counts, by each group's declared `show`.",
+        "enum": [
+          "all",
+          "live",
+          "after_close"
+        ],
+        "title": "Over",
+        "type": "string"
+      },
       "Person": {
         "description": "Someone as another person sees them, by their forge id. Their email\nstays out.",
         "properties": {
@@ -2048,6 +2538,46 @@
           "user_id"
         ],
         "title": "PersonRequest",
+        "type": "object"
+      },
+      "Points": {
+        "description": "A submission's points as its contestant sees them: those shown, those\nstill pending on groups whose verdict is not shown yet, and when they\nare shown, null when none are pending.",
+        "properties": {
+          "pending": {
+            "examples": [
+              "82.5"
+            ],
+            "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+            "title": "Pending",
+            "type": "string"
+          },
+          "pending_until": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pending Until"
+          },
+          "shown": {
+            "examples": [
+              "82.5"
+            ],
+            "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+            "title": "Shown",
+            "type": "string"
+          }
+        },
+        "required": [
+          "shown",
+          "pending",
+          "pending_until"
+        ],
+        "title": "Points",
         "type": "object"
       },
       "Problem": {
@@ -2411,12 +2941,67 @@
         "title": "Rejudged",
         "type": "object"
       },
+      "Reported": {
+        "description": "The values a run reported, by name: its numbers, exactly, and its\ntexts, each of at most 10,000 characters.",
+        "properties": {
+          "numbers": {
+            "additionalProperties": {
+              "examples": [
+                "82.5"
+              ],
+              "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+              "type": "string"
+            },
+            "title": "Numbers",
+            "type": "object"
+          },
+          "texts": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Texts",
+            "type": "object"
+          }
+        },
+        "required": [
+          "numbers",
+          "texts"
+        ],
+        "title": "Reported",
+        "type": "object"
+      },
       "Result": {
-        "description": "The latest attempt of a submission's grading, as its contestant sees\nit: its id, attempt and status, and once it is done, what stopped the\nrun, the outcome over the groups shown, each test group as its `show`\nallows and the values reported once. A run that failed on the\nplatform's side is `running` to its contestant, with nothing else, until\nstaff end it: then it is `cancelled`, with `reason`, the sentence they\ngave, which is null on every other status.",
+        "description": "The latest attempt of a submission's grading, as its contestant sees\nit: its id, attempt and status, and once it is done, what stopped the\nrun, the outcome over the groups shown, each test group as its `show`\nallows, the values reported once, and `folded`, each per-test value\nwith a fold, folded over the tests shown, a test without it counting as\nits worst bound. A run that failed on the platform's side is `running`\nto its contestant, with nothing else, until staff end it: then it is\n`cancelled`, with `reason`, the sentence they gave, which is null on\nevery other status. Once done on a task that gives points, it carries\nits `points` and the late `factor` they include; both are null\notherwise. While a sealed step's stop is held to the reveal, nothing of\nthe run is shown: every group reads as hidden.",
         "properties": {
           "attempt": {
             "title": "Attempt",
             "type": "integer"
+          },
+          "factor": {
+            "anyOf": [
+              {
+                "examples": [
+                  "82.5"
+                ],
+                "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Factor"
+          },
+          "folded": {
+            "additionalProperties": {
+              "examples": [
+                "82.5"
+              ],
+              "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+              "type": "string"
+            },
+            "title": "Folded",
+            "type": "object"
           },
           "groups": {
             "items": {
@@ -2451,6 +3036,16 @@
               }
             ],
             "title": "Outcome"
+          },
+          "points": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Points"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "reason": {
             "anyOf": [
@@ -2489,21 +3084,7 @@
             "title": "Stopped"
           },
           "values": {
-            "additionalProperties": {
-              "anyOf": [
-                {
-                  "type": "integer"
-                },
-                {
-                  "type": "number"
-                },
-                {
-                  "type": "string"
-                }
-              ]
-            },
-            "title": "Values",
-            "type": "object"
+            "$ref": "#/components/schemas/Reported"
           }
         },
         "required": [
@@ -2514,7 +3095,10 @@
           "outcome",
           "groups",
           "values",
-          "reason"
+          "folded",
+          "reason",
+          "points",
+          "factor"
         ],
         "title": "Result",
         "type": "object"
@@ -2619,21 +3203,7 @@
             "type": "array"
           },
           "values": {
-            "additionalProperties": {
-              "anyOf": [
-                {
-                  "type": "integer"
-                },
-                {
-                  "type": "number"
-                },
-                {
-                  "type": "string"
-                }
-              ]
-            },
-            "title": "Values",
-            "type": "object"
+            "$ref": "#/components/schemas/Reported"
           }
         },
         "required": [
@@ -2718,6 +3288,16 @@
         ],
         "title": "ScopeNames",
         "type": "object"
+      },
+      "Select": {
+        "description": "Which of a row's submissions to a task a board counts.",
+        "enum": [
+          "best",
+          "best_per_group",
+          "marked"
+        ],
+        "title": "Select",
+        "type": "string"
       },
       "ServerTime": {
         "properties": {
@@ -3108,10 +3688,11 @@
           "worth": {
             "anyOf": [
               {
-                "type": "integer"
-              },
-              {
-                "type": "number"
+                "examples": [
+                  "82.5"
+                ],
+                "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+                "type": "string"
               },
               {
                 "type": "null"
@@ -3168,7 +3749,7 @@
         "type": "object"
       },
       "TaskPage": {
-        "description": "A task as the caller reads it: its statement in Markdown, the caps a\nsubmit is counted against, the inputs a contestant gives, and when it\nfalls due and closes for them, and nothing else the task holds.",
+        "description": "A task as the caller reads it: its statement in Markdown, the caps a\nsubmit is counted against, the inputs a contestant gives, when it falls\ndue and closes for them, and `marks`, how many of their row's\nsubmissions they may mark for the `marked` boards, null unless such a\nboard covers the task and they are an approved contestant; and nothing\nelse the task holds.",
         "properties": {
           "closes": {
             "anyOf": [
@@ -3205,6 +3786,17 @@
             "title": "Label",
             "type": "string"
           },
+          "marks": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Marks"
+          },
           "name": {
             "title": "Name",
             "type": "string"
@@ -3226,10 +3818,11 @@
           "worth": {
             "anyOf": [
               {
-                "type": "integer"
-              },
-              {
-                "type": "number"
+                "examples": [
+                  "82.5"
+                ],
+                "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+                "type": "string"
               },
               {
                 "type": "null"
@@ -3248,7 +3841,8 @@
           "inputs",
           "release",
           "due",
-          "closes"
+          "closes",
+          "marks"
         ],
         "title": "TaskPage",
         "type": "object"
@@ -3691,6 +4285,16 @@
         "title": "UploadStatus",
         "type": "string"
       },
+      "Who": {
+        "description": "Who sees a board, among those who may see the contest.",
+        "enum": [
+          "organisers",
+          "contestants",
+          "everyone"
+        ],
+        "title": "Who",
+        "type": "string"
+      },
       "Workflow": {
         "description": "A workflow, by its owner and its name.",
         "properties": {
@@ -3916,7 +4520,7 @@
   "info": {
     "summary": "Contests on top of a git host, a CI and an object store",
     "title": "Unicon API",
-    "version": "0.3.0"
+    "version": "0.4.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -5216,6 +5820,124 @@
         "summary": "Close an announcement, which stays readable",
         "tags": [
           "announcements"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/boards": {
+      "get": {
+        "description": "In the order the contest's settings give them.",
+        "operationId": "listBoards",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Board"
+                  },
+                  "title": "Response Listboards",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "The contest's boards the caller sees, each as they see it",
+        "tags": [
+          "boards"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/boards/{board}": {
+      "get": {
+        "operationId": "getBoard",
+        "parameters": [
+          {
+            "description": "The board's `name`",
+            "in": "path",
+            "name": "board",
+            "required": true,
+            "schema": {
+              "description": "The board's `name`",
+              "title": "Board",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Board"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "One of the contest's boards as the caller sees it",
+        "tags": [
+          "boards"
         ]
       }
     },
@@ -6878,6 +7600,99 @@
         "summary": "Leave the caller's team",
         "tags": [
           "teams"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/organise/boards": {
+      "get": {
+        "description": "Every row on both, unless a row is picked: then only the boards that\nrow sees, `now` as it sees it, its own row and the rows its `rows`\ngives. A row is a contestant or a team, never both; one that is not a\nrow of the contest is not found.",
+        "operationId": "listOrganisedBoards",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Read `now` as this contestant's row does",
+            "in": "query",
+            "name": "user_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Read `now` as this contestant's row does",
+              "title": "User Id"
+            }
+          },
+          {
+            "description": "Read `now` as this team does",
+            "in": "query",
+            "name": "team",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Read `now` as this team does",
+              "title": "Team"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/OrganisedBoard"
+                  },
+                  "title": "Response Listorganisedboards",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Every board of the contest, now and final, with what it asks that does not hold",
+        "tags": [
+          "boards"
         ]
       }
     },
@@ -8738,6 +9553,146 @@
         ]
       }
     },
+    "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/gradings/{grading}/fallback": {
+      "delete": {
+        "description": "The grading as it now stands, its submission counting as the contest's\n`on_system_error` says. A grading with no fallback of staff's changes\nnothing.",
+        "operationId": "clearGradingFallback",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "grading",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Grading",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "task",
+            "required": true,
+            "schema": {
+              "title": "Task",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Grading"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Take back staff's fallback on a grading",
+        "tags": [
+          "gradings"
+        ]
+      },
+      "put": {
+        "description": "The grading as it now stands, its `fallback` `staff`: its submission\ncounts as `last_good`, the latest earlier attempt that finished with a\nresult, whatever the contest's `on_system_error` says, on the boards,\nto its contestant and under the task's limit. Asked again, it changes\nnothing. A grading that is neither a system error nor staff cancelled is\n`wrong_status` with its status as `current`; an earlier attempt of a\nsubmission graded again, and a submission with no earlier result, are\n`conflict`.",
+        "operationId": "fallBackGrading",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "grading",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Grading",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "task",
+            "required": true,
+            "schema": {
+              "title": "Task",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Grading"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Count a broken grading's submission as its last good result",
+        "tags": [
+          "gradings"
+        ]
+      }
+    },
     "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/gradings/{grading}/log": {
       "get": {
         "description": "The log of the grading's run. A grading with no log is `not_found`,\nthe same as one that is not there, and a log larger than the platform\nreads back is `log_too_large` with the `limit` in bytes.",
@@ -9234,6 +10189,212 @@
         "summary": "Take a pending invite back",
         "tags": [
           "invites"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/marks": {
+      "get": {
+        "operationId": "getMyMarks",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "task",
+            "required": true,
+            "schema": {
+              "title": "Task",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Marks"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "The marks the caller's row holds on the task",
+        "tags": [
+          "boards"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/marks/{number}": {
+      "delete": {
+        "description": "Taking off a mark the submission does not have changes nothing.",
+        "operationId": "unmarkSubmission",
+        "parameters": [
+          {
+            "description": "The submission's number",
+            "in": "path",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "description": "The submission's number",
+              "maximum": 2147483647,
+              "minimum": 1,
+              "title": "Number",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "task",
+            "required": true,
+            "schema": {
+              "title": "Task",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Marks"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Take the mark off one of the row's submissions to the task",
+        "tags": [
+          "boards"
+        ]
+      },
+      "put": {
+        "description": "Marking a submission already marked changes nothing.",
+        "operationId": "markSubmission",
+        "parameters": [
+          {
+            "description": "The submission's number",
+            "in": "path",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "description": "The submission's number",
+              "maximum": 2147483647,
+              "minimum": 1,
+              "title": "Number",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "task",
+            "required": true,
+            "schema": {
+              "title": "Task",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Marks"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Mark one of the row's own submissions to the task",
+        "tags": [
+          "boards"
         ]
       }
     },
@@ -11378,6 +12539,126 @@
         },
         "summary": "A public contest and its released tasks",
         "tags": [
+          "public"
+        ]
+      }
+    },
+    "/api/v1/public/contests/{org}/{contest}/boards": {
+      "get": {
+        "description": "In the order the contest's settings give them.",
+        "operationId": "listPublicBoards",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Board"
+                  },
+                  "title": "Response Listpublicboards",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "The boards of a public contest that everyone sees",
+        "tags": [
+          "boards",
+          "public"
+        ]
+      }
+    },
+    "/api/v1/public/contests/{org}/{contest}/boards/{board}": {
+      "get": {
+        "operationId": "getPublicBoard",
+        "parameters": [
+          {
+            "description": "The board's `name`",
+            "in": "path",
+            "name": "board",
+            "required": true,
+            "schema": {
+              "description": "The board's `name`",
+              "title": "Board",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Board"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "One board of a public contest that everyone sees",
+        "tags": [
+          "boards",
           "public"
         ]
       }

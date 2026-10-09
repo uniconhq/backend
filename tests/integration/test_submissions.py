@@ -71,8 +71,11 @@ async def test_a_submit_answers_with_its_queued_grading_and_reads_back(
         "stopped": None,
         "outcome": None,
         "groups": [],
-        "values": {},
+        "values": {"numbers": {}, "texts": {}},
+        "folded": {},
         "reason": None,
+        "points": None,
+        "factor": None,
     }
     first = submitted.json()["grading"]
     started = {**submitted.json(), "grading": {**first, "status": "dispatched"}}
