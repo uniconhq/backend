@@ -352,3 +352,61 @@ async def test_every_workflow_route_needs_a_session(
 
     assert refused.status_code == 401
     assert refused.json()["code"] == "unauthenticated"
+
+
+async def test_a_version_of_a_save_someone_has_saved_over_is_a_conflict(
+    client: httpx.AsyncClient, acme: FakeForge
+) -> None:
+    await _own(client, acme)
+    draft = (await client.get("/api/v1/workflows/bob/tuned")).json()["draft"]
+    first = await client.put(
+        "/api/v1/workflows/bob/tuned/draft",
+        json={"content": draft["content"] + "# one\n", "token": draft["token"]},
+        headers=ORIGIN,
+    )
+    await client.put(
+        "/api/v1/workflows/bob/tuned/draft",
+        json={"content": draft["content"] + "# two\n", "token": first.json()["token"]},
+        headers=ORIGIN,
+    )
+
+    refused = await client.post(
+        "/api/v1/workflows/bob/tuned/versions",
+        json={"version": "v1", "token": first.json()["token"]},
+        headers=ORIGIN,
+    )
+
+    assert refused.status_code == 409
+    assert refused.json()["code"] == "conflict"
+
+
+@pytest.mark.parametrize(
+    ("method", "path", "body"),
+    [
+        ("PUT", "/api/v1/workflows/bob/tuned/draft", {"content": "x", "token": None}),
+        ("POST", "/api/v1/workflows/bob/tuned/versions", {"version": "v1"}),
+        ("PUT", "/api/v1/workflows/bob/tuned/visibility", {"visibility": "public"}),
+        ("PUT", "/api/v1/workflows/bob/tuned/readers/ada", None),
+        ("DELETE", "/api/v1/workflows/bob/tuned/readers/ada", None),
+        (
+            "POST",
+            "/api/v1/workflow-copies",
+            {"source": "unicon/classic@v2", "owner": "bob", "name": "c"},
+        ),
+        (
+            "POST",
+            "/api/v1/workflow-combinations",
+            {"sources": ["unicon/classic@v2", "unicon/classic@v2"], "owner": "bob", "name": "c"},
+        ),
+    ],
+)
+async def test_someone_else_may_not_change_a_persons_workflow(
+    client: httpx.AsyncClient, acme: FakeForge, method: str, path: str, body: object
+) -> None:
+    await _own(client, acme)
+    await sign_in_as(client, acme, 7)
+
+    refused = await client.request(method, path, json=body, headers=ORIGIN)
+
+    assert refused.status_code == 403
+    assert refused.json()["code"] == "forbidden"

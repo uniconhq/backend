@@ -145,9 +145,12 @@ async def create_workflow_version(
 ) -> Version:
     """Made only when the saved draft passes every check a version must;
     otherwise `invalid_definition` with every problem in `errors`, and no
-    version made.
+    version made. Given the token the draft was saved with, `conflict` when
+    someone has saved since.
     """
-    return Version(version=await workflows.create_version(session, owner, name, body.version))
+    token = ConflictToken(body.token) if body.token is not None else None
+    made = await workflows.create_version(session, owner, name, body.version, token)
+    return Version(version=made)
 
 
 @router.get(
