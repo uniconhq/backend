@@ -345,7 +345,10 @@ workflow's order. A workflow declares no defaults; a contestant input's
 read, names no workflow, or names one that cannot be read answers with
 `problem`, the reason, and no inputs, so the form can still mend it.
 Either way `graded` says whether the task has a graded submission, from
-when on a save refuses a test group it adds without its `show`.
+when on a save refuses a test group it adds without its `show`, and
+`newer` names the workflow's latest version when it comes after the one
+the task names; the task keeps grading with its own until it is saved
+naming another.
 
 A file too large to type, such as a dataset, goes into a task as an upload.
 A manager of the task asks `POST <task>/organise/uploads` for a slot,
@@ -579,6 +582,27 @@ and another person's username are all `forbidden`, in the same words, so the
 answer tells nobody which orgs exist. A name that breaks the rules, or a
 username that cannot name a workflow, is `invalid_name`, and a name the
 owner has already is `conflict`.
+
+Every other workflow route needs a session and no role too: forge decides
+who may act on a workflow, the person it is named for or a manager or admin
+of the org that owns it, and makes every change at the forge as the caller,
+so the forge's own check is underneath. A workflow the caller may not read
+is `not_found`, in the same words as one that is not there.
+
+| Route | What it does |
+|---|---|
+| `GET /workflows` | every workflow the caller reaches, their own, their orgs', those shared with them and the platform's built-ins, by `owner` and `name`, with its `visibility`, its `versions` in natural order and whether it is `editable` |
+| `GET /workflows/{owner}/{name}` | the same for one; for one the caller may edit, its `draft`, `content` and the `token` a save carries, and `readers`, the usernames it is shared with |
+| `PUT /workflows/{owner}/{name}/draft` | write `workflow.yaml` over the one read with `token`, or create it with none, problems and all; `conflict` when it moved since |
+| `POST /workflows/{owner}/{name}/versions` | freeze the saved draft under `version`, 201, only when it passes every check a version must; otherwise `invalid_definition` with every problem in `errors` and no version made; given the `token` the draft was saved with, `conflict` when someone has saved since |
+| `GET /workflows/{owner}/{name}/versions/{version}` | the `content` at a version, one of its tags and never a branch, read as the caller |
+| `PUT /workflows/{owner}/{name}/visibility` | `private`, `shared` or `public`, 204; private and public empty the list of readers |
+| `PUT /workflows/{owner}/{name}/readers/{username}` | share it with a person; `conflict` while it is public |
+| `DELETE /workflows/{owner}/{name}/readers/{username}` | take their read away, 204 |
+| `POST /workflows/check` | every problem a version of `content` would be refused for, each with its `path` and `message`; nothing is written |
+| `POST /workflow-copies` | a new private workflow under `owner` from `source`, `<owner>/<name>@<version>`, 201 |
+| `POST /workflow-combinations` | a new private workflow under `owner` inlining two or more `sources`, 201; one source is `rejected` |
+| `GET /primitives` | every primitive at every version, its `ref` what a step's `use:` names, with `batch`, `network`, `limits`, `limits_from` and its `inputs` and `outputs`, each port's `type`, `options`, `optional`, `runs` and `secret`; a version the platform no longer reads has `problem` instead |
 
 ## The event door
 
