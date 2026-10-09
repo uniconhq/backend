@@ -122,7 +122,9 @@ async def get_task_workflow_form(organiser: TaskObserver) -> publications.Workfl
     read, names no workflow or one that cannot be read answers with
     `problem`, the reason, and no inputs, so the form can mend it. Either
     way `graded` says whether the task has a graded submission, from when
-    on a save refuses a test group it adds without its `show`.
+    on a save refuses a test group it adds without its `show`, and `newer`
+    names the workflow's latest version when it comes after the one the
+    task names, which the task keeps until it is saved naming another.
     """
     return await publications.workflow_form(organiser, tasks.task_id_of(organiser.scope))
 
