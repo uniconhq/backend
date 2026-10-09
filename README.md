@@ -591,11 +591,11 @@ is `not_found`, in the same words as one that is not there.
 
 | Route | What it does |
 |---|---|
-| `GET /workflows` | every workflow the caller may read, by `owner` and `name`, with its `visibility`, its `versions` in natural order and whether it is `editable` |
+| `GET /workflows` | every workflow the caller reaches, their own, their orgs', those shared with them and the platform's built-ins, by `owner` and `name`, with its `visibility`, its `versions` in natural order and whether it is `editable` |
 | `GET /workflows/{owner}/{name}` | the same for one; for one the caller may edit, its `draft`, `content` and the `token` a save carries, and `readers`, the usernames it is shared with |
 | `PUT /workflows/{owner}/{name}/draft` | write `workflow.yaml` over the one read with `token`, or create it with none, problems and all; `conflict` when it moved since |
-| `POST /workflows/{owner}/{name}/versions` | freeze the saved draft under `version`, 201, only when it passes every check a version must; otherwise `invalid_definition` with every problem in `errors` and no version made |
-| `GET /workflows/{owner}/{name}/versions/{version}` | the `content` at a version, read as the caller |
+| `POST /workflows/{owner}/{name}/versions` | freeze the saved draft under `version`, 201, only when it passes every check a version must; otherwise `invalid_definition` with every problem in `errors` and no version made; given the `token` the draft was saved with, `conflict` when someone has saved since |
+| `GET /workflows/{owner}/{name}/versions/{version}` | the `content` at a version, one of its tags and never a branch, read as the caller |
 | `PUT /workflows/{owner}/{name}/visibility` | `private`, `shared` or `public`, 204; private and public empty the list of readers |
 | `PUT /workflows/{owner}/{name}/readers/{username}` | share it with a person; `conflict` while it is public |
 | `DELETE /workflows/{owner}/{name}/readers/{username}` | take their read away, 204 |
