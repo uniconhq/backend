@@ -9,6 +9,7 @@ from forge.api.types import ScopeKind
 from unicon.api.v1 import (
     announcements,
     auth,
+    boards,
     clarifications,
     contest_home,
     contestants,
@@ -45,6 +46,7 @@ router.include_router(uploads.router)
 router.include_router(submissions.router)
 router.include_router(gradings.router)
 router.include_router(gradings.feed)
+router.include_router(boards.router)
 router.include_router(workflows.router)
 router.include_router(announcements.reading)
 router.include_router(clarifications.router)

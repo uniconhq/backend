@@ -78,6 +78,11 @@ SESSION_ONLY = {
     "inviteToTeam",
     "approveTeamMember",
     "removeTeamMember",
+    "listBoards",
+    "getBoard",
+    "getMyMarks",
+    "markSubmission",
+    "unmarkSubmission",
 }
 
 ROUTES: list[tuple[str, str, dict[str, Any] | None, Role, Scope]] = [
@@ -104,6 +109,7 @@ ROUTES: list[tuple[str, str, dict[str, Any] | None, Role, Scope]] = [
     ("PUT", f"{CONTEST}/files/notes.md", NEW_FILE, Role.MANAGER, SPRING),
     ("POST", f"{CONTEST}/files/notes.md/rollback", ROLLBACK, Role.MANAGER, SPRING),
     ("GET", f"{CONTEST}/organise/tasks", None, Role.OBSERVER, SPRING),
+    ("GET", f"{CONTEST}/organise/boards", None, Role.OBSERVER, SPRING),
     ("GET", TASK, None, Role.OBSERVER, SUM),
     ("GET", f"{TASK}/workflow-form", None, Role.OBSERVER, SUM),
     ("GET", f"{TASK}/publications", None, Role.OBSERVER, SUM),
@@ -120,6 +126,8 @@ ROUTES: list[tuple[str, str, dict[str, Any] | None, Role, Scope]] = [
     ("GET", f"{TASK}/gradings/{NO_GRADING}/log", None, Role.OBSERVER, SUM),
     ("POST", f"{TASK}/gradings/{NO_GRADING}/cancel", CANCEL, Role.MANAGER, SUM),
     ("POST", f"{TASK}/gradings/{NO_GRADING}/retry", None, Role.MANAGER, SUM),
+    ("PUT", f"{TASK}/gradings/{NO_GRADING}/fallback", None, Role.MANAGER, SUM),
+    ("DELETE", f"{TASK}/gradings/{NO_GRADING}/fallback", None, Role.MANAGER, SUM),
     ("POST", f"{TASK}/rejudge", None, Role.MANAGER, SUM),
     ("POST", f"{TASK}/organise/uploads", TASK_FILE, Role.MANAGER, SUM),
     ("GET", f"{CONTEST}/announcements", None, Role.OBSERVER, SPRING),
@@ -215,6 +223,8 @@ NO_SESSION = {
     "listPublicContests",
     "getPublicContest",
     "getPublicStatement",
+    "listPublicBoards",
+    "getPublicBoard",
 }
 
 
