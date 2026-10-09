@@ -195,6 +195,57 @@ async def test_a_manager_falls_back_to_a_broken_gradings_last_good_result_and_cl
     assert waiting["attempt"] == 2
 
 
+async def test_a_fallback_is_refused_with_no_earlier_result_and_on_an_earlier_attempt(
+    client: httpx.AsyncClient, entered: FakeForge, clock: FakeClock
+) -> None:
+    grading = await _grading(client, entered)
+    await sign_in_as(client, entered, 7)
+    clock.advance(STUCK)
+
+    nothing = await client.put(f"{TASK}/gradings/{grading}/fallback", headers=ORIGIN)
+    await client.post(f"{TASK}/gradings/{grading}/retry", headers=ORIGIN)
+    earlier = await client.put(f"{TASK}/gradings/{grading}/fallback", headers=ORIGIN)
+
+    assert (nothing.status_code, nothing.json()["code"]) == (409, "conflict")
+    assert "No earlier attempt" in nothing.json()["detail"]
+    assert (earlier.status_code, earlier.json()["code"]) == (409, "conflict")
+    assert "later attempt" in earlier.json()["detail"]
+
+
+async def test_under_the_contests_last_result_a_cancelled_grading_keeps_its_last_good_result(
+    client: httpx.AsyncClient, entered: FakeForge, clock: FakeClock
+) -> None:
+    first = await _graded(client, entered)
+    await sign_in_as(client, entered, 7)
+    settings = await read(client, f"{CONTEST}/files/contest.yaml")
+    written = await client.put(
+        f"{CONTEST}/files/contest.yaml",
+        json={
+            "encoding": "utf-8",
+            "content": settings["content"] + "on_system_error: last_result\n",
+            "token": settings["token"],
+        },
+        headers=ORIGIN,
+    )
+    assert written.status_code == 200, written.text
+    second = (await client.post(f"{TASK}/gradings/{first}/retry", headers=ORIGIN)).json()["id"]
+    clock.advance(STUCK)
+
+    cancelled = await client.post(f"{TASK}/gradings/{second}/cancel", json=REASON, headers=ORIGIN)
+    await sign_in_as(client, entered, 20)
+    counted = (await client.get(f"{TASK}/submissions/1")).json()["grading"]
+
+    assert cancelled.status_code == 200, cancelled.text
+    body = cancelled.json()
+    assert (body["status"], body["last_good"], body["fallback"], body["falls_back"]) == (
+        "cancelled",
+        1,
+        "contest",
+        False,
+    )
+    assert (counted["attempt"], counted["status"]) == (1, "done")
+
+
 async def test_an_observer_lists_the_tasks_gradings_newest_first_with_their_reasons(
     client: httpx.AsyncClient, entered: FakeForge, clock: FakeClock
 ) -> None:
