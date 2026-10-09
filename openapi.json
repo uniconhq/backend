@@ -511,6 +511,37 @@
         "title": "Change",
         "type": "object"
       },
+      "CheckDefinition": {
+        "description": "A `workflow.yaml` to check as a version would be, writing nothing.",
+        "properties": {
+          "content": {
+            "title": "Content",
+            "type": "string"
+          }
+        },
+        "required": [
+          "content"
+        ],
+        "title": "CheckDefinition",
+        "type": "object"
+      },
+      "Checked": {
+        "description": "Every problem a version would be refused for; none means it would be\nmade.",
+        "properties": {
+          "problems": {
+            "items": {
+              "$ref": "#/components/schemas/DefinitionProblem"
+            },
+            "title": "Problems",
+            "type": "array"
+          }
+        },
+        "required": [
+          "problems"
+        ],
+        "title": "Checked",
+        "type": "object"
+      },
       "Clarification": {
         "description": "One question: its contest by name, whose desk it is in, the asker's\nuser id or `team.<id>` for a team's, its number there, the task it\nnames, what it asks, when, whether it is answered and whether it is\nopen, and every message under it, oldest first.",
         "properties": {
@@ -590,6 +621,35 @@
         ],
         "title": "Closed",
         "type": "string"
+      },
+      "CombineWorkflows": {
+        "description": "A workflow to make as `name` under `owner` from two or more\n`sources`, each `<owner>/<name>@<version>`, inlined in their order.",
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "owner": {
+            "title": "Owner",
+            "type": "string"
+          },
+          "sources": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 20,
+            "minItems": 1,
+            "title": "Sources",
+            "type": "array"
+          }
+        },
+        "required": [
+          "sources",
+          "owner",
+          "name"
+        ],
+        "title": "CombineWorkflows",
+        "type": "object"
       },
       "CommentRequest": {
         "description": "One message under a question: a contestant's follow-up or an\norganiser's reply.",
@@ -843,6 +903,30 @@
         "title": "Contestant",
         "type": "object"
       },
+      "CopyWorkflow": {
+        "description": "A copy to make of `source`, `<owner>/<name>@<version>`, as `name`\nunder `owner`, which follows the rule for making one.",
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "owner": {
+            "title": "Owner",
+            "type": "string"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "owner",
+          "name"
+        ],
+        "title": "CopyWorkflow",
+        "type": "object"
+      },
       "CreateContest": {
         "description": "A contest to make, titled `title` or, without one, its name.",
         "properties": {
@@ -910,6 +994,31 @@
           "name"
         ],
         "title": "CreateTask",
+        "type": "object"
+      },
+      "CreateVersion": {
+        "description": "A name to freeze the saved draft under, such as `v1`, and the token\nthe caller saved it with, so the version is of that save; with none, of\nwhatever is saved now.",
+        "properties": {
+          "token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Token"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version"
+        ],
+        "title": "CreateVersion",
         "type": "object"
       },
       "CreateWorkflow": {
@@ -1014,6 +1123,32 @@
         "title": "DeclaredInput",
         "type": "object"
       },
+      "Definition": {
+        "description": "A `workflow.yaml` as text, and the token a save of it carries back:\nnone for one that is not there yet.",
+        "properties": {
+          "content": {
+            "title": "Content",
+            "type": "string"
+          },
+          "token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Token"
+          }
+        },
+        "required": [
+          "content",
+          "token"
+        ],
+        "title": "Definition",
+        "type": "object"
+      },
       "DefinitionError": {
         "description": "One thing wrong with a definition file: its YAML path, \"\" for the file\nas a whole, and a sentence a form shows beside that field.",
         "properties": {
@@ -1031,6 +1166,25 @@
           "message"
         ],
         "title": "DefinitionError",
+        "type": "object"
+      },
+      "DefinitionProblem": {
+        "description": "One problem: its YAML path in `workflow.yaml`, `steps[1].with.binary`,\nand what is wrong there. The path is empty for the file as a whole.",
+        "properties": {
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "message"
+        ],
+        "title": "DefinitionProblem",
         "type": "object"
       },
       "Draft": {
@@ -2029,6 +2183,30 @@
         "title": "InviteToTeamRequest",
         "type": "object"
       },
+      "LimitSource": {
+        "description": "A container limit raised to `input * scale + add` when that is more.",
+        "properties": {
+          "add": {
+            "title": "Add",
+            "type": "number"
+          },
+          "input": {
+            "title": "Input",
+            "type": "string"
+          },
+          "scale": {
+            "title": "Scale",
+            "type": "number"
+          }
+        },
+        "required": [
+          "input",
+          "scale",
+          "add"
+        ],
+        "title": "LimitSource",
+        "type": "object"
+      },
       "ListedTeam": {
         "description": "A team as a contestant choosing one sees it: its name, its leader, and\nhow many are in it of how many the contest allows.",
         "properties": {
@@ -2580,6 +2758,157 @@
         "title": "Points",
         "type": "object"
       },
+      "Primitive": {
+        "description": "One version of a primitive, `ref` being what a step's `use:` names.\nIts declaration is in `batch`, `network`, `limits`, `limits_from`,\n`inputs` and `outputs`; a version in a format the platform no longer\nreads has none of them and `problem` instead, so no step uses it.",
+        "properties": {
+          "batch": {
+            "default": false,
+            "title": "Batch",
+            "type": "boolean"
+          },
+          "inputs": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/PrimitivePort"
+            },
+            "title": "Inputs",
+            "type": "object"
+          },
+          "limits": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "propertyNames": {
+              "enum": [
+                "time_ms",
+                "cpu_ms",
+                "memory_mb",
+                "pids",
+                "output_mb",
+                "gpus"
+              ]
+            },
+            "title": "Limits",
+            "type": "object"
+          },
+          "limits_from": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/LimitSource"
+            },
+            "propertyNames": {
+              "enum": [
+                "time_ms",
+                "cpu_ms",
+                "memory_mb",
+                "pids",
+                "output_mb",
+                "gpus"
+              ]
+            },
+            "title": "Limits From",
+            "type": "object"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "network": {
+            "default": false,
+            "title": "Network",
+            "type": "boolean"
+          },
+          "outputs": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/PrimitivePort"
+            },
+            "title": "Outputs",
+            "type": "object"
+          },
+          "problem": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Problem"
+          },
+          "ref": {
+            "title": "Ref",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ref",
+          "name",
+          "version",
+          "batch",
+          "network",
+          "limits",
+          "limits_from",
+          "inputs",
+          "outputs",
+          "problem"
+        ],
+        "title": "Primitive",
+        "type": "object"
+      },
+      "PrimitivePort": {
+        "description": "One port: its type, the options an enum takes, whether it may be left\nout, and on an input whether the primitive runs what arrives there and\nwhether it keeps it from the program it runs.",
+        "properties": {
+          "optional": {
+            "title": "Optional",
+            "type": "boolean"
+          },
+          "options": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Options"
+          },
+          "runs": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Runs"
+          },
+          "secret": {
+            "title": "Secret",
+            "type": "boolean"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "options",
+          "optional",
+          "runs",
+          "secret"
+        ],
+        "title": "PrimitivePort",
+        "type": "object"
+      },
       "Problem": {
         "additionalProperties": true,
         "description": "Extra members are allowed: `sole_admin` carries `scopes`, for instance.",
@@ -2844,6 +3173,20 @@
           "per"
         ],
         "title": "Rate",
+        "type": "object"
+      },
+      "Reader": {
+        "description": "Someone a workflow is shared with, by their username.",
+        "properties": {
+          "username": {
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "username"
+        ],
+        "title": "Reader",
         "type": "object"
       },
       "Ready": {
@@ -3215,6 +3558,32 @@
         "title": "RunResult",
         "type": "object"
       },
+      "SaveDefinition": {
+        "description": "A draft to write over the one read with `token`, or to create when\nthe token is none. Whatever it holds saves, problems and all.",
+        "properties": {
+          "content": {
+            "title": "Content",
+            "type": "string"
+          },
+          "token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Token"
+          }
+        },
+        "required": [
+          "content",
+          "token"
+        ],
+        "title": "SaveDefinition",
+        "type": "object"
+      },
       "SaveRequest": {
         "description": "The files a save writes, several at once. `keep_as_draft` writes them\nas a draft that says what it held back and publishes nothing, on any\nsave. Otherwise, while the task's contest runs, `confirm` publishes a\nchange to how the task grades; an empty save with `confirm` publishes a\ndraft kept earlier.",
         "properties": {
@@ -3355,6 +3724,19 @@
           "current"
         ],
         "title": "SessionInfo",
+        "type": "object"
+      },
+      "SetVisibility": {
+        "description": "Private, shared or public. Private and public empty the list of\nreaders; shared keeps it.",
+        "properties": {
+          "visibility": {
+            "$ref": "#/components/schemas/Visibility"
+          }
+        },
+        "required": [
+          "visibility"
+        ],
+        "title": "SetVisibility",
         "type": "object"
       },
       "Show": {
@@ -4285,6 +4667,42 @@
         "title": "UploadStatus",
         "type": "string"
       },
+      "Version": {
+        "properties": {
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version"
+        ],
+        "title": "Version",
+        "type": "object"
+      },
+      "VersionContent": {
+        "description": "A workflow's `workflow.yaml` at one version.",
+        "properties": {
+          "content": {
+            "title": "Content",
+            "type": "string"
+          }
+        },
+        "required": [
+          "content"
+        ],
+        "title": "VersionContent",
+        "type": "object"
+      },
+      "Visibility": {
+        "enum": [
+          "private",
+          "shared",
+          "public"
+        ],
+        "title": "Visibility",
+        "type": "string"
+      },
       "Who": {
         "description": "Who sees a board, among those who may see the contest.",
         "enum": [
@@ -4315,7 +4733,7 @@
         "type": "object"
       },
       "WorkflowForm": {
-        "description": "What the task form is built from: the workflow the task's `task.yaml`\nnames, as written, the inputs it declares and its test fields, in the\norder the workflow gives them, or `problem`, the reason there are none:\nno `task.yaml` or one that does not read as YAML, no workflow named, or\none that cannot be read or is in an old format; and `graded`, whether\nthe task has a graded submission, from when on a save refuses a test\ngroup it adds without its `show` (T10).",
+        "description": "What the task form is built from: the workflow the task's `task.yaml`\nnames, as written, the inputs it declares and its test fields, in the\norder the workflow gives them, or `problem`, the reason there are none:\nno `task.yaml` or one that does not read as YAML, no workflow named, or\none that cannot be read or is in an old format; `graded`, whether\nthe task has a graded submission, from when on a save refuses a test\ngroup it adds without its `show` (T10); and `newer`, the workflow's\nlatest version when it comes after the one the task names, which the\ntask keeps until someone saves it naming another (Task 10.6.5).",
         "properties": {
           "graded": {
             "default": false,
@@ -4329,6 +4747,17 @@
             },
             "title": "Inputs",
             "type": "array"
+          },
+          "newer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Newer"
           },
           "problem": {
             "anyOf": [
@@ -4366,9 +4795,101 @@
           "inputs",
           "test",
           "problem",
-          "graded"
+          "graded",
+          "newer"
         ],
         "title": "WorkflowForm",
+        "type": "object"
+      },
+      "WorkflowItem": {
+        "description": "A workflow a person may read: its visibility, its versions in natural\norder, and whether they may edit it.",
+        "properties": {
+          "editable": {
+            "title": "Editable",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "owner": {
+            "title": "Owner",
+            "type": "string"
+          },
+          "versions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Versions",
+            "type": "array"
+          },
+          "visibility": {
+            "$ref": "#/components/schemas/Visibility"
+          }
+        },
+        "required": [
+          "owner",
+          "name",
+          "visibility",
+          "versions",
+          "editable"
+        ],
+        "title": "WorkflowItem",
+        "type": "object"
+      },
+      "WorkflowPage": {
+        "description": "A workflow as its page shows it. For someone who may edit it, `draft`,\nits `workflow.yaml` now, and `readers`, the usernames it is shared with;\nfor anyone else, no draft and no readers.",
+        "properties": {
+          "draft": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Definition"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "editable": {
+            "title": "Editable",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "owner": {
+            "title": "Owner",
+            "type": "string"
+          },
+          "readers": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Readers",
+            "type": "array"
+          },
+          "versions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Versions",
+            "type": "array"
+          },
+          "visibility": {
+            "$ref": "#/components/schemas/Visibility"
+          }
+        },
+        "required": [
+          "owner",
+          "name",
+          "visibility",
+          "versions",
+          "editable",
+          "draft",
+          "readers"
+        ],
+        "title": "WorkflowPage",
         "type": "object"
       },
       "WriteFile": {
@@ -4520,7 +5041,7 @@
   "info": {
     "summary": "Contests on top of a git host, a CI and an object store",
     "title": "Unicon API",
-    "version": "0.4.0"
+    "version": "0.5.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -11551,7 +12072,7 @@
     },
     "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/workflow-form": {
       "get": {
-        "description": "The workflow `task.yaml` names as it is saved now, a draft included,\nwith each input it declares and each field every test has, in the\nworkflow's order. A workflow declares no defaults; a contestant input's\n`default` is the task's own. A `task.yaml` that is missing or does not\nread, names no workflow or one that cannot be read answers with\n`problem`, the reason, and no inputs, so the form can mend it. Either\nway `graded` says whether the task has a graded submission, from when\non a save refuses a test group it adds without its `show`.",
+        "description": "The workflow `task.yaml` names as it is saved now, a draft included,\nwith each input it declares and each field every test has, in the\nworkflow's order. A workflow declares no defaults; a contestant input's\n`default` is the task's own. A `task.yaml` that is missing or does not\nread, names no workflow or one that cannot be read answers with\n`problem`, the reason, and no inputs, so the form can mend it. Either\nway `graded` says whether the task has a graded submission, from when\non a save refuses a test group it adds without its `show`, and `newer`\nnames the workflow's latest version when it comes after the one the\ntask names, which the task keeps until it is saved naming another.",
         "operationId": "getTaskWorkflowForm",
         "parameters": [
           {
@@ -12456,6 +12977,42 @@
         ]
       }
     },
+    "/api/v1/primitives": {
+      "get": {
+        "description": "Every primitive at every version with its declared ports, for the\neditor's palette. Every primitive is public; a session is all it needs.",
+        "operationId": "listPrimitives",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Primitive"
+                  },
+                  "title": "Response Listprimitives",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "The platform's primitives",
+        "tags": [
+          "workflows"
+        ]
+      }
+    },
     "/api/v1/public/contests": {
       "get": {
         "description": "Newest start first, each without its tasks.",
@@ -12754,7 +13311,125 @@
         ]
       }
     },
+    "/api/v1/workflow-combinations": {
+      "post": {
+        "description": "A new private workflow under `owner` inlining every source, a clash\nof names taking the first free `-2`, `-3`.",
+        "operationId": "combineWorkflows",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CombineWorkflows"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Workflow"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Combine workflows into one",
+        "tags": [
+          "workflows"
+        ]
+      }
+    },
+    "/api/v1/workflow-copies": {
+      "post": {
+        "description": "A new private workflow under `owner` holding the source's files at\nits version, with nothing written about where they came from.",
+        "operationId": "copyWorkflow",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CopyWorkflow"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Workflow"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Copy a workflow at a version",
+        "tags": [
+          "workflows"
+        ]
+      }
+    },
     "/api/v1/workflows": {
+      "get": {
+        "description": "The caller's own, their orgs', those shared with them and the public\nones, by owner and then name, each saying whether they may edit it.",
+        "operationId": "listWorkflows",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/WorkflowItem"
+                  },
+                  "title": "Response Listworkflows",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "The workflows one may read",
+        "tags": [
+          "workflows"
+        ]
+      },
       "post": {
         "description": "Under the caller's own username, or an org where they hold the manager\nrole or above, with its first commit written as the caller.",
         "operationId": "createWorkflow",
@@ -12791,6 +13466,479 @@
           }
         },
         "summary": "Make a workflow",
+        "tags": [
+          "workflows"
+        ]
+      }
+    },
+    "/api/v1/workflows/check": {
+      "post": {
+        "description": "Every problem a version of the definition would be refused for, each\nat its YAML path, against the primitives its steps use as the caller\nreads them. Nothing is written.",
+        "operationId": "checkWorkflow",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckDefinition"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Checked"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Check a definition on its own",
+        "tags": [
+          "workflows"
+        ]
+      }
+    },
+    "/api/v1/workflows/{owner}/{name}": {
+      "get": {
+        "description": "Its visibility, versions and whether the caller may edit it; for one\nwho may, its draft with the token a save carries and who reads it.",
+        "operationId": "getWorkflow",
+        "parameters": [
+          {
+            "description": "An org's name or a person's username",
+            "in": "path",
+            "name": "owner",
+            "required": true,
+            "schema": {
+              "description": "An org's name or a person's username",
+              "title": "Owner",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The workflow's name under its owner",
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "description": "The workflow's name under its owner",
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkflowPage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "A workflow as its page shows it",
+        "tags": [
+          "workflows"
+        ]
+      }
+    },
+    "/api/v1/workflows/{owner}/{name}/draft": {
+      "put": {
+        "description": "Write `workflow.yaml` as the caller over the one read with `token`,\nproblems and all. `conflict` when it has changed since.",
+        "operationId": "saveWorkflow",
+        "parameters": [
+          {
+            "description": "An org's name or a person's username",
+            "in": "path",
+            "name": "owner",
+            "required": true,
+            "schema": {
+              "description": "An org's name or a person's username",
+              "title": "Owner",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The workflow's name under its owner",
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "description": "The workflow's name under its owner",
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveDefinition"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Definition"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Save the draft",
+        "tags": [
+          "workflows"
+        ]
+      }
+    },
+    "/api/v1/workflows/{owner}/{name}/readers/{username}": {
+      "delete": {
+        "operationId": "unshareWorkflow",
+        "parameters": [
+          {
+            "description": "An org's name or a person's username",
+            "in": "path",
+            "name": "owner",
+            "required": true,
+            "schema": {
+              "description": "An org's name or a person's username",
+              "title": "Owner",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The workflow's name under its owner",
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "description": "The workflow's name under its owner",
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "username",
+            "required": true,
+            "schema": {
+              "title": "Username",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Take a person's read away",
+        "tags": [
+          "workflows"
+        ]
+      },
+      "put": {
+        "description": "`conflict` while the workflow is public, which everyone reads.",
+        "operationId": "shareWorkflow",
+        "parameters": [
+          {
+            "description": "An org's name or a person's username",
+            "in": "path",
+            "name": "owner",
+            "required": true,
+            "schema": {
+              "description": "An org's name or a person's username",
+              "title": "Owner",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The workflow's name under its owner",
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "description": "The workflow's name under its owner",
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "username",
+            "required": true,
+            "schema": {
+              "title": "Username",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Reader"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Share it with a person",
+        "tags": [
+          "workflows"
+        ]
+      }
+    },
+    "/api/v1/workflows/{owner}/{name}/versions": {
+      "post": {
+        "description": "Made only when the saved draft passes every check a version must;\notherwise `invalid_definition` with every problem in `errors`, and no\nversion made. Given the token the draft was saved with, `conflict` when\nsomeone has saved since.",
+        "operationId": "createWorkflowVersion",
+        "parameters": [
+          {
+            "description": "An org's name or a person's username",
+            "in": "path",
+            "name": "owner",
+            "required": true,
+            "schema": {
+              "description": "An org's name or a person's username",
+              "title": "Owner",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The workflow's name under its owner",
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "description": "The workflow's name under its owner",
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateVersion"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Version"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Freeze the saved draft under a version",
+        "tags": [
+          "workflows"
+        ]
+      }
+    },
+    "/api/v1/workflows/{owner}/{name}/versions/{version}": {
+      "get": {
+        "description": "Read as the caller: `not_found` when there is no such version or they\nmay not read it.",
+        "operationId": "getWorkflowVersion",
+        "parameters": [
+          {
+            "description": "An org's name or a person's username",
+            "in": "path",
+            "name": "owner",
+            "required": true,
+            "schema": {
+              "description": "An org's name or a person's username",
+              "title": "Owner",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The workflow's name under its owner",
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "description": "The workflow's name under its owner",
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "title": "Version",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersionContent"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "The definition at a version",
+        "tags": [
+          "workflows"
+        ]
+      }
+    },
+    "/api/v1/workflows/{owner}/{name}/visibility": {
+      "put": {
+        "operationId": "setWorkflowVisibility",
+        "parameters": [
+          {
+            "description": "An org's name or a person's username",
+            "in": "path",
+            "name": "owner",
+            "required": true,
+            "schema": {
+              "description": "An org's name or a person's username",
+              "title": "Owner",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The workflow's name under its owner",
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "description": "The workflow's name under its owner",
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetVisibility"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Make it private, shared or public",
         "tags": [
           "workflows"
         ]
