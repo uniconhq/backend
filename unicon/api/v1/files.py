@@ -3,6 +3,9 @@ folder's entries, one file at a version, the history, a write and a
 rollback. The same five routes are served under the contest and the task
 prefixes, made by `router_at`, so each kind gets its own operation names.
 Reading needs the observer role at the place and writing the manager role.
+The history names each change's `author` by username beside `author_id`,
+whether or not they still hold a role there, so a page names every author
+without a route that names users.
 
 A write carries the token the file was read with, and one that has moved
 since is answered `conflict` with nothing written. A write to a contest's

@@ -475,12 +475,23 @@
         "type": "object"
       },
       "Change": {
-        "description": "One entry of a place's history: the version it made, who made it, what\nthey said about it and when.",
+        "description": "One entry of a place's history: the version it made, who made it, what\nthey said about it and when. `author` is the username of `author_id`,\nwhich the history names whether or not they still hold a role there, and\nnone when the forge knows no such account or the change has no author.",
         "properties": {
           "at": {
             "format": "date-time",
             "title": "At",
             "type": "string"
+          },
+          "author": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Author"
           },
           "author_id": {
             "anyOf": [
@@ -506,7 +517,8 @@
           "version",
           "author_id",
           "message",
-          "at"
+          "at",
+          "author"
         ],
         "title": "Change",
         "type": "object"
