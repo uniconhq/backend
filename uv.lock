@@ -1232,6 +1232,15 @@ wheels = [
 ]
 
 [[package]]
+name = "ruamel-yaml"
+version = "0.19.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/c7/3b/ebda527b56beb90cb7652cb1c7e4f91f48649fbcd8d2eb2fb6e77cd3329b/ruamel_yaml-0.19.1.tar.gz", hash = "sha256:53eb66cd27849eff968ebf8f0bf61f46cdac2da1d1f3576dd4ccee9b25c31993", size = 142709, upload-time = "2026-01-02T16:50:31.84Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/b8/0c/51f6841f1d84f404f92463fc2b1ba0da357ca1e3db6b7fbda26956c3b82a/ruamel_yaml-0.19.1-py3-none-any.whl", hash = "sha256:27592957fedf6e0b62f281e96effd28043345e0e66001f97683aa9a40c667c93", size = 118102, upload-time = "2026-01-02T16:50:29.201Z" },
+]
+
+[[package]]
 name = "ruff"
 version = "0.16.7"
 source = { registry = "https://pypi.org/simple" }
@@ -1372,7 +1381,7 @@ dev = [
 requires-dist = [
     { name = "fastapi", specifier = ">=0.141.1" },
     { name = "pydantic", specifier = ">=2.13.5" },
-    { name = "unicon-forge", url = "https://github.com/uniconhq/forge/releases/download/v0.19.0/unicon_forge-0.19.0-py3-none-any.whl" },
+    { name = "unicon-forge", url = "https://github.com/uniconhq/forge/releases/download/v0.20.0/unicon_forge-0.20.0-py3-none-any.whl" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.52.4" },
 ]
 
@@ -1390,8 +1399,8 @@ dev = [
 
 [[package]]
 name = "unicon-forge"
-version = "0.19.0"
-source = { url = "https://github.com/uniconhq/forge/releases/download/v0.19.0/unicon_forge-0.19.0-py3-none-any.whl" }
+version = "0.20.0"
+source = { url = "https://github.com/uniconhq/forge/releases/download/v0.20.0/unicon_forge-0.20.0-py3-none-any.whl" }
 dependencies = [
     { name = "alembic" },
     { name = "boto3" },
@@ -1404,10 +1413,11 @@ dependencies = [
     { name = "pydantic-settings" },
     { name = "pyyaml" },
     { name = "regex" },
+    { name = "ruamel-yaml" },
     { name = "sqlalchemy", extra = ["asyncio"] },
 ]
 wheels = [
-    { url = "https://github.com/uniconhq/forge/releases/download/v0.19.0/unicon_forge-0.19.0-py3-none-any.whl", hash = "sha256:cb1a29c2b4b15b3b4dd5c5cf69926a3f28ab7047a7db3f9c45839b6ff7362feb" },
+    { url = "https://github.com/uniconhq/forge/releases/download/v0.20.0/unicon_forge-0.20.0-py3-none-any.whl", hash = "sha256:19689cc581cfb692e72c3d5e3a084894cac6c8b49971185aee45cb701482f49a" },
 ]
 
 [package.metadata]
@@ -1423,6 +1433,7 @@ requires-dist = [
     { name = "pydantic-settings", specifier = ">=2.15.0" },
     { name = "pyyaml", specifier = ">=6.0.3" },
     { name = "regex", specifier = ">=2026.1" },
+    { name = "ruamel-yaml", specifier = ">=0.19.1" },
     { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0.52" },
 ]
 
