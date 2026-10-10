@@ -6,15 +6,16 @@ agrees with the times the server enforces.
 """
 
 from datetime import datetime
-from typing import Literal
+from decimal import Decimal
+from typing import Any, Literal
 
 from forge.api.contest_home import ContestVisibility, State
 from forge.api.contestants import Status
 from forge.api.release import TaskRelease
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 
 from unicon.schemas.contestants import MyRegistration
-from unicon.schemas.exact import Exact
+from unicon.schemas.exact import Exact, exactly
 from unicon.schemas.submissions import Value
 
 
@@ -103,8 +104,9 @@ class InputField(BaseModel):
     `type`, its `label`, the `options` of an enum, whether it takes one file
     per test, `per_test`, named for the test as `<group>/<test>`, the
     `default` a value takes when it is left out, `min` and `max` of a
-    number, and `max_size`, the most its files may total in bytes. The
-    submit panel shows one field or drop zone per input.
+    number, exactly, and `max_size`, the most its files may total in bytes. A
+    number input's default is served as its exact digits, as its bounds are.
+    The submit panel shows one field or drop zone per input.
     """
 
     id: str
@@ -113,9 +115,20 @@ class InputField(BaseModel):
     options: list[str] | None
     per_test: bool
     default: Value | None
-    min: int | float | None
-    max: int | float | None
+    min: Exact | None
+    max: Exact | None
     max_size: int
+
+    @model_validator(mode="before")
+    @classmethod
+    def _exact_default(cls, given: Any) -> Any:
+        found = given if isinstance(given, dict) else None
+        if found is None or found.get("type") != "number":
+            return given
+        default = found.get("default")
+        if isinstance(default, int | float | Decimal) and not isinstance(default, bool):
+            return {**found, "default": exactly(default)}
+        return given
 
 
 class TaskPage(BaseModel):

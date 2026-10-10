@@ -475,12 +475,23 @@
         "type": "object"
       },
       "Change": {
-        "description": "One entry of a place's history: the version it made, who made it, what\nthey said about it and when.",
+        "description": "One entry of a place's history: the version it made, who made it, what\nthey said about it and when. `author` is the username of `author_id`,\nwhich the history names whether or not they still hold a role there, and\nnone when the forge knows no such account or the change has no author.",
         "properties": {
           "at": {
             "format": "date-time",
             "title": "At",
             "type": "string"
+          },
+          "author": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Author"
           },
           "author_id": {
             "anyOf": [
@@ -506,7 +517,8 @@
           "version",
           "author_id",
           "message",
-          "at"
+          "at",
+          "author"
         ],
         "title": "Change",
         "type": "object"
@@ -1895,7 +1907,7 @@
         "type": "object"
       },
       "InputField": {
-        "description": "One input the contestant gives, with what its form shows: its\n`type`, its `label`, the `options` of an enum, whether it takes one file\nper test, `per_test`, named for the test as `<group>/<test>`, the\n`default` a value takes when it is left out, `min` and `max` of a\nnumber, and `max_size`, the most its files may total in bytes. The\nsubmit panel shows one field or drop zone per input.",
+        "description": "One input the contestant gives, with what its form shows: its\n`type`, its `label`, the `options` of an enum, whether it takes one file\nper test, `per_test`, named for the test as `<group>/<test>`, the\n`default` a value takes when it is left out, `min` and `max` of a\nnumber, exactly, and `max_size`, the most its files may total in bytes. A\nnumber input's default is served as its exact digits, as its bounds are.\nThe submit panel shows one field or drop zone per input.",
         "properties": {
           "default": {
             "anyOf": [
@@ -1928,10 +1940,11 @@
           "max": {
             "anyOf": [
               {
-                "type": "integer"
-              },
-              {
-                "type": "number"
+                "examples": [
+                  "82.5"
+                ],
+                "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+                "type": "string"
               },
               {
                 "type": "null"
@@ -1946,10 +1959,11 @@
           "min": {
             "anyOf": [
               {
-                "type": "integer"
-              },
-              {
-                "type": "number"
+                "examples": [
+                  "82.5"
+                ],
+                "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+                "type": "string"
               },
               {
                 "type": "null"
@@ -2184,19 +2198,27 @@
         "type": "object"
       },
       "LimitSource": {
-        "description": "A container limit raised to `input * scale + add` when that is more.",
+        "description": "A container limit raised to `input * scale + add` when that is more,\n`scale` and `add` exactly as the declaration writes them.",
         "properties": {
           "add": {
+            "examples": [
+              "82.5"
+            ],
+            "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
             "title": "Add",
-            "type": "number"
+            "type": "string"
           },
           "input": {
             "title": "Input",
             "type": "string"
           },
           "scale": {
+            "examples": [
+              "82.5"
+            ],
+            "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
             "title": "Scale",
-            "type": "number"
+            "type": "string"
           }
         },
         "required": [
@@ -3314,7 +3336,7 @@
         "type": "object"
       },
       "Result": {
-        "description": "The latest attempt of a submission's grading, as its contestant sees\nit: its id, attempt and status, and once it is done, what stopped the\nrun, the outcome over the groups shown, each test group as its `show`\nallows, the values reported once, and `folded`, each per-test value\nwith a fold, folded over the tests shown, a test without it counting as\nits worst bound. A run that failed on the platform's side is `running`\nto its contestant, with nothing else, until staff end it: then it is\n`cancelled`, with `reason`, the sentence they gave, which is null on\nevery other status. Once done on a task that gives points, it carries\nits `points` and the late `factor` they include; both are null\notherwise. While a sealed step's stop is held to the reveal, nothing of\nthe run is shown: every group reads as hidden.",
+        "description": "The latest attempt of a submission's grading, as its contestant sees\nit: its id, attempt and status, and once it is done, what stopped the\nrun, the outcome over the groups shown, each test group as its `show`\nallows, the values reported once, and `folded`, each per-test value\nwith a fold, folded over the tests shown, a test without it counting as\nits worst bound. `status` is in the contestant's words: `queued` until\nits run is started, `grading` while it is graded, `graded` once it has\na result, `cancelled` once staff end it; organisers read the grading's\nown status in the gradings routes. A run that failed on the platform's\nside is `grading` to its contestant, with nothing else, until staff end\nit: then it is `cancelled`, with `reason`, the sentence they gave, which\nis null on every other status. Once done on a task that gives points, it carries\nits `points` and the late `factor` they include; both are null\notherwise. While a sealed step's stop is held to the reveal, nothing of\nthe run is shown: every group reads as hidden.",
         "properties": {
           "attempt": {
             "title": "Attempt",
@@ -3402,7 +3424,7 @@
             "title": "Reason"
           },
           "status": {
-            "$ref": "#/components/schemas/GradingStatus"
+            "$ref": "#/components/schemas/SubmissionState"
           },
           "stopped": {
             "anyOf": [
@@ -3842,6 +3864,17 @@
         ],
         "title": "Submission",
         "type": "object"
+      },
+      "SubmissionState": {
+        "description": "Where a submission stands as its contestant is told, in TASK-FORMAT.md\nsection 1.7's words, which say nothing of the CI's stages: `queued`\nuntil its run is started, `grading` while the CI holds it or runs it,\n`graded` once it has a result, and `cancelled` once staff ended it.",
+        "enum": [
+          "queued",
+          "grading",
+          "graded",
+          "cancelled"
+        ],
+        "title": "SubmissionState",
+        "type": "string"
       },
       "Submissions": {
         "description": "What a submit is counted against: at most `max` submissions in all,\nand at most `rate` of them in any window.",
@@ -4417,7 +4450,7 @@
         "type": "object"
       },
       "Timeline": {
-        "description": "A task's timeline in its contest, from its entry in `contest.yaml`,\neach time at its default where the entry gives none: `worth`, the most\npoints it gives, 100 unless the entry says, and none on a task whose\nlatest publication gives no points or that has none; `release_at`, the\ncontest's start unless the entry says; `due`, after which a submission\nis late, and `late_per_day`, the fraction a started late day takes off,\n1 unless the entry says, both none on a task with no due; and `closes`,\nthe contest's end unless the entry says.",
+        "description": "A task's timeline in its contest, from its entry in `contest.yaml`,\neach time at its default where the entry gives none: `worth`, the most\npoints it gives, 100 unless the entry says, and none on a task whose\nlatest publication gives no points or that has none; `release_at`, the\ncontest's start unless the entry says; `due`, after which a submission\nis late, and `late_per_day`, the fraction a started late day takes off,\n1 unless the entry says, both none on a task with no due; and `closes`,\nthe contest's end unless the entry says. `worth` and `late_per_day` are\nexact.",
         "properties": {
           "closes": {
             "format": "date-time",
@@ -4439,10 +4472,11 @@
           "late_per_day": {
             "anyOf": [
               {
-                "type": "integer"
-              },
-              {
-                "type": "number"
+                "examples": [
+                  "82.5"
+                ],
+                "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+                "type": "string"
               },
               {
                 "type": "null"
@@ -4458,10 +4492,11 @@
           "worth": {
             "anyOf": [
               {
-                "type": "integer"
-              },
-              {
-                "type": "number"
+                "examples": [
+                  "82.5"
+                ],
+                "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+                "type": "string"
               },
               {
                 "type": "null"
@@ -5041,7 +5076,7 @@
   "info": {
     "summary": "Contests on top of a git host, a CI and an object store",
     "title": "Unicon API",
-    "version": "0.5.3"
+    "version": "0.6.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -11494,7 +11529,7 @@
     },
     "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/save": {
       "post": {
-        "description": "A valid save publishes and one that is not is kept as a draft with its\nerrors. While the contest runs, a save that changes how the task grades\nis refused as `confirmation_required` unless it is confirmed or kept as a\ndraft. A change naming an upload writes the pointer to the file the\ncaller uploaded for that path; one that is not theirs for this task and\npath is `invalid_inputs`, and one whose bytes have not arrived\n`upload_not_ready`.",
+        "description": "A valid save publishes and one that is not is kept as a draft with its\nerrors. While the contest runs, a save that changes how the task grades\nis refused as `confirmation_required`, with `changes`, what would change,\nand `regrades`, how many submissions it would grade again, unless it is\nconfirmed or kept as a draft. A change naming an upload writes the pointer to the file the\ncaller uploaded for that path; one that is not theirs for this task and\npath is `invalid_inputs`, and one whose bytes have not arrived\n`upload_not_ready`.",
         "operationId": "saveTask",
         "parameters": [
           {

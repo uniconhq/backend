@@ -309,7 +309,8 @@ runs; the save route takes several files at once, each with its token. A save in
 and one that does not is kept as a draft: its files are written, nothing is
 published, and the last publication keeps grading. Once the contest has
 started, and until it is archived, a save that changes how the task grades
-is `confirmation_required`, listing what would change, and nothing is
+is `confirmation_required`, listing what would change and how many
+submissions it would grade again (`regrades`), and nothing is
 written. The same save with `confirm`
 publishes. A save with `keep_as_draft` is written as a draft that says what
 it held back and publishes nothing, on any save, and an empty save with
@@ -501,8 +502,11 @@ looks like a number stays text. A group shown `always` carries everything; `verd
 outcome, and its tests from the task's reveal; `after_close` its name and,
 as `shown_at`, when the rest is shown. A group with `ran` false did not
 run on this grading: it has no outcome, no tests and nothing held back,
-and the outcome over the groups leaves it out. What is not shown is null, and a run
-that failed on the platform's side is `running` to its contestant, with
+and the outcome over the groups leaves it out. What is not shown is null. A
+grading's `status` is in the contestant's words, `queued`, `grading`,
+`graded` or `cancelled`, as `TASK-FORMAT.md` section 1.7 has them; the
+gradings routes give organisers the grading's own status. A run
+that failed on the platform's side is `grading` to its contestant, with
 nothing else, until staff cancel it: then it is `cancelled`, with
 `reason`, the sentence they gave, null on every other status, and the
 submission no longer counts against the task's `max`. An outcome is one of the runner's list, and a value a number
@@ -804,7 +808,7 @@ nowhere else:
 `sole_admin` carries `scopes`, each `{"kind", "name"}`,
 `contestant_conflict` carries `contests`, `shared_workflow_owner` carries
 `workflows`, `admin_only` carries `keys`, `reserved_path` carries `paths`,
-`confirmation_required` carries `changes`, `already_invited` carries `invite`, the one held already, `invalid_definition` carries
+`confirmation_required` carries `changes` and `regrades`, `already_invited` carries `invite`, the one held already, `invalid_definition` carries
 `errors`, each `{"path", "message"}`, `invalid_path` carries `path`,
 `wrong_status` carries `current`, and the refusals of an upload or a submit
 carry what the section above names, so the browser can show what stands in

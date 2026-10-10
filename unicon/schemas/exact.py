@@ -30,14 +30,15 @@ def _rational(value: Any) -> Fraction | None:
     return None
 
 
-def _written(value: Any) -> Any:
+def exactly(value: Any) -> Any:
+    """A number as its plain decimal digits; anything else as it is."""
     number = _rational(value)
     return value if number is None else written(number)
 
 
 Exact = Annotated[
     str,
-    BeforeValidator(_written),
+    BeforeValidator(exactly),
     Field(pattern=EXACT_PATTERN, examples=["82.5"]),
 ]
 """An exact number, as its plain decimal digits."""
