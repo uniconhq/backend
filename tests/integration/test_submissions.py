@@ -10,6 +10,7 @@ and every route needs a session.
 """
 
 import hashlib
+import re
 import uuid
 from datetime import timedelta
 from typing import Any
@@ -113,7 +114,7 @@ async def test_the_download_door_opens_on_ones_own_file_and_reads_it_from_the_fo
 
     assert opened.status_code == 204, opened.text
     door = Door(opened.headers["X-Forge-Path"], opened.headers["X-Forge-Authorization"])
-    assert door.path.endswith("/media/files/submission/main.py?ref=submission%2F1")
+    assert re.search(r"/media/files/submission/main\.py\?ref=[0-9a-f]{40}$", door.path), door.path
     assert await entered.workspaces.fetch(door) == SOURCE
     assert opened.headers["X-Download-Disposition"] == 'attachment; filename="main.py"'
 
