@@ -190,10 +190,11 @@ the one the route needs at the scope in the third column.
 | `GET <place>/tree?path=` | observer | place | | a folder's entries, each with its `upload` or null |
 | `GET <place>/files/{path}?at=` | observer | place | | `path`, `encoding`, `content`, `token`, `upload` |
 | `GET <place>/history?path=` | observer | place | | every change, newest first |
-| `PUT <place>/files/{path}` | manager | place | `encoding`, `content` or, at a task, `upload`, `token`, `message`, `confirm`, `keep_as_draft` | `version` at a contest, the save's result at a task |
+| `PUT <place>/files/{path}` | manager | place | `encoding`, `content` or, at a task, `upload`, `token`, `message`, `confirm`, `keep_as_draft` | `version` and `notes` at a contest, the save's result at a task |
 | `POST <place>/files/{path}/rollback` | manager | place | `version`, `token`, `message`, `confirm`, `keep_as_draft` | as a write |
 | `GET <task>/gradings?limit=` | observer | task | | the task's gradings, newest first, each as the feed gives it |
 | `GET <task>/gradings/{grading}/log` | observer | task | | the grading's run log, as plain text |
+| `GET <task>/organise/submissions/{number}?user_id=&team=` | observer | task | | a row's submission as the row reads it, with everything filled in |
 | `POST <task>/gradings/{grading}/cancel` | manager | task | `reason` | the grading, `cancelled` with its `cancel_reason` |
 | `POST <task>/gradings/{grading}/retry` | manager | task | | the new attempt, `queued` |
 | `PUT <task>/gradings/{grading}/fallback` | manager | task | | the grading, its submission counting as `last_good`, `fallback` `staff` |
@@ -746,6 +747,17 @@ nosniff` and `Content-Security-Policy: default-src 'none'; sandbox`, so the
 browser neither guesses its type nor runs anything in it. A grading with no
 log is `not_found`, and a log larger than the 9 MiB read back is
 `log_too_large`, a 409 with the `limit` in bytes.
+
+Beside a grading, an observer of the task reads its submission as its row
+reads it, with everything filled in (`TASK-FORMAT.md` section 1.7): `GET
+<task>/organise/submissions/{number}` with the row's `user_id` or `team`,
+one of the two (`rejected` otherwise), and a row with no such submission
+`not_found`. It is the contestant's own payload, scored and shown by the
+same code as once the task has revealed: every group's outcome, tests and
+points and every value a sealed step reported, its points all shown and
+none pending. Each group's `shown_at` is kept as a note of when the row is
+shown it, null once it sees the group's tests, and `status` is the
+grading's own (`OrganisedResult`).
 
 Anyone holding a role at a contest or at any of its tasks reads the
 gradings of the tasks they observe as one feed, `GET <contest>/gradings`,

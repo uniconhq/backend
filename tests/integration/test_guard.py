@@ -124,6 +124,7 @@ ROUTES: list[tuple[str, str, dict[str, Any] | None, Role, Scope]] = [
     ("POST", f"{TASK}/files/task.yaml/rollback", ROLLBACK, Role.MANAGER, SUM),
     ("GET", f"{TASK}/gradings", None, Role.OBSERVER, SUM),
     ("GET", f"{TASK}/gradings/{NO_GRADING}/log", None, Role.OBSERVER, SUM),
+    ("GET", f"{TASK}/organise/submissions/1", None, Role.OBSERVER, SUM),
     ("POST", f"{TASK}/gradings/{NO_GRADING}/cancel", CANCEL, Role.MANAGER, SUM),
     ("POST", f"{TASK}/gradings/{NO_GRADING}/retry", None, Role.MANAGER, SUM),
     ("PUT", f"{TASK}/gradings/{NO_GRADING}/fallback", None, Role.MANAGER, SUM),

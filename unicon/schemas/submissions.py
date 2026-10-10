@@ -17,7 +17,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any, Literal
 
-from forge.api.submissions import Show, SubmissionState, SubmittedInput
+from forge.api.submissions import GradingStatus, Show, SubmissionState, SubmittedInput
 from pydantic import BaseModel, model_validator
 
 from unicon.schemas.exact import Exact, Reported, exactly
@@ -98,7 +98,24 @@ class Points(BaseModel):
     pending_until: datetime | None
 
 
-class Result(BaseModel):
+class Scored(BaseModel):
+    """What a result holds beside where it stands, as `Result` and
+    `OrganisedResult` say.
+    """
+
+    id: uuid.UUID
+    attempt: int
+    stopped: Outcome | None
+    outcome: Outcome | None
+    groups: list[GroupShown]
+    values: Reported
+    folded: dict[str, Exact]
+    reason: str | None
+    points: Points | None
+    factor: Exact | None
+
+
+class Result(Scored):
     """The latest attempt of a submission's grading, as its contestant sees
     it: its id, attempt and status, and once it is done, what stopped the
     run, the outcome over the groups shown, each test group as its `show`
@@ -116,29 +133,48 @@ class Result(BaseModel):
     the run is shown: every group reads as hidden.
     """
 
-    id: uuid.UUID
-    attempt: int
     status: SubmissionState
-    stopped: Outcome | None
-    outcome: Outcome | None
-    groups: list[GroupShown]
-    values: Reported
-    folded: dict[str, Exact]
-    reason: str | None
-    points: Points | None
-    factor: Exact | None
 
 
-class Submission(BaseModel):
-    """One of the caller's submissions of the task: its number among them,
-    when it was taken, how many started days after their due it was, and
-    its grading.
+class OrganisedResult(Scored):
+    """A submission's grading as organisers read it beside the grading
+    itself: the payload its contestant reads, with everything filled in as
+    once the task has revealed, so every group's outcome, tests and points
+    and every value a sealed step reported are there, its points all shown
+    and none pending. Each group's `shown_at` is kept as a note of when its
+    contestant is shown it, null once they see its tests. `status` is the
+    grading's own, as in the gradings routes.
+    """
+
+    status: GradingStatus
+
+
+class Numbered(BaseModel):
+    """A submission's number among its row's, when it was taken, and how
+    many started days after the row's due it was.
     """
 
     number: int
     submitted_at: datetime
     late_days: int
+
+
+class Submission(Numbered):
+    """One of the caller's submissions of the task: its number among them,
+    when it was taken, how many started days after their due it was, and
+    its grading.
+    """
+
     grading: Result | None
+
+
+class OrganisedSubmission(Numbered):
+    """One submission of a contestant or a team, as organisers read it:
+    its number among the row's, when it was taken, how many started days
+    late, and its grading with everything filled in.
+    """
+
+    grading: OrganisedResult | None
 
 
 class SubmittedFileInput(BaseModel):
