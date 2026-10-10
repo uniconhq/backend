@@ -73,9 +73,7 @@ async def _graded(
     )
     assert submitted.status_code == 201, submitted.text
     grading = submitted.json()["grading"]["id"]
-    [run] = [
-        run for run in forge.state.runs.values() if run.variables["UNICON_GRADING_ID"] == grading
-    ]
+    [run] = [run for run in forge.ci.runs.values() if run.variables["UNICON_GRADING_ID"] == grading]
     address = urlsplit(run.variables["UNICON_ENVELOPE_URL"])
     envelope = (await client.get(f"{address.path}?{address.query}")).json()
     result: dict[str, Any] = {
