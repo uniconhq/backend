@@ -1907,7 +1907,7 @@
         "type": "object"
       },
       "InputField": {
-        "description": "One input the contestant gives, with what its form shows: its\n`type`, its `label`, the `options` of an enum, whether it takes one file\nper test, `per_test`, named for the test as `<group>/<test>`, the\n`default` a value takes when it is left out, `min` and `max` of a\nnumber, exactly, and `max_size`, the most its files may total in bytes. The\nsubmit panel shows one field or drop zone per input.",
+        "description": "One input the contestant gives, with what its form shows: its\n`type`, its `label`, the `options` of an enum, whether it takes one file\nper test, `per_test`, named for the test as `<group>/<test>`, the\n`default` a value takes when it is left out, `min` and `max` of a\nnumber, exactly, and `max_size`, the most its files may total in bytes. A\nnumber input's default is served as its exact digits, as its bounds are.\nThe submit panel shows one field or drop zone per input.",
         "properties": {
           "default": {
             "anyOf": [
