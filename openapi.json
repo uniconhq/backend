@@ -1009,7 +1009,7 @@
         "type": "object"
       },
       "CreateVersion": {
-        "description": "A name to freeze the saved draft under, such as `v1`, and the token\nthe caller saved it with, so the version is of that save; with none, of\nwhatever is saved now.",
+        "description": "A name to freeze the saved draft under, `v` and a whole number from\n1 with no leading zero, such as `v1` or `v10`, and the token\nthe caller saved it with, so the version is of that save; with none, of\nwhatever is saved now.",
         "properties": {
           "token": {
             "anyOf": [
@@ -13800,7 +13800,7 @@
     },
     "/api/v1/workflows/{owner}/{name}/versions": {
       "post": {
-        "description": "Made only when the saved draft passes every check a version must;\notherwise `invalid_definition` with every problem in `errors`, and no\nversion made. Given the token the draft was saved with, `conflict` when\nsomeone has saved since.",
+        "description": "Made only when the saved draft passes every check a version must;\notherwise `invalid_definition` with every problem in `errors`, and no\nversion made. Given the token the draft was saved with, `conflict` when\nsomeone has saved since; `invalid_name` for a name that is not `v` and\na whole number from 1.",
         "operationId": "createWorkflowVersion",
         "parameters": [
           {

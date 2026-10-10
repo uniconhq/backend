@@ -146,7 +146,8 @@ async def create_workflow_version(
     """Made only when the saved draft passes every check a version must;
     otherwise `invalid_definition` with every problem in `errors`, and no
     version made. Given the token the draft was saved with, `conflict` when
-    someone has saved since.
+    someone has saved since; `invalid_name` for a name that is not `v` and
+    a whole number from 1.
     """
     token = ConflictToken(body.token) if body.token is not None else None
     made = await workflows.create_version(session, owner, name, body.version, token)

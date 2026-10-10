@@ -351,8 +351,9 @@ read, names no workflow, or names one that cannot be read answers with
 `problem`, the reason, and no inputs, so the form can still mend it.
 Either way `graded` says whether the task has a graded submission, from
 when on a save refuses a test group it adds without its `show`, and
-`newer` names the workflow's latest version when it comes after the one
-the task names; the task keeps grading with its own until it is saved
+`newer` names the workflow's version with the largest number when it is
+larger than the one the task names, a tag under any other name never; the
+task keeps grading with its own until it is saved
 naming another.
 
 A file too large to type, such as a dataset, goes into a task as an upload.
@@ -602,7 +603,7 @@ is `not_found`, in the same words as one that is not there.
 | `GET /workflows` | every workflow the caller reaches, their own, their orgs', those shared with them and the platform's built-ins, by `owner` and `name`, with its `visibility`, its `versions` in natural order and whether it is `editable` |
 | `GET /workflows/{owner}/{name}` | the same for one; for one the caller may edit, its `draft`, `content` and the `token` a save carries, and `readers`, the usernames it is shared with |
 | `PUT /workflows/{owner}/{name}/draft` | write `workflow.yaml` over the one read with `token`, or create it with none, problems and all; `conflict` when it moved since |
-| `POST /workflows/{owner}/{name}/versions` | freeze the saved draft under `version`, 201, only when it passes every check a version must; otherwise `invalid_definition` with every problem in `errors` and no version made; given the `token` the draft was saved with, `conflict` when someone has saved since |
+| `POST /workflows/{owner}/{name}/versions` | freeze the saved draft under `version`, `v` and a whole number from 1 with no leading zero (`invalid_name` otherwise), 201, only when it passes every check a version must; otherwise `invalid_definition` with every problem in `errors` and no version made; given the `token` the draft was saved with, `conflict` when someone has saved since |
 | `GET /workflows/{owner}/{name}/versions/{version}` | the `content` at a version, one of its tags and never a branch, read as the caller |
 | `PUT /workflows/{owner}/{name}/visibility` | `private`, `shared` or `public`, 204; private and public empty the list of readers |
 | `PUT /workflows/{owner}/{name}/readers/{username}` | share it with a person; `conflict` while it is public |
