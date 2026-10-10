@@ -141,10 +141,14 @@ are open to anyone holding any role at a scope or at anything in it, and the
 action narrows what each reads: their dependency, `anywhere(at)`, asks as
 `require(Role.OBSERVER, at)` does first, so an observer there costs the
 same one read, and for someone holding roles only further in reads them
-once more to find one, handing the route the `Organiser` at that narrower
-scope. Holding none there, or naming a scope that is not there, is
-`forbidden`, "This needs a role at `<address>` or at anything in it." No
-route checks a role any other way. Every answer that shows a name takes it from
+twice more, once to find one and once to check it, handing the route the
+`Organiser` at that narrower scope; a forge that does not answer the read
+that finds one is `forge_unavailable`. Holding none there, or naming a
+scope that is not there, is `forbidden`, "This needs a role at `<address>`
+or at anything in it." Every other route checks a role this way, but one:
+`GET <org>/clarifications` takes a session alone, and forge reads the
+person's roles and gives the questions of the contests they observe, none
+for a role only at a task. Every answer that shows a name takes it from
 the record forge returns, never from an id.
 
 Below, `<org>`, `<contest>` and `<task>` stand for the three prefixes,
@@ -322,7 +326,7 @@ it held back and publishes nothing, on any save, and an empty save with
 `confirm` publishes that draft later.
 
 A save answers with what it published or with the draft it kept. A
-publication carries the `publication`, its `number`, `grading_changed`, the
+publication carries its `number`, `grading_changed`, the
 `changes`, the `notes` the save makes of the task beside publishing it,
 such as which steps it seals until the reveal, and how many submissions it
 `regraded`, queued to be graded again against it; a draft carries the `version` written, the `errors`, each
@@ -815,7 +819,7 @@ nowhere else:
 |---|---|
 | `not_found`, `upload_not_yours` | 404 |
 | `forbidden`, `ci_request_refused`, `fresh_sign_in_required`, `origin_mismatch`, `admin_only`, `reserved_path`, `registration_closed`, `is_staff`, `invite_required`, `wrong_invite_code`, `domain_not_allowed`, `task_closed`, `archived`, `not_approved`, `marks_frozen` | 403 |
-| `conflict`, `sole_admin`, `contestant_conflict`, `shared_workflow_owner`, `confirmation_required`, `already_registered`, `contest_full`, `already_invited`, `teams_off`, `team_name_taken`, `team_full`, `in_team`, `submitted_alone`, `team_has_submissions`, `team_changed`, `wrong_status`, `submission_limit`, `upload_not_ready`, `upload_limit`, `marks_off`, `mark_limit` | 409 |
+| `conflict`, `sole_admin`, `contestant_conflict`, `shared_workflow_owner`, `confirmation_required`, `already_registered`, `contest_full`, `already_invited`, `teams_off`, `team_name_taken`, `team_full`, `in_team`, `submitted_alone`, `team_has_submissions`, `team_changed`, `wrong_status`, `submission_limit`, `upload_not_ready`, `upload_limit`, `marks_off`, `mark_limit`, `log_too_large` | 409 |
 | `grading_closed`, `invite_expired` | 410 |
 | `payload_too_large`, `too_large` | 413 |
 | `rate_limited`, `invite_limit` | 429, with `Retry-After` |
