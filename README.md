@@ -485,7 +485,11 @@ else's is not found.
 
 A submit names, for each of the task's contestant inputs by id, the
 `uploads` of its files, or the `value` of a text, number, true-or-false or
-enum input, the language of a program being an enum input of its own, with
+enum input, the language of a program being an enum input of its own; a
+number is the text of its plain decimal digits, `2.5`, as every number is
+served, and forge refuses one that is not (`1e3`, `0x10`, `NaN`, empty, or
+past the input's bounds, checked exactly) as `invalid_inputs`, while a JSON
+number in its place is a `validation_error`. It comes with
 an `idempotency_key` the browser makes once per submit, 8 to 128 letters,
 digits, `-` and `_`; a value left out takes its default. The same key sent
 again answers with the submission it made and makes nothing. A submission
@@ -517,7 +521,7 @@ nothing else, until staff cancel it: then it is `cancelled`, with
 submission no longer counts against the task's `max`. An outcome is one of the runner's list, and a value a number
 or text. The route renders what forge gives it and nothing more. The files
 route answers each input's `files`, by their paths in the submission, or
-its `value`.
+its `value`, a number as its exact digits.
 A file itself is downloaded through the proxy's download door,
 `/-/downloads/<org>/<contest>/<task>/<number>/<path>`, which asks this
 process whether the caller may read it and then streams it from the forge

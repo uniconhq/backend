@@ -206,6 +206,7 @@ def test_a_submissions_inputs_are_read_leniently() -> None:
             "submission": {"files": ["files/submission/main.py", 7]},
             "language": {"value": "python"},
             "alpha": {"value": 0.5},
+            "ratio": {"value": Decimal("0.123456789012345678901234567891")},
             "odd": ["not", "an", "object"],
             "weights": {"files": "files/weights/model.bin", "value": {"nested": True}},
         },
@@ -218,7 +219,8 @@ def test_a_submissions_inputs_are_read_leniently() -> None:
         "inputs": {
             "submission": {"files": ["files/submission/main.py"], "value": None},
             "language": {"files": [], "value": "python"},
-            "alpha": {"files": [], "value": 0.5},
+            "alpha": {"files": [], "value": "0.5"},
+            "ratio": {"files": [], "value": "0.123456789012345678901234567891"},
             "odd": {"files": [], "value": None},
             "weights": {"files": [], "value": None},
         },

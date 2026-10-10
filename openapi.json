@@ -1915,12 +1915,6 @@
                 "type": "string"
               },
               {
-                "type": "integer"
-              },
-              {
-                "type": "number"
-              },
-              {
                 "type": "boolean"
               },
               {
@@ -3917,7 +3911,7 @@
         "type": "object"
       },
       "SubmittedFileInput": {
-        "description": "What one input of a submission was: the paths of its files in the\nsubmission, each a download through the download door, or the value\ngiven. It is read leniently from the submission's `submission.json`: a\nmember of the wrong type is left out rather than failing the answer.",
+        "description": "What one input of a submission was: the paths of its files in the\nsubmission, each a download through the download door, or the value\ngiven, a number as its exact decimal digits. It is read leniently from\nthe submission's `submission.json`: a member of the wrong type is left\nout rather than failing the answer.",
         "properties": {
           "files": {
             "items": {
@@ -3930,12 +3924,6 @@
             "anyOf": [
               {
                 "type": "string"
-              },
-              {
-                "type": "integer"
-              },
-              {
-                "type": "number"
               },
               {
                 "type": "boolean"
@@ -3977,7 +3965,7 @@
         "type": "object"
       },
       "SubmittedInput": {
-        "description": "What a contestant gives for one input: the uploads of its files; or,\nfor a text, number, true-or-false or enum input, its value.",
+        "description": "What a contestant gives for one input: the uploads of its files; or,\nfor a text, number, true-or-false or enum input, its value. A number is\ngiven as the text of its plain decimal digits, `2.5`, the form every\nnumber is served in, so it is checked and written exactly, never read\ninto a float on the way.",
         "properties": {
           "uploads": {
             "default": [],
@@ -3992,12 +3980,6 @@
             "anyOf": [
               {
                 "type": "string"
-              },
-              {
-                "type": "integer"
-              },
-              {
-                "type": "number"
               },
               {
                 "type": "boolean"
