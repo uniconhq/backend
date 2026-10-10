@@ -25,6 +25,7 @@ dev = [
     "import-linter>=2.15",
     "httpx>=0.28.1",
     "psycopg[binary]>=3.3.5",
+    "pytest-xdist>=3.8",
 ]
 
 [tool.uv.sources]
