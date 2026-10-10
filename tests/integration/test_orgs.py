@@ -137,10 +137,10 @@ async def test_a_failed_org_answers_with_the_refusal_and_leaves_the_name_free(
     held_setup: Setup,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    async def gone(*args: object, **kwargs: object) -> int:
+    async def gone(*args: object, **kwargs: object) -> object:
         raise Unavailable("the CI went away")
 
-    monkeypatch.setattr(forge.grading, "create_ci_user", gone)
+    monkeypatch.setattr(forge.grading, "set_up_org", gone)
     await sign_in(client, forge)
 
     failed = await client.post("/api/v1/orgs", json={"name": "acme"}, headers=ORIGIN)

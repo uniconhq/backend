@@ -21,7 +21,7 @@ from urllib.parse import urlsplit
 import httpx
 import pytest
 from forge.api import tasks
-from forge.api.runs import CI_CONFIG_PATH, CiRequest
+from forge.api.runs import CI_CONFIG_PATH, InboundRequest
 from forge.testing import FakeClock, FakeForge, Setup
 
 from tests.integration.conftest import ORIGIN, SUM, TASK, edit_task, sign_in_as, upload
@@ -77,22 +77,23 @@ async def _asked(
     clock: FakeClock,
     monkeypatch: pytest.MonkeyPatch,
     **options: Any,
-) -> tuple[CiRequest, httpx.Response]:
+) -> tuple[InboundRequest, httpx.Response]:
     """carol's first submission, whose start the fake CI answers by asking
     the platform what the run is, as the real CI does while the start is
     under way; the question it asked and the answer it was given.
     """
-    asked: list[tuple[CiRequest, httpx.Response]] = []
+    asked: list[tuple[InboundRequest, httpx.Response]] = []
     start = forge.grading.start_run
 
-    async def asking(as_: Any, run: Any) -> Any:
-        variables = dict(forge.grading.run_variables(run))
+    async def asking(as_: Any, run: Any, spec: Any) -> Any:
+        made = await start(as_, run, spec)
+        variables = forge.state.runs[made].variables
         request = forge.grading.config_request(
             tasks.task_id_of(SUM), variables, now=clock.now(), **options
         )
         answer = await client.post(request.target, content=request.body, headers=request.headers)
         asked.append((request, answer))
-        return await start(as_, run)
+        return made
 
     monkeypatch.setattr(forge.grading, "start_run", asking)
     await _submitted(client, forge)

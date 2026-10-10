@@ -53,10 +53,10 @@ async def test_create_org_that_fails_halfway_is_refused_with_its_reason(
     capsys: pytest.CaptureFixture[str],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    async def gone(*args: object, **kwargs: object) -> int:
+    async def gone(*args: object, **kwargs: object) -> object:
         raise Unavailable("the CI went away")
 
-    monkeypatch.setattr(forge.grading, "create_ci_user", gone)
+    monkeypatch.setattr(forge.grading, "set_up_org", gone)
 
     code = await unicon(["create-org", "acme", "--admin", "ada"])
 
