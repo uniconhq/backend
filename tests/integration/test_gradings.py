@@ -142,7 +142,7 @@ async def _graded(client: httpx.AsyncClient, forge: FakeForge) -> str:
     result; its grading's id.
     """
     grading = await _grading(client, forge)
-    [run] = forge.state.runs.values()
+    [run] = forge.ci.runs.values()
     parts = urlsplit(run.variables["UNICON_ENVELOPE_URL"])
     envelope = (await client.get(f"{parts.path}?{parts.query}")).json()
     reported = await client.post(
