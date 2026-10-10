@@ -3324,7 +3324,7 @@
         "type": "object"
       },
       "Result": {
-        "description": "The latest attempt of a submission's grading, as its contestant sees\nit: its id, attempt and status, and once it is done, what stopped the\nrun, the outcome over the groups shown, each test group as its `show`\nallows, the values reported once, and `folded`, each per-test value\nwith a fold, folded over the tests shown, a test without it counting as\nits worst bound. A run that failed on the platform's side is `running`\nto its contestant, with nothing else, until staff end it: then it is\n`cancelled`, with `reason`, the sentence they gave, which is null on\nevery other status. Once done on a task that gives points, it carries\nits `points` and the late `factor` they include; both are null\notherwise. While a sealed step's stop is held to the reveal, nothing of\nthe run is shown: every group reads as hidden.",
+        "description": "The latest attempt of a submission's grading, as its contestant sees\nit: its id, attempt and status, and once it is done, what stopped the\nrun, the outcome over the groups shown, each test group as its `show`\nallows, the values reported once, and `folded`, each per-test value\nwith a fold, folded over the tests shown, a test without it counting as\nits worst bound. `status` is in the contestant's words: `queued` until\nits run is started, `grading` while it is graded, `graded` once it has\na result, `cancelled` once staff end it; organisers read the grading's\nown status in the gradings routes. A run that failed on the platform's\nside is `grading` to its contestant, with nothing else, until staff end\nit: then it is `cancelled`, with `reason`, the sentence they gave, which\nis null on every other status. Once done on a task that gives points, it carries\nits `points` and the late `factor` they include; both are null\notherwise. While a sealed step's stop is held to the reveal, nothing of\nthe run is shown: every group reads as hidden.",
         "properties": {
           "attempt": {
             "title": "Attempt",
@@ -3412,7 +3412,7 @@
             "title": "Reason"
           },
           "status": {
-            "$ref": "#/components/schemas/GradingStatus"
+            "$ref": "#/components/schemas/SubmissionState"
           },
           "stopped": {
             "anyOf": [
@@ -3852,6 +3852,17 @@
         ],
         "title": "Submission",
         "type": "object"
+      },
+      "SubmissionState": {
+        "description": "Where a submission stands as its contestant is told, in TASK-FORMAT.md\nsection 1.7's words, which say nothing of the CI's stages: `queued`\nuntil its run is started, `grading` while the CI holds it or runs it,\n`graded` once it has a result, and `cancelled` once staff ended it.",
+        "enum": [
+          "queued",
+          "grading",
+          "graded",
+          "cancelled"
+        ],
+        "title": "SubmissionState",
+        "type": "string"
       },
       "Submissions": {
         "description": "What a submit is counted against: at most `max` submissions in all,\nand at most `rate` of them in any window.",

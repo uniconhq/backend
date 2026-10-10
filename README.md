@@ -501,8 +501,11 @@ looks like a number stays text. A group shown `always` carries everything; `verd
 outcome, and its tests from the task's reveal; `after_close` its name and,
 as `shown_at`, when the rest is shown. A group with `ran` false did not
 run on this grading: it has no outcome, no tests and nothing held back,
-and the outcome over the groups leaves it out. What is not shown is null, and a run
-that failed on the platform's side is `running` to its contestant, with
+and the outcome over the groups leaves it out. What is not shown is null. A
+grading's `status` is in the contestant's words, `queued`, `grading`,
+`graded` or `cancelled`, as `TASK-FORMAT.md` section 1.7 has them; the
+gradings routes give organisers the grading's own status. A run
+that failed on the platform's side is `grading` to its contestant, with
 nothing else, until staff cancel it: then it is `cancelled`, with
 `reason`, the sentence they gave, null on every other status, and the
 submission no longer counts against the task's `max`. An outcome is one of the runner's list, and a value a number
