@@ -66,7 +66,7 @@ async def _submitted(client: httpx.AsyncClient, forge: FakeForge) -> str:
 
 async def _started(client: httpx.AsyncClient, forge: FakeForge, setup: Setup) -> Started:
     grading = await _submitted(client, forge)
-    [run] = forge.state.runs.values()
+    [run] = forge.ci.runs.values()
     assert run.variables["UNICON_GRADING_ID"] == grading
     return Started(grading, run.variables)
 
@@ -87,7 +87,7 @@ async def _asked(
 
     async def asking(as_: Any, run: Any, spec: Any) -> Any:
         made = await start(as_, run, spec)
-        variables = forge.state.runs[made].variables
+        variables = forge.ci.runs[made].variables
         request = forge.grading.config_request(
             tasks.task_id_of(SUM), variables, now=clock.now(), **options
         )
