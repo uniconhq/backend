@@ -253,3 +253,40 @@ async def test_the_board_routes_need_a_session_but_the_public_ones(
     assert [(answer.status_code, answer.json()["code"]) for answer in answers] == [
         (401, "unauthenticated")
     ] * 4
+
+
+async def test_a_save_of_the_contests_settings_answers_the_notes_its_boards_report(
+    client: httpx.AsyncClient, entered: FakeForge
+) -> None:
+    await sign_in_as(client, entered, 7)
+    settings = await read(client, f"{CONTEST}/files/contest.yaml")
+    content = re.sub(r"(?ms)^leaderboards:.*?(?=^\S|\Z)", "", settings["content"])
+    late = "leaderboards:\n  - {name: Late, over: after_close, order: [points]}\n"
+
+    written = await client.put(
+        f"{CONTEST}/files/contest.yaml",
+        json={"content": content.rstrip("\n") + "\n" + late, "token": settings["token"]},
+        headers=ORIGIN,
+    )
+    organised = await client.get(ORGANISE)
+
+    assert written.status_code == 200, written.text
+    assert written.json()["notes"] == ["Late counts nothing from sum."]
+    assert [board["notes"] for board in organised.json()] == [["Late counts nothing from sum."]]
+
+
+async def test_a_save_of_the_contests_settings_with_nothing_to_report_answers_no_notes(
+    client: httpx.AsyncClient, entered: FakeForge
+) -> None:
+    await sign_in_as(client, entered, 7)
+    settings = await read(client, f"{CONTEST}/files/contest.yaml")
+    content = re.sub(r"(?ms)^leaderboards:.*?(?=^\S|\Z)", "", settings["content"])
+
+    written = await client.put(
+        f"{CONTEST}/files/contest.yaml",
+        json={"content": content.rstrip("\n") + "\n" + SETTINGS, "token": settings["token"]},
+        headers=ORIGIN,
+    )
+
+    assert written.status_code == 200, written.text
+    assert written.json()["notes"] == []

@@ -5058,15 +5058,23 @@
         "type": "object"
       },
       "Written": {
-        "description": "A contest's file written: the version the change made.",
+        "description": "A contest's file written: the version the change made, and, for\n`contest.yaml`, each board's `notes` on the tasks it covers, such as one\nthat counts nothing from a task, the notes the organisers' reading of\nthe boards carries beside each.",
         "properties": {
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Notes",
+            "type": "array"
+          },
           "version": {
             "title": "Version",
             "type": "string"
           }
         },
         "required": [
-          "version"
+          "version",
+          "notes"
         ],
         "title": "Written",
         "type": "object"
