@@ -18,7 +18,7 @@ from decimal import Decimal
 from typing import Any, Literal
 
 from forge.api.submissions import GradingStatus, Show, SubmissionState, SubmittedInput
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel, field_validator, model_validator
 
 from unicon.schemas.exact import Exact, Reported, exactly
 
@@ -52,6 +52,22 @@ class SubmitRequest(BaseModel):
 
     idempotency_key: str
     inputs: dict[str, SubmittedInput]
+
+    @field_validator("inputs", mode="before")
+    @classmethod
+    def _no_json_numbers(cls, given: Any) -> Any:
+        """A value is text, true or false: a JSON number would otherwise be
+        read as true or false (`1`, `0`, `1.0`), and a number is sent as the
+        text of its digits (#427).
+        """
+        if isinstance(given, dict):
+            for name, entry in given.items():
+                value = entry.get("value") if isinstance(entry, dict) else None
+                if isinstance(value, int | float) and not isinstance(value, bool):
+                    raise ValueError(
+                        f'{name}: a number is sent as the text of its digits, such as "2.5".'
+                    )
+        return given
 
 
 class GradedTest(BaseModel):
