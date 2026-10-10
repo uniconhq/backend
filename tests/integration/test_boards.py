@@ -15,11 +15,20 @@ from urllib.parse import urlsplit
 import httpx
 from forge.testing import FakeClock, FakeForge
 
-from tests.integration.conftest import CONTEST, ORIGIN, TASK, read, sign_in_as, upload
+from tests.integration.conftest import (
+    CONTEST,
+    ORIGIN,
+    TASK,
+    edit_task,
+    read,
+    sign_in_as,
+    upload,
+)
 
 PUBLIC = "/api/v1/public/contests/acme/spring/boards"
 BOARDS = f"{CONTEST}/boards"
 ORGANISE = f"{CONTEST}/organise/boards"
+ORGANISED = f"{TASK}/organise/submissions/1"
 MARKS = f"{TASK}/marks"
 SETTINGS = """\
 leaderboards:
@@ -253,3 +262,91 @@ async def test_the_board_routes_need_a_session_but_the_public_ones(
     assert [(answer.status_code, answer.json()["code"]) for answer in answers] == [
         (401, "unauthenticated")
     ] * 4
+
+
+async def test_a_save_of_the_contests_settings_answers_the_notes_its_boards_report(
+    client: httpx.AsyncClient, entered: FakeForge
+) -> None:
+    await sign_in_as(client, entered, 7)
+    settings = await read(client, f"{CONTEST}/files/contest.yaml")
+    content = re.sub(r"(?ms)^leaderboards:.*?(?=^\S|\Z)", "", settings["content"])
+    late = "leaderboards:\n  - {name: Late, over: after_close, order: [points]}\n"
+
+    written = await client.put(
+        f"{CONTEST}/files/contest.yaml",
+        json={"content": content.rstrip("\n") + "\n" + late, "token": settings["token"]},
+        headers=ORIGIN,
+    )
+    organised = await client.get(ORGANISE)
+
+    assert written.status_code == 200, written.text
+    assert written.json()["notes"] == ["Late counts nothing from sum."]
+    assert [board["notes"] for board in organised.json()] == [["Late counts nothing from sum."]]
+
+
+async def test_a_save_of_the_contests_settings_with_nothing_to_report_answers_no_notes(
+    client: httpx.AsyncClient, entered: FakeForge
+) -> None:
+    await sign_in_as(client, entered, 7)
+    settings = await read(client, f"{CONTEST}/files/contest.yaml")
+    content = re.sub(r"(?ms)^leaderboards:.*?(?=^\S|\Z)", "", settings["content"])
+
+    written = await client.put(
+        f"{CONTEST}/files/contest.yaml",
+        json={"content": content.rstrip("\n") + "\n" + SETTINGS, "token": settings["token"]},
+        headers=ORIGIN,
+    )
+
+    assert written.status_code == 200, written.text
+    assert written.json()["notes"] == []
+
+
+async def test_organisers_read_a_submission_scored_with_everything_filled_in(
+    client: httpx.AsyncClient, entered: FakeForge
+) -> None:
+    await sign_in_as(client, entered, 7)
+    await edit_task(client, "main: {each: 100}", "main: {each: 100, show: after_close}")
+    await sign_in_as(client, entered, 20)
+    await _graded(client, entered, "key-0001-aaaa")
+    own = (await client.get(f"{TASK}/submissions/1")).json()["grading"]
+    refused = await client.get(ORGANISED, params={"user_id": 20})
+    await sign_in_as(client, entered, 7)
+
+    seen = await client.get(ORGANISED, params={"user_id": 20})
+
+    assert (refused.status_code, refused.json()["code"]) == (403, "forbidden")
+    assert seen.status_code == 200, seen.text
+    grading = seen.json()["grading"]
+    [main] = grading["groups"]
+    [mine] = own["groups"]
+    assert (main["outcome"], main["points"], main["max"]) == ("accepted", "100", "100")
+    assert [test["test"] for test in main["tests"]] == ["main/1"]
+    assert main["shown_at"] == mine["shown_at"] == "2026-09-26T15:00:00Z"
+    assert (grading["status"], grading["outcome"]) == ("done", "accepted")
+    assert grading["points"] == {"shown": "100", "pending": "0", "pending_until": None}
+    assert (mine["outcome"], mine["tests"], mine["points"]) == (None, None, None)
+    assert (own["status"], own["points"]["pending"]) == ("graded", "100")
+
+
+async def test_organisers_pick_one_row_with_such_a_submission(
+    client: httpx.AsyncClient, entered: FakeForge
+) -> None:
+    await _graded(client, entered, "key-0001-aaaa")
+    await sign_in_as(client, entered, 7)
+    team = "0192f4a4-7b7e-7000-8000-000000000001"
+
+    answers = [
+        await client.get(ORGANISED),
+        await client.get(ORGANISED, params={"user_id": 20, "team": team}),
+        await client.get(ORGANISED, params={"user_id": 7}),
+        await client.get(f"{TASK}/organise/submissions/2", params={"user_id": 20}),
+        await client.get(ORGANISED, params={"team": team}),
+    ]
+
+    assert [(answer.status_code, answer.json()["code"]) for answer in answers] == [
+        (422, "rejected"),
+        (422, "rejected"),
+        (404, "not_found"),
+        (404, "not_found"),
+        (404, "not_found"),
+    ]

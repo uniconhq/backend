@@ -190,10 +190,11 @@ the one the route needs at the scope in the third column.
 | `GET <place>/tree?path=` | observer | place | | a folder's entries, each with its `upload` or null |
 | `GET <place>/files/{path}?at=` | observer | place | | `path`, `encoding`, `content`, `token`, `upload` |
 | `GET <place>/history?path=` | observer | place | | every change, newest first |
-| `PUT <place>/files/{path}` | manager | place | `encoding`, `content` or, at a task, `upload`, `token`, `message`, `confirm`, `keep_as_draft` | `version` at a contest, the save's result at a task |
+| `PUT <place>/files/{path}` | manager | place | `encoding`, `content` or, at a task, `upload`, `token`, `message`, `confirm`, `keep_as_draft` | `version` and `notes` at a contest, the save's result at a task |
 | `POST <place>/files/{path}/rollback` | manager | place | `version`, `token`, `message`, `confirm`, `keep_as_draft` | as a write |
 | `GET <task>/gradings?limit=` | observer | task | | the task's gradings, newest first, each as the feed gives it |
 | `GET <task>/gradings/{grading}/log` | observer | task | | the grading's run log, as plain text |
+| `GET <task>/organise/submissions/{number}?user_id=&team=` | observer | task | | a row's submission as the row reads it, with everything filled in |
 | `POST <task>/gradings/{grading}/cancel` | manager | task | `reason` | the grading, `cancelled` with its `cancel_reason` |
 | `POST <task>/gradings/{grading}/retry` | manager | task | | the new attempt, `queued` |
 | `PUT <task>/gradings/{grading}/fallback` | manager | task | | the grading, its submission counting as `last_good`, `fallback` `staff` |
@@ -297,7 +298,11 @@ that is empty, absolute, climbs out with `..` or holds a character a URL or
 git reads as something else is `invalid_path` before the forge is asked. A
 write to `contest.yaml` that does not validate is `invalid_definition`,
 with each error at its YAML path, and a manager's change to one of its
-admin-only keys is `admin_only`, naming each. A rollback writes the file as
+admin-only keys is `admin_only`, naming each. A contest's file written
+answers its `version` and `notes`, what each board reports of the tasks it
+covers at that save, such as one that counts nothing from a task: the same
+notes the organisers' reading carries beside each board, and none for any
+other file. A rollback writes the file as
 it was at an older version back as a new change, so the history stays
 whole.
 
@@ -347,8 +352,9 @@ read, names no workflow, or names one that cannot be read answers with
 `problem`, the reason, and no inputs, so the form can still mend it.
 Either way `graded` says whether the task has a graded submission, from
 when on a save refuses a test group it adds without its `show`, and
-`newer` names the workflow's latest version when it comes after the one
-the task names; the task keeps grading with its own until it is saved
+`newer` names the workflow's version with the largest number when it is
+larger than the one the task names, a tag under any other name never; the
+task keeps grading with its own until it is saved
 naming another.
 
 A file too large to type, such as a dataset, goes into a task as an upload.
@@ -480,7 +486,11 @@ else's is not found.
 
 A submit names, for each of the task's contestant inputs by id, the
 `uploads` of its files, or the `value` of a text, number, true-or-false or
-enum input, the language of a program being an enum input of its own, with
+enum input, the language of a program being an enum input of its own; a
+number is the text of its plain decimal digits, `2.5`, as every number is
+served, and forge refuses one that is not (`1e3`, `0x10`, `NaN`, empty, or
+past the input's bounds, checked exactly) as `invalid_inputs`, while a JSON
+number in its place is a `validation_error`. It comes with
 an `idempotency_key` the browser makes once per submit, 8 to 128 letters,
 digits, `-` and `_`; a value left out takes its default. The same key sent
 again answers with the submission it made and makes nothing. A submission
@@ -512,7 +522,7 @@ nothing else, until staff cancel it: then it is `cancelled`, with
 submission no longer counts against the task's `max`. An outcome is one of the runner's list, and a value a number
 or text. The route renders what forge gives it and nothing more. The files
 route answers each input's `files`, by their paths in the submission, or
-its `value`.
+its `value`, a number as its exact digits.
 A file itself is downloaded through the proxy's download door,
 `/-/downloads/<org>/<contest>/<task>/<number>/<path>`, which asks this
 process whether the caller may read it and then streams it from the forge
@@ -598,7 +608,7 @@ is `not_found`, in the same words as one that is not there.
 | `GET /workflows` | every workflow the caller reaches, their own, their orgs', those shared with them and the platform's built-ins, by `owner` and `name`, with its `visibility`, its `versions` in natural order and whether it is `editable` |
 | `GET /workflows/{owner}/{name}` | the same for one; for one the caller may edit, its `draft`, `content` and the `token` a save carries, and `readers`, the usernames it is shared with |
 | `PUT /workflows/{owner}/{name}/draft` | write `workflow.yaml` over the one read with `token`, or create it with none, problems and all; `conflict` when it moved since |
-| `POST /workflows/{owner}/{name}/versions` | freeze the saved draft under `version`, 201, only when it passes every check a version must; otherwise `invalid_definition` with every problem in `errors` and no version made; given the `token` the draft was saved with, `conflict` when someone has saved since |
+| `POST /workflows/{owner}/{name}/versions` | freeze the saved draft under `version`, `v` and a whole number from 1 with no leading zero (`invalid_name` otherwise), 201, only when it passes every check a version must; otherwise `invalid_definition` with every problem in `errors` and no version made; given the `token` the draft was saved with, `conflict` when someone has saved since |
 | `GET /workflows/{owner}/{name}/versions/{version}` | the `content` at a version, one of its tags and never a branch, read as the caller |
 | `PUT /workflows/{owner}/{name}/visibility` | `private`, `shared` or `public`, 204; private and public empty the list of readers |
 | `PUT /workflows/{owner}/{name}/readers/{username}` | share it with a person; `conflict` while it is public |
@@ -737,6 +747,17 @@ nosniff` and `Content-Security-Policy: default-src 'none'; sandbox`, so the
 browser neither guesses its type nor runs anything in it. A grading with no
 log is `not_found`, and a log larger than the 9 MiB read back is
 `log_too_large`, a 409 with the `limit` in bytes.
+
+Beside a grading, an observer of the task reads its submission as its row
+reads it, with everything filled in (`TASK-FORMAT.md` section 1.7): `GET
+<task>/organise/submissions/{number}` with the row's `user_id` or `team`,
+one of the two (`rejected` otherwise), and a row with no such submission
+`not_found`. It is the contestant's own payload, scored and shown by the
+same code as once the task has revealed: every group's outcome, tests and
+points and every value a sealed step reported, its points all shown and
+none pending. Each group's `shown_at` is kept as a note of when the row is
+shown it, null once it sees the group's tests, and `status` is the
+grading's own (`OrganisedResult`).
 
 Anyone holding a role at a contest or at any of its tasks reads the
 gradings of the tasks they observe as one feed, `GET <contest>/gradings`,

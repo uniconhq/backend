@@ -1356,7 +1356,7 @@ wheels = [
 
 [[package]]
 name = "unicon-backend"
-version = "0.6.0"
+version = "0.7.0"
 source = { editable = "." }
 dependencies = [
     { name = "fastapi" },
@@ -1381,7 +1381,7 @@ dev = [
 requires-dist = [
     { name = "fastapi", specifier = ">=0.141.1" },
     { name = "pydantic", specifier = ">=2.13.5" },
-    { name = "unicon-forge", url = "https://github.com/uniconhq/forge/releases/download/v0.20.0/unicon_forge-0.20.0-py3-none-any.whl" },
+    { name = "unicon-forge", url = "https://github.com/uniconhq/forge/releases/download/v0.21.0/unicon_forge-0.21.0-py3-none-any.whl" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.52.4" },
 ]
 
@@ -1399,8 +1399,8 @@ dev = [
 
 [[package]]
 name = "unicon-forge"
-version = "0.20.0"
-source = { url = "https://github.com/uniconhq/forge/releases/download/v0.20.0/unicon_forge-0.20.0-py3-none-any.whl" }
+version = "0.21.0"
+source = { url = "https://github.com/uniconhq/forge/releases/download/v0.21.0/unicon_forge-0.21.0-py3-none-any.whl" }
 dependencies = [
     { name = "alembic" },
     { name = "boto3" },
@@ -1417,7 +1417,7 @@ dependencies = [
     { name = "sqlalchemy", extra = ["asyncio"] },
 ]
 wheels = [
-    { url = "https://github.com/uniconhq/forge/releases/download/v0.20.0/unicon_forge-0.20.0-py3-none-any.whl", hash = "sha256:19689cc581cfb692e72c3d5e3a084894cac6c8b49971185aee45cb701482f49a" },
+    { url = "https://github.com/uniconhq/forge/releases/download/v0.21.0/unicon_forge-0.21.0-py3-none-any.whl", hash = "sha256:f0de267dc659c66ece4505710eaa0682912f4292a6cbb19f8f78ea06394b8990" },
 ]
 
 [package.metadata]

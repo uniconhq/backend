@@ -1,24 +1,26 @@
 """What the submission routes take and answer with. A submit names, for each
 of the task's contestant inputs, the uploads of its files, or the value of a
 text, number, true-or-false or enum input, as the forge's own
-`SubmittedInput`. A submission comes back with the latest attempt of its
-grading, carrying only what the task's test groups let its contestant see
-now: each group by its `show`, `always` with its outcome and its tests,
-`verdict` with its outcome and its tests once the task reveals, and
-`after_close` with its name and when it is shown. What is not shown is
-null. On a task that gives points, a result carries its points, each group
-shown its points and most points, and each test row its credit, every one an
-exact decimal string.
+`SubmittedInput`: a number as the text of its plain decimal digits, `2.5`,
+the form every number is served in, never a JSON number. A submission
+comes back with the latest attempt of its grading, carrying only what the
+task's test groups let its contestant see now: each group by its `show`,
+`always` with its outcome and its tests, `verdict` with its outcome and its
+tests once the task reveals, and `after_close` with its name and when it is
+shown. What is not shown is null. On a task that gives points, a result
+carries its points, each group shown its points and most points, and each
+test row its credit, every one an exact decimal string.
 """
 
 import uuid
 from datetime import datetime
+from decimal import Decimal
 from typing import Any, Literal
 
-from forge.api.submissions import Show, SubmissionState, SubmittedInput
+from forge.api.submissions import GradingStatus, Show, SubmissionState, SubmittedInput
 from pydantic import BaseModel, model_validator
 
-from unicon.schemas.exact import Exact, Reported
+from unicon.schemas.exact import Exact, Reported, exactly
 
 Outcome = Literal[
     "accepted",
@@ -34,8 +36,10 @@ Outcome = Literal[
 """The runner's list of outcomes, which each test and what stopped a run
 take one of. Forge keeps a result only once it matches the runner's schema,
 so every outcome read back is on it."""
-Value = str | int | float | bool
-"""A value a contestant gives: text, a number, or true or false."""
+Value = str | bool
+"""A value a contestant gives: text, a number as its exact decimal digits, or
+true or false. A number travels as its digits both ways, so one of 30
+significant digits is never read into a float."""
 
 
 class SubmitRequest(BaseModel):
@@ -94,7 +98,24 @@ class Points(BaseModel):
     pending_until: datetime | None
 
 
-class Result(BaseModel):
+class Scored(BaseModel):
+    """What a result holds beside where it stands, as `Result` and
+    `OrganisedResult` say.
+    """
+
+    id: uuid.UUID
+    attempt: int
+    stopped: Outcome | None
+    outcome: Outcome | None
+    groups: list[GroupShown]
+    values: Reported
+    folded: dict[str, Exact]
+    reason: str | None
+    points: Points | None
+    factor: Exact | None
+
+
+class Result(Scored):
     """The latest attempt of a submission's grading, as its contestant sees
     it: its id, attempt and status, and once it is done, what stopped the
     run, the outcome over the groups shown, each test group as its `show`
@@ -112,36 +133,56 @@ class Result(BaseModel):
     the run is shown: every group reads as hidden.
     """
 
-    id: uuid.UUID
-    attempt: int
     status: SubmissionState
-    stopped: Outcome | None
-    outcome: Outcome | None
-    groups: list[GroupShown]
-    values: Reported
-    folded: dict[str, Exact]
-    reason: str | None
-    points: Points | None
-    factor: Exact | None
 
 
-class Submission(BaseModel):
-    """One of the caller's submissions of the task: its number among them,
-    when it was taken, how many started days after their due it was, and
-    its grading.
+class OrganisedResult(Scored):
+    """A submission's grading as organisers read it beside the grading
+    itself: the payload its contestant reads, with everything filled in as
+    once the task has revealed, so every group's outcome, tests and points
+    and every value a sealed step reported are there, its points all shown
+    and none pending. Each group's `shown_at` is kept as a note of when its
+    contestant is shown it, null once they see its tests. `status` is the
+    grading's own, as in the gradings routes.
+    """
+
+    status: GradingStatus
+
+
+class Numbered(BaseModel):
+    """A submission's number among its row's, when it was taken, and how
+    many started days after the row's due it was.
     """
 
     number: int
     submitted_at: datetime
     late_days: int
+
+
+class Submission(Numbered):
+    """One of the caller's submissions of the task: its number among them,
+    when it was taken, how many started days after their due it was, and
+    its grading.
+    """
+
     grading: Result | None
+
+
+class OrganisedSubmission(Numbered):
+    """One submission of a contestant or a team, as organisers read it:
+    its number among the row's, when it was taken, how many started days
+    late, and its grading with everything filled in.
+    """
+
+    grading: OrganisedResult | None
 
 
 class SubmittedFileInput(BaseModel):
     """What one input of a submission was: the paths of its files in the
     submission, each a download through the download door, or the value
-    given. It is read leniently from the submission's `submission.json`: a
-    member of the wrong type is left out rather than failing the answer.
+    given, a number as its exact decimal digits. It is read leniently from
+    the submission's `submission.json`: a member of the wrong type is left
+    out rather than failing the answer.
     """
 
     files: list[str]
@@ -157,7 +198,7 @@ class SubmittedFileInput(BaseModel):
             "files": [path for path in files if isinstance(path, str)]
             if isinstance(files, list)
             else [],
-            "value": value if isinstance(value, Value) else None,
+            "value": value if isinstance(value, Value) else _digits(value),
         }
 
 
@@ -166,3 +207,13 @@ class SubmittedFiles(BaseModel):
 
     number: int
     inputs: dict[str, SubmittedFileInput]
+
+
+def _digits(value: object) -> str | None:
+    """A number read from `submission.json` as its exact decimal digits, or
+    none for anything that is not one.
+    """
+    if isinstance(value, bool) or not isinstance(value, int | float | Decimal):
+        return None
+    digits = exactly(value)
+    return digits if isinstance(digits, str) else None

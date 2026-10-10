@@ -1009,7 +1009,7 @@
         "type": "object"
       },
       "CreateVersion": {
-        "description": "A name to freeze the saved draft under, such as `v1`, and the token\nthe caller saved it with, so the version is of that save; with none, of\nwhatever is saved now.",
+        "description": "A name to freeze the saved draft under, `v` and a whole number from\n1 with no leading zero, such as `v1` or `v10`, and the token\nthe caller saved it with, so the version is of that save; with none, of\nwhatever is saved now.",
         "properties": {
           "token": {
             "anyOf": [
@@ -1915,12 +1915,6 @@
                 "type": "string"
               },
               {
-                "type": "integer"
-              },
-              {
-                "type": "number"
-              },
-              {
                 "type": "boolean"
               },
               {
@@ -2671,6 +2665,175 @@
           "notes"
         ],
         "title": "OrganisedBoard",
+        "type": "object"
+      },
+      "OrganisedResult": {
+        "description": "A submission's grading as organisers read it beside the grading\nitself: the payload its contestant reads, with everything filled in as\nonce the task has revealed, so every group's outcome, tests and points\nand every value a sealed step reported are there, its points all shown\nand none pending. Each group's `shown_at` is kept as a note of when its\ncontestant is shown it, null once they see its tests. `status` is the\ngrading's own, as in the gradings routes.",
+        "properties": {
+          "attempt": {
+            "title": "Attempt",
+            "type": "integer"
+          },
+          "factor": {
+            "anyOf": [
+              {
+                "examples": [
+                  "82.5"
+                ],
+                "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Factor"
+          },
+          "folded": {
+            "additionalProperties": {
+              "examples": [
+                "82.5"
+              ],
+              "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+              "type": "string"
+            },
+            "title": "Folded",
+            "type": "object"
+          },
+          "groups": {
+            "items": {
+              "$ref": "#/components/schemas/GroupShown"
+            },
+            "title": "Groups",
+            "type": "array"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "outcome": {
+            "anyOf": [
+              {
+                "enum": [
+                  "accepted",
+                  "wrong_answer",
+                  "time_limit",
+                  "memory_limit",
+                  "output_limit",
+                  "runtime_error",
+                  "compile_error",
+                  "skipped",
+                  "system_error"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outcome"
+          },
+          "points": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Points"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "status": {
+            "$ref": "#/components/schemas/GradingStatus"
+          },
+          "stopped": {
+            "anyOf": [
+              {
+                "enum": [
+                  "accepted",
+                  "wrong_answer",
+                  "time_limit",
+                  "memory_limit",
+                  "output_limit",
+                  "runtime_error",
+                  "compile_error",
+                  "skipped",
+                  "system_error"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stopped"
+          },
+          "values": {
+            "$ref": "#/components/schemas/Reported"
+          }
+        },
+        "required": [
+          "id",
+          "attempt",
+          "stopped",
+          "outcome",
+          "groups",
+          "values",
+          "folded",
+          "reason",
+          "points",
+          "factor",
+          "status"
+        ],
+        "title": "OrganisedResult",
+        "type": "object"
+      },
+      "OrganisedSubmission": {
+        "description": "One submission of a contestant or a team, as organisers read it:\nits number among the row's, when it was taken, how many started days\nlate, and its grading with everything filled in.",
+        "properties": {
+          "grading": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OrganisedResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "late_days": {
+            "title": "Late Days",
+            "type": "integer"
+          },
+          "number": {
+            "title": "Number",
+            "type": "integer"
+          },
+          "submitted_at": {
+            "format": "date-time",
+            "title": "Submitted At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "number",
+          "submitted_at",
+          "late_days",
+          "grading"
+        ],
+        "title": "OrganisedSubmission",
         "type": "object"
       },
       "Over": {
@@ -3455,7 +3618,6 @@
         "required": [
           "id",
           "attempt",
-          "status",
           "stopped",
           "outcome",
           "groups",
@@ -3463,7 +3625,8 @@
           "folded",
           "reason",
           "points",
-          "factor"
+          "factor",
+          "status"
         ],
         "title": "Result",
         "type": "object"
@@ -3917,7 +4080,7 @@
         "type": "object"
       },
       "SubmittedFileInput": {
-        "description": "What one input of a submission was: the paths of its files in the\nsubmission, each a download through the download door, or the value\ngiven. It is read leniently from the submission's `submission.json`: a\nmember of the wrong type is left out rather than failing the answer.",
+        "description": "What one input of a submission was: the paths of its files in the\nsubmission, each a download through the download door, or the value\ngiven, a number as its exact decimal digits. It is read leniently from\nthe submission's `submission.json`: a member of the wrong type is left\nout rather than failing the answer.",
         "properties": {
           "files": {
             "items": {
@@ -3930,12 +4093,6 @@
             "anyOf": [
               {
                 "type": "string"
-              },
-              {
-                "type": "integer"
-              },
-              {
-                "type": "number"
               },
               {
                 "type": "boolean"
@@ -3977,7 +4134,7 @@
         "type": "object"
       },
       "SubmittedInput": {
-        "description": "What a contestant gives for one input: the uploads of its files; or,\nfor a text, number, true-or-false or enum input, its value.",
+        "description": "What a contestant gives for one input: the uploads of its files; or,\nfor a text, number, true-or-false or enum input, its value. A number is\ngiven as the text of its plain decimal digits, `2.5`, the form every\nnumber is served in, so it is checked and written exactly, never read\ninto a float on the way.",
         "properties": {
           "uploads": {
             "default": [],
@@ -3992,12 +4149,6 @@
             "anyOf": [
               {
                 "type": "string"
-              },
-              {
-                "type": "integer"
-              },
-              {
-                "type": "number"
               },
               {
                 "type": "boolean"
@@ -5058,15 +5209,23 @@
         "type": "object"
       },
       "Written": {
-        "description": "A contest's file written: the version the change made.",
+        "description": "A contest's file written: the version the change made, and, for\n`contest.yaml`, each board's `notes` on the tasks it covers, such as one\nthat counts nothing from a task, the notes the organisers' reading of\nthe boards carries beside each.",
         "properties": {
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Notes",
+            "type": "array"
+          },
           "version": {
             "title": "Version",
             "type": "string"
           }
         },
         "required": [
-          "version"
+          "version",
+          "notes"
         ],
         "title": "Written",
         "type": "object"
@@ -5076,7 +5235,7 @@
   "info": {
     "summary": "Contests on top of a git host, a CI and an object store",
     "title": "Unicon API",
-    "version": "0.6.0"
+    "version": "0.7.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -10954,6 +11113,117 @@
         ]
       }
     },
+    "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/organise/submissions/{number}": {
+      "get": {
+        "description": "The row is a contestant or a team, one of the two, or `rejected`. A\nrow with no submission of that number is `not_found`.",
+        "operationId": "getOrganisedSubmission",
+        "parameters": [
+          {
+            "description": "The submission's number",
+            "in": "path",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "description": "The submission's number",
+              "maximum": 2147483647,
+              "minimum": 1,
+              "title": "Number",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "task",
+            "required": true,
+            "schema": {
+              "title": "Task",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The contestant whose row it is",
+            "in": "query",
+            "name": "user_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The contestant whose row it is",
+              "title": "User Id"
+            }
+          },
+          {
+            "description": "The team whose row it is",
+            "in": "query",
+            "name": "team",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The team whose row it is",
+              "title": "Team"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganisedSubmission"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "A row's submission scored, with everything its row is not shown yet",
+        "tags": [
+          "gradings"
+        ]
+      }
+    },
     "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/organise/uploads": {
       "post": {
         "description": "The address to send the file to, or `ready` for a file the task's\nplace at the forge already holds. Nothing is in the task until a save\nnames the upload for the same path. A path that leaves the task is\n`invalid_path`, and a name, digest or size that is not one\n`invalid_inputs`, naming the path.",
@@ -13792,7 +14062,7 @@
     },
     "/api/v1/workflows/{owner}/{name}/versions": {
       "post": {
-        "description": "Made only when the saved draft passes every check a version must;\notherwise `invalid_definition` with every problem in `errors`, and no\nversion made. Given the token the draft was saved with, `conflict` when\nsomeone has saved since.",
+        "description": "Made only when the saved draft passes every check a version must;\notherwise `invalid_definition` with every problem in `errors`, and no\nversion made. Given the token the draft was saved with, `conflict` when\nsomeone has saved since; `invalid_name` for a name that is not `v` and\na whole number from 1.",
         "operationId": "createWorkflowVersion",
         "parameters": [
           {

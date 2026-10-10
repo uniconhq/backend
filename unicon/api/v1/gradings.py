@@ -11,6 +11,11 @@ latest attempt is a system error, or staff cancelled, count as its last
 good result, and taking that back; and rejudging every submission's latest
 attempt against the task's current publication.
 
+An observer of the task also reads any contestant's or team's submission
+as its row reads it with everything filled in, beside its grading
+(TASK-FORMAT.md section 1.7): the row picked by `user_id` or `team`, as the
+boards pick one, and the submission by its number among the row's.
+
 Anyone holding a role at a contest or at any of its tasks reads the
 gradings of the tasks they observe as one feed, newest first, each with
 its task's name and letter and who submitted it, narrowed by task, by a
@@ -32,13 +37,15 @@ import uuid
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Query, Response
-from forge.api import contests, gradings, names, tasks
+from forge.api import contests, gradings, names, submissions, tasks
 from forge.api.access import Organiser
-from forge.api.errors import NotFound
+from forge.api.boards import TeamOwner, UserOwner
+from forge.api.errors import NotFound, Rejected
 from forge.api.gradings import GradingStatus
 from forge.api.types import Role, ScopeKind, TaskId
 
 from unicon.api.guard import PREFIX, anywhere, require
+from unicon.api.v1.submissions import Number
 from unicon.schemas.gradings import (
     USERNAME_MAX,
     USERNAME_PATTERN,
@@ -47,6 +54,7 @@ from unicon.schemas.gradings import (
     Grading,
     Rejudged,
 )
+from unicon.schemas.submissions import OrganisedSubmission
 
 CONTEST = PREFIX[ScopeKind.CONTEST]
 TASK = PREFIX[ScopeKind.TASK]
@@ -83,6 +91,31 @@ async def list_gradings(
     """
     rows = await gradings.list(organiser, tasks.task_id_of(organiser.scope), limit=limit)
     return [_entry(row) for row in rows]
+
+
+@router.get(
+    "/organise/submissions/{number}",
+    operation_id="getOrganisedSubmission",
+    summary="A row's submission scored, with everything its row is not shown yet",
+    response_model=OrganisedSubmission,
+)
+async def get_organised_submission(
+    organiser: TaskObserver,
+    number: Number,
+    user_id: Annotated[int | None, Query(description="The contestant whose row it is")] = None,
+    team: Annotated[uuid.UUID | None, Query(description="The team whose row it is")] = None,
+) -> submissions.Submission:
+    """The row is a contestant or a team, one of the two, or `rejected`. A
+    row with no submission of that number is `not_found`.
+    """
+    row: UserOwner | TeamOwner
+    if user_id is not None and team is None:
+        row = UserOwner(user_id)
+    elif team is not None and user_id is None:
+        row = TeamOwner(team)
+    else:
+        raise Rejected("Pick a contestant or a team, one of the two.")
+    return await submissions.organised(organiser, tasks.task_id_of(organiser.scope), row, number)
 
 
 @router.get(
