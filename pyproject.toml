@@ -1,6 +1,6 @@
 [project]
 name = "unicon-backend"
-version = "0.5.3"
+version = "0.6.0"
 description = "The Unicon HTTP shell: routes, cookies and the OpenAPI document over the forge package"
 readme = "README.md"
 license = "MIT"
