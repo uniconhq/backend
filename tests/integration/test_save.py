@@ -153,6 +153,7 @@ async def test_a_grading_change_while_the_contest_runs_asks_first(
     assert asked.status_code == 409
     assert asked.json()["code"] == "confirmation_required"
     assert asked.json()["changes"] == ["plans/plan.json changed"]
+    assert asked.json()["regrades"] == 0
     assert len((await client.get(f"{TASK}/publications")).json()) == 1
 
     confirmed = await _save(client, faster, confirm=True)

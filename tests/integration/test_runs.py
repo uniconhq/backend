@@ -203,7 +203,7 @@ async def test_the_envelope_is_served_for_its_key_and_not_without_it(
     for refused in (wrong, keyless):
         assert (refused.status_code, refused.json()["code"]) == (404, "not_found")
     submission = await client.get(f"{TASK}/submissions/1")
-    assert submission.json()["grading"]["status"] == "running"
+    assert submission.json()["grading"]["status"] == "grading"
 
 
 async def test_a_finished_report_leaves_the_result_the_contestant_reads(
@@ -227,7 +227,7 @@ async def test_a_finished_report_leaves_the_result_the_contestant_reads(
     assert finished.json() == again.json() == {"status": "done"}
     grading = detail.json()["grading"]
     assert (grading["status"], grading["stopped"], grading["outcome"]) == (
-        "done",
+        "graded",
         None,
         "accepted",
     )
@@ -351,7 +351,7 @@ async def test_a_group_that_shows_less_answers_with_less_until_the_reveal(
     listed = await client.get(f"{TASK}/submissions")
 
     grading = detail.json()["grading"]
-    assert (grading["status"], grading["outcome"]) == ("done", outcome)
+    assert (grading["status"], grading["outcome"]) == ("graded", outcome)
     assert grading["groups"] == [
         {
             "group": "main",
@@ -394,7 +394,7 @@ async def test_a_run_that_failed_on_the_platforms_side_is_still_being_graded_to_
     row = entry["grading"]
 
     assert finished.json() == {"status": "system_error"}
-    assert detail.json()["grading"]["status"] == "running"
+    assert detail.json()["grading"]["status"] == "grading"
     assert (detail.json()["grading"]["stopped"], detail.json()["grading"]["groups"]) == (None, [])
     assert (row["status"], row["error"]) == ("system_error", failed["error"])
     assert row["result"]["stopped"] == "system_error"

@@ -106,7 +106,7 @@ async def test_a_grading_being_run_tells_its_contestant_no_reason(
     mine = await client.get(f"{TASK}/submissions/1")
 
     assert (mine.json()["grading"]["status"], mine.json()["grading"]["reason"]) == (
-        "dispatched",
+        "grading",
         None,
     )
 
@@ -134,7 +134,7 @@ async def test_a_manager_retries_a_stuck_grading_and_acts_only_on_the_latest_att
     assert (retried_earlier.status_code, retried_earlier.json()["code"]) == (409, "conflict")
     assert "later attempt" in retried_earlier.json()["detail"]
     latest = mine.json()["grading"]
-    assert (latest["attempt"], latest["status"]) == (2, "dispatched")
+    assert (latest["attempt"], latest["status"]) == (2, "grading")
 
 
 async def _graded(client: httpx.AsyncClient, forge: FakeForge) -> str:
@@ -189,7 +189,7 @@ async def test_a_manager_falls_back_to_a_broken_gradings_last_good_result_and_cl
         (2, 1, "staff"),
         (1, None, None),
     ]
-    assert (counted["attempt"], counted["status"]) == (1, "done")
+    assert (counted["attempt"], counted["status"]) == (1, "graded")
     assert cleared.status_code == 200, cleared.text
     assert (cleared.json()["last_good"], cleared.json()["fallback"]) == (1, None)
     assert waiting["attempt"] == 2
@@ -243,7 +243,7 @@ async def test_under_the_contests_last_result_a_cancelled_grading_keeps_its_last
         "contest",
         False,
     )
-    assert (counted["attempt"], counted["status"]) == (1, "done")
+    assert (counted["attempt"], counted["status"]) == (1, "graded")
 
 
 async def test_an_observer_lists_the_tasks_gradings_newest_first_with_their_reasons(
@@ -378,7 +378,7 @@ async def test_a_grading_named_under_another_task_is_no_such_grading(
 
     assert (foreign.status_code, foreign.json()["code"]) == (404, "not_found")
     assert foreign.json() == nobodys.json()
-    assert mine.json()["grading"]["status"] == "dispatched"
+    assert mine.json()["grading"]["status"] == "grading"
 
 
 @pytest.mark.parametrize(

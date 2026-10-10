@@ -14,7 +14,7 @@ from fractions import Fraction
 
 import pytest
 from forge.api.boards import Points
-from forge.api.submissions import GradingStatus, GroupShown, Result, Show
+from forge.api.submissions import GroupShown, Result, Show, SubmissionState
 from forge.api.submissions import SubmittedFiles as SubmittedFilesRecord
 from forge.api.types import TaskId
 
@@ -27,14 +27,14 @@ REVEAL = datetime(2026, 9, 26, 15, tzinfo=UTC)
 
 
 def test_a_grading_being_run_carries_its_status_alone() -> None:
-    result = Result(GRADING, 2, GradingStatus.RUNNING, None, None, (), {})
+    result = Result(GRADING, 2, SubmissionState.GRADING, None, None, (), {})
 
     answer = ResultAnswer.model_validate(result, from_attributes=True).model_dump(mode="json")
 
     assert answer == {
         "id": str(GRADING),
         "attempt": 2,
-        "status": "running",
+        "status": "grading",
         "stopped": None,
         "outcome": None,
         "groups": [],
@@ -47,7 +47,7 @@ def test_a_grading_being_run_carries_its_status_alone() -> None:
 
 
 def test_a_grading_staff_cancelled_carries_their_sentence() -> None:
-    result = Result(GRADING, 1, GradingStatus.CANCELLED, None, None, (), {}, "Not counted.")
+    result = Result(GRADING, 1, SubmissionState.CANCELLED, None, None, (), {}, "Not counted.")
 
     answer = ResultAnswer.model_validate(result, from_attributes=True).model_dump(mode="json")
 
@@ -67,7 +67,7 @@ def test_a_grading_carries_each_group_as_forge_let_it_through() -> None:
     result = Result(
         GRADING,
         1,
-        GradingStatus.DONE,
+        SubmissionState.GRADED,
         None,
         "wrong_answer",
         (
@@ -84,7 +84,7 @@ def test_a_grading_carries_each_group_as_forge_let_it_through() -> None:
     assert answer.model_dump(mode="json") == {
         "id": str(GRADING),
         "attempt": 1,
-        "status": "done",
+        "status": "graded",
         "stopped": None,
         "outcome": "wrong_answer",
         "groups": [
@@ -156,7 +156,7 @@ def test_numbers_are_served_as_exact_decimals_and_text_stays_text() -> None:
     result = Result(
         GRADING,
         1,
-        GradingStatus.DONE,
+        SubmissionState.GRADED,
         None,
         "accepted",
         (

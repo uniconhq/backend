@@ -15,7 +15,7 @@ import uuid
 from datetime import datetime
 from typing import Any, Literal
 
-from forge.api.submissions import GradingStatus, Show, SubmittedInput
+from forge.api.submissions import Show, SubmissionState, SubmittedInput
 from pydantic import BaseModel, model_validator
 
 from unicon.schemas.exact import Exact, Reported
@@ -100,10 +100,13 @@ class Result(BaseModel):
     run, the outcome over the groups shown, each test group as its `show`
     allows, the values reported once, and `folded`, each per-test value
     with a fold, folded over the tests shown, a test without it counting as
-    its worst bound. A run that failed on the platform's side is `running`
-    to its contestant, with nothing else, until staff end it: then it is
-    `cancelled`, with `reason`, the sentence they gave, which is null on
-    every other status. Once done on a task that gives points, it carries
+    its worst bound. `status` is in the contestant's words: `queued` until
+    its run is started, `grading` while it is graded, `graded` once it has
+    a result, `cancelled` once staff end it; organisers read the grading's
+    own status in the gradings routes. A run that failed on the platform's
+    side is `grading` to its contestant, with nothing else, until staff end
+    it: then it is `cancelled`, with `reason`, the sentence they gave, which
+    is null on every other status. Once done on a task that gives points, it carries
     its `points` and the late `factor` they include; both are null
     otherwise. While a sealed step's stop is held to the reveal, nothing of
     the run is shown: every group reads as hidden.
@@ -111,7 +114,7 @@ class Result(BaseModel):
 
     id: uuid.UUID
     attempt: int
-    status: GradingStatus
+    status: SubmissionState
     stopped: Outcome | None
     outcome: Outcome | None
     groups: list[GroupShown]
