@@ -20,6 +20,8 @@ from forge.api.workflows import (
 )
 from pydantic import BaseModel, Field
 
+from unicon.schemas.exact import Exact
+
 
 class CreateWorkflow(BaseModel):
     """A workflow to make under `owner`: the caller's own username, or the
@@ -201,11 +203,13 @@ class PrimitivePort(BaseModel):
 
 
 class LimitSource(BaseModel):
-    """A container limit raised to `input * scale + add` when that is more."""
+    """A container limit raised to `input * scale + add` when that is more,
+    `scale` and `add` exactly as the declaration writes them.
+    """
 
     input: str
-    scale: float
-    add: float
+    scale: Exact
+    add: Exact
 
 
 Limit = Literal["time_ms", "cpu_ms", "memory_mb", "pids", "output_mb", "gpus"]

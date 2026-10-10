@@ -1895,7 +1895,7 @@
         "type": "object"
       },
       "InputField": {
-        "description": "One input the contestant gives, with what its form shows: its\n`type`, its `label`, the `options` of an enum, whether it takes one file\nper test, `per_test`, named for the test as `<group>/<test>`, the\n`default` a value takes when it is left out, `min` and `max` of a\nnumber, and `max_size`, the most its files may total in bytes. The\nsubmit panel shows one field or drop zone per input.",
+        "description": "One input the contestant gives, with what its form shows: its\n`type`, its `label`, the `options` of an enum, whether it takes one file\nper test, `per_test`, named for the test as `<group>/<test>`, the\n`default` a value takes when it is left out, `min` and `max` of a\nnumber, exactly, and `max_size`, the most its files may total in bytes. The\nsubmit panel shows one field or drop zone per input.",
         "properties": {
           "default": {
             "anyOf": [
@@ -1928,10 +1928,11 @@
           "max": {
             "anyOf": [
               {
-                "type": "integer"
-              },
-              {
-                "type": "number"
+                "examples": [
+                  "82.5"
+                ],
+                "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+                "type": "string"
               },
               {
                 "type": "null"
@@ -1946,10 +1947,11 @@
           "min": {
             "anyOf": [
               {
-                "type": "integer"
-              },
-              {
-                "type": "number"
+                "examples": [
+                  "82.5"
+                ],
+                "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+                "type": "string"
               },
               {
                 "type": "null"
@@ -2184,19 +2186,27 @@
         "type": "object"
       },
       "LimitSource": {
-        "description": "A container limit raised to `input * scale + add` when that is more.",
+        "description": "A container limit raised to `input * scale + add` when that is more,\n`scale` and `add` exactly as the declaration writes them.",
         "properties": {
           "add": {
+            "examples": [
+              "82.5"
+            ],
+            "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
             "title": "Add",
-            "type": "number"
+            "type": "string"
           },
           "input": {
             "title": "Input",
             "type": "string"
           },
           "scale": {
+            "examples": [
+              "82.5"
+            ],
+            "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
             "title": "Scale",
-            "type": "number"
+            "type": "string"
           }
         },
         "required": [
@@ -4417,7 +4427,7 @@
         "type": "object"
       },
       "Timeline": {
-        "description": "A task's timeline in its contest, from its entry in `contest.yaml`,\neach time at its default where the entry gives none: `worth`, the most\npoints it gives, 100 unless the entry says, and none on a task whose\nlatest publication gives no points or that has none; `release_at`, the\ncontest's start unless the entry says; `due`, after which a submission\nis late, and `late_per_day`, the fraction a started late day takes off,\n1 unless the entry says, both none on a task with no due; and `closes`,\nthe contest's end unless the entry says.",
+        "description": "A task's timeline in its contest, from its entry in `contest.yaml`,\neach time at its default where the entry gives none: `worth`, the most\npoints it gives, 100 unless the entry says, and none on a task whose\nlatest publication gives no points or that has none; `release_at`, the\ncontest's start unless the entry says; `due`, after which a submission\nis late, and `late_per_day`, the fraction a started late day takes off,\n1 unless the entry says, both none on a task with no due; and `closes`,\nthe contest's end unless the entry says. `worth` and `late_per_day` are\nexact.",
         "properties": {
           "closes": {
             "format": "date-time",
@@ -4439,10 +4449,11 @@
           "late_per_day": {
             "anyOf": [
               {
-                "type": "integer"
-              },
-              {
-                "type": "number"
+                "examples": [
+                  "82.5"
+                ],
+                "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+                "type": "string"
               },
               {
                 "type": "null"
@@ -4458,10 +4469,11 @@
           "worth": {
             "anyOf": [
               {
-                "type": "integer"
-              },
-              {
-                "type": "number"
+                "examples": [
+                  "82.5"
+                ],
+                "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+                "type": "string"
               },
               {
                 "type": "null"

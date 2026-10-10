@@ -103,7 +103,7 @@ class InputField(BaseModel):
     `type`, its `label`, the `options` of an enum, whether it takes one file
     per test, `per_test`, named for the test as `<group>/<test>`, the
     `default` a value takes when it is left out, `min` and `max` of a
-    number, and `max_size`, the most its files may total in bytes. The
+    number, exactly, and `max_size`, the most its files may total in bytes. The
     submit panel shows one field or drop zone per input.
     """
 
@@ -113,8 +113,8 @@ class InputField(BaseModel):
     options: list[str] | None
     per_test: bool
     default: Value | None
-    min: int | float | None
-    max: int | float | None
+    min: Exact | None
+    max: Exact | None
     max_size: int
 
 
