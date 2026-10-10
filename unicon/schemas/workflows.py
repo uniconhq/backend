@@ -129,7 +129,8 @@ class VersionContent(BaseModel):
 
 
 class CreateVersion(BaseModel):
-    """A name to freeze the saved draft under, such as `v1`, and the token
+    """A name to freeze the saved draft under, `v` and a whole number from
+    1 with no leading zero, such as `v1` or `v10`, and the token
     the caller saved it with, so the version is of that save; with none, of
     whatever is saved now.
     """

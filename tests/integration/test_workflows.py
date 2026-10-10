@@ -172,6 +172,27 @@ async def test_the_owner_reads_saves_and_versions_a_workflow(
     assert read.json() == {"content": edited}
 
 
+async def test_a_version_named_other_than_v_and_a_whole_number_is_refused_at_its_name(
+    client: httpx.AsyncClient, acme: FakeForge
+) -> None:
+    await _own(client, acme)
+
+    refused = await client.post(
+        "/api/v1/workflows/bob/tuned/versions", json={"version": "beta"}, headers=ORIGIN
+    )
+    made = await client.post(
+        "/api/v1/workflows/bob/tuned/versions", json={"version": "v1"}, headers=ORIGIN
+    )
+
+    assert refused.status_code == 422
+    assert refused.json()["code"] == "invalid_name"
+    assert refused.json()["detail"] == (
+        "'beta' cannot name a version: a version is v and a whole number from 1, "
+        "with no leading zero, such as v1, v2 or v10"
+    )
+    assert made.status_code == 201, made.text
+
+
 async def test_a_version_of_a_draft_with_problems_is_refused_with_each_path(
     client: httpx.AsyncClient, acme: FakeForge
 ) -> None:

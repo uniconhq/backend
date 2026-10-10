@@ -17,7 +17,7 @@ from typing import Any
 import httpx
 import pytest
 from forge.api.uploads import Door
-from forge.testing import FakeClock, FakeForge, Setup
+from forge.testing import CLASSIC, AsUser, FakeClock, FakeForge, Setup, Visibility
 
 from tests.integration.conftest import (
     ORIGIN,
@@ -259,6 +259,84 @@ async def test_inputs_that_do_not_fit_the_task_are_refused_at_their_input(
 
     assert (refused.status_code, refused.json()["code"]) == (422, "invalid_inputs")
     assert refused.json()["errors"][0]["input"] == "language"
+
+
+THIRTY = "0.123456789012345678901234567891"
+"""A bound and a value of 30 significant digits, past what a float holds."""
+TUNABLE = CLASSIC.replace(
+    b"  time_limit: number\n", b"  ratio: {type: number, contestant: true}\n  time_limit: number\n"
+).replace(
+    b"      input: ${{ test.input }}\n",
+    b"      input: ${{ test.input }}\n      args: ${{ inputs.ratio }}\n",
+)
+"""Classic with a number the contestant gives, handed to the run."""
+
+
+async def _on_tunable(client: httpx.AsyncClient, forge: FakeForge) -> None:
+    """acme/spring/sum moved onto ada's workflow whose contestant also gives
+    a number, `ratio`, at most `THIRTY`; carol signed in again.
+    """
+    await sign_in_as(client, forge, 7)
+    ada = AsUser(7, forge.mint(7))
+    workflow = await forge.workflows.create_workflow(
+        ada, "ada", "tunable", {"workflow.yaml": TUNABLE}, Visibility.PUBLIC
+    )
+    await forge.workflows.create_workflow_version(ada, workflow, "v1")
+    await edit_task(
+        client,
+        "workflow: unicon/classic@v2\ninputs:\n",
+        f"workflow: ada/tunable@v1\ninputs:\n  ratio: {{max: {THIRTY}}}\n",
+    )
+    await sign_in_as(client, forge, 20)
+
+
+async def _with_ratio(client: httpx.AsyncClient, forge: FakeForge, ratio: object) -> httpx.Response:
+    made = await upload(client, forge, SOURCE)
+    body = _submit_body(made["id"])
+    body["inputs"]["ratio"] = {"value": ratio}
+    return await client.post(SUBMISSIONS, json=body, headers=ORIGIN)
+
+
+async def test_a_number_given_as_its_digits_reaches_submission_json_to_the_digit(
+    client: httpx.AsyncClient, entered: FakeForge
+) -> None:
+    await _on_tunable(client, entered)
+
+    submitted = await _with_ratio(client, entered, THIRTY)
+    files = await client.get(f"{SUBMISSIONS}/1/files")
+
+    assert submitted.status_code == 201, submitted.text
+    documents = [
+        content
+        for repo in entered.state.repos.values()
+        for path, content in repo.files.items()
+        if path == "submission.json"
+    ]
+    assert len(documents) == 1
+    assert f'"value": {THIRTY}'.encode() in documents[0]
+    assert files.json()["inputs"]["ratio"] == {"files": [], "value": THIRTY}
+
+
+@pytest.mark.parametrize("ratio", ["1e3", "0x10", "NaN", "", THIRTY[:-1] + "2"])
+async def test_a_number_that_is_not_plain_digits_within_the_bounds_is_refused_at_its_input(
+    client: httpx.AsyncClient, entered: FakeForge, ratio: str
+) -> None:
+    await _on_tunable(client, entered)
+
+    refused = await _with_ratio(client, entered, ratio)
+
+    assert (refused.status_code, refused.json()["code"]) == (422, "invalid_inputs")
+    assert [error["input"] for error in refused.json()["errors"]] == ["ratio"]
+
+
+async def test_a_json_number_for_a_number_input_is_refused(
+    client: httpx.AsyncClient, entered: FakeForge
+) -> None:
+    await _on_tunable(client, entered)
+
+    refused = await _with_ratio(client, entered, 0.5)
+
+    assert (refused.status_code, refused.json()["code"]) == (422, "validation_error")
 
 
 async def test_another_contestants_submission_is_no_such_submission(
