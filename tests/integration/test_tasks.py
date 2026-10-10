@@ -83,7 +83,7 @@ async def test_the_contests_tasks_stand_with_their_publication_and_timeline(
     }
     (row,) = published.json()
     assert (row["state"]["latest"]["number"], row["state"]["draft"]) == (1, False)
-    assert row["timeline"]["worth"] == 100
+    assert row["timeline"]["worth"] == "100"
 
 
 async def test_a_tasks_entry_sets_its_timeline_and_a_failed_save_shows_its_errors(
@@ -112,10 +112,10 @@ async def test_a_tasks_entry_sets_its_timeline_and_a_failed_save_shows_its_error
     assert written.status_code == 200, written.text
     assert broken.json()["errors"], broken.text
     assert row["timeline"] == {
-        "worth": 50,
+        "worth": "50",
         "release_at": "2026-10-03T12:00:00Z",
         "due": "2026-10-03T16:00:00Z",
-        "late_per_day": 0.25,
+        "late_per_day": "0.25",
         "closes": "2026-10-03T17:00:00Z",
     }
     assert (row["state"]["latest"]["number"], row["state"]["draft"]) == (1, True)

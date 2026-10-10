@@ -59,11 +59,12 @@ async def test_a_contest_write_answers_its_version_and_shows_in_the_history(
     assert (after["content"], after["encoding"]) == (changed, "utf-8")
     assert after["token"] != before["token"]
     history = (await client.get(f"{CONTEST}/history", params={"path": "contest.yaml"})).json()
-    assert (history[0]["version"], history[0]["author_id"], history[0]["message"]) == (
-        version,
-        7,
-        "Describe",
-    )
+    assert (
+        history[0]["version"],
+        history[0]["author_id"],
+        history[0]["author"],
+        history[0]["message"],
+    ) == (version, 7, "ada", "Describe")
     older = await client.get(f"{CONTEST}/files/contest.yaml", params={"at": history[1]["version"]})
     assert older.json()["content"] == before["content"]
 

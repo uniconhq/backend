@@ -318,7 +318,11 @@ async def test_the_primitives_are_listed_with_their_ports(
         "secret": False,
     }
     assert run["inputs"]["args"]["optional"] is True
-    assert run["limits_from"]["time_ms"] == {"input": "time_limit", "scale": 2000, "add": 3000}
+    assert run["limits_from"]["time_ms"] == {
+        "input": "time_limit",
+        "scale": "2000",
+        "add": "3000",
+    }
     assert run["limits"]["memory_mb"] == 256
     assert "outcome" in run["outputs"]
     assert run["problem"] is None
