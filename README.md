@@ -656,15 +656,15 @@ request as it arrived, since what admits it is over its exact bytes; a body
 is read raw and only up to a bound, refused past it as `payload_too_large`
 the way the event door refuses one.
 
-`POST /api/v1/ci/config`, forge's `CI_CONFIG_PATH`, is the CI's
-configuration extension, called from inside the stack; the public proxy
-answers it with 404. Its method, its target, the path undecoded and the
-query exactly as sent, every header and the body, at most 1 MiB, go to
-`runs.config` as a `CiRequest`, which checks the CI's signature over them
-and answers the run's steps; the route answers those bytes in the media
-type forge gives. A request that does not verify, names no grading, or
-names one not being started with its variables is `ci_request_refused`,
-never an empty answer.
+`POST /api/v1/ci/config`, forge's `CI_CONFIG_PATH`, is where the CI asks
+what a run is, called from inside the stack; the public proxy answers it
+with 404. Its method, its target, the path undecoded and the query exactly
+as sent, every header and the body, at most 1 MiB, go to `runs.config` as
+an `InboundRequest`, which checks the CI's signature over them and answers
+the run's steps; the route answers those bytes in the media type forge
+gives. A request that does not verify, names no grading, or names one not
+being started with its variables is `ci_request_refused`, never an empty
+answer, and a CI that never asks is answered `not_found`.
 
 `GET /api/v1/gradings/{grading}/envelope?key=` serves the envelope the
 harness fetches as the run begins, for the envelope key the URL carries,
