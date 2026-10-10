@@ -5041,7 +5041,7 @@
   "info": {
     "summary": "Contests on top of a git host, a CI and an object store",
     "title": "Unicon API",
-    "version": "0.5.1"
+    "version": "0.5.2"
   },
   "openapi": "3.1.0",
   "paths": {

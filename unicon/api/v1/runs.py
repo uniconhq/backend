@@ -61,7 +61,7 @@ async def answer_ci_config(request: Request) -> Response:
     """
     body = await raw.body(request, MAX_CONFIG_BODY, "The CI's request")
     answer = await runs.config(
-        runs.CiRequest(
+        runs.InboundRequest(
             method=request.method,
             target=raw.target(request),
             headers=raw.headers(request),
