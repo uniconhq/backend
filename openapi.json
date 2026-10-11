@@ -4986,7 +4986,7 @@
         "type": "object"
       },
       "Timeline": {
-        "description": "A task's timeline in its contest, from its entry in `contest.yaml`,\neach time at its default where the entry gives none: `worth`, the most\npoints it gives, 100 unless the entry says, and none on a task whose\nlatest publication gives no points or that has none; `release_at`, the\ncontest's start unless the entry says; `due`, after which a submission\nis late, and `late_per_day`, the fraction a started late day takes off,\n1 unless the entry says, both none on a task with no due; and `closes`,\nthe contest's end unless the entry says. `worth` and `late_per_day` are\nexact.",
+        "description": "A task's timeline in its contest, from its entry in `contest.yaml`,\npoints it gives, its groups' total unless the entry says, and none on a task whose\npoints it gives, 100 unless the entry says, and none on a task whose\nlatest publication gives no points or that has none; `release_at`, the\ncontest's start unless the entry says; `due`, after which a submission\nis late, and `late_per_day`, the fraction a started late day takes off,\n1 unless the entry says, both none on a task with no due; and `closes`,\nthe contest's end unless the entry says. `worth` and `late_per_day` are\nexact.",
         "properties": {
           "closes": {
             "format": "date-time",
