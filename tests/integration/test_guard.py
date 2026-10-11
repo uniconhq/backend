@@ -7,8 +7,9 @@ roles once. The few reads open to any role at a scope or anything in it are
 in a table of their own: a role at the scope or at any narrower one is
 admitted, and none there is refused naming the address. Every route under an
 org is in one of the two tables but the ones that need only a session, such
-as those a contestant calls, so a route added there is held to the guard the
-day it exists. Every route anywhere that needs no
+as those a contestant calls, and the ones open to a visitor, such as a task's
+public files, so a route added there is held to the guard the day it
+exists. Every route anywhere that needs no
 session at all is in a list of its own, so a route that forgets the session
 is caught the day it exists too.
 """
@@ -82,6 +83,9 @@ SESSION_ONLY = {
     "markSubmission",
     "unmarkSubmission",
 }
+OPEN_UNDER_ORGS = {"getTaskPublicFile"}
+"""The routes under an org that need no session, since they answer a visitor
+what the contest makes public, and a signed-in caller what they may read."""
 
 ROUTES: list[tuple[str, str, dict[str, Any] | None, Role, Scope]] = [
     ("PATCH", ORG, {"description": "Acme"}, Role.ADMIN, ACME),
@@ -203,7 +207,9 @@ def test_every_route_under_an_org_is_guarded_and_in_the_table() -> None:
 
     assert len(listed) == len(tables)
     assert guarded == listed
-    assert {route.operation_id for _, route in under_orgs} == guarded | SESSION_ONLY
+    assert {route.operation_id for _, route in under_orgs} == (
+        guarded | SESSION_ONLY | OPEN_UNDER_ORGS
+    )
 
 
 NO_SESSION = {
@@ -221,6 +227,7 @@ NO_SESSION = {
     "listPublicContests",
     "getPublicContest",
     "getPublicStatement",
+    "getTaskPublicFile",
     "listPublicBoards",
     "getPublicBoard",
 }
