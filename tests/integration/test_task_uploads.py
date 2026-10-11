@@ -169,8 +169,14 @@ async def test_a_contests_file_takes_no_upload(
     written = await client.put(
         f"{CONTEST}/files/data.bin", json={"upload": upload["id"], "token": None}, headers=ORIGIN
     )
+    both = await client.put(
+        f"{CONTEST}/files/data.bin",
+        json={"content": "x", "upload": upload["id"], "token": None},
+        headers=ORIGIN,
+    )
 
-    assert (written.status_code, written.json()["code"]) == (422, "validation_error")
+    for refused in (written, both):
+        assert (refused.status_code, refused.json()["code"]) == (422, "validation_error")
 
 
 async def test_a_slot_for_a_path_that_leaves_the_task_or_a_bad_digest_is_refused(
