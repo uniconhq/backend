@@ -89,7 +89,6 @@ async def test_the_organiser_path_from_an_org_to_a_publication(
     assert (first["number"], first["grading_changed"]) == (1, False)
     assert first["notes"] == [
         "The most points each test group gives: main 100.",
-        "sum shows its hidden results at 2026-10-03T17:00:00+00:00.",
         "sum now counts on the leaderboard Standings.",
     ]
 
@@ -229,8 +228,8 @@ async def test_a_save_removes_a_test_and_its_publication_names_the_removal(
     assert (removed.json()["number"], removed.json()["grading_changed"]) == (3, True)
     assert removed.json()["changes"] == [
         "The way the task grades changed.",
-        "The file tests/main/2/answer was removed.",
-        "The file tests/main/2/input was removed.",
+        "The answer of test 2 in the group main was removed.",
+        "The input of test 2 in the group main was removed.",
     ]
     gone = await client.get(f"{TASK}/files/tests/main/2/input")
     assert gone.status_code == 404

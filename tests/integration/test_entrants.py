@@ -27,20 +27,17 @@ async def _register_carol(
 
 
 async def _settings(client: httpx.AsyncClient, world: FakeForge, extra: str) -> None:
-    """acme/spring's settings with `extra` added, written by ada."""
+    """acme/spring's settings with `extra` added, written as an admin's
+    change at the forge would leave it: the contest is running already, and
+    a save through the API no longer changes a started contest's entrant
+    sizes. ada is signed in afterwards.
+    """
     await sign_in_as(client, world, 7)
-    settings = (await client.get(f"{CONTEST}/files/contest.yaml")).json()
-    content = re.sub(r"(?m)^(registration|entrants):.*\n?", "", settings["content"])
-    written = await client.put(
-        f"{CONTEST}/files/contest.yaml",
-        json={
-            "encoding": "utf-8",
-            "content": content.rstrip("\n") + "\n" + extra,
-            "token": settings["token"],
-        },
-        headers=ORIGIN,
+    repo = world.state.repos[("acme", "spring.contest")]
+    content = re.sub(r"(?m)^(registration|entrants):.*\n?", "", repo.files["contest.yaml"].decode())
+    world.state.commit(
+        repo, {"contest.yaml": (content.rstrip("\n") + "\n" + extra).encode()}, "Settings", 7
     )
-    assert written.status_code == 200, written.text
 
 
 async def test_a_registration_is_pending_and_the_caller_reads_it_back(

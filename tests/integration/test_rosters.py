@@ -35,20 +35,18 @@ async def _entrants_of(
     ways: str = "[{invite: {}}, {signup: {approval: auto}}]",
 ) -> None:
     """acme/spring taking entrants of up to `most`, their rosters locking at
-    their first submission, by `ways`, written by ada.
+    their first submission, by `ways`, written as an admin's change at the
+    forge would leave it: the contest is running already, and a save through
+    the API no longer moves a started contest from everyone alone to teams.
+    ada is signed in afterwards.
     """
     await sign_in_as(client, forge, 7)
-    settings = (await client.get(f"{CONTEST}/files/contest.yaml")).json()
-    content = re.sub(r"(?m)^(registration|entrants):.*\n?", "", settings["content"])
+    repo = forge.state.repos[("acme", "spring.contest")]
+    content = re.sub(r"(?m)^(registration|entrants):.*\n?", "", repo.files["contest.yaml"].decode())
     content = content.rstrip("\n") + (
         f"\nregistration: {{ways: {ways}}}\nentrants: {{most: {most}, locks: first_submission}}\n"
     )
-    written = await client.put(
-        f"{CONTEST}/files/contest.yaml",
-        json={"encoding": "utf-8", "content": content, "token": settings["token"]},
-        headers=ORIGIN,
-    )
-    assert written.status_code == 200, written.text
+    forge.state.commit(repo, {"contest.yaml": content.encode()}, "Settings", 7)
 
 
 async def _submit(client: httpx.AsyncClient, forge: FakeForge, key: str) -> httpx.Response:
@@ -220,7 +218,7 @@ async def test_an_organiser_puts_someone_straight_into_an_entrant_by_invite(
     assert made.json()["entrant"] == {"id": carols["id"], "name": "carol"}
     assert joined.json()["entered"]["how"] == "joined"
     member = (await client.get(MINE)).json()["entrant"]["members"][1]
-    assert (member["user_id"], member["way_kind"]) == (21, "invite")
+    assert (member["user_id"], member["way_kind"]) == (21, "organiser")
 
 
 async def test_an_organiser_gives_an_entrant_more_time_on_a_task(

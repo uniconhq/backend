@@ -327,7 +327,6 @@ async def test_a_save_that_changes_how_the_task_grades_says_how_many_it_regraded
     assert (body["grading_changed"], body["regraded"]) == (True, 1)
     assert body["notes"] == [
         "The most points each test group gives: main 100.",
-        "sum shows its hidden results at 2026-09-26T15:00:00+00:00.",
         "This save changes the leaderboard Standings.",
     ]
 
