@@ -44,9 +44,19 @@ SUM = Scope("acme", "spring", "sum")
 Command = Callable[[list[str]], Awaitable[int]]
 
 
-@pytest.fixture
-def app(held_setup: object) -> FastAPI:
+@pytest.fixture(scope="session")
+def built_app() -> FastAPI:
+    """The app, built once for the process: building it reads no setting and
+    keeps nothing of a test, and takes about a second, most of it making the
+    OpenAPI document. Its Origin check keeps the public URL it first reads,
+    which every test shares.
+    """
     return create_app()
+
+
+@pytest.fixture
+def app(held_setup: object, built_app: FastAPI) -> FastAPI:
+    return built_app
 
 
 @pytest.fixture

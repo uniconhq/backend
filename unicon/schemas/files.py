@@ -11,7 +11,7 @@ upload's carrying the same `upload`, and `Change`.
 import base64
 import binascii
 import uuid
-from typing import Literal, Self
+from typing import Any, Literal, Self
 
 from forge.api.files import File as FileRecord
 from forge.api.files import UploadInfo
@@ -113,6 +113,15 @@ class WriteFile(Encoded):
     message: str | None = None
     confirm: bool = False
     keep_as_draft: bool = False
+
+    @model_validator(mode="before")
+    @classmethod
+    def _no_upload(cls, given: Any) -> Any:
+        # A contest's file takes typed content alone; an upload named beside
+        # it is refused rather than dropped.
+        if isinstance(given, dict) and "upload" in given:
+            raise ValueError("a contest's file takes no upload")
+        return given
 
 
 class WriteTaskFile(EncodedOrUploaded):

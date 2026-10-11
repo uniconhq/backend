@@ -6,6 +6,8 @@ from decimal import Decimal
 from typing import Any
 
 import pytest
+from forge.api.contest_home import Field, Type
+from pydantic import TypeAdapter
 
 from unicon.schemas.contest_home import InputField
 
@@ -27,6 +29,18 @@ def _field(**given: Any) -> InputField:
             **given,
         }
     )
+
+
+@pytest.mark.parametrize("default", [Decimal("2.5"), 3])
+def test_a_number_inputs_default_from_forges_own_field_is_served_as_its_digits(
+    default: Decimal | int,
+) -> None:
+    """A route answers forge's `Field`, which FastAPI reads by its attributes."""
+    given = Field(id="ratio", type=Type.NUMBER, label="ratio", default=default)
+
+    field = TypeAdapter(InputField).validate_python(given, from_attributes=True)
+
+    assert field.default == str(default)
 
 
 def test_a_number_inputs_default_and_bounds_are_served_to_the_digit() -> None:
