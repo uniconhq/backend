@@ -53,6 +53,8 @@ MOVE = {"to": "0192f4a4-7b7e-7000-8000-000000000002"}
 SECONDS = {"seconds": 60}
 ENTRANT = f"{CONTEST}/organise/entrants/{NO_GRADING}"
 CANCEL = {"reason": "Not counted."}
+ASKER = "entrant." + "0" * 31 + "1"
+"""An asker as a question names one: an entrant's desk."""
 TASK_FILE = {"path": "data/weights.bin", "size": 1, "sha256": "0" * 64}
 SESSION_ONLY = {
     "createOrg",
@@ -148,10 +150,10 @@ ROUTES: list[tuple[str, str, dict[str, Any] | None, Role, Scope]] = [
     ("POST", f"{TASK}/announcements/1/close", None, Role.MANAGER, SUM),
     ("POST", f"{TASK}/announcements/1/reopen", None, Role.MANAGER, SUM),
     ("GET", f"{CONTEST}/clarifications", None, Role.OBSERVER, SPRING),
-    ("POST", f"{CONTEST}/clarifications/20/1/replies", COMMENT, Role.MANAGER, SPRING),
-    ("PUT", f"{CONTEST}/clarifications/20/1/answered", None, Role.MANAGER, SPRING),
-    ("DELETE", f"{CONTEST}/clarifications/20/1/answered", None, Role.MANAGER, SPRING),
-    ("POST", f"{CONTEST}/clarifications/20/1/announcement", NOTE, Role.MANAGER, SPRING),
+    ("POST", f"{CONTEST}/clarifications/{ASKER}/1/replies", COMMENT, Role.MANAGER, SPRING),
+    ("PUT", f"{CONTEST}/clarifications/{ASKER}/1/answered", None, Role.MANAGER, SPRING),
+    ("DELETE", f"{CONTEST}/clarifications/{ASKER}/1/answered", None, Role.MANAGER, SPRING),
+    ("POST", f"{CONTEST}/clarifications/{ASKER}/1/announcement", NOTE, Role.MANAGER, SPRING),
     ("GET", f"{ORG}/invites", None, Role.OBSERVER, ACME),
     ("POST", f"{ORG}/invites", INVITE, Role.MANAGER, ACME),
     ("POST", f"{ORG}/invites/{NO_GRADING}/send-again", None, Role.MANAGER, ACME),
