@@ -78,4 +78,6 @@ async def test_a_missing_address_is_not_found_only_to_who_holds_the_role_above_i
 
     assert (for_ada.status_code, for_ada.json()["code"]) == (404, "not_found")
     assert [answer.status_code for answer in for_carol] == [403, 403, 403]
-    assert for_carol[0].json()["detail"] == "This needs the observer role at acme/autumn."
+    assert for_carol[0].json()["detail"] == (
+        "This needs the observer role at acme/autumn. Ask an admin of acme/autumn if you need it."
+    )

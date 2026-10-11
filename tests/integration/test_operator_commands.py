@@ -43,7 +43,7 @@ async def test_create_org_names_an_admin_the_forge_does_not_know(
     code = await unicon(["create-org", "acme", "--admin", "nobody"])
 
     assert code == 1
-    assert capsys.readouterr().err == "There is no user named 'nobody' at the forge.\n"
+    assert capsys.readouterr().err == "There is no user called 'nobody'.\n"
     assert "acme" not in forge.state.orgs
 
 
@@ -62,7 +62,7 @@ async def test_create_org_that_fails_halfway_is_refused_with_its_reason(
 
     assert code == 1
     assert capsys.readouterr().err == (
-        "The forge or the CI did not answer; try again in a moment.\n"
+        "A server Unicon relies on did not answer. Try again in a moment.\n"
     )
 
 
@@ -95,7 +95,7 @@ async def test_create_account_refuses_a_service_account_name(
     code = await unicon(["create-account", "unicon-ci-acme", "--email", "x@example.test"])
 
     assert code == 1
-    assert "reserved for org service accounts" in capsys.readouterr().err
+    assert "kept for org service accounts" in capsys.readouterr().err
     assert forge.calls_to("create_user") == []
 
 

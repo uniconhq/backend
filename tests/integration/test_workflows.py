@@ -64,7 +64,9 @@ async def test_anyone_else_is_refused_alike(
 
     assert refused.status_code == 403
     assert refused.json()["code"] == "forbidden"
-    assert refused.json()["detail"] == f"This needs the manager role at {owner}."
+    assert refused.json()["detail"] == (
+        f"This needs the manager role at {owner}. Ask an admin of {owner} if you need it."
+    )
     assert acme.calls_to("create_workflow") == []
 
 
@@ -187,8 +189,8 @@ async def test_a_version_named_other_than_v_and_a_whole_number_is_refused_at_its
     assert refused.status_code == 422
     assert refused.json()["code"] == "invalid_name"
     assert refused.json()["detail"] == (
-        "'beta' cannot name a version: a version is v and a whole number from 1, "
-        "with no leading zero, such as v1, v2 or v10"
+        "'beta' cannot be used as a version. Name a version v and a whole number from 1, "
+        "with no leading zero, such as v1, v2 or v10."
     )
     assert made.status_code == 201, made.text
 
@@ -213,7 +215,10 @@ async def test_a_version_of_a_draft_with_problems_is_refused_with_each_path(
     assert refused.status_code == 422
     assert refused.json()["code"] == "invalid_definition"
     assert refused.json()["errors"] == [
-        {"path": "steps[1].with.binary", "message": "compiler is not a step before this one."}
+        {
+            "path": "steps[1].with.binary",
+            "message": "There is no step called compiler before this one.",
+        }
     ]
 
 
@@ -233,7 +238,7 @@ async def test_check_answers_every_problem_at_its_path_and_writes_nothing(
     assert bad.status_code == 200, bad.text
     (problem,) = bad.json()["problems"]
     assert problem["path"] == "steps[2].use"
-    assert "is not a primitive" in problem["message"]
+    assert "is a workflow, and a step can only use a primitive" in problem["message"]
 
 
 async def test_a_workflow_is_shared_with_a_person_who_then_reads_it(
@@ -268,7 +273,7 @@ async def test_a_workflow_is_shared_with_a_person_who_then_reads_it(
     await sign_in_as(client, acme, 7)
     hidden = await client.get("/api/v1/workflows/bob/tuned/versions/v1")
     assert hidden.status_code == 404
-    assert hidden.json()["detail"] == "There is no workflow bob/tuned@v1 you may read."
+    assert hidden.json()["detail"] == "There is no workflow bob/tuned@v1 that you can read."
 
 
 async def test_a_person_lists_what_they_may_read(

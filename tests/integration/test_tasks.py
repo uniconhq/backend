@@ -131,7 +131,7 @@ async def test_settings_that_do_not_read_are_told_with_their_errors(
     refused = await client.get(STANDINGS)
 
     assert (refused.status_code, refused.json()["code"]) == (422, "invalid_definition")
-    assert refused.json()["detail"].startswith("contest.yaml ")
+    assert refused.json()["detail"].startswith("There are 4 problems with the contest's settings.")
     assert "start" in {error["path"] for error in refused.json()["errors"]}
 
 

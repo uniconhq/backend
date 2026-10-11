@@ -35,12 +35,12 @@ from tests.integration.conftest import (
 MISSING = [
     {
         "path": "tests/main/",
-        "message": "main is a folder of tests/ but not a group in test_groups: list it, or move "
-        "its tests.",
+        "message": "main holds tests but is not one of the task's test groups. Add a test group "
+        "called main, or move its tests.",
     },
     {
         "path": "test_groups.hidden",
-        "message": "There is no folder tests/hidden/ with a test in it.",
+        "message": "The test group hidden has no tests. Add a test to it.",
     },
 ]
 
@@ -88,9 +88,9 @@ async def test_the_organiser_path_from_an_org_to_a_publication(
     first = written.json()
     assert (first["number"], first["grading_changed"]) == (1, False)
     assert first["notes"] == [
-        "Each group's most points: main 100.",
-        "sum reveals at 2026-10-03T17:00:00+00:00.",
-        "sum joins Standings.",
+        "The most points each test group gives: main 100.",
+        "sum shows its hidden results at 2026-10-03T17:00:00+00:00.",
+        "sum now counts on the leaderboard Standings.",
     ]
 
     statement = await _save(client, await _edit(client, "statement.md", "Write", "Add. Write"))
@@ -156,7 +156,7 @@ async def test_a_grading_change_while_the_contest_runs_asks_first(
 
     assert asked.status_code == 409
     assert asked.json()["code"] == "confirmation_required"
-    assert asked.json()["changes"] == ["plans/plan.json changed"]
+    assert asked.json()["changes"] == ["The way the task grades changed."]
     assert asked.json()["regrades"] == 0
     assert len((await client.get(f"{TASK}/publications")).json()) == 1
 
@@ -164,7 +164,7 @@ async def test_a_grading_change_while_the_contest_runs_asks_first(
 
     assert confirmed.status_code == 200
     assert (confirmed.json()["number"], confirmed.json()["grading_changed"]) == (2, True)
-    assert confirmed.json()["changes"] == ["plans/plan.json changed"]
+    assert confirmed.json()["changes"] == ["The way the task grades changed."]
 
 
 async def test_a_change_kept_as_a_draft_is_published_by_an_empty_confirmed_save(
@@ -177,7 +177,7 @@ async def test_a_change_kept_as_a_draft_is_published_by_an_empty_confirmed_save(
     assert kept.json() == {
         "version": kept.json()["version"],
         "errors": [],
-        "held_back": ["plans/plan.json changed"],
+        "held_back": ["The way the task grades changed."],
     }
     assert (await client.get(TASK)).json()["draft"] is True
 
@@ -228,9 +228,9 @@ async def test_a_save_removes_a_test_and_its_publication_names_the_removal(
     assert removed.status_code == 200, removed.text
     assert (removed.json()["number"], removed.json()["grading_changed"]) == (3, True)
     assert removed.json()["changes"] == [
-        "plans/plan.json changed",
-        "tests/main/2/answer removed",
-        "tests/main/2/input removed",
+        "The way the task grades changed.",
+        "The file tests/main/2/answer was removed.",
+        "The file tests/main/2/input was removed.",
     ]
     gone = await client.get(f"{TASK}/files/tests/main/2/input")
     assert gone.status_code == 404
@@ -268,7 +268,7 @@ async def test_removing_every_test_keeps_the_save_as_a_draft(
     assert kept.json()["errors"] == [
         {
             "path": "test_groups",
-            "message": "The task has no tests/ folder: add tests/<group>/<test>/.",
+            "message": "The task has no tests yet. Add a test to each test group.",
         }
     ]
     assert len((await client.get(f"{TASK}/publications")).json()) == 1

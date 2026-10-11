@@ -97,7 +97,7 @@ async def test_a_manager_granting_admin_is_refused(
 
     assert refused.status_code == 403
     assert refused.json()["code"] == "forbidden"
-    assert refused.json()["detail"] == "Only an admin of acme/spring may grant admin there."
+    assert refused.json()["detail"] == "Only an admin of acme/spring can grant admin there."
     assert _held(world, 20) == set()
 
 

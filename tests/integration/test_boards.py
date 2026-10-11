@@ -281,8 +281,10 @@ async def test_a_save_of_the_contests_settings_answers_the_notes_its_boards_repo
     organised = await client.get(ORGANISE)
 
     assert written.status_code == 200, written.text
-    assert written.json()["notes"] == ["Late counts nothing from sum."]
-    assert [board["notes"] for board in organised.json()] == [["Late counts nothing from sum."]]
+    assert written.json()["notes"] == ["The leaderboard Late counts nothing from sum."]
+    assert [board["notes"] for board in organised.json()] == [
+        ["The leaderboard Late counts nothing from sum."]
+    ]
 
 
 async def test_a_save_of_the_contests_settings_with_nothing_to_report_answers_no_notes(
