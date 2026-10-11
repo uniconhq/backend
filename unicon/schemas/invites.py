@@ -6,6 +6,7 @@ one with a code.
 
 import uuid
 from datetime import datetime
+from typing import Literal
 
 from forge.api.names import ScopeNames
 from forge.api.types import Grant, InviteStatus, MailStatus
@@ -21,10 +22,11 @@ class InviteRequest(BaseModel):
     """Who to invite, by exactly one of `username` and `email`, to what, for
     how many days the invite stands, 14 unless given, and, for a place in a
     contest, the `entrant` it puts them straight into, by its id, or none to
-    register them on their own.
+    register them on their own. A member's place in an entrant is offered by
+    the entrant's members, never here.
     """
 
-    grants: Grant
+    grants: Literal["admin", "manager", "observer", "contestant"]
     username: str | None = None
     email: str | None = None
     days: int | None = Field(default=None, ge=1, le=LONGEST_DAYS)
@@ -46,7 +48,8 @@ class OpenInviteRequest(BaseModel):
 
 
 class Invite(BaseModel):
-    """An invite: where it is to, by its names, what it grants, a place in a
+    """An invite: where it is to, by its names, and the title of the contest
+    it is at or under, null at an org; what it grants, a place in a
     contest (`contestant`), a member's place in an entrant (`member`) or an
     organiser role, the entrant it asks someone into, if any, the username
     or the address it names, who sent it, where it stands, whether it has
@@ -56,6 +59,7 @@ class Invite(BaseModel):
 
     id: uuid.UUID
     where: ScopeNames
+    contest_title: str | None
     grants: Grant
     entrant: EntrantRef | None
     username: str | None

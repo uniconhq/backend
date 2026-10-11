@@ -15,7 +15,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, status
 from forge.api import invites
 from forge.api.access import Organiser
-from forge.api.types import Role, ScopeKind
+from forge.api.types import Grant, Role, ScopeKind
 
 from unicon.api.deps import CurrentSession
 from unicon.api.guard import PREFIX, require
@@ -63,7 +63,7 @@ def router_at(kind: ScopeKind) -> APIRouter:
         return await invites.create(
             organiser,
             organiser.scope,
-            body.grants,
+            Grant(body.grants),
             username=body.username,
             email=body.email,
             lifetime=timedelta(days=body.days) if body.days is not None else None,

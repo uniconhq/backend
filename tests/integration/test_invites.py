@@ -142,7 +142,7 @@ async def test_a_place_is_offered_only_while_the_contest_takes_people_by_invite(
     )
 
     assert (refused.status_code, refused.json()["code"]) == (409, "no_invite_way")
-    assert (member.status_code, member.json()["code"]) == (422, "invalid_invite")
+    assert (member.status_code, member.json()["code"]) == (422, "validation_error")
 
 
 async def test_the_refusals_come_back_with_their_codes(

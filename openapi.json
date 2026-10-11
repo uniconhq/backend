@@ -499,7 +499,7 @@
         "type": "object"
       },
       "Change": {
-        "description": "One entry of a place's history: the version it made, who made it, what\nthey said about it and when. `author` is the username of `author_id`,\nwhich the history names whether or not they still hold a role there, and\nnone when the forge knows no such account or the change has no author.",
+        "description": "One entry of a place's history: the version it made, who made it, what\nthey said about it and when. `author` is the username of `author_id`,\nwhich the history names whether or not they still hold a role there, and\nnone when the forge knows no such account, the change has no author, or\nthe platform made it, which is no person (a new task's first files).",
         "properties": {
           "at": {
             "format": "date-time",
@@ -1194,6 +1194,11 @@
             "$ref": "#/components/schemas/EntrantRef"
           },
           "how": {
+            "enum": [
+              "made",
+              "joined",
+              "already"
+            ],
             "title": "How",
             "type": "string"
           },
@@ -2177,8 +2182,19 @@
         "type": "object"
       },
       "Invite": {
-        "description": "An invite: where it is to, by its names, what it grants, a place in a\ncontest (`contestant`), a member's place in an entrant (`member`) or an\norganiser role, the entrant it asks someone into, if any, the username\nor the address it names, who sent it, where it stands, whether it has\nlapsed, its dates, and what became of its mail: `waiting`, `sent`,\n`failed`, or `off` where the deployment sends no mail.",
+        "description": "An invite: where it is to, by its names, and the title of the contest\nit is at or under, null at an org; what it grants, a place in a\ncontest (`contestant`), a member's place in an entrant (`member`) or an\norganiser role, the entrant it asks someone into, if any, the username\nor the address it names, who sent it, where it stands, whether it has\nlapsed, its dates, and what became of its mail: `waiting`, `sent`,\n`failed`, or `off` where the deployment sends no mail.",
         "properties": {
+          "contest_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contest Title"
+          },
           "created_at": {
             "format": "date-time",
             "title": "Created At",
@@ -2280,6 +2296,7 @@
         "required": [
           "id",
           "where",
+          "contest_title",
           "grants",
           "entrant",
           "username",
@@ -2297,7 +2314,7 @@
         "type": "object"
       },
       "InviteRequest": {
-        "description": "Who to invite, by exactly one of `username` and `email`, to what, for\nhow many days the invite stands, 14 unless given, and, for a place in a\ncontest, the `entrant` it puts them straight into, by its id, or none to\nregister them on their own.",
+        "description": "Who to invite, by exactly one of `username` and `email`, to what, for\nhow many days the invite stands, 14 unless given, and, for a place in a\ncontest, the `entrant` it puts them straight into, by its id, or none to\nregister them on their own. A member's place in an entrant is offered by\nthe entrant's members, never here.",
         "properties": {
           "days": {
             "anyOf": [
@@ -2336,7 +2353,14 @@
             "title": "Entrant"
           },
           "grants": {
-            "$ref": "#/components/schemas/Grant"
+            "enum": [
+              "admin",
+              "manager",
+              "observer",
+              "contestant"
+            ],
+            "title": "Grants",
+            "type": "string"
           },
           "username": {
             "anyOf": [
@@ -3215,7 +3239,7 @@
         "type": "object"
       },
       "OrganisedSubmission": {
-        "description": "One submission of a contestant or a team, as organisers read it:\nits number among the row's, when it was taken, how many started days\nlate, and its grading with everything filled in.",
+        "description": "One submission of an entrant, as organisers read it: its number\namong the entrant's, when it was taken, how many started days late, and\nits grading with everything filled in.",
         "properties": {
           "grading": {
             "anyOf": [
@@ -3825,9 +3849,19 @@
         "type": "object"
       },
       "Refusal": {
-        "description": "Why the caller cannot register now: the code registering would be\nrefused with, and its sentence.",
+        "description": "Why the caller cannot register now: the code registering would be\nrefused with, or `forge_unavailable` when their addresses could not be\nchecked just now, and its sentence.",
         "properties": {
           "code": {
+            "enum": [
+              "registration_closed",
+              "is_staff",
+              "already_registered",
+              "invite_required",
+              "wrong_invite_code",
+              "domain_not_allowed",
+              "contest_full",
+              "forge_unavailable"
+            ],
             "title": "Code",
             "type": "string"
           },
@@ -4986,7 +5020,7 @@
         "type": "object"
       },
       "Timeline": {
-        "description": "A task's timeline in its contest, from its entry in `contest.yaml`,\npoints it gives, its groups' total unless the entry says, and none on a task whose\npoints it gives, 100 unless the entry says, and none on a task whose\nlatest publication gives no points or that has none; `release_at`, the\ncontest's start unless the entry says; `due`, after which a submission\nis late, and `late_per_day`, the fraction a started late day takes off,\n1 unless the entry says, both none on a task with no due; and `closes`,\nthe contest's end unless the entry says. `worth` and `late_per_day` are\nexact.",
+        "description": "A task's timeline in its contest, from its entry in `contest.yaml`,\neach at its default where the entry gives none: `worth`, the most\npoints it gives, its groups' total unless the entry says, and none on a\ntask whose latest publication gives no points or that has none;\n`release_at`, the\ncontest's start unless the entry says; `due`, after which a submission\nis late, and `late_per_day`, the fraction a started late day takes off,\n1 unless the entry says, both none on a task with no due; and `closes`,\nthe contest's end unless the entry says. `worth` and `late_per_day` are\nexact.",
         "properties": {
           "closes": {
             "format": "date-time",
@@ -11891,7 +11925,7 @@
     },
     "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/public/{path}": {
       "get": {
-        "description": "`path` is the file's path under `public/`. Read with exactly the rights\nthe statement is read with, and, for a signed-in caller holding a role\nreaching the task, whether or not it is released. A path with an empty,\n`.` or `..` segment, or a file that is not there, is `not_found`, the\nsame as a task the caller may not read; one larger than a page is served\nis `public_file_too_large`, with the `limit` in bytes.",
+        "description": "`path` is the file's path under `public/`. Read with exactly the rights\nthe statement is read with, as the task's latest publication holds it,\nand, for a signed-in caller holding a role reaching the task, whether or\nnot it is released, as the task's head holds it, the draft the\nstatement's preview draws. Each answer carries an `ETag` of its bytes\nand is asked again each time; `If-None-Match` with that tag is answered\n304 while the bytes are the same. A path with an empty,\n`.` or `..` segment, or a file that is not there, is `not_found`, the\nsame as a task the caller may not read; one larger than a page is served\nis `public_file_too_large`, with the `limit` in bytes.",
         "operationId": "getTaskPublicFile",
         "parameters": [
           {

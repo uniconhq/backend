@@ -58,9 +58,10 @@ class TaskState(BaseModel):
 
 class Timeline(BaseModel):
     """A task's timeline in its contest, from its entry in `contest.yaml`,
-    points it gives, its groups' total unless the entry says, and none on a task whose
-    points it gives, 100 unless the entry says, and none on a task whose
-    latest publication gives no points or that has none; `release_at`, the
+    each at its default where the entry gives none: `worth`, the most
+    points it gives, its groups' total unless the entry says, and none on a
+    task whose latest publication gives no points or that has none;
+    `release_at`, the
     contest's start unless the entry says; `due`, after which a submission
     is late, and `late_per_day`, the fraction a started late day takes off,
     1 unless the entry says, both none on a task with no due; and `closes`,

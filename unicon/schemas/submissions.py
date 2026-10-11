@@ -183,9 +183,9 @@ class Submission(Numbered):
 
 
 class OrganisedSubmission(Numbered):
-    """One submission of a contestant or a team, as organisers read it:
-    its number among the row's, when it was taken, how many started days
-    late, and its grading with everything filled in.
+    """One submission of an entrant, as organisers read it: its number
+    among the entrant's, when it was taken, how many started days late, and
+    its grading with everything filled in.
     """
 
     grading: OrganisedResult | None

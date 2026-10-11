@@ -7,7 +7,7 @@ time.
 
 import uuid
 from datetime import datetime, timedelta
-from typing import Annotated
+from typing import Annotated, Literal
 
 from forge.api.entrants import Locks, Status, WayKind
 from pydantic import BaseModel, Field, PlainSerializer
@@ -176,12 +176,27 @@ class Invitation(BaseModel):
     expires_at: datetime
 
 
+RefusalCode = Literal[
+    "registration_closed",
+    "is_staff",
+    "already_registered",
+    "invite_required",
+    "wrong_invite_code",
+    "domain_not_allowed",
+    "contest_full",
+    "forge_unavailable",
+]
+"""Each reason registering is refused for, and `forge_unavailable` when the
+caller's confirmed addresses could not be read to say."""
+
+
 class Refusal(BaseModel):
     """Why the caller cannot register now: the code registering would be
-    refused with, and its sentence.
+    refused with, or `forge_unavailable` when their addresses could not be
+    checked just now, and its sentence.
     """
 
-    code: str
+    code: RefusalCode
     detail: str
 
 
@@ -213,4 +228,4 @@ class Entered(BaseModel):
 
     entrant: EntrantRef
     status: Status
-    how: str
+    how: Literal["made", "joined", "already"]
