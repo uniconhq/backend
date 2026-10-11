@@ -346,4 +346,4 @@ async def test_a_task_rollback_is_a_save(client: httpx.AsyncClient, sum_task: Fa
     assert rolled.status_code == 200, rolled.text
     assert rolled.json()["number"] == 2
     back = await read(client, f"{TASK}/files/statement.md")
-    assert back["content"] == "Write the statement contestants read here.\n"
+    assert back["content"] == "Write the statement entrants read here.\n"

@@ -59,7 +59,7 @@ async def test_a_signed_in_person_reads_the_home_and_a_released_task(
         {
             "id": "language",
             "type": "enum",
-            "label": "language",
+            "label": "Language",
             "options": ["python"],
             "per_test": False,
             "default": None,
