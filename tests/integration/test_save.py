@@ -5,9 +5,13 @@ that does not check, kept as a draft with its errors, which the task then
 shows; the refusals, a path inside `plans/`, a manager's change to an
 admin-only file and a grading change while the contest runs, which the same
 save confirmed publishes; a change kept as a draft and published by an
-empty confirmed save; and a stale token answered as a conflict.
+empty confirmed save; a stale token answered as a conflict; and a removal,
+a path with its token and `remove`, which takes a test out or replaces it
+by one with other entry names, is checked as any other state, and is
+refused as an edit is.
 """
 
+import uuid
 from typing import Any
 
 import httpx
@@ -193,6 +197,128 @@ async def test_a_save_with_a_stale_token_is_a_conflict(
 
     assert stale.status_code == 409
     assert stale.json()["code"] == "conflict"
+
+
+def _removal(path: str, token: str | None) -> dict[str, Any]:
+    return {"path": path, "token": token, "remove": True}
+
+
+async def _token(client: httpx.AsyncClient, path: str) -> str:
+    token: str = (await read(client, f"{TASK}/files/{path}"))["token"]
+    return token
+
+
+async def test_a_save_removes_a_test_and_its_publication_names_the_removal(
+    client: httpx.AsyncClient, sum_task: FakeForge
+) -> None:
+    await publish(client)
+    added = await _save(
+        client,
+        _change("tests/main/2/input", "1 1\n", None),
+        _change("tests/main/2/answer", "2\n", None),
+    )
+    assert added.json()["number"] == 2, added.text
+
+    removed = await _save(
+        client,
+        _removal("tests/main/2/input", await _token(client, "tests/main/2/input")),
+        _removal("tests/main/2/answer", await _token(client, "tests/main/2/answer")),
+    )
+
+    assert removed.status_code == 200, removed.text
+    assert (removed.json()["number"], removed.json()["grading_changed"]) == (3, True)
+    assert removed.json()["changes"] == [
+        "plans/plan.json changed",
+        "tests/main/2/answer removed",
+        "tests/main/2/input removed",
+    ]
+    gone = await client.get(f"{TASK}/files/tests/main/2/input")
+    assert gone.status_code == 404
+
+
+async def test_a_test_is_replaced_by_one_with_other_entry_names(
+    client: httpx.AsyncClient, sum_task: FakeForge
+) -> None:
+    await publish(client)
+
+    replaced = await _save(
+        client,
+        _removal("tests/main/1/input", await _token(client, "tests/main/1/input")),
+        _removal("tests/main/1/answer", await _token(client, "tests/main/1/answer")),
+        _change("tests/main/1/input.txt", "4 5\n", None),
+        _change("tests/main/1/answer.txt", "9\n", None),
+    )
+
+    assert replaced.status_code == 200, replaced.text
+    assert replaced.json()["number"] == 2
+
+
+async def test_removing_every_test_keeps_the_save_as_a_draft(
+    client: httpx.AsyncClient, sum_task: FakeForge
+) -> None:
+    await publish(client)
+
+    kept = await _save(
+        client,
+        _removal("tests/main/1/input", await _token(client, "tests/main/1/input")),
+        _removal("tests/main/1/answer", await _token(client, "tests/main/1/answer")),
+    )
+
+    assert kept.status_code == 200, kept.text
+    assert kept.json()["errors"] == [
+        {
+            "path": "test_groups",
+            "message": "The task has no tests/ folder: add tests/<group>/<test>/.",
+        }
+    ]
+    assert len((await client.get(f"{TASK}/publications")).json()) == 1
+
+
+async def test_a_removal_with_a_stale_token_is_a_conflict(
+    client: httpx.AsyncClient, sum_task: FakeForge
+) -> None:
+    await _save(client, _change("public/hint.txt", "One.\n", None))
+    stale = _removal("public/hint.txt", await _token(client, "public/hint.txt"))
+    await _save(client, await _edit(client, "public/hint.txt", "One.", "Two."))
+
+    refused = await _save(client, stale)
+
+    assert refused.status_code == 409
+    assert refused.json()["code"] == "conflict"
+    assert (await read(client, f"{TASK}/files/public/hint.txt"))["content"] == "Two.\n"
+
+
+async def test_a_managers_removal_of_the_statement_is_refused(
+    client: httpx.AsyncClient, sum_task: FakeForge
+) -> None:
+    token = await _token(client, "statement.md")
+    await sum_task.orgs.grant_role(8, SUM, Role.MANAGER)
+    await sign_in_as(client, sum_task, 8)
+
+    refused = await _save(client, _removal("statement.md", token))
+
+    assert refused.status_code == 403
+    assert (refused.json()["code"], refused.json()["keys"]) == ("admin_only", ["statement.md"])
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        {"path": "public/a.txt", "token": None, "remove": True},
+        {"path": "public/a.txt", "token": "abc", "remove": True, "content": "x"},
+        {"path": "public/a.txt", "token": "abc", "remove": True, "upload": str(uuid.uuid4())},
+        {"path": "public/a.txt", "token": "abc"},
+    ],
+    ids=["no-token", "with-content", "with-upload", "nothing"],
+)
+async def test_a_removal_is_a_path_and_its_token_and_nothing_else(
+    client: httpx.AsyncClient, sum_task: FakeForge, change: dict[str, Any]
+) -> None:
+    refused = await _save(client, change)
+
+    assert refused.status_code == 422
+    assert refused.json()["code"] == "validation_error"
+    assert sum_task.calls_to("save_files") == []
 
 
 async def test_a_path_named_twice_in_one_save_is_a_validation_error(

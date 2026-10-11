@@ -58,16 +58,26 @@ class EncodedOrUploaded(BaseModel):
 
     @model_validator(mode="after")
     def _one_of_content_and_upload(self) -> Self:
-        if (self.content is None) == (self.upload is None):
-            raise ValueError("Give the content or an upload, one of the two.")
         self.edit_content()
         return self
 
     def edit_content(self) -> bytes | Uploaded:
-        if self.upload is not None:
-            return Uploaded(self.upload)
-        assert self.content is not None
-        return _decoded(self.encoding, self.content)
+        return written_content(self.encoding, self.content, self.upload)
+
+
+def written_content(
+    encoding: Encoding, content: str | None, upload: uuid.UUID | None
+) -> bytes | Uploaded:
+    """What a task's file is written as: the decoded `content`, or the
+    `upload` it names. `ValueError` unless exactly one of the two is given,
+    or for content that does not decode as its `encoding` says.
+    """
+    if (content is None) == (upload is None):
+        raise ValueError("Give the content or an upload, one of the two.")
+    if upload is not None:
+        return Uploaded(upload)
+    assert content is not None
+    return _decoded(encoding, content)
 
 
 def token_of(value: str | None) -> ConflictToken | None:

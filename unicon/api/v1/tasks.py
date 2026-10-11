@@ -143,7 +143,10 @@ async def save_task(organiser: TaskManager, body: SaveRequest) -> Published | Dr
     confirmed or kept as a draft. A change naming an upload writes the pointer to the file the
     caller uploaded for that path; one that is not theirs for this task and
     path is `invalid_inputs`, and one whose bytes have not arrived
-    `upload_not_ready`.
+    `upload_not_ready`. A change with `remove: true` removes the file it
+    names, with the token it was read with, a moved one being `conflict` as
+    an edit's is; the state left is checked as any other, so removing a
+    group's last test or a file an input names keeps the save as a draft.
     """
     return await publications.save(
         organiser,
