@@ -1,7 +1,7 @@
 """Announcements and clarifications over HTTP, the forge's push telling the
-streams what it changed, and the stream itself. An organiser posts, edits
-and closes an announcement and a contestant reads the open ones beside the
-contest's home and a task's page. A contestant asks a question, an
+streams what it changed, and the stream itself. An organiser posts, edits,
+closes and reopens an announcement and a contestant reads the open ones
+beside the contest's home and a task's page. A contestant asks a question, an
 organiser sees it in the inbox, replies, marks it answered, which takes it
 out of the inbox, and unmarks it; the contestant's follow-up on an answered
 question opens it again; and an answer made public reaches every
@@ -77,6 +77,35 @@ async def test_an_organiser_announces_and_a_contestant_reads_the_open_ones(
         ("On sum", "sum"),
     ]
     assert [note["title"] for note in page.json()] == ["On sum"]
+
+
+@pytest.mark.parametrize("place", [CONTEST, TASK], ids=["contest", "task"])
+async def test_an_organiser_reopens_a_closed_announcement_and_contestants_see_it_again(
+    client: httpx.AsyncClient, entered: FakeForge, place: str
+) -> None:
+    await sign_in_as(client, entered, 7)
+    posted = await client.post(f"{place}/announcements", json=NOTE, headers=ORIGIN)
+    number = posted.json()["number"]
+    await client.post(f"{place}/announcements/{number}/close", headers=ORIGIN)
+    await sign_in_as(client, entered, 20)
+    hidden = await client.get(f"{CONTEST}/home/announcements")
+    refused = await client.post(f"{place}/announcements/{number}/reopen", headers=ORIGIN)
+    await sign_in_as(client, entered, 7)
+
+    reopened = await client.post(f"{place}/announcements/{number}/reopen", headers=ORIGIN)
+    again = await client.post(f"{place}/announcements/{number}/reopen", headers=ORIGIN)
+    missing = await client.post(f"{place}/announcements/{number + 1}/reopen", headers=ORIGIN)
+    await sign_in_as(client, entered, 20)
+    shown = await client.get(f"{CONTEST}/home/announcements")
+
+    assert hidden.json() == []
+    assert refused.status_code == 403
+    assert reopened.status_code == 200, reopened.text
+    assert (reopened.json()["title"], reopened.json()["closed"]) == ("Welcome", False)
+    assert again.json() == reopened.json()
+    assert (missing.status_code, missing.json()["code"]) == (404, "not_found")
+    assert [(note["title"], note["closed"]) for note in shown.json()] == [("Welcome", False)]
+    assert len(entered.calls_to("reopen_thread")) == 1
 
 
 async def test_a_question_is_asked_answered_followed_up_and_answered_publicly(

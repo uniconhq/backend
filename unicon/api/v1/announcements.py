@@ -1,11 +1,12 @@
 """Announcements: an organiser's messages to a contest or a task, and the open
 ones a signed-in person reads.
 
-The organiser's four routes, listing every announcement, closed ones
-included, posting, editing and closing, are served under the contest and
-the task prefixes, made by `router_at`, so each kind gets its own operation
-names. Listing needs the observer role at the place and the rest the
-manager role. There is no delete: a closed announcement stays readable.
+The organiser's five routes, listing every announcement, closed ones
+included, posting, editing, closing and reopening, are served under the
+contest and the task prefixes, made by `router_at`, so each kind gets its
+own operation names. Listing needs the observer role at the place and the
+rest the manager role. There is no delete: a closed announcement stays
+readable, and one closed by mistake is reopened.
 
 A signed-in person reads the open announcements of a contest they see with
 those of each task released to them, beside the contest's home, and of one
@@ -117,5 +118,15 @@ def router_at(kind: ScopeKind) -> APIRouter:
     async def close(organiser: Manager, number: int) -> Announcement:
         """Closing a closed one changes nothing."""
         return await announcements.close(organiser, organiser.scope, number)
+
+    @router.post(
+        "/announcements/{number}/reopen",
+        operation_id=f"reopen{name}Announcement",
+        summary="Reopen a closed announcement, which its readers see again",
+        response_model=Announcement,
+    )
+    async def reopen(organiser: Manager, number: int) -> Announcement:
+        """Reopening an open one changes nothing."""
+        return await announcements.reopen(organiser, organiser.scope, number)
 
     return router
