@@ -207,6 +207,7 @@ the one the route needs at the scope in the third column.
 | `POST <place>/announcements` | manager | place | `title`, `body` | 201, the announcement |
 | `PATCH <place>/announcements/{number}` | manager | place | `title`, `body` | the announcement |
 | `POST <place>/announcements/{number}/close` | manager | place | | the announcement, `closed` |
+| `POST <place>/announcements/{number}/reopen` | manager | place | | the announcement, open again; an open one is left as it is |
 | `GET <org>/clarifications` | a role anywhere in the org | | | every question still open across the org, oldest first |
 | `GET <contest>/clarifications` | observer | contest | | every question of the contest, answered ones included |
 | `POST <contest>/clarifications/{asker}/{number}/replies` | manager | contest | `body` | the question, still open |
@@ -387,8 +388,17 @@ completes it with the same `POST <task>/uploads/{upload}/complete`, its
 gives `upload`, the upload's id, in place of `encoding` and `content`, and
 the save writes the pointer to the file beside the other changes, one
 commit and one publication. A change gives content or an upload, never both
-or neither, and a contest's file takes no upload (`validation_error`). An
-upload that is not the caller's for that task and path is
+or neither, and a contest's file takes no upload (`validation_error`). A
+change of `POST <task>/save` may instead remove its file: `{"path", "token",
+"remove": true}`, with the token the file was read with and no content or
+upload (`validation_error` otherwise), a moved token being `conflict` as an
+edit's is. Removing a folder, such as a test `tests/<group>/<test>/`, is
+removing each file under it, named one by one, in the same save as any
+files it is replaced by; the state left is checked as any other, so a
+group left with no test or a file an input names removed keeps the save as
+a draft with its errors, and the publication names each removed test file
+among its `changes`. An upload that is not the caller's for that task and
+path is
 `invalid_inputs`, naming the path, and one whose bytes have not arrived
 `upload_not_ready`. A file that is an upload is listed by the tree and read
 with `upload`, the `size` and `digest` of what it holds, its `content` then
@@ -419,6 +429,7 @@ in the contest they enter:
 | `GET <task>/page` | | a released task's statement, its submission caps and the form of its inputs |
 | `GET <contest>/home/announcements` | | the open announcements of the contest and of each task released to the caller |
 | `GET <task>/page/announcements` | | the open announcements of a released task |
+| `GET <task>/public/{path}` | | a file under the task's `public/`, as its bytes; no session needed, below |
 | `POST <contest>/questions` | `title`, `body`, `task` | 201, the question, asked privately |
 | `GET <contest>/questions` | | the caller's own questions, with every message |
 | `POST <contest>/questions/{number}/comments` | `body` | the question, opened again when it was answered |
@@ -488,7 +499,26 @@ tasks; and `GET /api/v1/public/contests/{org}/{contest}/tasks/{task}`, a
 released task's statement. Anything else answers 404 there. Every
 contestant's and organiser's route answers a request with no session 401;
 the few others that need none are the sign-in's own, the server's clock, the
-health checks and the machines' doors, and a test lists them all.
+health checks, the machines' doors and a task's public files, and a test
+lists them all.
+
+A task's public files, the ones under its `public/` such as a statement's
+images, are read at `GET <task>/public/{path}`, `path` being the file's path
+under `public/`, as the task's latest publication holds it, never a draft
+saved after it. It reads the session when there is one and answers without:
+a visitor, or a caller whose session has ended, reads it where the
+statement is public; a signed-in caller where they read the task's page;
+and a caller holding a role at the task, its contest or its org, whether or
+not the task is released. A file that is an upload is answered with its
+bytes, never its pointer. The answer is the bytes, typed by the file's
+ending (`png`, `jpg`, `jpeg`, `gif`, `webp`, `svg`, `avif`, `apng`, `bmp`,
+`ico`, in any case), `application/octet-stream` for anything else, with
+`X-Content-Type-Options: nosniff`, `Cache-Control: private, max-age=60`,
+and for an SVG `Content-Security-Policy: default-src 'none'; style-src
+'unsafe-inline'; sandbox`, so one opened on its own runs no script. A path
+with an empty, `.` or `..` segment, a file that is not there, and a task the
+caller may not read are each `not_found`; a file larger than 10 MiB is
+`public_file_too_large`, a 409 with the `limit` in bytes.
 
 ## Uploads and submissions
 
@@ -849,7 +879,7 @@ nowhere else:
 |---|---|
 | `not_found`, `upload_not_yours` | 404 |
 | `forbidden`, `ci_request_refused`, `fresh_sign_in_required`, `origin_mismatch`, `admin_only`, `reserved_path`, `registration_closed`, `is_staff`, `invite_required`, `wrong_invite_code`, `domain_not_allowed`, `roster_locked`, `task_closed`, `archived`, `not_approved`, `marks_frozen` | 403 |
-| `conflict`, `sole_admin`, `contestant_conflict`, `shared_workflow_owner`, `confirmation_required`, `already_registered`, `contest_full`, `already_invited`, `no_invite_way`, `entrants_alone`, `entrant_name_taken`, `entrant_full`, `in_entrant`, `entrant_incomplete`, `entrant_has_submissions`, `entrant_changed`, `wrong_status`, `submission_limit`, `upload_not_ready`, `upload_limit`, `marks_off`, `mark_limit`, `log_too_large` | 409 |
+| `conflict`, `sole_admin`, `contestant_conflict`, `shared_workflow_owner`, `confirmation_required`, `already_registered`, `contest_full`, `already_invited`, `no_invite_way`, `entrants_alone`, `entrant_name_taken`, `entrant_full`, `in_entrant`, `entrant_incomplete`, `entrant_has_submissions`, `entrant_changed`, `wrong_status`, `submission_limit`, `upload_not_ready`, `upload_limit`, `marks_off`, `mark_limit`, `log_too_large`, `public_file_too_large` | 409 |
 | `grading_closed`, `invite_expired` | 410 |
 | `payload_too_large`, `too_large` | 413 |
 | `rate_limited`, `invite_limit` | 429, with `Retry-After` |
