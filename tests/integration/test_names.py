@@ -52,7 +52,7 @@ async def test_the_lists_and_the_roles_answer_with_names(
     me = await made.get("/api/v1/me")
     holders = await made.get(f"{CONTEST}/tasks/sum/roles")
 
-    assert contests.json() == [{"name": "spring"}]
+    assert [contest["name"] for contest in contests.json()] == ["spring"]
     assert tasks.json() == [{"name": "sum"}]
     assert me.json()["roles"] == [
         {"names": {"org": "acme", "contest": None, "task": None}, "role": "admin"}

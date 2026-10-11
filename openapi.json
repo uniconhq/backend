@@ -2453,6 +2453,57 @@
         "title": "LimitSource",
         "type": "object"
       },
+      "ListedContest": {
+        "description": "A contest in its org's list, by name, with its state, start and end as\nits settings say them, all three null when its settings cannot be read.",
+        "properties": {
+          "end": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "start": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/State"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "state",
+          "start",
+          "end"
+        ],
+        "title": "ListedContest",
+        "type": "object"
+      },
       "Locks": {
         "description": "When an entrant's roster locks: at the contest's start, or at the\nentrant's first submission.",
         "enum": [
@@ -6557,7 +6608,7 @@
     },
     "/api/v1/orgs/{org}/contests": {
       "get": {
-        "description": "The contests the forge lets the caller read, by name.",
+        "description": "The contests the forge lets the caller read, by name, each with its\nstate and dates.",
         "operationId": "listContests",
         "parameters": [
           {
@@ -6576,7 +6627,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "$ref": "#/components/schemas/Named"
+                    "$ref": "#/components/schemas/ListedContest"
                   },
                   "title": "Response Listcontests",
                   "type": "array"

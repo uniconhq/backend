@@ -4,6 +4,7 @@ goes out as the forge's own `Timeline` says it, its numbers exactly.
 
 from datetime import datetime
 
+from forge.api.contest_home import State
 from pydantic import BaseModel
 
 from unicon.schemas.exact import Exact
@@ -14,6 +15,17 @@ class Named(BaseModel):
     """An org, a contest or a task, by the name people call it."""
 
     name: str
+
+
+class ListedContest(BaseModel):
+    """A contest in its org's list, by name, with its state, start and end as
+    its settings say them, all three null when its settings cannot be read.
+    """
+
+    name: str
+    state: State | None
+    start: datetime | None
+    end: datetime | None
 
 
 class CreateContest(BaseModel):

@@ -19,7 +19,14 @@ async def test_a_contest_is_made_and_listed(
 
     assert made.status_code == 201
     assert made.json() == {"name": "spring"}
-    assert (await client.get(f"{ORG}/contests")).json() == [{"name": "spring"}]
+    assert (await client.get(f"{ORG}/contests")).json() == [
+        {
+            "name": "spring",
+            "state": "draft",
+            "start": "2026-10-03T12:00:00Z",
+            "end": "2026-10-03T17:00:00Z",
+        }
+    ]
     settings = (await client.get(f"{CONTEST}/files/contest.yaml")).json()
     assert 'name: "Spring 2026"' in settings["content"]
 
