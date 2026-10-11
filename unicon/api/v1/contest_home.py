@@ -15,9 +15,11 @@ on its own runs no script. A file larger than a page is served is
 `public_file_too_large`, with the `limit` in bytes.
 """
 
+import hashlib
+from http import HTTPStatus
 from typing import Final
 
-from fastapi import APIRouter, Response
+from fastapi import APIRouter, Request, Response
 from forge.api import contest_home, contests, landing, tasks
 from forge.api.types import ScopeKind
 
@@ -46,8 +48,11 @@ OTHER_TYPE = "application/octet-stream"
 SVG = "image/svg+xml"
 PUBLIC_HEADERS: Final = {
     "X-Content-Type-Options": "nosniff",
-    "Cache-Control": "private, max-age=60",
+    "Cache-Control": "private, no-cache",
 }
+"""Kept by the reader's browser alone, and asked again each time with its
+tag, so a picture a save replaced shows at once, on an organiser's preview
+as on an entrant's page; one unchanged costs no bytes (304)."""
 SVG_POLICY = "default-src 'none'; style-src 'unsafe-inline'; sandbox"
 
 router = APIRouter(tags=["contest home"])
@@ -111,10 +116,16 @@ async def get_task_page(session: CurrentSession, scope: TaskAtPath) -> contest_h
         }
     },
 )
-async def get_task_public_file(session: OptionalSession, scope: TaskAtPath, path: str) -> Response:
+async def get_task_public_file(
+    session: OptionalSession, scope: TaskAtPath, path: str, request: Request
+) -> Response:
     """`path` is the file's path under `public/`. Read with exactly the rights
-    the statement is read with, and, for a signed-in caller holding a role
-    reaching the task, whether or not it is released. A path with an empty,
+    the statement is read with, as the task's latest publication holds it,
+    and, for a signed-in caller holding a role reaching the task, whether or
+    not it is released, as the task's head holds it, the draft the
+    statement's preview draws. Each answer carries an `ETag` of its bytes
+    and is asked again each time; `If-None-Match` with that tag is answered
+    304 while the bytes are the same. A path with an empty,
     `.` or `..` segment, or a file that is not there, is `not_found`, the
     same as a task the caller may not read; one larger than a page is served
     is `public_file_too_large`, with the `limit` in bytes.
@@ -127,10 +138,19 @@ async def get_task_public_file(session: OptionalSession, scope: TaskAtPath, path
         else landing.public_file(task, named)
     )
     kind = content_type_of(found.path)
-    headers = dict(PUBLIC_HEADERS)
+    headers = {**PUBLIC_HEADERS, "ETag": f'"{hashlib.sha256(found.content).hexdigest()}"'}
     if kind == SVG:
         headers["Content-Security-Policy"] = SVG_POLICY
+    if headers["ETag"] in _tags(request.headers.get("if-none-match")):
+        return Response(status_code=HTTPStatus.NOT_MODIFIED, headers=headers)
     return Response(content=found.content, media_type=kind, headers=headers)
+
+
+def _tags(asked: str | None) -> set[str]:
+    """The tags an `If-None-Match` names, weak ones as their strong form."""
+    if not asked:
+        return set()
+    return {tag.strip().removeprefix("W/") for tag in asked.split(",") if tag.strip()}
 
 
 def content_type_of(path: str) -> str:

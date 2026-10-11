@@ -1,7 +1,8 @@
 """A task's public files over HTTP, the files under its `public/` a statement
 shows, such as its images. Each is answered as its bytes, typed by its
-ending, never sniffed, kept a minute by the reader's browser alone, and an
-SVG under a policy that runs no script. A visitor reads them where the
+ending, never sniffed, kept by the reader's browser alone and asked again
+each time by its tag, so a picture replaced shows at once, and an SVG
+under a policy that runs no script. A visitor reads them where the
 statement is public, a signed-in person where they read the task's page,
 and an organiser of the task before it is released; anyone else, a path
 outside `public/` and a file that is not there are all not found, and a
@@ -70,8 +71,23 @@ async def test_a_visitor_reads_a_picture_as_its_bytes_typed_by_its_ending(
     assert found.content == PNG
     assert found.headers["content-type"] == "image/png"
     assert found.headers["x-content-type-options"] == "nosniff"
-    assert found.headers["cache-control"] == "private, max-age=60"
+    assert found.headers["cache-control"] == "private, no-cache"
     assert "content-security-policy" not in found.headers
+
+
+async def test_a_picture_is_asked_again_each_time_and_answered_unchanged_when_it_is(
+    client: httpx.AsyncClient, public: FakeForge
+) -> None:
+    first = await client.get(f"{PUBLIC}/figure.png")
+    tag = first.headers["etag"]
+
+    same = await client.get(f"{PUBLIC}/figure.png", headers={"If-None-Match": tag})
+    other = await client.get(f"{PUBLIC}/diagram.svg", headers={"If-None-Match": tag})
+
+    assert (same.status_code, same.content) == (304, b"")
+    assert same.headers["etag"] == tag
+    assert same.headers["cache-control"] == "private, no-cache"
+    assert (other.status_code, other.text) == (200, SVG)
 
 
 @pytest.mark.parametrize(
@@ -115,7 +131,7 @@ async def test_a_path_outside_public_or_not_there_is_not_found_and_says_nothing_
     assert found.status_code == 404
     body = found.json()
     assert body["code"] == "not_found"
-    assert body["detail"] in ("There is no such file.", "Not Found")
+    assert body["detail"] == "There is no such file."
     assert "acme" not in found.text and "forge" not in found.text.lower()
 
 
@@ -161,6 +177,26 @@ async def test_an_organiser_reads_the_files_of_a_task_not_yet_released(
 
     assert (organiser.status_code, organiser.content) == (200, PNG)
     assert (stranger.status_code, visitor.status_code) == (404, 404)
+
+
+async def test_an_organiser_reads_a_picture_as_the_draft_holds_it_and_a_visitor_as_published(
+    client: httpx.AsyncClient, world: FakeForge
+) -> None:
+    await run_contest(client, visibility="everyone")
+    await _publish_public(client)
+    kept = await client.post(
+        f"{TASK}/save",
+        json={"changes": [_binary("public/new.png", b"new")], "keep_as_draft": True},
+        headers=ORIGIN,
+    )
+    assert kept.status_code == 200 and "held_back" in kept.json(), kept.text
+
+    organiser = await client.get(f"{PUBLIC}/new.png")
+    client.cookies.clear()
+    visitor = await client.get(f"{PUBLIC}/new.png")
+
+    assert (organiser.status_code, organiser.content) == (200, b"new")
+    assert visitor.status_code == 404
 
 
 async def test_a_cookie_whose_session_is_gone_reads_as_a_visitor(
