@@ -5,6 +5,7 @@ and `now` on the home is the server's clock when it was read, so a countdown
 agrees with the times the server enforces.
 """
 
+import dataclasses
 from datetime import datetime
 from decimal import Decimal
 from typing import Any, Literal
@@ -122,6 +123,10 @@ class InputField(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def _exact_default(cls, given: Any) -> Any:
+        # A route answers forge's own `Field`, read by its attributes; a test
+        # or a client gives a dict.
+        if dataclasses.is_dataclass(given) and not isinstance(given, type):
+            given = {each.name: getattr(given, each.name) for each in dataclasses.fields(given)}
         found = given if isinstance(given, dict) else None
         if found is None or found.get("type") != "number":
             return given
