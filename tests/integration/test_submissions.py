@@ -265,7 +265,7 @@ async def test_inputs_that_do_not_fit_the_task_are_refused_at_their_input(
 THIRTY = "0.123456789012345678901234567891"
 """A bound and a value of 30 significant digits, past what a float holds."""
 TUNABLE = CLASSIC.replace(
-    b"  time_limit: number\n", b"  ratio: {type: number, contestant: true}\n  time_limit: number\n"
+    b"\ntest:\n", b"\n  ratio: {type: number, contestant: true}\ntest:\n"
 ).replace(
     b"      input: ${{ test.input }}\n",
     b"      input: ${{ test.input }}\n      args: ${{ inputs.ratio }}\n",

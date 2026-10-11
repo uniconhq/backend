@@ -331,12 +331,15 @@ async def test_the_primitives_are_listed_with_their_ports(
     ]
     run = by_ref["unicon/sandbox-run@v2"]
     assert run["batch"] is True
+    assert run["title"] == "Run program"
+    assert run["description"].startswith("Runs a program on each test's input")
     assert run["inputs"]["binary"] == {
         "type": "file",
         "options": None,
         "optional": False,
         "runs": True,
         "secret": False,
+        "description": "The program to run.",
     }
     assert run["inputs"]["args"]["optional"] is True
     assert run["limits_from"]["time_ms"] == {

@@ -156,6 +156,9 @@ async def test_the_workflow_form_gives_the_inputs_and_test_fields_the_task_names
     language = body["inputs"][1]
     assert (language["type"], language["options"]) == ("enum", ["c", "cpp", "java", "python"])
     assert (language["per_test"], language["optional"]) == (False, False)
+    time_limit = body["inputs"][2]
+    assert (time_limit["title"], time_limit["unit"]) == ("Time limit", "seconds")
+    assert time_limit["help"] == "The CPU time the program may use on each test."
     assert body["test"] == [
         {"name": "input", "type": "file", "options": None},
         {"name": "answer", "type": "file", "options": None},

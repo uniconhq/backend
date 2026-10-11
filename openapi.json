@@ -1087,11 +1087,22 @@
         "type": "object"
       },
       "DeclaredInput": {
-        "description": "One input a workflow declares, as the task form shows it: its id, its\ntype, whether the contestant gives it, its options on an enum, whether\nit is given once per test, and whether a task may leave it out. A\nworkflow gives no defaults: a contestant input's `default` is the\ntask's, in `task.yaml`.",
+        "description": "One input a workflow declares, as the task form shows it: its id, its\ntype, whether the contestant gives it, its options on an enum, whether\nit is given once per test, whether a task may leave it out, and the\ntitle, line of help and unit the workflow gives the organiser for it,\neach none when it gives none. A workflow gives no defaults: a\ncontestant input's `default` is the task's, in `task.yaml`.",
         "properties": {
           "contestant": {
             "title": "Contestant",
             "type": "boolean"
+          },
+          "help": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Help"
           },
           "id": {
             "title": "Id",
@@ -1119,9 +1130,31 @@
             "title": "Per Test",
             "type": "boolean"
           },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
           "type": {
             "title": "Type",
             "type": "string"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
           }
         },
         "required": [
@@ -1130,7 +1163,10 @@
           "contestant",
           "options",
           "per_test",
-          "optional"
+          "optional",
+          "title",
+          "help",
+          "unit"
         ],
         "title": "DeclaredInput",
         "type": "object"
@@ -2944,12 +2980,23 @@
         "type": "object"
       },
       "Primitive": {
-        "description": "One version of a primitive, `ref` being what a step's `use:` names.\nIts declaration is in `batch`, `network`, `limits`, `limits_from`,\n`inputs` and `outputs`; a version in a format the platform no longer\nreads has none of them and `problem` instead, so no step uses it.",
+        "description": "One version of a primitive, `ref` being what a step's `use:` names.\nIts declaration is in `title` and `description`, what the editor shows\nof it, and in `batch`, `network`, `limits`, `limits_from`, `inputs` and\n`outputs`; a version in a format the platform no longer reads has none\nof them and `problem` instead, so no step uses it.",
         "properties": {
           "batch": {
             "default": false,
             "title": "Batch",
             "type": "boolean"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
           },
           "inputs": {
             "additionalProperties": {
@@ -3023,6 +3070,17 @@
             "title": "Ref",
             "type": "string"
           },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
           "version": {
             "title": "Version",
             "type": "string"
@@ -3032,6 +3090,8 @@
           "ref",
           "name",
           "version",
+          "title",
+          "description",
           "batch",
           "network",
           "limits",
@@ -3044,8 +3104,19 @@
         "type": "object"
       },
       "PrimitivePort": {
-        "description": "One port: its type, the options an enum takes, whether it may be left\nout, and on an input whether the primitive runs what arrives there and\nwhether it keeps it from the program it runs.",
+        "description": "One port: its type, the options an enum takes, whether it may be left\nout, on an input whether the primitive runs what arrives there and\nwhether it keeps it from the program it runs, and a sentence saying what\nit takes or gives back, none when the primitive gives none.",
         "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
           "optional": {
             "title": "Optional",
             "type": "boolean"
@@ -3089,7 +3160,8 @@
           "options",
           "optional",
           "runs",
-          "secret"
+          "secret",
+          "description"
         ],
         "title": "PrimitivePort",
         "type": "object"
