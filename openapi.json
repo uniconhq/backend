@@ -1437,7 +1437,7 @@
         "type": "object"
       },
       "FileChange": {
-        "description": "One file of a save, typed or uploaded for this path, with the token it\nwas read with, or null for a file the save creates.",
+        "description": "One file of a save, with the token it was read with: typed as\n`content`, uploaded for this path as `upload`, or removed with `remove:\ntrue`, exactly one of the three. The token is null for a file the save\ncreates, and a removal always carries one. Removing a folder, such as a\ntest, is removing each file under it, named one by one.",
         "properties": {
           "content": {
             "anyOf": [
@@ -1462,6 +1462,11 @@
           "path": {
             "title": "Path",
             "type": "string"
+          },
+          "remove": {
+            "default": false,
+            "title": "Remove",
+            "type": "boolean"
           },
           "token": {
             "anyOf": [
@@ -6895,6 +6900,67 @@
         ]
       }
     },
+    "/api/v1/orgs/{org}/contests/{contest}/announcements/{number}/reopen": {
+      "post": {
+        "description": "Reopening an open one changes nothing.",
+        "operationId": "reopenContestAnnouncement",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "title": "Number",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Announcement"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Reopen a closed announcement, which its readers see again",
+        "tags": [
+          "announcements"
+        ]
+      }
+    },
     "/api/v1/orgs/{org}/contests/{contest}/boards": {
       "get": {
         "description": "In the order the contest's settings give them.",
@@ -10155,6 +10221,76 @@
         ]
       }
     },
+    "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/announcements/{number}/reopen": {
+      "post": {
+        "description": "Reopening an open one changes nothing.",
+        "operationId": "reopenTaskAnnouncement",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "title": "Number",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "task",
+            "required": true,
+            "schema": {
+              "title": "Task",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Announcement"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Reopen a closed announcement, which its readers see again",
+        "tags": [
+          "announcements"
+        ]
+      }
+    },
     "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/files/{path}": {
       "get": {
         "operationId": "readTaskFile",
@@ -11702,6 +11838,131 @@
         ]
       }
     },
+    "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/public/{path}": {
+      "get": {
+        "description": "`path` is the file's path under `public/`. Read with exactly the rights\nthe statement is read with, and, for a signed-in caller holding a role\nreaching the task, whether or not it is released. A path with an empty,\n`.` or `..` segment, or a file that is not there, is `not_found`, the\nsame as a task the caller may not read; one larger than a page is served\nis `public_file_too_large`, with the `limit` in bytes.",
+        "operationId": "getTaskPublicFile",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "path",
+            "required": true,
+            "schema": {
+              "title": "Path",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "task",
+            "required": true,
+            "schema": {
+              "title": "Task",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              },
+              "image/apng": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              },
+              "image/avif": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              },
+              "image/bmp": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              },
+              "image/gif": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              },
+              "image/jpeg": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              },
+              "image/png": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              },
+              "image/svg+xml": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              },
+              "image/webp": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              },
+              "image/x-icon": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "The file's bytes, typed by its ending."
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "A file under a task's public/, such as a statement's image",
+        "tags": [
+          "contest home"
+        ]
+      }
+    },
     "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/publications": {
       "get": {
         "operationId": "listTaskPublications",
@@ -12079,7 +12340,7 @@
     },
     "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/save": {
       "post": {
-        "description": "A valid save publishes and one that is not is kept as a draft with its\nerrors. While the contest runs, a save that changes how the task grades\nis refused as `confirmation_required`, with `changes`, what would change,\nand `regrades`, how many submissions it would grade again, unless it is\nconfirmed or kept as a draft. A change naming an upload writes the pointer to the file the\ncaller uploaded for that path; one that is not theirs for this task and\npath is `invalid_inputs`, and one whose bytes have not arrived\n`upload_not_ready`.",
+        "description": "A valid save publishes and one that is not is kept as a draft with its\nerrors. While the contest runs, a save that changes how the task grades\nis refused as `confirmation_required`, with `changes`, what would change,\nand `regrades`, how many submissions it would grade again, unless it is\nconfirmed or kept as a draft. A change naming an upload writes the pointer to the file the\ncaller uploaded for that path; one that is not theirs for this task and\npath is `invalid_inputs`, and one whose bytes have not arrived\n`upload_not_ready`. A change with `remove: true` removes the file it\nnames, with the token it was read with, a moved one being `conflict` as\nan edit's is; the state left is checked as any other, so removing a\ngroup's last test or a file an input names keeps the save as a draft.",
         "operationId": "saveTask",
         "parameters": [
           {
