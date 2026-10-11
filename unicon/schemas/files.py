@@ -130,7 +130,7 @@ class WriteFile(Encoded):
         # A contest's file takes typed content alone; an upload named beside
         # it is refused rather than dropped.
         if isinstance(given, dict) and "upload" in given:
-            raise ValueError("a contest's file takes no upload")
+            raise ValueError("A contest's file cannot be an upload.")
         return given
 
 

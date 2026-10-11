@@ -41,8 +41,8 @@ DOWNLOADS = "/-/downloads/"
 PATH_HEADER = "X-Forge-Path"
 AUTHORIZATION_HEADER = "X-Forge-Authorization"
 DISPOSITION_HEADER = "X-Download-Disposition"
-REFUSED = "That upload cannot be sent."
-DOWNLOAD_REFUSED = "That file cannot be downloaded."
+REFUSED = "That upload cannot be sent. Start the upload again."
+DOWNLOAD_REFUSED = "That file cannot be downloaded. Reload the page and try again."
 
 router = APIRouter(include_in_schema=False)
 

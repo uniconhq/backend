@@ -83,7 +83,7 @@ def _session_id(value: str) -> uuid.UUID:
     try:
         return uuid.UUID(hex=value)
     except ValueError as exc:
-        raise NotFound("No such session.") from exc
+        raise NotFound("There is no such session.") from exc
 
 
 def _signed_out() -> Response:

@@ -69,9 +69,9 @@ class FileChange(BaseModel):
     def _written_or_removed(self) -> Self:
         if self.remove:
             if self.content is not None or self.upload is not None:
-                raise ValueError("A removal carries no content and no upload.")
+                raise ValueError("A file being removed cannot also have content or an upload.")
             if self.token is None:
-                raise ValueError("A removal carries the token the file was read with.")
+                raise ValueError("To remove a file, say which version of it was read.")
         self.edit_content()
         return self
 
@@ -99,7 +99,7 @@ class SaveRequest(BaseModel):
     def _one_change_per_path(self) -> Self:
         paths = [change.path for change in self.changes]
         if len(set(paths)) != len(paths):
-            raise ValueError("Each path may appear once in a save.")
+            raise ValueError("Each file can appear only once in a save.")
         return self
 
 

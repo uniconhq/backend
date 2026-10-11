@@ -64,9 +64,7 @@ class SubmitRequest(BaseModel):
             for name, entry in given.items():
                 value = entry.get("value") if isinstance(entry, dict) else None
                 if isinstance(value, int | float) and not isinstance(value, bool):
-                    raise ValueError(
-                        f'{name}: a number is sent as the text of its digits, such as "2.5".'
-                    )
+                    raise ValueError(f'The value for {name} must be sent as text, such as "2.5".')
         return given
 
 

@@ -214,7 +214,8 @@ async def test_no_role_in_the_contest_is_refused_the_feed_and_the_queue(
     for refused in (*as_contestant, *elsewhere):
         assert (refused.status_code, refused.json()["code"]) == (403, "forbidden")
         assert refused.json()["detail"] == (
-            "This needs a role at acme/spring or at anything in it."
+            "This needs a role at acme/spring or at something in it. Ask an admin of "
+            "acme/spring if you need one."
         )
 
 

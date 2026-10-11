@@ -105,12 +105,21 @@ INTERNAL = 500
 CLEARS_SESSION = frozenset({"unauthenticated", "session_expired"})
 RETRY_AFTER = frozenset({"rate_limited", "invite_limit"})
 HTTP_CODES = {404: "not_found", 405: "method_not_allowed"}
+HTTP_DETAILS = {
+    404: "There is nothing at this address.",
+    405: "This address does not take that kind of request.",
+}
 
 WITHHELD_DETAIL = {
-    "forge_unavailable": "The forge did not answer. Try again in a moment.",
-    "forge_misconfigured": "The forge refused the platform's own registration.",
+    "forge_unavailable": "The server did not answer. Try again in a moment.",
+    "forge_misconfigured": "Unicon is not set up right, so this cannot be done. Tell whoever "
+    "runs it.",
 }
-UNMAPPED_DETAIL = "The server failed to handle this request."
+UNMAPPED_DETAIL = (
+    "Something went wrong on the server. Try again, and tell whoever runs Unicon if it keeps "
+    "happening."
+)
+INVALID_REQUEST_DETAIL = "Some of what was sent could not be read. Reload the page and try again."
 DOCUMENT_FIELDS = frozenset(Problem.model_fields)
 
 
@@ -210,7 +219,7 @@ async def _invalid_request(request: Request, exc: Exception) -> Response:
             code="validation_error",
             status=422,
             title=_title(422),
-            detail="The request did not match the schema.",
+            detail=INVALID_REQUEST_DETAIL,
             errors=_readable_errors(error),
         )
     )
@@ -223,9 +232,20 @@ async def _http_error(request: Request, exc: Exception) -> Response:
             code=HTTP_CODES.get(error.status_code, "http_error"),
             status=error.status_code,
             title=_title(error.status_code),
-            detail=str(error.detail),
+            detail=_http_detail(error),
         )
     )
+
+
+def _http_detail(error: HTTPException) -> str:
+    """The sentence for a refusal the framework made itself: its own detail
+    when it gave one, and when it gave only the status's name, a sentence
+    saying what happened.
+    """
+    said = str(error.detail)
+    if said == _title(error.status_code):
+        return HTTP_DETAILS.get(error.status_code, said)
+    return said
 
 
 async def _unexpected_error(request: Request, exc: Exception) -> Response:

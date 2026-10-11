@@ -19,7 +19,7 @@ async def current_session(request: Request) -> Session:
     """
     session_id = cookies.read_session_id(request)
     if session_id is None:
-        raise Unauthenticated("No session.")
+        raise Unauthenticated("You are not signed in. Sign in to continue.")
     return await identity.current(session_id)
 
 

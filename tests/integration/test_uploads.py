@@ -132,7 +132,9 @@ async def test_the_door_refuses_everything_that_is_not_this_upload_now(
     assert [answer.status_code for answer in answers] == [403] * 5
     # Every refusal says the same thing, and none of them says which it was.
     assert {answer.json()["code"] for answer in answers} == {"forbidden"}
-    assert {answer.json()["detail"] for answer in answers} == {"That upload cannot be sent."}
+    assert {answer.json()["detail"] for answer in answers} == {
+        "That upload cannot be sent. Start the upload again."
+    }
     assert all("X-Forge-Authorization" not in answer.headers for answer in answers)
 
 

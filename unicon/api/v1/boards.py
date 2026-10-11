@@ -32,7 +32,7 @@ from unicon.schemas.boards import Board, Marks, OrganisedBoard
 CONTEST = PREFIX[ScopeKind.CONTEST]
 TASK = PREFIX[ScopeKind.TASK]
 PUBLIC = "/public/contests/{org}/{contest}"
-NO_SUCH_BOARD = "No such board."
+NO_SUCH_BOARD = "There is no such leaderboard."
 
 router = APIRouter(tags=["boards"])
 

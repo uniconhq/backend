@@ -288,7 +288,10 @@ async def test_a_caller_just_below_the_role_is_refused_at_the_routes_scope(
 
     assert refused.status_code == 403, refused.text
     assert refused.json()["code"] == "forbidden"
-    assert refused.json()["detail"] == f"This needs the {role.value} role at {scope.name}."
+    assert refused.json()["detail"] == (
+        f"This needs the {role.value} role at {scope.name}. Ask an admin of {scope.name} if "
+        "you need it."
+    )
 
 
 @EACH_ROUTE
@@ -318,7 +321,10 @@ async def test_an_open_read_is_refused_to_a_caller_holding_no_role_in_its_scope(
 
     assert refused.status_code == 403, refused.text
     assert refused.json()["code"] == "forbidden"
-    assert refused.json()["detail"] == f"This needs a role at {scope.name} or at anything in it."
+    assert refused.json()["detail"] == (
+        f"This needs a role at {scope.name} or at something in it. Ask an admin of "
+        f"{scope.name} if you need one."
+    )
 
 
 @EACH_OPEN_ROUTE
