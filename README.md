@@ -161,7 +161,7 @@ the one the route needs at the scope in the third column.
 | `GET <org>` | a role at the org or in it | org | | the org's `display_name` and `description` |
 | `PATCH <org>` | admin | org | `description`, `display_name` | 204 |
 | `POST <org>/contests` | manager | org | `name`, `title` | 201, the contest's `name` |
-| `GET <org>/contests` | observer | org | | the contests by name |
+| `GET <org>/contests` | observer | org | | each contest's `name`, `state`, `start` and `end`, the last three null when its settings do not read |
 | `POST <contest>/tasks` | manager | contest | `name`, `title` | 201, the task's `name` |
 | `GET <contest>/tasks` | observer | contest | | the tasks by name |
 | `GET <contest>/organise/tasks` | observer | contest | | the tasks the contest lists, in its order, each with its letter, state and timeline |
@@ -243,15 +243,17 @@ invite names a `username` or an `email`, and `grants` one of the three
 roles at the scope or, at a contest, a place in it (`contestant`), straight
 into the `entrant` named when the body names one; it stands for `days`, 14
 unless given and at most 90. A member's invite into their entrant is
-`member`, made by the member (below). An invite carries `where`, the
-scope's names, `entrant`, the entrant it asks someone into, `{id, name}`,
+`member`, made by the member (below), never offered here: `grants` takes
+the three roles and `contestant` alone. An invite carries `where`, the
+scope's names, `contest_title`, the title of the contest it is at or
+under, null at an org, `entrant`, the entrant it asks someone into, `{id, name}`,
 or null, `invited_by`, its `status` (`pending`, `accepted`, `declined` or
 `withdrawn`), `expired` for a pending one past `expires_at`, and
 `mail_status`: `waiting` until the mail server takes it, `sent`, `failed`,
 or `off` on a deployment with no mail server. The mail goes out after the
 route answers, so a mail server that is down never fails the click. Forge
 refuses a manager inviting an admin (`forbidden`), a place anywhere but a
-contest, a `member` invite, a target that is both or neither, and someone
+contest, a target that is both or neither, and someone
 who holds it already or could not take it (`invalid_invite`), a place at a
 contest whose ways have no `invite` (`no_invite_way`), into an entrant
 with no room (`entrant_full`), the same pending
@@ -451,7 +453,8 @@ null, and whether it has `submitted`, is `complete` and is `locked`. The
 panel carries the caller's `entrant`, or null, their own `invitations`
 into the contest's entrants, whether the window is `registration_open`,
 whether they `can_register` and, when they cannot, `refused`, the code and
-sentence registering would answer, `asks_code`, true only when a code
+sentence registering would answer, or `forge_unavailable` when their
+confirmed addresses could not be read to say, `asks_code`, true only when a code
 would let them in, and the contest's `most`, `fewest` and `locks`. The home
 carries the contest `where` it is, its title as `name`, its dates and
 `state`, the caller's panel as `registration`, whether the caller
@@ -509,12 +512,15 @@ saved after it. It reads the session when there is one and answers without:
 a visitor, or a caller whose session has ended, reads it where the
 statement is public; a signed-in caller where they read the task's page;
 and a caller holding a role at the task, its contest or its org, whether or
-not the task is released. A file that is an upload is answered with its
+not the task is released, as the task's head holds it, the draft the
+statement's preview draws. A file that is an upload is answered with its
 bytes, never its pointer. The answer is the bytes, typed by the file's
 ending (`png`, `jpg`, `jpeg`, `gif`, `webp`, `svg`, `avif`, `apng`, `bmp`,
 `ico`, in any case), `application/octet-stream` for anything else, with
-`X-Content-Type-Options: nosniff`, `Cache-Control: private, max-age=60`,
-and for an SVG `Content-Security-Policy: default-src 'none'; style-src
+`X-Content-Type-Options: nosniff`, `Cache-Control: private, no-cache` and
+an `ETag` of the bytes, so the browser asks again each time and a picture a
+save replaced shows at once (`If-None-Match` with the tag is a 304 while
+the bytes are the same), and for an SVG `Content-Security-Policy: default-src 'none'; style-src
 'unsafe-inline'; sandbox`, so one opened on its own runs no script. A path
 with an empty, `.` or `..` segment, a file that is not there, and a task the
 caller may not read are each `not_found`; a file larger than 10 MiB is
