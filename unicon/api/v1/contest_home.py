@@ -26,8 +26,8 @@ router = APIRouter(tags=["contest home"])
     response_model=list[ContestSummary],
 )
 async def list_my_contests(session: CurrentSession) -> tuple[contest_home.ContestSummary, ...]:
-    """Newest start first, each with the caller's own status. An organiser
-    finds their own contests from their orgs.
+    """Newest start first, each with the status of the caller's entrant. An
+    organiser finds their own contests from their orgs.
     """
     return await contest_home.contests(session)
 
@@ -41,9 +41,9 @@ async def list_my_contests(session: CurrentSession) -> tuple[contest_home.Contes
 async def get_contest_home(
     session: CurrentSession, scope: ContestAtPath
 ) -> contest_home.ContestHome:
-    """The contest's dates, the caller's registration, the server's clock,
-    and the tasks released to the caller, each with when it falls due and
-    closes for them.
+    """The contest's dates, the caller's registration panel, the server's
+    clock, and the tasks released to the caller, each with when it falls
+    due and closes for their entrant.
     """
     return await contest_home.home(session, contests.contest_id_of(scope))
 

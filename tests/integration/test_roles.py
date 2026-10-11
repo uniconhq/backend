@@ -6,7 +6,7 @@ contestant of the contest being given a role.
 
 import httpx
 from forge.api.types import ContestId, Role, Scope
-from forge.testing import FakeForge, Setup, register_contestant
+from forge.testing import FakeForge, Setup, register_entrant
 
 from tests.integration.conftest import (
     ACME,
@@ -117,7 +117,7 @@ async def test_removing_the_last_admin_is_refused_naming_the_scope(
 async def test_a_contestant_is_given_no_role_in_their_contest(
     client: httpx.AsyncClient, world: FakeForge, held_setup: Setup
 ) -> None:
-    await register_contestant(held_setup, ContestId("acme/spring"), 8)
+    await register_entrant(held_setup, ContestId("acme/spring"), 8)
     await sign_in(client, world)
 
     refused = await client.post(

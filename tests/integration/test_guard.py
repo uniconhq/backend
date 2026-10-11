@@ -47,16 +47,21 @@ NO_GRADING = "0192f4a4-7b7e-7000-8000-000000000001"
 NOTE = {"title": "Welcome", "body": "Good luck."}
 COMMENT = {"body": "Yes."}
 INVITE = {"grants": "observer", "username": "carol"}
-TEAM = {"name": "Adders"}
-PERSON = {"user_id": 20}
+NAME = {"name": "Adders"}
+MOVE = {"to": "0192f4a4-7b7e-7000-8000-000000000002"}
 SECONDS = {"seconds": 60}
+ENTRANT = f"{CONTEST}/organise/entrants/{NO_GRADING}"
 CANCEL = {"reason": "Not counted."}
 TASK_FILE = {"path": "data/weights.bin", "size": 1, "sha256": "0" * 64}
 SESSION_ONLY = {
     "createOrg",
     "getTaskRelease",
-    "registerForContest",
-    "getMyRegistration",
+    "registerEntrant",
+    "getMyEntry",
+    "inviteIntoMyEntrant",
+    "withdrawMyEntrantsInvite",
+    "leaveMyEntrant",
+    "renameMyEntrant",
     "getContestHome",
     "getTaskPage",
     "requestUploadSlot",
@@ -71,15 +76,6 @@ SESSION_ONLY = {
     "listMyQuestions",
     "followUpQuestion",
     "listClarificationInbox",
-    "getMyTeam",
-    "listTeams",
-    "createTeam",
-    "requestToJoinTeam",
-    "cancelTeamRequest",
-    "leaveTeam",
-    "inviteToTeam",
-    "approveTeamMember",
-    "removeTeamMember",
     "listBoards",
     "getBoard",
     "getMyMarks",
@@ -99,12 +95,16 @@ ROUTES: list[tuple[str, str, dict[str, Any] | None, Role, Scope]] = [
     ("DELETE", f"{CONTEST}/roles/20", None, Role.MANAGER, SPRING),
     ("GET", f"{CONTEST}/tasks", None, Role.OBSERVER, SPRING),
     ("POST", f"{CONTEST}/tasks", {"name": "product"}, Role.MANAGER, SPRING),
-    ("GET", f"{CONTEST}/contestants", None, Role.OBSERVER, SPRING),
-    ("POST", f"{CONTEST}/contestants/20/approve", None, Role.MANAGER, SPRING),
-    ("POST", f"{CONTEST}/contestants/20/reject", {"reason": "No."}, Role.MANAGER, SPRING),
-    ("POST", f"{CONTEST}/contestants/20/reopen", None, Role.MANAGER, SPRING),
-    ("POST", f"{CONTEST}/contestants/20/remove", None, Role.MANAGER, SPRING),
-    ("PUT", f"{CONTEST}/contestants/20/extension", {"seconds": 60}, Role.MANAGER, SPRING),
+    ("GET", f"{CONTEST}/organise/entrants", None, Role.OBSERVER, SPRING),
+    ("POST", f"{ENTRANT}/approve", None, Role.MANAGER, SPRING),
+    ("POST", f"{ENTRANT}/reject", {"reason": "No."}, Role.MANAGER, SPRING),
+    ("POST", f"{ENTRANT}/reopen", None, Role.MANAGER, SPRING),
+    ("POST", f"{ENTRANT}/remove", None, Role.MANAGER, SPRING),
+    ("PUT", f"{ENTRANT}/extension", SECONDS, Role.MANAGER, SPRING),
+    ("PUT", f"{ENTRANT}/name", NAME, Role.MANAGER, SPRING),
+    ("DELETE", ENTRANT, None, Role.MANAGER, SPRING),
+    ("DELETE", f"{ENTRANT}/members/20", None, Role.MANAGER, SPRING),
+    ("POST", f"{ENTRANT}/members/20/move", MOVE, Role.MANAGER, SPRING),
     ("GET", f"{CONTEST}/tree", None, Role.OBSERVER, SPRING),
     ("GET", f"{CONTEST}/files/contest.yaml", None, Role.OBSERVER, SPRING),
     ("GET", f"{CONTEST}/history", None, Role.OBSERVER, SPRING),
@@ -158,13 +158,6 @@ ROUTES: list[tuple[str, str, dict[str, Any] | None, Role, Scope]] = [
     ("POST", f"{TASK}/invites", INVITE, Role.MANAGER, SUM),
     ("POST", f"{TASK}/invites/{NO_GRADING}/send-again", None, Role.MANAGER, SUM),
     ("POST", f"{TASK}/invites/{NO_GRADING}/withdraw", None, Role.MANAGER, SUM),
-    ("GET", f"{CONTEST}/organise/teams", None, Role.OBSERVER, SPRING),
-    ("POST", f"{CONTEST}/organise/teams", TEAM, Role.MANAGER, SPRING),
-    ("DELETE", f"{CONTEST}/organise/teams/{NO_GRADING}", None, Role.MANAGER, SPRING),
-    ("POST", f"{CONTEST}/organise/teams/{NO_GRADING}/members", PERSON, Role.MANAGER, SPRING),
-    ("DELETE", f"{CONTEST}/organise/teams/{NO_GRADING}/members/20", None, Role.MANAGER, SPRING),
-    ("PUT", f"{CONTEST}/organise/teams/{NO_GRADING}/leader", PERSON, Role.MANAGER, SPRING),
-    ("PUT", f"{CONTEST}/organise/teams/{NO_GRADING}/extension", SECONDS, Role.MANAGER, SPRING),
 ]
 ANY_ROLE: list[tuple[str, Scope]] = [
     (ORG, ACME),

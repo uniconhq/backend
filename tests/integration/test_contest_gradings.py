@@ -1,11 +1,12 @@
 """A contest's gradings over HTTP, for an observer of the contest: the feed,
 newest first, each row the grading, whether it is its submission's latest
-attempt, its task by name and letter and who submitted it, narrowed by
-task, by username, by team and by status, a stuck grading read as
-`system_error` and one staff cancelled with their sentence; a username or a
-team that cannot be one a validation error; and the queue depth, counted by
-status. Someone holding a role at some of its tasks alone reads both over
-those tasks, a contestant is refused both, and both need a session.
+attempt, its task by name and letter, its entrant and the member who
+submitted it, narrowed by task, by username, by entrant and by status, a
+stuck grading read as `system_error` and one staff cancelled with their
+sentence; a username or an entrant that cannot be one a validation error;
+and the queue depth, counted by status. Someone holding a role at some of
+its tasks alone reads both over those tasks, a contestant is refused both,
+and both need a session.
 """
 
 from datetime import timedelta
@@ -14,7 +15,16 @@ import httpx
 from forge.api.types import Role, Scope
 from forge.testing import FakeClock, FakeForge, Setup, name_places
 
-from tests.integration.conftest import CONTEST, ORIGIN, SUM, TASK, enter, sign_in_as, upload
+from tests.integration.conftest import (
+    CONTEST,
+    ORIGIN,
+    SUM,
+    TASK,
+    enter,
+    entrant_of,
+    sign_in_as,
+    upload,
+)
 
 SOURCE = b"print(sum(map(int, input().split())))\n"
 FEED = f"{CONTEST}/gradings"
@@ -43,17 +53,28 @@ async def _submit(client: httpx.AsyncClient, forge: FakeForge) -> str:
 
 async def _two(client: httpx.AsyncClient, entered: FakeForge, held_setup: Setup) -> tuple[str, str]:
     """carol's grading and then bob's, with ada signed in."""
+    carols, _, bobs, _ = await _four(client, entered, held_setup)
+    return carols, bobs
+
+
+async def _four(
+    client: httpx.AsyncClient, entered: FakeForge, held_setup: Setup
+) -> tuple[str, str, str, str]:
+    """carol's grading and her entrant, then bob's and his, with ada signed
+    in.
+    """
+    hers = await entrant_of(client)
     carols = await _submit(client, entered)
-    await enter(client, entered, held_setup, 8)
+    his = await enter(client, entered, held_setup, 8)
     bobs = await _submit(client, entered)
     await sign_in_as(client, entered, 7)
-    return carols, bobs
+    return carols, hers, bobs, his
 
 
 async def test_an_observer_reads_the_contests_gradings_newest_first(
     client: httpx.AsyncClient, entered: FakeForge, held_setup: Setup
 ) -> None:
-    carols, bobs = await _two(client, entered, held_setup)
+    carols, hers, bobs, his = await _four(client, entered, held_setup)
 
     listed = await client.get(FEED)
 
@@ -63,9 +84,10 @@ async def test_an_observer_reads_the_contests_gradings_newest_first(
     assert [(row["task"], row["label"]) for row in rows] == [("sum", "A"), ("sum", "A")]
     assert [row["grading"]["latest"] for row in rows] == [True, True]
     assert [row["by"] for row in rows] == [
-        {"user_id": 8, "team": None, "name": "bob"},
-        {"user_id": 20, "team": None, "name": "carol"},
+        {"entrant": his, "entrant_name": "bob", "user_id": 8, "username": "bob"},
+        {"entrant": hers, "entrant_name": "carol", "user_id": 20, "username": "carol"},
     ]
+    assert [row["grading"]["submitted_by"] for row in rows] == [8, 20]
     first = rows[1]["grading"]
     assert (first["submission_number"], first["attempt"], first["status"]) == (
         1,
@@ -75,10 +97,10 @@ async def test_an_observer_reads_the_contests_gradings_newest_first(
     assert first["cancel_reason"] is None
 
 
-async def test_the_feed_narrows_by_task_user_team_and_status(
+async def test_the_feed_narrows_by_task_user_entrant_and_status(
     client: httpx.AsyncClient, entered: FakeForge, held_setup: Setup
 ) -> None:
-    carols, bobs = await _two(client, entered, held_setup)
+    carols, hers, bobs, _ = await _four(client, entered, held_setup)
 
     async def ids(**query: str | int) -> list[str]:
         answer = await client.get(FEED, params=query)
@@ -89,7 +111,8 @@ async def test_the_feed_narrows_by_task_user_team_and_status(
     assert await ids(task="product") == []
     assert await ids(user="carol") == [carols]
     assert await ids(user="nobody-here") == []
-    assert await ids(team="0192f4a4-7b7e-7000-8000-000000000001") == []
+    assert await ids(entrant=hers) == [carols]
+    assert await ids(entrant="0192f4a4-7b7e-7000-8000-000000000001") == []
     assert await ids(status="dispatched") == [bobs, carols]
     assert await ids(status="system_error") == []
     assert await ids(limit=1) == [bobs]
@@ -121,7 +144,7 @@ async def test_a_query_that_is_not_one_is_a_validation_error(
         await client.get(FEED, params={"limit": 501}),
         await client.get(FEED, params={"limit": 0}),
         await client.get(FEED, params={"status": "lost"}),
-        await client.get(FEED, params={"team": "not-a-team"}),
+        await client.get(FEED, params={"entrant": "not-an-entrant"}),
         await client.get(FEED, params={"user": "bob/repos"}),
         await client.get(FEED, params={"user": "../admin"}),
         await client.get(FEED, params={"user": "-bob"}),

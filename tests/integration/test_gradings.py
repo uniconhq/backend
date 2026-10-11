@@ -268,7 +268,7 @@ async def test_an_observer_lists_the_tasks_gradings_newest_first_with_their_reas
     assert rows[1]["error"]
     assert [row["cancel_reason"] for row in rows] == [None, None]
     assert [(entry["task"], entry["label"]) for entry in listed.json()] == [("sum", "A")] * 2
-    assert [entry["by"]["name"] for entry in listed.json()] == ["carol", "carol"]
+    assert [entry["by"]["username"] for entry in listed.json()] == ["carol", "carol"]
     assert [entry["grading"]["id"] for entry in one.json()] == [retried.json()["id"]]
     assert too_many.status_code == 422
 

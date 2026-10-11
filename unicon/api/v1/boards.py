@@ -4,11 +4,11 @@ A board is read as the reader's audience sees it: a visitor under
 `/public`, with no cookie, sees the boards for `everyone`; a signed-in
 person sees those their audience may, each cut to the rows its `rows` gives
 them. Organisers with the observer role at the contest read every board
-`now` and `final`, every row given, and may pick a row, a contestant by
-`user_id` or a team by `team`, to read `now` as that row does. A board the
+`now` and `final`, every row given, and may pick a row, an entrant by
+`entrant`, to read `now` as that row does. A board the
 reader may not see is no such board, the same as one that is not there.
 
-A contestant reads, marks and unmarks their row's own submissions to a task
+A contestant reads, marks and unmarks their entrant's own submissions to a task
 with a session alone; forge checks the submission is the row's, the task
 has marks, how many the row may hold and that its close has not passed,
 answering `marks_off`, `mark_limit` with `limit` and `marks_frozen`.
@@ -20,8 +20,8 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Path, Query
 from forge.api import boards, contests, tasks
 from forge.api.access import Organiser
-from forge.api.boards import TeamOwner, UserOwner
-from forge.api.errors import NotFound, Rejected
+from forge.api.boards import EntrantOwner
+from forge.api.errors import NotFound
 from forge.api.types import Role, ScopeKind
 
 from unicon.api.deps import CurrentSession
@@ -103,23 +103,15 @@ async def get_board(
 )
 async def list_organised_boards(
     organiser: ContestObserver,
-    user_id: Annotated[
-        int | None, Query(description="Read `now` as this contestant's row does")
+    entrant: Annotated[
+        uuid.UUID | None, Query(description="Read `now` as this entrant's row does")
     ] = None,
-    team: Annotated[uuid.UUID | None, Query(description="Read `now` as this team does")] = None,
 ) -> tuple[boards.OrganisedBoard, ...]:
     """Every row on both, unless a row is picked: then only the boards that
     row sees, `now` as it sees it, its own row and the rows its `rows`
-    gives. A row is a contestant or a team, never both; one that is not a
-    row of the contest is not found.
+    gives. An entrant that is not a row of the contest is not found.
     """
-    if user_id is not None and team is not None:
-        raise Rejected("Pick a contestant or a team, not both.")
-    row: UserOwner | TeamOwner | None = None
-    if user_id is not None:
-        row = UserOwner(user_id)
-    elif team is not None:
-        row = TeamOwner(team)
+    row = EntrantOwner(entrant) if entrant is not None else None
     return await boards.organised(organiser, contests.contest_id_of(organiser.scope), row)
 
 

@@ -1,6 +1,7 @@
 """The invite routes: an organiser makes, lists, sends again and withdraws a
 scope's invites; the person they are for lists, opens, accepts and declines
-their own, and nobody else can. Forge's refusals come back with their codes,
+their own, and nobody else can; accepting a place in a contest registers
+them and says so. Forge's refusals come back with their codes,
 a lapsed invite and a manager inviting an admin among them.
 """
 
@@ -61,7 +62,7 @@ async def test_an_organiser_invites_by_username_and_the_person_accepts_the_role(
     accepted = await client.post(f"/api/v1/me/invites/{invite['id']}/accept", headers=ORIGIN)
 
     assert accepted.status_code == 200, accepted.text
-    assert accepted.json()["status"] == "accepted"
+    assert (accepted.json()["invite"]["status"], accepted.json()["entered"]) == ("accepted", None)
     assert 20 in world.state.orgs["acme"].roles[(SPRING, Role.OBSERVER)]
 
 
@@ -87,15 +88,16 @@ async def test_nobody_else_lists_opens_accepts_or_declines_someone_elses_invite(
     assert (await client.get(CONTEST_INVITES)).status_code == 403
 
 
-async def test_an_email_invite_lets_its_person_register_for_an_invite_only_contest(
+async def test_accepting_an_email_invite_registers_its_person_for_an_invite_only_contest(
     client: httpx.AsyncClient, world: FakeForge, held_setup: Setup
 ) -> None:
     await run_contest(client, visibility="everyone")
     settings = await client.get(f"{CONTEST}/files/contest.yaml")
     content = settings.json()["content"].replace(
-        "visibility: everyone", "visibility: everyone\nregistration: {invite_only: true}"
+        "visibility: everyone",
+        "visibility: everyone\nregistration: {ways: [{invite: {approval: manual}}]}",
     )
-    assert "invite_only: true" in content
+    assert "ways:" in content
     written = await client.put(
         f"{CONTEST}/files/contest.yaml",
         json={"encoding": "utf-8", "content": content, "token": settings.json()["token"]},
@@ -109,13 +111,38 @@ async def test_an_email_invite_lets_its_person_register_for_an_invite_only_conte
 
     world.add_user(21, "dan", email="dan@uni.test")
     await sign_in_as(client, world, 21)
-    refused = await client.post(f"{CONTEST}/registration", json={}, headers=ORIGIN)
+    refused = await client.post(f"{CONTEST}/entrants", json={}, headers=ORIGIN)
     assert refused.json()["code"] == "invite_required"
     [waiting] = (await client.get("/api/v1/me/invites")).json()
-    await client.post(f"/api/v1/me/invites/{waiting['id']}/accept", headers=ORIGIN)
-    registered = await client.post(f"{CONTEST}/registration", json={}, headers=ORIGIN)
+    accepted = await client.post(f"/api/v1/me/invites/{waiting['id']}/accept", headers=ORIGIN)
+    again = await client.post(f"{CONTEST}/entrants", json={}, headers=ORIGIN)
 
-    assert registered.status_code == 201, registered.text
+    assert accepted.status_code == 200, accepted.text
+    entered = accepted.json()["entered"]
+    assert (entered["how"], entered["status"], entered["entrant"]["name"]) == (
+        "made",
+        "pending",
+        "dan",
+    )
+    mine = (await client.get(f"{CONTEST}/entrants/mine")).json()["entrant"]
+    assert [(m["user_id"], m["way_kind"]) for m in mine["members"]] == [(21, "invite")]
+    assert (again.status_code, again.json()["code"]) == (409, "already_registered")
+
+
+async def test_a_place_is_offered_only_while_the_contest_takes_people_by_invite(
+    client: httpx.AsyncClient, world: FakeForge
+) -> None:
+    await run_contest(client, visibility="everyone")
+
+    refused = await client.post(
+        CONTEST_INVITES, json={"grants": "contestant", "username": "carol"}, headers=ORIGIN
+    )
+    member = await client.post(
+        CONTEST_INVITES, json={"grants": "member", "username": "carol"}, headers=ORIGIN
+    )
+
+    assert (refused.status_code, refused.json()["code"]) == (409, "no_invite_way")
+    assert (member.status_code, member.json()["code"]) == (422, "invalid_invite")
 
 
 async def test_the_refusals_come_back_with_their_codes(
