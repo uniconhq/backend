@@ -10,6 +10,7 @@ and every route needs a session.
 """
 
 import hashlib
+import re
 import uuid
 from datetime import timedelta
 from typing import Any
@@ -113,7 +114,7 @@ async def test_the_download_door_opens_on_ones_own_file_and_reads_it_from_the_fo
 
     assert opened.status_code == 204, opened.text
     door = Door(opened.headers["X-Forge-Path"], opened.headers["X-Forge-Authorization"])
-    assert door.path.endswith("/media/files/submission/main.py?ref=submission%2F1")
+    assert re.search(r"/media/files/submission/main\.py\?ref=[0-9a-f]{40}$", door.path), door.path
     assert await entered.workspaces.fetch(door) == SOURCE
     assert opened.headers["X-Download-Disposition"] == 'attachment; filename="main.py"'
 
@@ -388,3 +389,18 @@ async def test_the_submission_routes_need_a_session(
     assert [(answer.status_code, answer.json()["code"]) for answer in answers] == [
         (401, "unauthenticated")
     ] * 4
+
+
+@pytest.mark.parametrize("value", [1, 0, 1.0])
+async def test_a_json_number_as_any_inputs_value_is_refused_not_read_as_true_or_false(
+    client: httpx.AsyncClient, entered: FakeForge, value: object
+) -> None:
+    """A number travels as the text of its digits (#427), and true and false
+    as themselves: 1, 0 and 1.0 are none of these."""
+    made = await upload(client, entered, SOURCE)
+    body = _submit_body(made["id"])
+    body["inputs"]["language"] = {"value": value}
+
+    refused = await client.post(SUBMISSIONS, json=body, headers=ORIGIN)
+
+    assert (refused.status_code, refused.json()["code"]) == (422, "validation_error")

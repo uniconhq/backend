@@ -13,12 +13,14 @@ session at all is in a list of its own, so a route that forgets the session
 is caught the day it exists too.
 """
 
+from dataclasses import replace
 from typing import Any
 
 import httpx
 import pytest
 from fastapi.dependencies.models import Dependant
 from fastapi.routing import APIRoute
+from forge.api import identity
 from forge.api.types import Role, Scope
 from forge.testing import FakeForge
 from starlette.routing import compile_path
@@ -396,3 +398,25 @@ async def test_a_guarded_route_needs_a_session(client: httpx.AsyncClient) -> Non
 
     assert refused.status_code == 401
     assert refused.json()["code"] == "unauthenticated"
+
+
+async def test_an_open_read_is_unavailable_when_the_forge_drops_between_its_reads(
+    client: httpx.AsyncClient, world: FakeForge, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A role held only inside the scope is found by reading the person's
+    roles again; a forge that drops then gives no roles, which is no
+    refusal but the forge not answering."""
+    world.add_user(30, "holder30")
+    await world.orgs.grant_role(30, Scope("acme", "spring", "sum"), Role.OBSERVER)
+    await sign_in_as(client, world, 30)
+    whoami = identity.whoami
+
+    async def degraded(session: Any) -> Any:
+        found = await whoami(session)
+        return replace(found, roles=(), degraded=True)
+
+    monkeypatch.setattr(identity, "whoami", degraded)
+
+    answered = await client.get(f"{CONTEST}/gradings")
+
+    assert (answered.status_code, answered.json()["code"]) == (503, "forge_unavailable")

@@ -10,9 +10,11 @@ A few reads are open to anyone holding any role at the scope or at anything
 in it, and the action narrows what each reads to where they hold one:
 `anywhere(at)` is their dependency. It asks as `require(Role.OBSERVER, at)`
 does first, so an observer there costs the same one read; someone holding
-roles only further in has their roles read once more to find one, and the
-`Organiser` is theirs at that narrower scope. Holding none, or naming a
-scope that is not there, is `forbidden`, naming the address.
+roles only further in has their roles read twice more, once to find one and
+once to check it, and the `Organiser` is theirs at that narrower scope. A
+forge that does not answer the read that finds one is `forge_unavailable`.
+Holding none, or naming a scope that is not there, is `forbidden`, naming
+the address.
 
 The URL of each kind of scope is here too, beside the function that reads a
 scope back out of it, so the path and the scope it names are written in one
@@ -22,9 +24,9 @@ labels: forge turns them into the scope of keys a role is held at. For an
 organiser route a part that is not there is `forbidden` like a scope the
 caller may not reach, unless they hold the role above it, so the routes
 tell nobody else what exists. `ContestAtPath` and `TaskAtPath` are the
-contest and task scopes read from the path, `not_found` naming the first
-part that is not there, for the routes a contestant calls, which need a
-session and no role.
+contest and task scopes read from the path, `not_found` in fixed words when
+a part is not there or not theirs to see, so hidden and missing read alike,
+for the routes a contestant calls, which need a session and no role.
 """
 
 from collections.abc import Awaitable, Callable
@@ -33,7 +35,7 @@ from typing import Annotated
 from fastapi import Depends
 from forge.api import access, identity, names
 from forge.api.access import Organiser
-from forge.api.errors import Forbidden, NotFound
+from forge.api.errors import Forbidden, NotFound, Unavailable
 from forge.api.types import Role, Scope, ScopeKind, Session
 
 from unicon.api.deps import CurrentSession
@@ -116,6 +118,10 @@ async def _held_under(session: Session, org: str, contest: str | None = None) ->
     except NotFound:
         raise refused from None
     held = await identity.whoami(session)
+    if held.degraded:
+        # No roles came back because the forge did not answer, not because
+        # the person holds none.
+        raise Unavailable("The forge did not answer; try again in a moment.")
     under = next((role.scope for role in held.roles if scope.covers(role.scope)), None)
     if under is None:
         raise refused
