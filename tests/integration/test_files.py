@@ -49,6 +49,21 @@ async def test_a_tasks_top_folder_lists_its_starter_files(
     assert missing.status_code == 404
 
 
+async def test_a_tests_folder_lists_how_each_small_file_starts(
+    client: httpx.AsyncClient, sum_task: FakeForge
+) -> None:
+    listed = await client.get(f"{TASK}/tree", params={"path": "tests/main/1"})
+
+    assert listed.status_code == 200
+    entries = {entry["path"]: entry for entry in listed.json()}
+    assert {path: entry["start"] for path, entry in entries.items()} == {
+        "tests/main/1/answer": "3\n",
+        "tests/main/1/input": "1 2\n",
+    }
+    answer = await read(client, f"{TASK}/files/tests/main/1/answer")
+    assert entries["tests/main/1/answer"]["token"] == answer["token"]
+
+
 async def test_a_contest_write_answers_its_version_and_shows_in_the_history(
     client: httpx.AsyncClient, sum_task: FakeForge
 ) -> None:

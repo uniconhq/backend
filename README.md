@@ -190,7 +190,7 @@ the one the route needs at the scope in the third column.
 | `POST <scope>/invites` | manager | scope | `grants`, `username` or `email`, `days`, `entrant` | 201, the invite |
 | `POST <scope>/invites/{invite_id}/send-again` | manager | scope | | the invite, mailed again with a new link |
 | `POST <scope>/invites/{invite_id}/withdraw` | manager | scope | | the invite, `withdrawn` |
-| `GET <place>/tree?path=` | observer | place | | a folder's entries, each with its `upload` or null |
+| `GET <place>/tree?path=` | observer | place | | a folder's entries, each with its `upload` or null, its `token`, and a small text file's `start` |
 | `GET <place>/files/{path}?at=` | observer | place | | `path`, `encoding`, `content`, `token`, `upload` |
 | `GET <place>/history?path=` | observer | place | | every change, newest first |
 | `PUT <place>/files/{path}` | manager | place | `encoding`, `content` or, at a task, `upload`, `token`, `message`, `confirm`, `keep_as_draft` | `version` and `notes` at a contest, the save's result at a task |
@@ -445,7 +445,13 @@ being the pointer, never opened as text; a typed file's `upload` is null.
 Every file read names a `version` holding the file as read: the change
 that last wrote it, or the `at` it was read at when that is a commit's id;
 null otherwise. The tree names each file's `version` the same way, as
-listed, so a file listed and not read downloads as it was listed. A task's file, typed or uploaded,
+listed, so a file listed and not read downloads as it was listed. The
+tree gives each file of at most 1 KB that is text (valid UTF-8, no NUL)
+its `start`, its first 80 characters, the whole file when its UTF-8
+length is the `size`, and an empty start for an empty file; a larger
+file, one that is not text, and an upload, whose pointer is never shown,
+have a null `start`. A task's `public/` lists empty until its first
+file. A task's file, typed or uploaded,
 is downloaded at that version through the proxy's download door,
 `/-/downloads/<org>/<contest>/<task>/versions/<version>/<path>`, each
 segment of the path quoted on its own, by whoever holds a role reaching the

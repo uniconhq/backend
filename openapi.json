@@ -5748,7 +5748,7 @@
         "type": "object"
       },
       "TreeEntry": {
-        "description": "One entry of a folder: a file, with the size of what its commit\nholds and that commit, the one that last changed it, which holds it as\nlisted whatever the head has moved to since (none when the forge does\nnot say), or a folder. `upload` tells an uploaded file from a typed one.",
+        "description": "One entry of a folder: a file, with the size of what its commit\nholds and that commit, the one that last changed it, which holds it as\nlisted whatever the head has moved to since (none when the forge does\nnot say), or a folder. `upload` tells an uploaded file from a typed one.\n`token` is the file's `ConflictToken`, as a read gives it, plain text so the\nentry is served as it is; `start` is how a small text\nfile begins (`start_of`), none for any other file and for an upload,\nwhose commit holds only the pointer to its bytes.",
         "properties": {
           "kind": {
             "$ref": "#/components/schemas/EntryKind"
@@ -5767,6 +5767,28 @@
               }
             ],
             "title": "Size"
+          },
+          "start": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start"
+          },
+          "token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Token"
           },
           "upload": {
             "anyOf": [
@@ -5795,7 +5817,9 @@
           "kind",
           "size",
           "upload",
-          "version"
+          "version",
+          "token",
+          "start"
         ],
         "title": "TreeEntry",
         "type": "object"
