@@ -200,9 +200,11 @@ the one the route needs at the scope in the third column.
 | `GET <task>/organise/submissions/{number}?entrant=` | observer | task | | a row's submission as the row reads it, with everything filled in |
 | `POST <task>/gradings/{grading}/cancel` | manager | task | `reason` | the grading, `cancelled` with its `cancel_reason` |
 | `POST <task>/gradings/{grading}/retry` | manager | task | | the new attempt, `queued` |
-| `POST <task>/rejudge` | manager | task | | what the rejudge did |
-| `GET <contest>/gradings?task=&user=&entrant=&status=&latest=&limit=` | a role at the contest or at one of its tasks | contest | | the gradings of the tasks the caller observes, newest first, each with its `task`, `label` and `by` |
+| `POST <task>/rejudge` | manager | task | | what the rejudge did, and the `regrade` it is kept as |
+| `POST <task>/regrades/{regrade}/dismiss` | manager | task | | 204; the regrade's summary leaves the contest's page |
+| `GET <contest>/gradings?task=&user=&entrant=&status=&latest=&regrade=&change=&limit=` | a role at the contest or at one of its tasks | contest | | the gradings of the tasks the caller observes, newest first, each with its `task`, `label` and `by`; with `regrade`, that regrade's, each with its `change` |
 | `GET <contest>/gradings/queue` | a role at the contest or at one of its tasks | contest | | how many of theirs are `queued` and `dispatched`, and how many `failed` and wait |
+| `GET <contest>/gradings/regrades` | a role at the contest or at one of its tasks | contest | | each task's latest regrade of many the caller observes, summed up by what it changed |
 | `GET <place>/announcements` | observer | place | | every announcement, closed ones included, oldest first |
 | `POST <place>/announcements` | manager | place | `title`, `body` | 201, the announcement |
 | `PATCH <place>/announcements/{number}` | manager | place | `title`, `body` | the announcement |
@@ -941,6 +943,36 @@ attempts that read as a system error, which wait for their retry or for
 staff: the gradings `?status=system_error&latest=true` lists, so the
 contest's page can say "2 gradings failed" and link to them. Both read the
 same tasks the feed reads.
+
+A rejudge, and the regrade a save that changes how a task grades starts,
+is kept as one regrade of many; its attempts, and each retry of one of
+them, carry its id as `regrade`, and a rejudge answers it, null when it made
+no attempt. `GET <contest>/gradings/regrades` gives, over the tasks the feed
+reads, each task's latest regrade, newest first, until a newer one of the
+task replaces it or a manager of the task dismisses it for everyone with
+`POST <task>/regrades/{regrade}/dismiss` (204; a regrade of another task
+is `not_found`), so the contest's page and the gradings page can say
+"Regrade of A: 120 graded · 4 went down · 2 now fail to compile · 1 went
+up". Each summary has its `id`, its `task` by name and `label`, its `cause`,
+`rejudge` or `save`, the `publication` its attempts grade against,
+`started_at`, `started_by` and `started_by_name`, how many submissions it
+took (`total`) and `graded` (finished with a result), whether any is still
+`running`, and `counts`, how many of each change: `up` and `down`, its
+points went up or down (on a task that gives no points, a larger or smaller
+share of its tests accepted, then its values with a direction, any worse
+reading as down); `stopped`, it now stops before its tests where the
+result it replaced did not, on the classic workflow "now fails to compile";
+`unchanged`; `new`, graded with nothing to compare with; `running`;
+`failed`, no result yet, a system error or cancelled; and `over_limit`.
+The feed with `regrade=<id>` lists that regrade's gradings, one per
+submission, its latest attempt of the regrade, each with `change`: the
+`change`, `earlier`, the result that counted when the regrade began, and
+`now`, its own, each with its `attempt`, `points` (exact, null on a task
+that gives no points), `accepted` of `tests`, what `stopped` it and its
+`values` with a direction, so the earlier and new points read side by
+side; `change=` narrows them to one kind, and `user` and `entrant` narrow
+as ever, while `task`, `status` and `latest` are not read with it. `change`
+without `regrade` gives no rows.
 
 ## Operator commands
 

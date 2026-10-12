@@ -138,6 +138,7 @@ ROUTES: list[tuple[str, str, dict[str, Any] | None, Role, Scope]] = [
     ("POST", f"{TASK}/gradings/{NO_GRADING}/cancel", CANCEL, Role.MANAGER, SUM),
     ("POST", f"{TASK}/gradings/{NO_GRADING}/retry", None, Role.MANAGER, SUM),
     ("POST", f"{TASK}/rejudge", None, Role.MANAGER, SUM),
+    ("POST", f"{TASK}/regrades/{NO_GRADING}/dismiss", None, Role.MANAGER, SUM),
     ("POST", f"{TASK}/organise/uploads", TASK_FILE, Role.MANAGER, SUM),
     ("GET", f"{CONTEST}/announcements", None, Role.OBSERVER, SPRING),
     ("POST", f"{CONTEST}/announcements", NOTE, Role.MANAGER, SPRING),
@@ -171,6 +172,7 @@ ANY_ROLE: list[tuple[str, Scope]] = [
     (ORG, ACME),
     (f"{CONTEST}/gradings", SPRING),
     (f"{CONTEST}/gradings/queue", SPRING),
+    (f"{CONTEST}/gradings/regrades", SPRING),
 ]
 """The reads open to anyone holding a role at the scope or at anything in it,
 each a GET."""

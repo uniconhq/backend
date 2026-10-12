@@ -15,6 +15,13 @@ submission is graded again, by a retry or a rejudge, only while its entrant
 has room under the task's most submissions, and otherwise ends
 `over_limit`; a grading's `retry_limit` says beforehand when a retry would.
 
+A rejudge, and the regrade a save that changes how the task grades starts,
+is kept as one regrade of many: anyone holding a role in the contest reads
+each task's latest one they observe summed up by what it did to each
+submission against the result it replaced, and the feed narrowed to its
+gradings, each with that change; a manager of the task dismisses it from
+the contest's page.
+
 An observer of the task also reads any entrant's submission as its row
 reads it with everything filled in, beside its grading (TASK-FORMAT.md
 section 1.7): the row picked by `entrant`, as the boards pick one, and the
@@ -44,11 +51,12 @@ import uuid
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Query, Response
-from forge.api import contests, gradings, names, submissions, tasks
+from forge.api import contests, gradings, names, regrades, submissions, tasks
 from forge.api.access import Organiser
 from forge.api.boards import EntrantOwner
 from forge.api.errors import NotFound
 from forge.api.gradings import GradingStatus
+from forge.api.regrades import Change
 from forge.api.types import Role, ScopeKind, TaskId
 
 from unicon.api.guard import PREFIX, anywhere, require
@@ -59,6 +67,7 @@ from unicon.schemas.gradings import (
     CancelRequest,
     FeedEntry,
     Grading,
+    RegradeSummary,
     Rejudged,
 )
 from unicon.schemas.submissions import OrganisedSubmission
@@ -212,6 +221,12 @@ async def list_contest_gradings(
     entrant: Annotated[uuid.UUID | None, Query(description="One entrant's submissions")] = None,
     status: Annotated[GradingStatus | None, Query(description="As the grading reads")] = None,
     latest: Annotated[bool, Query(description="Only each submission's latest attempt")] = False,
+    regrade: Annotated[
+        uuid.UUID | None, Query(description="One regrade of many's gradings, each with its change")
+    ] = None,
+    change: Annotated[
+        Change | None, Query(description="With regrade, what it did to the submission")
+    ] = None,
     limit: Annotated[int, Query(ge=1, le=LIST_MOST)] = 100,
 ) -> list[dict[str, Any]]:
     """At most `limit` gradings of the contest's tasks the caller observes,
@@ -223,7 +238,24 @@ async def list_contest_gradings(
     the queue's `failed` counts. A task, username or entrant the contest does not have, or a task
     the caller does not observe, gives no rows; a username that breaks the
     forge's rule for one is a `validation_error`.
+
+    With `regrade`, the regrade of many a summary of `/gradings/regrades`
+    names, it lists that regrade's gradings, one per submission, its latest
+    attempt of the regrade, newest first, each with `change`, what it did
+    to the submission beside the result it replaced, the earlier and new
+    points side by side; `change` narrows them to one kind, and `user` and
+    `entrant` narrow as ever, while `task`, `status` and `latest` are not
+    read with it. A regrade the caller cannot see gives no rows, and so
+    does `change` without `regrade`.
     """
+    contest_id = contests.contest_id_of(organiser.scope)
+    if regrade is not None:
+        found = await regrades.gradings_of(
+            organiser, contest_id, regrade, change=change, user=user, entrant=entrant, limit=limit
+        )
+        return [_entry(row) for row in found]
+    if change is not None:
+        return []
     task_id: TaskId | None = None
     if task is not None:
         try:
@@ -232,7 +264,7 @@ async def list_contest_gradings(
             return []
     rows = await gradings.feed(
         organiser,
-        contests.contest_id_of(organiser.scope),
+        contest_id,
         task=task_id,
         user=user,
         entrant=entrant,
@@ -260,8 +292,58 @@ async def get_contest_queue_depth(organiser: InContest) -> gradings.QueueDepth:
     return await gradings.queue_depth(organiser, contests.contest_id_of(organiser.scope))
 
 
+@feed.get(
+    "/gradings/regrades",
+    operation_id="listContestRegrades",
+    summary="Each task's latest regrade of many, with what it changed",
+    response_model=list[RegradeSummary],
+)
+async def list_contest_regrades(organiser: InContest) -> list[dict[str, Any]]:
+    """The latest regrade of each of the contest's tasks the caller
+    observes, newest first, a staff rejudge or the regrade a save that
+    changed how the task grades started, summed up by what it did to each
+    submission, until a newer regrade of the task replaces it or a manager
+    of the task dismisses it. Each summary's `id` reads its gradings on the
+    feed, `?regrade=<id>`, narrowed to one kind with `&change=`.
+    """
+    found = await regrades.latest(organiser, contests.contest_id_of(organiser.scope))
+    return [_summary(row) for row in found]
+
+
+@router.post(
+    "/regrades/{regrade}/dismiss",
+    operation_id="dismissRegrade",
+    summary="Take the task's regrade off the contest's page",
+    status_code=204,
+)
+async def dismiss_regrade(organiser: TaskManager, regrade: uuid.UUID) -> Response:
+    """For everyone; one dismissed already stays so. A regrade of another
+    task is `not_found`, the same as none.
+    """
+    await regrades.dismiss(organiser, tasks.task_id_of(organiser.scope), regrade)
+    return Response(status_code=204)
+
+
 def _entry(row: gradings.FeedEntry) -> dict[str, Any]:
     return {"grading": row.grading, "task": row.task_name, "label": row.label, "by": row.by}
+
+
+def _summary(row: regrades.Summary) -> dict[str, Any]:
+    """A regrade's summary with its task by name, as the feed names one."""
+    return {
+        "id": row.id,
+        "task": row.task_name,
+        "label": row.label,
+        "cause": row.cause,
+        "publication": row.publication,
+        "started_at": row.started_at,
+        "started_by": row.started_by,
+        "started_by_name": row.started_by_name,
+        "total": row.total,
+        "graded": row.graded,
+        "running": row.running,
+        "counts": row.counts,
+    }
 
 
 async def _of_this_task(organiser: Organiser, grading: uuid.UUID) -> uuid.UUID:
