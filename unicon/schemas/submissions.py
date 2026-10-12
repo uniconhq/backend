@@ -139,8 +139,10 @@ class Result(Scored):
     once it is done, what stopped the
     run, the outcome over the groups shown, each test group as its `show`
     allows, the values reported once, and `folded`, each per-test value
-    with a fold, folded over the tests shown, a test without it counting as
-    its worst bound. `status` is in the contestant's words: `queued` until
+    with a fold, folded over the tests shown, a test that was not accepted
+    or did not report it counting as its worst bound, and the value absent
+    when it declares none, so a wrong answer has no time; each test's row
+    still carries what it reported. `status` is in the contestant's words: `queued` until
     its run is started, `grading` while it is graded, `graded` once it has
     a result, `delayed` while it has none and its grading failed on the
     platform's side, and `cancelled` once staff end it; organisers read the
