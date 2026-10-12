@@ -198,11 +198,9 @@ the one the route needs at the scope in the third column.
 | `GET <task>/organise/submissions/{number}?entrant=` | observer | task | | a row's submission as the row reads it, with everything filled in |
 | `POST <task>/gradings/{grading}/cancel` | manager | task | `reason` | the grading, `cancelled` with its `cancel_reason` |
 | `POST <task>/gradings/{grading}/retry` | manager | task | | the new attempt, `queued` |
-| `PUT <task>/gradings/{grading}/fallback` | manager | task | | the grading, its submission counting as `last_good`, `fallback` `staff` |
-| `DELETE <task>/gradings/{grading}/fallback` | manager | task | | the grading, counting as the contest's `on_system_error` says |
 | `POST <task>/rejudge` | manager | task | | what the rejudge did |
-| `GET <contest>/gradings?task=&user=&entrant=&status=&limit=` | a role at the contest or at one of its tasks | contest | | the gradings of the tasks the caller observes, newest first, each with its `task`, `label` and `by` |
-| `GET <contest>/gradings/queue` | a role at the contest or at one of its tasks | contest | | how many of theirs are `queued` and `dispatched` |
+| `GET <contest>/gradings?task=&user=&entrant=&status=&latest=&limit=` | a role at the contest or at one of its tasks | contest | | the gradings of the tasks the caller observes, newest first, each with its `task`, `label` and `by` |
+| `GET <contest>/gradings/queue` | a role at the contest or at one of its tasks | contest | | how many of theirs are `queued` and `dispatched`, and how many `failed` and wait |
 | `GET <place>/announcements` | observer | place | | every announcement, closed ones included, oldest first |
 | `POST <place>/announcements` | manager | place | `title`, `body` | 201, the announcement |
 | `PATCH <place>/announcements/{number}` | manager | place | `title`, `body` | the announcement |
@@ -461,8 +459,16 @@ carries the contest `where` it is, its title as `name`, its dates and
 `organises` the contest and so may not enter it, `now`, the server's clock
 when it was read, and the `tasks` released to them, each
 with its `name`, `label`, `title`, `worth`, the most points it gives or
-null, its `release`, and when it falls `due`, null when it has none, and
-`closes` for the caller, their entrant's extension on it included. A task's page
+null, its `release`, when it falls `due`, null when it has none, and
+`closes` for the caller, their entrant's extension on it included, and,
+for a member of an approved entrant, its `points`: their entrant's points
+on the task as a board over that task alone counts them now (every group,
+the best submission by points), `shown` over the groups whose results are
+shown, `pending`, the most the groups not shown yet could still add, and
+`pending_until`, the task's reveal, null when nothing is pending; each an
+exact decimal string, and the whole null for anyone else and on a task
+that gives no points. A group whose results are not shown yet never counts
+in `shown`, as on every board. A task's page
 carries the same, its `statement` in Markdown, its `submissions`: at most
 `max` in all and `rate.count` in any `rate.per` seconds, and its `inputs`,
 the form the submit panel is built from: each input's `id`, `type`
@@ -567,7 +573,10 @@ an `idempotency_key` the browser makes once per submit, 8 to 128 letters,
 digits, `-` and `_`; a value left out takes its default. The same key sent
 again answers with the submission it made and makes nothing. A submission
 carries its `number`, `submitted_at`, `late_days`, how many started days
-after the caller's due it was made, and its `grading`, the latest attempt,
+after the caller's due it was made, and its `grading`, the attempt that
+counts, as the boards count it: the latest that finished with a result,
+so a regrade under way, a failure or a cancel leaves the result as it was,
+and while none has, the latest. It comes
 with its `id`, `attempt` and `status`, and once it is `done`, what the
 task's test groups let the contestant see now: what `stopped` the run, the
 `outcome` over the groups shown, the `values` reported once, and each of
@@ -586,12 +595,15 @@ as `shown_at`, when the rest is shown. A group with `ran` false did not
 run on this grading: it has no outcome, no tests and nothing held back,
 and the outcome over the groups leaves it out. What is not shown is null. A
 grading's `status` is in the contestant's words, `queued`, `grading`,
-`graded` or `cancelled`, as `TASK-FORMAT.md` section 1.7 has them; the
-gradings routes give organisers the grading's own status. A run
-that failed on the platform's side is `grading` to its contestant, with
-nothing else, until staff cancel it: then it is `cancelled`, with
-`reason`, the sentence they gave, null on every other status, and the
-submission no longer counts against the task's `max`. An outcome is one of the runner's list, and a value a number
+`graded`, `delayed` or `cancelled`, as `TASK-FORMAT.md` section 1.7 has
+them; the gradings routes give organisers the grading's own status. A
+submission with no result whose run failed on the platform's side is
+`delayed` to its contestant, with nothing else, and does not count against
+the task's `max` meanwhile; it is tried again once by itself, and then
+waits for staff, who grade it again or cancel it: then it is `cancelled`,
+with `reason`, the sentence they gave, null on every other status, and the
+submission no longer counts against the task's `max`. A submission that
+has a result keeps it, whatever its later attempts read as. An outcome is one of the runner's list, and a value a number
 or text. The route renders what forge gives it and nothing more. The files
 route answers each input's `files`, by their paths in the submission, or
 its `value`, a number as its exact digits.
@@ -799,16 +811,17 @@ one that is not a system error, retrying one that is not finished, or
 retrying a submission staff cancelled, is `wrong_status` with its `current`
 status, `cancelled` for the last; cancelling or retrying an earlier attempt
 of a submission graded again, or retrying one with another attempt still
-being graded, is `conflict`. A submission whose latest attempt is a
-`system_error`, or staff cancelled, counts as still grading, or void once
-cancelled, unless a fallback counts its last good result: the contest's
-`on_system_error: last_result`, or staff's `PUT .../fallback` on that
-attempt, which `DELETE .../fallback` takes back. Such an attempt carries
-`last_good`, the latest earlier attempt that finished with a result, and
-`fallback`, `staff` or `contest` while one is in force and null otherwise,
-with `falls_back` saying whether staff asked. Falling back on one that is
-neither is `wrong_status`; on an earlier attempt, or a submission with no
-earlier result, `conflict`. `GET <task>/gradings` serves each grading as
+being graded, is `conflict`. A grading that ends in `system_error` is
+retried once by the platform itself, started by whatever finds it so, the
+CI's report or any read that finds it overdue or lost; that attempt is
+`automatic`, and a failure of it waits for staff, who retry as often as
+they like. Of a submission's attempts the latest that finished with a
+result counts, on the boards, to its contestant and against the task's
+`max`, until a newer attempt finishes with one: a failure or a cancel never
+takes a result away, and a cancel voids only a submission that never had
+one. A latest attempt that has not finished with a result carries
+`last_good`, the latest earlier attempt that did, the one its submission
+counts meanwhile, null when there is none. `GET <task>/gradings` serves each grading as
 the feed below does, with its task's name and label and who submitted it. A rejudge answers the
 `publication` it grades against and how many attempts it `queued`,
 `cancelled` first and `left_running`. A run's log names every test, hidden
@@ -842,8 +855,9 @@ and the member who submitted it by `user_id` and `username`, null when a
 reconcile found the submission at the forge. Every attempt is a row of
 its own, so a submission graded again shows more than once. `task` narrows
 the feed to a task by name, `user` to the submissions a member made, by
-username, `entrant` to an entrant's, by id, and `status` to the gradings
-that read as it, an overdue or lost one counting as `system_error`; a task,
+username, `entrant` to an entrant's, by id, `status` to the gradings that
+read as it, an overdue or lost one counting as `system_error`, and
+`latest=true` to each submission's latest attempt; a task,
 username or entrant the contest does not have gives no rows. A `user` that
 breaks Forgejo's rule for a username (letters, digits, `-`, `_` and `.`,
 beginning and ending with a letter or a digit, no two of `-`, `_` and `.`
@@ -851,9 +865,12 @@ side by side, at most 40 characters), or an `entrant` that is not a UUID,
 is a `validation_error`.
 `GET <contest>/gradings/queue` counts the contest's gradings waiting for a
 machine, `queued`, whose run is not started yet, and `dispatched`, whose
-run the CI holds until a machine takes it, when asked; one overdue or lost
-reads as a system error and is not counted, over the same tasks the feed
-reads.
+run the CI holds until a machine takes it, when asked, one overdue or lost
+reading as a system error and not counted there; and `failed`, the latest
+attempts that read as a system error, which wait for their retry or for
+staff: the gradings `?status=system_error&latest=true` lists, so the
+contest's page can say "2 gradings failed" and link to them. Both read the
+same tasks the feed reads.
 
 ## Operator commands
 
