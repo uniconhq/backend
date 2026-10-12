@@ -17,7 +17,7 @@ from pydantic import BaseModel, model_validator
 
 from unicon.schemas.entrants import MyEntry
 from unicon.schemas.exact import Exact, exactly
-from unicon.schemas.submissions import Value
+from unicon.schemas.submissions import Points, Value
 
 
 class ContestNames(BaseModel):
@@ -46,6 +46,17 @@ class TaskEntry(BaseModel):
     that gives none, whether they may submit to it now, and when it falls
     due, null when it has no due, and closes for them, their extension on it
     included.
+
+    `points` is their entrant's points on it, for a member of an approved
+    entrant, as a board over that task alone counts them now, every group,
+    the submissions counted as the contest's leaderboard for the task
+    counts them (the first entrants see that covers it and ranks by points
+    first): `shown`, over the groups whose results are shown, null while
+    no group of the task is shown yet, and `pending`, the most the groups
+    not shown yet could still add, until `pending_until`, the task's
+    reveal, null when nothing is pending. A group whose results are not
+    shown yet never counts in `shown`, as on every board. Null for anyone
+    else, and on a task that gives no points.
     """
 
     name: str
@@ -55,6 +66,7 @@ class TaskEntry(BaseModel):
     release: TaskRelease
     due: datetime | None
     closes: datetime | None
+    points: Points | None
 
 
 class ContestHome(BaseModel):
@@ -99,7 +111,8 @@ InputType = Literal["text", "number", "boolean", "enum", "file", "folder"]
 
 class InputField(BaseModel):
     """One input the contestant gives, with what its form shows: its
-    `type`, its `label`, the `options` of an enum, whether it takes one file
+    `type`, its `label`, the task's, else the workflow's title for the
+    input, else its key, the `options` of an enum, whether it takes one file
     per test, `per_test`, named for the test as `<group>/<test>`, the
     `default` a value takes when it is left out, `min` and `max` of a
     number, exactly, and `max_size`, the most its files may total in bytes. A

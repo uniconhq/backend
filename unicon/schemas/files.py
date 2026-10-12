@@ -88,7 +88,12 @@ class FileContent(BaseModel):
     """One file at one version, with the token a write presents back, and
     `upload` when it is a file an organiser uploaded: its `content` is then
     the pointer to the bytes, never opened as text, and `upload` the size
-    and SHA-256 of what it holds. A typed file has none.
+    and SHA-256 of what it holds. A typed file has none. `version` is the
+    commit holding the file as read, the latest change to it or the one it
+    was read at, which a task's file is downloaded at
+    (`/-/downloads/<org>/<contest>/<task>/versions/<version>/<path>`); null
+    when the forge names no commit and it was not read at one. A tree's
+    entries name their `version` the same way.
     """
 
     path: str
@@ -96,6 +101,7 @@ class FileContent(BaseModel):
     content: str
     token: str
     upload: UploadInfo | None
+    version: str | None
 
     @classmethod
     def of(cls, file: FileRecord) -> FileContent:
@@ -110,6 +116,7 @@ class FileContent(BaseModel):
             content=content,
             token=str(file.token),
             upload=file.upload,
+            version=file.version,
         )
 
 
