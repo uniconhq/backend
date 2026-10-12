@@ -332,21 +332,32 @@ async def test_organisers_read_a_submission_scored_with_everything_filled_in(
     assert (own["status"], own["points"]["pending"]) == ("graded", "100")
 
 
-async def test_the_contest_home_gives_a_task_the_points_a_board_over_it_counts_exactly(
+async def test_the_contest_home_gives_a_task_its_points_on_each_board_the_entrant_sees(
     client: httpx.AsyncClient, entered: FakeForge, clock: FakeClock
 ) -> None:
     await _ranked(client, entered, clock)
 
-    [task] = (await client.get(f"{CONTEST}/home")).json()["tasks"]
+    home = (await client.get(f"{CONTEST}/home")).json()
+    [task] = home["tasks"]
     standings = (await client.get(f"{BOARDS}/Standings")).json()
 
-    assert task["points"] == {"shown": "100", "pending": "0", "pending_until": None}
-    assert standings["rows"][0]["keys"][0] == task["points"]["shown"]
+    # Staff is the organisers' alone, so the entrant's one column is Standings.
+    assert home["boards"] == ["Standings"]
+    assert task["points"] == [
+        {
+            "board": "Standings",
+            "covers": True,
+            "points": {"shown": "100", "pending": "0", "pending_until": None},
+            "most": "100",
+        }
+    ]
+    assert standings["rows"][0]["keys"][0] == task["points"][0]["points"]["shown"]
 
 
 async def test_a_hidden_groups_points_stay_out_of_the_contest_home_until_shown(
     client: httpx.AsyncClient, entered: FakeForge, clock: FakeClock
 ) -> None:
+    await _settings(client, entered, SETTINGS)
     await sign_in_as(client, entered, 7)
     await edit_task(client, "main: {each: 100}", "main: {each: 100, show: after_close}")
     await sign_in_as(client, entered, 20)
@@ -358,12 +369,24 @@ async def test_a_hidden_groups_points_stay_out_of_the_contest_home_until_shown(
     [after] = (await client.get(f"{CONTEST}/home")).json()["tasks"]
 
     # Nothing of the task is shown yet, which reads apart from a shown 0.
-    assert before["points"] == {
-        "shown": None,
-        "pending": "100",
-        "pending_until": "2026-09-26T15:00:00Z",
-    }
-    assert after["points"] == {"shown": "100", "pending": "0", "pending_until": None}
+    assert [each["points"] for each in before["points"]] == [
+        {"shown": None, "pending": "100", "pending_until": "2026-09-26T15:00:00Z"}
+    ]
+    assert [each["points"] for each in after["points"]] == [
+        {"shown": "100", "pending": "0", "pending_until": None}
+    ]
+
+
+async def test_the_contest_home_gives_no_boards_and_no_points_to_anyone_not_entered(
+    client: httpx.AsyncClient, entered: FakeForge, clock: FakeClock
+) -> None:
+    await _ranked(client, entered, clock)
+    await sign_in_as(client, entered, 7)
+
+    home = (await client.get(f"{CONTEST}/home")).json()
+
+    assert home["boards"] == []
+    assert [task["points"] for task in home["tasks"]] == [[]]
 
 
 async def test_organisers_pick_one_row_with_such_a_submission(

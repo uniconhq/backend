@@ -371,6 +371,52 @@
         "title": "BoardKey",
         "type": "object"
       },
+      "BoardPoints": {
+        "description": "The caller's entrant's points on a task as one leaderboard counts\nthem. `board` is the leaderboard's name; `covers` whether it covers the\ntask, the page reading \"\u2014\" where it does not. Where it does, `points`\nis the points now as that board counts the task, its scope (`over`) and\nthe submissions its `select` counts under its `order`, the same number\nthe board's own row counts: `shown`, over the scope's groups whose\nresults are shown, 0 while the board's cell for the task does not count,\nnull while the board shows nothing of the task yet; and `pending`, the\nmost the scope's groups not shown yet could still add, until\n`pending_until`, the task's reveal, null when nothing is pending. A\ngroup whose results are not shown yet never counts in `shown`, as on\nevery board. `most` is the most the board can count from the task, its\nscope's groups' most points. `points` and `most` are null where the\nboard does not cover the task, and on a task that gives no points.",
+        "properties": {
+          "board": {
+            "title": "Board",
+            "type": "string"
+          },
+          "covers": {
+            "title": "Covers",
+            "type": "boolean"
+          },
+          "most": {
+            "anyOf": [
+              {
+                "examples": [
+                  "82.5"
+                ],
+                "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Most"
+          },
+          "points": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Points"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "board",
+          "covers",
+          "points",
+          "most"
+        ],
+        "title": "BoardPoints",
+        "type": "object"
+      },
       "BoardRow": {
         "description": "A row on the board: its rank, shared by rows tied on every key, whose\nit is, its number on each of the board's keys in turn, null where it\nhas none, and its cell on each task by the task's name.",
         "properties": {
@@ -702,8 +748,15 @@
         "type": "object"
       },
       "ContestHome": {
-        "description": "A contest's home for the caller. `organises` says the caller holds a\nrole at the contest, which keeps them from registering; `registration`\nis their registration panel, as `entrants/mine` answers it: their\nentrant, whether and how they may register, and whether to ask them for\na code.",
+        "description": "A contest's home for the caller. `organises` says the caller holds a\nrole at the contest, which keeps them from registering; `registration`\nis their registration panel, as `entrants/mine` answers it: their\nentrant, whether and how they may register, and whether to ask them for\na code. `boards` names the leaderboards a member of an approved entrant\nsees, in the contest's order, which each task's `points` follow; empty\nfor anyone else.",
         "properties": {
+          "boards": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Boards",
+            "type": "array"
+          },
           "description": {
             "title": "Description",
             "type": "string"
@@ -758,7 +811,8 @@
           "registration",
           "organises",
           "now",
-          "tasks"
+          "tasks",
+          "boards"
         ],
         "title": "ContestHome",
         "type": "object"
@@ -4722,7 +4776,7 @@
         "type": "object"
       },
       "TaskEntry": {
-        "description": "A task released to the caller: its name, the label its place in the\ncontest gives it, its title, the most points it gives, null on a task\nthat gives none, whether they may submit to it now, and when it falls\ndue, null when it has no due, and closes for them, their extension on it\nincluded.\n\n`points` is their entrant's points on it, for a member of an approved\nentrant, as a board over that task alone counts them now, every group,\nthe submissions counted as the contest's leaderboard for the task\ncounts them (the first entrants see that covers it and ranks by points\nfirst): `shown`, over the groups whose results are shown, null while\nno group of the task is shown yet, and `pending`, the most the groups\nnot shown yet could still add, until `pending_until`, the task's\nreveal, null when nothing is pending. A group whose results are not\nshown yet never counts in `shown`, as on every board. Null for anyone\nelse, and on a task that gives no points.",
+        "description": "A task released to the caller: its name, the label its place in the\ncontest gives it, its title, the most points it gives, null on a task\nthat gives none, whether they may submit to it now, and when it falls\ndue, null when it has no due, and closes for them, their extension on it\nincluded.\n\n`points` is, for a member of an approved entrant, their entrant's points\non it on each leaderboard of the home's `boards`, one for each, in the\nsame order, so a page draws one column per board under one header row.\nEmpty for anyone else, who reads the task's `worth`.",
         "properties": {
           "closes": {
             "anyOf": [
@@ -4757,14 +4811,11 @@
             "type": "string"
           },
           "points": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/Points"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "items": {
+              "$ref": "#/components/schemas/BoardPoints"
+            },
+            "title": "Points",
+            "type": "array"
           },
           "release": {
             "$ref": "#/components/schemas/TaskRelease"

@@ -40,6 +40,29 @@ class ContestSummary(BaseModel):
     status: Status | None
 
 
+class BoardPoints(BaseModel):
+    """The caller's entrant's points on a task as one leaderboard counts
+    them. `board` is the leaderboard's name; `covers` whether it covers the
+    task, the page reading "—" where it does not. Where it does, `points`
+    is the points now as that board counts the task, its scope (`over`) and
+    the submissions its `select` counts under its `order`, the same number
+    the board's own row counts: `shown`, over the scope's groups whose
+    results are shown, 0 while the board's cell for the task does not count,
+    null while the board shows nothing of the task yet; and `pending`, the
+    most the scope's groups not shown yet could still add, until
+    `pending_until`, the task's reveal, null when nothing is pending. A
+    group whose results are not shown yet never counts in `shown`, as on
+    every board. `most` is the most the board can count from the task, its
+    scope's groups' most points. `points` and `most` are null where the
+    board does not cover the task, and on a task that gives no points.
+    """
+
+    board: str
+    covers: bool
+    points: Points | None
+    most: Exact | None
+
+
 class TaskEntry(BaseModel):
     """A task released to the caller: its name, the label its place in the
     contest gives it, its title, the most points it gives, null on a task
@@ -47,16 +70,10 @@ class TaskEntry(BaseModel):
     due, null when it has no due, and closes for them, their extension on it
     included.
 
-    `points` is their entrant's points on it, for a member of an approved
-    entrant, as a board over that task alone counts them now, every group,
-    the submissions counted as the contest's leaderboard for the task
-    counts them (the first entrants see that covers it and ranks by points
-    first): `shown`, over the groups whose results are shown, null while
-    no group of the task is shown yet, and `pending`, the most the groups
-    not shown yet could still add, until `pending_until`, the task's
-    reveal, null when nothing is pending. A group whose results are not
-    shown yet never counts in `shown`, as on every board. Null for anyone
-    else, and on a task that gives no points.
+    `points` is, for a member of an approved entrant, their entrant's points
+    on it on each leaderboard of the home's `boards`, one for each, in the
+    same order, so a page draws one column per board under one header row.
+    Empty for anyone else, who reads the task's `worth`.
     """
 
     name: str
@@ -66,7 +83,7 @@ class TaskEntry(BaseModel):
     release: TaskRelease
     due: datetime | None
     closes: datetime | None
-    points: Points | None
+    points: list[BoardPoints]
 
 
 class ContestHome(BaseModel):
@@ -74,7 +91,9 @@ class ContestHome(BaseModel):
     role at the contest, which keeps them from registering; `registration`
     is their registration panel, as `entrants/mine` answers it: their
     entrant, whether and how they may register, and whether to ask them for
-    a code.
+    a code. `boards` names the leaderboards a member of an approved entrant
+    sees, in the contest's order, which each task's `points` follow; empty
+    for anyone else.
     """
 
     where: ContestNames
@@ -87,6 +106,7 @@ class ContestHome(BaseModel):
     organises: bool
     now: datetime
     tasks: list[TaskEntry]
+    boards: list[str]
 
 
 class Rate(BaseModel):

@@ -477,17 +477,23 @@ when it was read, and the `tasks` released to them, each
 with its `name`, `label`, `title`, `worth`, the most points it gives or
 null, its `release`, when it falls `due`, null when it has none, and
 `closes` for the caller, their entrant's extension on it included, and,
-for a member of an approved entrant, its `points`: their entrant's points
-on the task as a board over that task alone counts them now (every group,
-the submissions counted as the contest's leaderboard for the task counts
-them: the first entrants see that covers it and ranks by points first),
-`shown` over the groups whose results are shown, null while no group of
-the task is shown yet, `pending`, the most the groups not shown yet could
-still add, and
-`pending_until`, the task's reveal, null when nothing is pending; each an
-exact decimal string, and the whole null for anyone else and on a task
-that gives no points. A group whose results are not shown yet never counts
-in `shown`, as on every board. A task's page
+for a member of an approved entrant, its `points`: one entry for each
+leaderboard the entrant sees, in the order of the home's `boards`, which
+names them as the contest's file lists them, so a page draws a column per
+board under one header row. Each entry carries its `board`, whether it
+`covers` the task (the page reads "—" where it does not), and, where it
+does, `points`, their entrant's points on the task as that board counts
+it now (its `over`, `select` and `order`, the same number as the board's
+own row): `shown` over the scope's groups whose results are shown, 0
+while the board's cell does not count, null while the board shows
+nothing of the task yet, `pending`, the most the scope's groups not shown
+yet could still add, and `pending_until`, the task's reveal, null when
+nothing is pending; and `most`, the most the board can count from the
+task. Every number is an exact decimal string; `points` and `most` are
+null on a task that gives no points. For anyone else, `boards` and each
+task's `points` are empty, and the page reads the task's `worth`. A group
+whose results are not shown yet never counts in `shown`, as on every
+board. A task's page
 carries the same, its `statement` in Markdown, its `submissions`: at most
 `max` in all and `rate.count` in any `rate.per` seconds, and its `inputs`,
 the form the submit panel is built from: each input's `id`, `type`
