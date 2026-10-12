@@ -3754,6 +3754,47 @@
         "title": "Problem",
         "type": "object"
       },
+      "PublicAnswer": {
+        "description": "A public answer: the announcement every entrant reads, and the\nquestion as it now stands, with the message naming it.",
+        "properties": {
+          "announcement": {
+            "$ref": "#/components/schemas/Announcement"
+          },
+          "question": {
+            "$ref": "#/components/schemas/Clarification"
+          }
+        },
+        "required": [
+          "announcement",
+          "question"
+        ],
+        "title": "PublicAnswer",
+        "type": "object"
+      },
+      "PublicAnswerRequest": {
+        "description": "An answer made public: the announcement's title and text, and\nwhether to mark the question answered, as a reply's \"Mark it answered\"\ndoes; it is unless `mark` is false.",
+        "properties": {
+          "body": {
+            "title": "Body",
+            "type": "string"
+          },
+          "mark": {
+            "default": true,
+            "title": "Mark",
+            "type": "boolean"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "body"
+        ],
+        "title": "PublicAnswerRequest",
+        "type": "object"
+      },
       "PublicContest": {
         "description": "A public contest `where` it is, by the names of its org and itself,\nwith its title as `name`, what it says of itself and when it runs.\n`tasks` are its released tasks, and empty in the list of contests.",
         "properties": {
@@ -7928,7 +7969,7 @@
     },
     "/api/v1/orgs/{org}/contests/{contest}/clarifications/{asker}/{number}/announcement": {
       "post": {
-        "description": "On the task the question names, or else on the contest, pointing at\nthe question, which stays private.",
+        "description": "On the task the question names, or else on the contest, pointing at\nthe question, which stays private. The question is marked answered\nunless `mark` is false, and gets a message, \"Answered publicly in the\nannouncement\" and its title, which only its readers see, with the\nannouncement's `task` and `number` as the message's `announcement`, so\nthe page links to it. Answers with the announcement and the question as\nit now stands. Sent again after a failure part way, it finishes the\nannouncement it posted rather than posting a second.",
         "operationId": "answerQuestionPublicly",
         "parameters": [
           {
@@ -7972,7 +8013,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/AnnouncementRequest"
+                "$ref": "#/components/schemas/PublicAnswerRequest"
               }
             }
           },
@@ -7983,7 +8024,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Announcement"
+                  "$ref": "#/components/schemas/PublicAnswer"
                 }
               }
             },

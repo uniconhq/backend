@@ -146,12 +146,29 @@ async def test_a_question_is_asked_answered_followed_up_and_answered_publicly(
     assert [entry["answered"] for entry in everything.json()] == [True]
     assert unmarked.json()["answered"] is False
     assert public.status_code == 201, public.text
-    assert public.json()["answers"] == {"asker": desk, "number": number}
+    posted = public.json()["announcement"]
+    assert posted["answers"] == {"asker": desk, "number": number}
+    # A public answer marks the question answered and leaves a message on
+    # it naming the announcement, by its task and number.
+    question_now = public.json()["question"]
+    assert (question_now["answered"], question_now["closed"]) == (True, True)
+    assert question_now["messages"][-1]["announcement"] == {
+        "task": "sum",
+        "number": posted["number"],
+    }
     assert (followed.json()["answered"], followed.json()["closed"]) == (False, False)
     [own] = mine.json()
-    assert [(message["from_asker"], message["body"]) for message in own["messages"]] == [
-        (False, "Up to 10^5."),
-        (True, "And m?"),
+    assert [
+        (message["from_asker"], message["body"], message["announcement"])
+        for message in own["messages"]
+    ] == [
+        (False, "Up to 10^5.", None),
+        (
+            False,
+            "Answered publicly in the announcement ‘On n’",  # noqa: RUF001
+            question_now["messages"][-1]["announcement"],
+        ),
+        (True, "And m?", None),
     ]
     [shown] = page.json()
     assert (shown["title"], shown["answers_question"], shown["answers"]) == ("On n", True, None)
