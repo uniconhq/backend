@@ -1,4 +1,5 @@
-"""A contest's and a task's files through the routes: a folder's entries, a
+"""A contest's and a task's files through the routes: a folder's entries (a task's
+`public/` empty until its first file), a
 file at the latest and at an older version, the history, a write that
 answers with its version at a contest and as a save at a task, a stale
 token answered as a conflict, a binary file's round trip through base64, a
@@ -32,13 +33,20 @@ async def test_a_tasks_top_folder_lists_its_starter_files(
 ) -> None:
     listed = await client.get(f"{TASK}/tree")
     inside = await client.get(f"{TASK}/tree", params={"path": "tests/main"})
+    public = await client.get(f"{TASK}/tree", params={"path": "public"})
+    missing = await client.get(f"{TASK}/tree", params={"path": "data"})
 
     assert listed.status_code == 200
     entries = {entry["path"]: entry["kind"] for entry in listed.json()}
-    assert entries["task.yaml"] == "file"
-    assert entries["statement.md"] == "file"
-    assert (entries["public"], entries["tests"]) == ("directory", "directory")
+    assert entries == {
+        "statement.md": "file",
+        "task.yaml": "file",
+        "tests": "directory",
+    }
     assert [entry["path"] for entry in inside.json()] == ["tests/main/1"]
+    # No public/ until its first picture, and it lists empty, not missing.
+    assert (public.status_code, public.json()) == (200, [])
+    assert missing.status_code == 404
 
 
 async def test_a_contest_write_answers_its_version_and_shows_in_the_history(
