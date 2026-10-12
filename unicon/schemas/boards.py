@@ -3,7 +3,8 @@ audience sees it now: its name, which groups it counts (`over`) and which
 submission (`select`), the keys rows are ranked on, the tasks it covers,
 what of them is not in its numbers yet, and its rows in rank order, every
 number an exact decimal string. Only the reader's own row carries how many
-of its submissions are still grading and which it counts; organisers get
+of its submissions are not graded yet, still grading or delayed, and which
+it counts; organisers get
 both on every row. A board whose scope shows nothing yet comes back with no
 rows and the time it is shown from.
 """
