@@ -119,6 +119,20 @@ async def test_a_download_is_the_file_as_it_was_at_the_version_named(
     assert await sum_task.content.fetch(_door(then)) == b"first\n"
 
 
+async def test_a_listed_file_downloads_at_the_version_the_listing_names(
+    client: httpx.AsyncClient, sum_task: FakeForge
+) -> None:
+    await _write(client, "data/big.txt", "listed\n")
+    listing = await client.get(f"{TASK}/tree", params={"path": "data"})
+    await _write(client, "data/big.txt", "saved since\n")
+
+    (entry,) = listing.json()
+    then = await _download(client, f"{DOWNLOADS}/{entry['version']}/data/big.txt")
+
+    assert re.fullmatch(r"[0-9a-f]{40}", entry["version"]), entry
+    assert await sum_task.content.fetch(_door(then)) == b"listed\n"
+
+
 async def test_each_segment_of_the_path_is_decoded_on_its_own(
     client: httpx.AsyncClient, sum_task: FakeForge
 ) -> None:

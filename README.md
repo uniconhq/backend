@@ -403,8 +403,10 @@ path is
 `upload_not_ready`. A file that is an upload is listed by the tree and read
 with `upload`, the `size` and `digest` of what it holds, its `content` then
 being the pointer, never opened as text; a typed file's `upload` is null.
-Every file read names a `version` holding the file as read: the `at` it was
-read at, or the change that last wrote it. A task's file, typed or uploaded,
+Every file read names a `version` holding the file as read: the change
+that last wrote it, or the `at` it was read at when that is a commit's id;
+null otherwise. The tree names each file's `version` the same way, as
+listed, so a file listed and not read downloads as it was listed. A task's file, typed or uploaded,
 is downloaded at that version through the proxy's download door,
 `/-/downloads/<org>/<contest>/<task>/versions/<version>/<path>`, each
 segment of the path quoted on its own, by whoever holds a role reaching the
@@ -476,8 +478,11 @@ null, its `release`, when it falls `due`, null when it has none, and
 `closes` for the caller, their entrant's extension on it included, and,
 for a member of an approved entrant, its `points`: their entrant's points
 on the task as a board over that task alone counts them now (every group,
-the best submission by points), `shown` over the groups whose results are
-shown, `pending`, the most the groups not shown yet could still add, and
+the submissions counted as the contest's leaderboard for the task counts
+them: the first entrants see that covers it and ranks by points first),
+`shown` over the groups whose results are shown, null while no group of
+the task is shown yet, `pending`, the most the groups not shown yet could
+still add, and
 `pending_until`, the task's reveal, null when nothing is pending; each an
 exact decimal string, and the whole null for anyone else and on a task
 that gives no points. A group whose results are not shown yet never counts
@@ -485,7 +490,8 @@ in `shown`, as on every board. A task's page
 carries the same, its `statement` in Markdown, its `submissions`: at most
 `max` in all and `rate.count` in any `rate.per` seconds, and its `inputs`,
 the form the submit panel is built from: each input's `id`, `type`
-(`text`, `number`, `boolean`, `enum`, `file` or `folder`), `label`, the
+(`text`, `number`, `boolean`, `enum`, `file` or `folder`), `label` (the
+task's, else the workflow's title for the input, else its key), the
 `options` of an enum, whether it takes one file `per_test`, the `default` a
 value takes when it is left out, `min` and `max` of a number, and
 `max_size`, the most its files may total in bytes.
@@ -596,7 +602,8 @@ task's test groups let the contestant see now: what `stopped` the run, the
 the `groups` with its `group` name, its `show`, its `outcome` and its
 `tests`, each test's row being its `test`, `<group>/<test>`, its `outcome`
 and its `values`. On a task that gives points, the grading carries its
-`points`, those `shown`, those `pending` on groups not shown yet and
+`points`, those `shown`, null while no group's verdict is shown yet,
+those `pending` on groups not shown yet and
 `pending_until`, and the late `factor` they include; each group its `max`,
 and its `points` once its verdict is shown; each test row its `credit`,
 and `best` on a relative credit. Every number is served exactly, as a

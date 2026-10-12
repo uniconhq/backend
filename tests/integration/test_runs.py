@@ -368,7 +368,7 @@ async def test_a_group_that_shows_less_answers_with_less_until_the_reveal(
     assert grading["points"] == (
         {"shown": "100", "pending": "0", "pending_until": None}
         if outcome
-        else {"shown": "0", "pending": "100", "pending_until": "2026-09-26T15:00:00Z"}
+        else {"shown": None, "pending": "100", "pending_until": "2026-09-26T15:00:00Z"}
     )
     assert listed.json() == [detail.json()]
 

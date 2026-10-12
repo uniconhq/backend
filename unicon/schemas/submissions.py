@@ -103,11 +103,13 @@ class GroupShown(BaseModel):
 
 class Points(BaseModel):
     """Points as a contestant sees them, a submission's or their entrant's on
-    a task: those shown, those still pending on groups whose verdict is not
-    shown yet, and when they are shown, null when none are pending.
+    a task: those shown, null while no group's verdict is shown yet, so a
+    shown 0 reads apart from nothing shown; those still pending on groups
+    whose verdict is not shown yet; and when they are shown, null when none
+    are pending.
     """
 
-    shown: Exact
+    shown: Exact | None
     pending: Exact
     pending_until: datetime | None
 

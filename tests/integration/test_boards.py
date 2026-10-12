@@ -357,8 +357,9 @@ async def test_a_hidden_groups_points_stay_out_of_the_contest_home_until_shown(
     await sign_in_as(client, entered, 20)
     [after] = (await client.get(f"{CONTEST}/home")).json()["tasks"]
 
+    # Nothing of the task is shown yet, which reads apart from a shown 0.
     assert before["points"] == {
-        "shown": "0",
+        "shown": None,
         "pending": "100",
         "pending_until": "2026-09-26T15:00:00Z",
     }

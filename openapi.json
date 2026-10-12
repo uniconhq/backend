@@ -1496,7 +1496,7 @@
         "type": "object"
       },
       "FileContent": {
-        "description": "One file at one version, with the token a write presents back, and\n`upload` when it is a file an organiser uploaded: its `content` is then\nthe pointer to the bytes, never opened as text, and `upload` the size\nand SHA-256 of what it holds. A typed file has none. `version` is a\nversion holding the file as read, the one it was read at or the latest\nchange to it, which a task's file is downloaded at\n(`/-/downloads/<org>/<contest>/<task>/versions/<version>/<path>`); null\nwhen the forge did not say.",
+        "description": "One file at one version, with the token a write presents back, and\n`upload` when it is a file an organiser uploaded: its `content` is then\nthe pointer to the bytes, never opened as text, and `upload` the size\nand SHA-256 of what it holds. A typed file has none. `version` is the\ncommit holding the file as read, the latest change to it or the one it\nwas read at, which a task's file is downloaded at\n(`/-/downloads/<org>/<contest>/<task>/versions/<version>/<path>`); null\nwhen the forge names no commit and it was not read at one. A tree's\nentries name their `version` the same way.",
         "properties": {
           "content": {
             "title": "Content",
@@ -2040,7 +2040,7 @@
         "type": "object"
       },
       "InputField": {
-        "description": "One input the contestant gives, with what its form shows: its\n`type`, its `label`, the `options` of an enum, whether it takes one file\nper test, `per_test`, named for the test as `<group>/<test>`, the\n`default` a value takes when it is left out, `min` and `max` of a\nnumber, exactly, and `max_size`, the most its files may total in bytes. A\nnumber input's default is served as its exact digits, as its bounds are.\nThe submit panel shows one field or drop zone per input.",
+        "description": "One input the contestant gives, with what its form shows: its\n`type`, its `label`, the task's, else the workflow's title for the\ninput, else its key, the `options` of an enum, whether it takes one file\nper test, `per_test`, named for the test as `<group>/<test>`, the\n`default` a value takes when it is left out, `min` and `max` of a\nnumber, exactly, and `max_size`, the most its files may total in bytes. A\nnumber input's default is served as its exact digits, as its bounds are.\nThe submit panel shows one field or drop zone per input.",
         "properties": {
           "default": {
             "anyOf": [
@@ -3320,7 +3320,7 @@
         "type": "object"
       },
       "Points": {
-        "description": "Points as a contestant sees them, a submission's or their entrant's on\na task: those shown, those still pending on groups whose verdict is not\nshown yet, and when they are shown, null when none are pending.",
+        "description": "Points as a contestant sees them, a submission's or their entrant's on\na task: those shown, null while no group's verdict is shown yet, so a\nshown 0 reads apart from nothing shown; those still pending on groups\nwhose verdict is not shown yet; and when they are shown, null when none\nare pending.",
         "properties": {
           "pending": {
             "examples": [
@@ -3343,12 +3343,19 @@
             "title": "Pending Until"
           },
           "shown": {
-            "examples": [
-              "82.5"
+            "anyOf": [
+              {
+                "examples": [
+                  "82.5"
+                ],
+                "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
             ],
-            "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
-            "title": "Shown",
-            "type": "string"
+            "title": "Shown"
           }
         },
         "required": [
@@ -4715,7 +4722,7 @@
         "type": "object"
       },
       "TaskEntry": {
-        "description": "A task released to the caller: its name, the label its place in the\ncontest gives it, its title, the most points it gives, null on a task\nthat gives none, whether they may submit to it now, and when it falls\ndue, null when it has no due, and closes for them, their extension on it\nincluded.\n\n`points` is their entrant's points on it, for a member of an approved\nentrant, as a board over that task alone counts them now, every group,\nthe best submission by points: `shown`, over the groups whose results\nare shown, and `pending`, the most the groups not shown yet could still\nadd, until `pending_until`, the task's reveal, null when nothing is\npending. A group whose results are not shown yet never counts in\n`shown`, as on every board. Null for anyone else, and on a task that\ngives no points.",
+        "description": "A task released to the caller: its name, the label its place in the\ncontest gives it, its title, the most points it gives, null on a task\nthat gives none, whether they may submit to it now, and when it falls\ndue, null when it has no due, and closes for them, their extension on it\nincluded.\n\n`points` is their entrant's points on it, for a member of an approved\nentrant, as a board over that task alone counts them now, every group,\nthe submissions counted as the contest's leaderboard for the task\ncounts them (the first entrants see that covers it and ranks by points\nfirst): `shown`, over the groups whose results are shown, null while\nno group of the task is shown yet, and `pending`, the most the groups\nnot shown yet could still add, until `pending_until`, the task's\nreveal, null when nothing is pending. A group whose results are not\nshown yet never counts in `shown`, as on every board. Null for anyone\nelse, and on a task that gives no points.",
         "properties": {
           "closes": {
             "anyOf": [
@@ -5095,7 +5102,7 @@
         "type": "object"
       },
       "TreeEntry": {
-        "description": "One entry of a folder: a file, with the size of what its commit\nholds, or a folder. `upload` tells an uploaded file from a typed one.",
+        "description": "One entry of a folder: a file, with the size of what its commit\nholds and that commit, the one that last changed it, which holds it as\nlisted whatever the head has moved to since (none when the forge does\nnot say), or a folder. `upload` tells an uploaded file from a typed one.",
         "properties": {
           "kind": {
             "$ref": "#/components/schemas/EntryKind"
@@ -5124,13 +5131,25 @@
                 "type": "null"
               }
             ]
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
           }
         },
         "required": [
           "path",
           "kind",
           "size",
-          "upload"
+          "upload",
+          "version"
         ],
         "title": "TreeEntry",
         "type": "object"
