@@ -9,7 +9,7 @@ the feed is narrowed by keeps the forge's rule for one.
 import uuid
 from datetime import datetime
 
-from forge.api.gradings import Fallback, GradingStatus, Submitter
+from forge.api.gradings import GradingStatus, Submitter
 from pydantic import BaseModel
 
 from unicon.schemas.exact import Reported
@@ -58,14 +58,15 @@ class Grading(BaseModel):
     cancel or retry, the member who submitted it, `submitted_by`, null when
     a reconcile found it at the forge, where it stands, the reason it failed, the sentence
     staff cancelled it with, its result, whether its log was written, the
-    last progress its run reported, and its times.
+    last progress its run reported, its times, and whether the platform made
+    it by itself, `automatic`, retrying the attempt before it once that
+    failed.
 
-    On a latest attempt that is a system error or staff cancelled,
-    `last_good` is the latest earlier attempt that finished with a result,
-    and `fallback` why its submission counts as that attempt now: `staff`,
-    who asked so on this one, or `contest`, whose `on_system_error` is
-    `last_result`; null while it counts as still grading, or void once
-    cancelled. `falls_back` is staff having asked so on this one.
+    On a latest attempt that has not finished with a result, still being
+    graded, a system error or staff cancelled, `last_good` is the latest
+    earlier attempt that did, the one its submission counts meanwhile on
+    the boards and to its contestant; null on any other, and when no
+    attempt has a result.
     """
 
     id: uuid.UUID
@@ -86,9 +87,8 @@ class Grading(BaseModel):
     started_at: datetime | None
     finished_at: datetime | None
     deadline_at: datetime | None
-    falls_back: bool
+    automatic: bool
     last_good: int | None
-    fallback: Fallback | None
 
 
 class FeedEntry(BaseModel):

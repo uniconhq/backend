@@ -102,12 +102,14 @@ class GroupShown(BaseModel):
 
 
 class Points(BaseModel):
-    """A submission's points as its contestant sees them: those shown, those
-    still pending on groups whose verdict is not shown yet, and when they
-    are shown, null when none are pending.
+    """Points as a contestant sees them, a submission's or their entrant's on
+    a task: those shown, null while no group's verdict is shown yet, so a
+    shown 0 reads apart from nothing shown; those still pending on groups
+    whose verdict is not shown yet; and when they are shown, null when none
+    are pending.
     """
 
-    shown: Exact
+    shown: Exact | None
     pending: Exact
     pending_until: datetime | None
 
@@ -130,18 +132,23 @@ class Scored(BaseModel):
 
 
 class Result(Scored):
-    """The latest attempt of a submission's grading, as its contestant sees
-    it: its id, attempt and status, and once it is done, what stopped the
+    """The attempt of a submission's grading that counts, as its contestant
+    sees it: the latest that finished with a result, as the boards count
+    it, so a regrade under way, a failure or a cancel leaves the result as
+    it was, and while none has, the latest. Its id, attempt and status, and
+    once it is done, what stopped the
     run, the outcome over the groups shown, each test group as its `show`
     allows, the values reported once, and `folded`, each per-test value
     with a fold, folded over the tests shown, a test without it counting as
     its worst bound. `status` is in the contestant's words: `queued` until
     its run is started, `grading` while it is graded, `graded` once it has
-    a result, `cancelled` once staff end it; organisers read the grading's
-    own status in the gradings routes. A run that failed on the platform's
-    side is `grading` to its contestant, with nothing else, until staff end
-    it: then it is `cancelled`, with `reason`, the sentence they gave, which
-    is null on every other status. Once done on a task that gives points, it carries
+    a result, `delayed` while it has none and its grading failed on the
+    platform's side, and `cancelled` once staff end it; organisers read the
+    grading's own status in the gradings routes. A `delayed` one carries
+    nothing else: it is tried again once by itself, and then waits for
+    staff, who grade it again or end it: then it is `cancelled`, with
+    `reason`, the sentence they gave, which is null on every other status.
+    Once done on a task that gives points, it carries
     its `points` and the late `factor` they include; both are null
     otherwise. While a sealed step's stop is held to the reveal, nothing of
     the run is shown: every group reads as hidden.

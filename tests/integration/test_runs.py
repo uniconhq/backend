@@ -368,12 +368,12 @@ async def test_a_group_that_shows_less_answers_with_less_until_the_reveal(
     assert grading["points"] == (
         {"shown": "100", "pending": "0", "pending_until": None}
         if outcome
-        else {"shown": "0", "pending": "100", "pending_until": "2026-09-26T15:00:00Z"}
+        else {"shown": None, "pending": "100", "pending_until": "2026-09-26T15:00:00Z"}
     )
     assert listed.json() == [detail.json()]
 
 
-async def test_a_run_that_failed_on_the_platforms_side_is_still_being_graded_to_its_contestant(
+async def test_a_run_that_failed_on_the_platforms_side_is_delayed_to_its_contestant(
     client: httpx.AsyncClient, entered: FakeForge, held_setup: Setup
 ) -> None:
     started = await _started(client, entered, held_setup)
@@ -395,7 +395,7 @@ async def test_a_run_that_failed_on_the_platforms_side_is_still_being_graded_to_
     row = entry["grading"]
 
     assert finished.json() == {"status": "system_error"}
-    assert detail.json()["grading"]["status"] == "grading"
+    assert detail.json()["grading"]["status"] == "delayed"
     assert (detail.json()["grading"]["stopped"], detail.json()["grading"]["groups"]) == (None, [])
     assert (row["status"], row["error"]) == ("system_error", failed["error"])
     assert row["result"]["stopped"] == "system_error"

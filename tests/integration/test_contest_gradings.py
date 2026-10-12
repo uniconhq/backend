@@ -1,12 +1,14 @@
 """A contest's gradings over HTTP, for an observer of the contest: the feed,
 newest first, each row the grading, whether it is its submission's latest
 attempt, its task by name and letter, its entrant and the member who
-submitted it, narrowed by task, by username, by entrant and by status, a
-stuck grading read as `system_error` and one staff cancelled with their
-sentence; a username or an entrant that cannot be one a validation error;
-and the queue depth, counted by status. Someone holding a role at some of
-its tasks alone reads both over those tasks, a contestant is refused both,
-and both need a session.
+submitted it, narrowed by task, by username, by entrant, by status and to
+each submission's latest attempt, a stuck grading read as `system_error`
+and one staff cancelled with their sentence; a username or an entrant that
+cannot be one a validation error; and the queue depth, counted by status,
+with the failed gradings that wait, the ones the feed gives filtered to the
+latest attempts in system error. Someone holding a role at some of its
+tasks alone reads both over those tasks, a contestant is refused both, and
+both need a session.
 """
 
 from datetime import timedelta
@@ -171,9 +173,34 @@ async def test_the_queue_depth_counts_the_gradings_waiting_by_status(
     stuck = await client.get(QUEUE)
 
     assert empty.status_code == 200, empty.text
-    assert empty.json() == {"queued": 0, "dispatched": 0}
-    assert waiting.json() == {"queued": 0, "dispatched": 2}
-    assert stuck.json() == {"queued": 0, "dispatched": 0}
+    assert empty.json() == {"queued": 0, "dispatched": 0, "failed": 0}
+    assert waiting.json() == {"queued": 0, "dispatched": 2, "failed": 0}
+    assert stuck.json() == {"queued": 0, "dispatched": 0, "failed": 2}
+
+
+async def test_the_failed_count_links_to_the_feed_filtered_to_the_failed_gradings(
+    client: httpx.AsyncClient, entered: FakeForge, held_setup: Setup, clock: FakeClock
+) -> None:
+    carols, bobs = await _two(client, entered, held_setup)
+    clock.advance(STUCK)
+    retried = await client.post(f"{TASK}/gradings/{carols}/retry", headers=ORIGIN)
+    assert retried.status_code == 200, retried.text
+
+    depth = await client.get(QUEUE)
+    failed = await client.get(FEED, params={"status": "system_error", "latest": "true"})
+    every = await client.get(FEED, params={"status": "system_error"})
+    latest = await client.get(FEED, params={"latest": "true"})
+    wrong = await client.get(FEED, params={"latest": "sometimes"})
+
+    assert depth.json() == {"queued": 0, "dispatched": 1, "failed": 1}
+    assert [row["grading"]["id"] for row in failed.json()] == [bobs]
+    assert [row["grading"]["id"] for row in every.json()] == [bobs, carols]
+    assert [row["grading"]["id"] for row in latest.json()] == [
+        retried.json()["id"],
+        bobs,
+    ]
+    assert all(row["grading"]["latest"] for row in latest.json())
+    assert (wrong.status_code, wrong.json()["code"]) == (422, "validation_error")
 
 
 async def test_a_role_at_some_tasks_reads_their_gradings_alone(
@@ -196,9 +223,9 @@ async def test_a_role_at_some_tasks_reads_their_gradings_alone(
 
     assert [answer.status_code for answer in (*of_sum, *of_product)] == [200] * 5
     assert [row["grading"]["id"] for row in of_sum[0].json()] == [carols]
-    assert of_sum[1].json() == {"queued": 0, "dispatched": 1}
+    assert of_sum[1].json() == {"queued": 0, "dispatched": 1, "failed": 0}
     assert (of_product[0].json(), of_product[2].json()) == ([], [])
-    assert of_product[1].json() == {"queued": 0, "dispatched": 0}
+    assert of_product[1].json() == {"queued": 0, "dispatched": 0, "failed": 0}
 
 
 async def test_no_role_in_the_contest_is_refused_the_feed_and_the_queue(
