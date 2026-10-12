@@ -264,7 +264,8 @@ async def test_the_organisers_read_the_result_whole_with_its_log(
 
     grading = entry["grading"]
     assert (grading["status"], grading["log"], grading["latest"]) == ("done", True, True)
-    assert entry["by"] == {"user_id": 20, "team": None, "name": "carol"}
+    by = entry["by"]
+    assert (by["entrant_name"], by["user_id"], by["username"]) == ("carol", 20, "carol")
     assert form["graded"] is True
     assert grading["result"] == {
         "stopped": None,

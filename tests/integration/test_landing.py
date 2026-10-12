@@ -76,9 +76,9 @@ async def test_every_other_route_refuses_a_request_with_no_session(
         await client.get("/api/v1/contests"),
         await client.get(f"{CONTEST}/home"),
         await client.get(f"{TASK}/page"),
-        await client.get(f"{CONTEST}/registration"),
-        await client.post(f"{CONTEST}/registration", json={}, headers=ORIGIN),
-        await client.get(f"{CONTEST}/contestants"),
+        await client.get(f"{CONTEST}/entrants/mine"),
+        await client.post(f"{CONTEST}/entrants", json={}, headers=ORIGIN),
+        await client.get(f"{CONTEST}/organise/entrants"),
         await client.get(f"{ORG}/contests"),
     ]
 

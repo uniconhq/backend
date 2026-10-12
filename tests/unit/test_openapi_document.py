@@ -53,3 +53,32 @@ async def test_the_document_is_served_and_the_api_browsers_are_not() -> None:
         assert (await client.get("/openapi.json")).status_code == 200
         assert (await client.get("/docs")).status_code == 404
         assert (await client.get("/redoc")).status_code == 404
+
+
+def test_a_field_the_frontend_switches_on_lists_its_values(document: dict[str, Any]) -> None:
+    schemas = document["components"]["schemas"]
+
+    assert schemas["Entered"]["properties"]["how"]["enum"] == ["made", "joined", "already"]
+    assert set(schemas["Refusal"]["properties"]["code"]["enum"]) == {
+        "registration_closed",
+        "is_staff",
+        "already_registered",
+        "invite_required",
+        "wrong_invite_code",
+        "domain_not_allowed",
+        "contest_full",
+        "forge_unavailable",
+    }
+    assert schemas["InviteRequest"]["properties"]["grants"]["enum"] == [
+        "admin",
+        "manager",
+        "observer",
+        "contestant",
+    ]
+
+
+def test_a_tasks_timeline_says_one_default_worth(document: dict[str, Any]) -> None:
+    said = " ".join(document["components"]["schemas"]["Timeline"]["description"].split())
+
+    assert "`worth`, the most points it gives, its groups' total unless the entry says" in said
+    assert "100" not in said

@@ -1,6 +1,49 @@
 {
   "components": {
     "schemas": {
+      "AcceptRequest": {
+        "description": "The code a sign-up asks for, when joining an entrant by a member's\ninvite needs one.",
+        "properties": {
+          "code": {
+            "anyOf": [
+              {
+                "maxLength": 400,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
+          }
+        },
+        "title": "AcceptRequest",
+        "type": "object"
+      },
+      "AcceptedInvite": {
+        "description": "What accepting an invite did: the invite as it stands now, and, for a\nplace in a contest, the entrant the caller is in now, null for a role.",
+        "properties": {
+          "entered": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Entered"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "invite": {
+            "$ref": "#/components/schemas/Invite"
+          }
+        },
+        "required": [
+          "invite",
+          "entered"
+        ],
+        "title": "AcceptedInvite",
+        "type": "object"
+      },
       "Account": {
         "description": "Someone with their email, as they see themself and as the organisers\nof a contest they registered for see them.",
         "properties": {
@@ -131,7 +174,7 @@
         "type": "object"
       },
       "AnsweredQuestion": {
-        "description": "The clarification an announcement answers: whose desk it is in, the\nasker's user id or `team.<id>` for a team's, and the question's number\nthere.",
+        "description": "The clarification an announcement answers: whose desk it is in, the\nasking entrant's `entrant.<id>`, and the question's number there.",
         "properties": {
           "asker": {
             "title": "Asker",
@@ -374,39 +417,20 @@
         "type": "object"
       },
       "BoardRowOwner": {
-        "description": "Whose a row is: a contestant by `user_id`, or a team by its id as\n`team`, and its name, a team's own or a contestant's username, empty\nwhen the forge gives none.",
+        "description": "Whose a row is: an entrant by its id, and the name it is shown under,\nits own or its member's username, empty when the forge gives none.",
         "properties": {
+          "entrant": {
+            "format": "uuid",
+            "title": "Entrant",
+            "type": "string"
+          },
           "name": {
             "title": "Name",
             "type": "string"
-          },
-          "team": {
-            "anyOf": [
-              {
-                "format": "uuid",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Team"
-          },
-          "user_id": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "User Id"
           }
         },
         "required": [
-          "user_id",
-          "team",
+          "entrant",
           "name"
         ],
         "title": "BoardRowOwner",
@@ -475,7 +499,7 @@
         "type": "object"
       },
       "Change": {
-        "description": "One entry of a place's history: the version it made, who made it, what\nthey said about it and when. `author` is the username of `author_id`,\nwhich the history names whether or not they still hold a role there, and\nnone when the forge knows no such account or the change has no author.",
+        "description": "One entry of a place's history: the version it made, who made it, what\nthey said about it and when. `author` is the username of `author_id`,\nwhich the history names whether or not they still hold a role there, and\nnone when the forge knows no such account, the change has no author, or\nthe platform made it, which is no person (a new task's first files).",
         "properties": {
           "at": {
             "format": "date-time",
@@ -555,7 +579,7 @@
         "type": "object"
       },
       "Clarification": {
-        "description": "One question: its contest by name, whose desk it is in, the asker's\nuser id or `team.<id>` for a team's, its number there, the task it\nnames, what it asks, when, whether it is answered and whether it is\nopen, and every message under it, oldest first.",
+        "description": "One question: its contest by name, whose desk it is in, the asking\nentrant's `entrant.<id>`, its number there, the task it names, what it\nasks, when, whether it is answered and whether it is open, and every\nmessage under it, oldest first.",
         "properties": {
           "answered": {
             "title": "Answered",
@@ -678,12 +702,8 @@
         "type": "object"
       },
       "ContestHome": {
-        "description": "A contest's home for the caller. `organises` says the caller holds a\nrole at the contest, which keeps them from registering;\n`registration_open` says whether the registration window is open now,\n`invite_only` whether only invited people may register and `asks_code`\nwhether registering takes the contest's code.",
+        "description": "A contest's home for the caller. `organises` says the caller holds a\nrole at the contest, which keeps them from registering; `registration`\nis their registration panel, as `entrants/mine` answers it: their\nentrant, whether and how they may register, and whether to ask them for\na code.",
         "properties": {
-          "asks_code": {
-            "title": "Asks Code",
-            "type": "boolean"
-          },
           "description": {
             "title": "Description",
             "type": "string"
@@ -692,10 +712,6 @@
             "format": "date-time",
             "title": "End",
             "type": "string"
-          },
-          "invite_only": {
-            "title": "Invite Only",
-            "type": "boolean"
           },
           "name": {
             "title": "Name",
@@ -711,18 +727,7 @@
             "type": "boolean"
           },
           "registration": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/MyRegistration"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "registration_open": {
-            "title": "Registration Open",
-            "type": "boolean"
+            "$ref": "#/components/schemas/MyEntry"
           },
           "start": {
             "format": "date-time",
@@ -752,9 +757,6 @@
           "state",
           "registration",
           "organises",
-          "registration_open",
-          "invite_only",
-          "asks_code",
           "now",
           "tasks"
         ],
@@ -781,7 +783,7 @@
         "type": "object"
       },
       "ContestSummary": {
-        "description": "A contest the caller sees, with its title, when it runs, who sees it,\nand the caller's own registration status.",
+        "description": "A contest the caller sees, with its title, when it runs, who sees it,\nand the status of the caller's entrant, null when they are in none.",
         "properties": {
           "end": {
             "format": "date-time",
@@ -834,86 +836,6 @@
         ],
         "title": "ContestVisibility",
         "type": "string"
-      },
-      "Contestant": {
-        "description": "One registration as the contest's organisers read it: the same\nfields, and who the person is, null once their account is gone.",
-        "properties": {
-          "decided_at": {
-            "anyOf": [
-              {
-                "format": "date-time",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Decided At"
-          },
-          "extension_tasks": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "string"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Extension Tasks"
-          },
-          "reason": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Reason"
-          },
-          "registered_at": {
-            "format": "date-time",
-            "title": "Registered At",
-            "type": "string"
-          },
-          "status": {
-            "$ref": "#/components/schemas/Status"
-          },
-          "time_extension": {
-            "title": "Time Extension",
-            "type": "integer"
-          },
-          "user": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/Account"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "user_id": {
-            "title": "User Id",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "status",
-          "registered_at",
-          "decided_at",
-          "reason",
-          "time_extension",
-          "extension_tasks",
-          "user_id",
-          "user"
-        ],
-        "title": "Contestant",
-        "type": "object"
       },
       "CopyWorkflow": {
         "description": "A copy to make of `source`, `<owner>/<name>@<version>`, as `name`\nunder `owner`, which follows the rule for making one.",
@@ -1087,11 +1009,22 @@
         "type": "object"
       },
       "DeclaredInput": {
-        "description": "One input a workflow declares, as the task form shows it: its id, its\ntype, whether the contestant gives it, its options on an enum, whether\nit is given once per test, and whether a task may leave it out. A\nworkflow gives no defaults: a contestant input's `default` is the\ntask's, in `task.yaml`.",
+        "description": "One input a workflow declares, as the task form shows it: its id, its\ntype, whether the contestant gives it, its options on an enum, whether\nit is given once per test, whether a task may leave it out, and the\ntitle, line of help and unit the workflow gives the organiser for it,\neach none when it gives none. A workflow gives no defaults: a\ncontestant input's `default` is the task's, in `task.yaml`.",
         "properties": {
           "contestant": {
             "title": "Contestant",
             "type": "boolean"
+          },
+          "help": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Help"
           },
           "id": {
             "title": "Id",
@@ -1119,9 +1052,31 @@
             "title": "Per Test",
             "type": "boolean"
           },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
           "type": {
             "title": "Type",
             "type": "string"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
           }
         },
         "required": [
@@ -1130,7 +1085,10 @@
           "contestant",
           "options",
           "per_test",
-          "optional"
+          "optional",
+          "title",
+          "help",
+          "unit"
         ],
         "title": "DeclaredInput",
         "type": "object"
@@ -1229,6 +1187,171 @@
         "title": "Draft",
         "type": "object"
       },
+      "Entered": {
+        "description": "What accepting a place in a contest did: the entrant the caller is in\nnow, its status, and whether accepting `made` it, `joined` it, or found\nthem in it `already`.",
+        "properties": {
+          "entrant": {
+            "$ref": "#/components/schemas/EntrantRef"
+          },
+          "how": {
+            "enum": [
+              "made",
+              "joined",
+              "already"
+            ],
+            "title": "How",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/Status"
+          }
+        },
+        "required": [
+          "entrant",
+          "status",
+          "how"
+        ],
+        "title": "Entered",
+        "type": "object"
+      },
+      "Entrant": {
+        "description": "An entrant as its members read it, with its members.",
+        "properties": {
+          "complete": {
+            "title": "Complete",
+            "type": "boolean"
+          },
+          "decided_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided At"
+          },
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "extension_tasks": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Extension Tasks"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "invites": {
+            "items": {
+              "$ref": "#/components/schemas/InvitedIn"
+            },
+            "title": "Invites",
+            "type": "array"
+          },
+          "locked": {
+            "title": "Locked",
+            "type": "boolean"
+          },
+          "members": {
+            "items": {
+              "$ref": "#/components/schemas/Member"
+            },
+            "title": "Members",
+            "type": "array"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "registered_at": {
+            "format": "date-time",
+            "title": "Registered At",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/Status"
+          },
+          "submitted": {
+            "title": "Submitted",
+            "type": "boolean"
+          },
+          "time_extension": {
+            "title": "Time Extension",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "display_name",
+          "status",
+          "registered_at",
+          "decided_at",
+          "reason",
+          "invites",
+          "time_extension",
+          "extension_tasks",
+          "submitted",
+          "complete",
+          "locked",
+          "members"
+        ],
+        "title": "Entrant",
+        "type": "object"
+      },
+      "EntrantRef": {
+        "description": "An entrant by its id and the name it is shown under.",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "EntrantRef",
+        "type": "object"
+      },
       "EntryKind": {
         "enum": [
           "file",
@@ -1278,7 +1401,7 @@
         "type": "string"
       },
       "FeedEntry": {
-        "description": "One grading among a task's or a contest's: the grading as an\norganiser reads it, its task by name, null for a task the platform has\nno name for, its `label`, the letter of its place in the contest's\n`tasks`, null once the contest no longer lists it or its settings do\nnot read, and `by`, who made the submission: a contestant by `user_id`\nand username as `name`, or a team by its id as `team` and its `name`,\nthe name null once the account or the team is gone.",
+        "description": "One grading among a task's or a contest's: the grading as an\norganiser reads it, its task by name, null for a task the platform has\nno name for, its `label`, the letter of its place in the contest's\n`tasks`, null once the contest no longer lists it or its settings do\nnot read, and `by`, whose submission it is: the `entrant` by its id and\n`entrant_name`, the name it is shown under, and the member who\nsubmitted it by `user_id` and `username`, both null when a reconcile\nfound it at the forge, the username null when the forge did not say.",
         "properties": {
           "by": {
             "$ref": "#/components/schemas/Submitter"
@@ -1319,7 +1442,7 @@
         "type": "object"
       },
       "FileChange": {
-        "description": "One file of a save, typed or uploaded for this path, with the token it\nwas read with, or null for a file the save creates.",
+        "description": "One file of a save, with the token it was read with: typed as\n`content`, uploaded for this path as `upload`, or removed with `remove:\ntrue`, exactly one of the three. The token is null for a file the save\ncreates, and a removal always carries one. Removing a folder, such as a\ntest, is removing each file under it, named one by one.",
         "properties": {
           "content": {
             "anyOf": [
@@ -1344,6 +1467,11 @@
           "path": {
             "title": "Path",
             "type": "string"
+          },
+          "remove": {
+            "default": false,
+            "title": "Remove",
+            "type": "boolean"
           },
           "token": {
             "anyOf": [
@@ -1501,7 +1629,7 @@
         "type": "object"
       },
       "Grading": {
-        "description": "One grading as an organiser managing its task reads it: the\nsubmission by its number, the publication it grades against, its\nattempt and whether that is the submission's `latest`, the one staff\ncancel or retry, where it stands, the reason it failed, the sentence\nstaff cancelled it with, its result, whether its log was written, the\nlast progress its run reported, and its times.\n\nOn a latest attempt that is a system error or staff cancelled,\n`last_good` is the latest earlier attempt that finished with a result,\nand `fallback` why its submission counts as that attempt now: `staff`,\nwho asked so on this one, or `contest`, whose `on_system_error` is\n`last_result`; null while it counts as still grading, or void once\ncancelled. `falls_back` is staff having asked so on this one.",
+        "description": "One grading as an organiser managing its task reads it: the\nsubmission by its number, the publication it grades against, its\nattempt and whether that is the submission's `latest`, the one staff\ncancel or retry, the member who submitted it, `submitted_by`, null when\na reconcile found it at the forge, where it stands, the reason it failed, the sentence\nstaff cancelled it with, its result, whether its log was written, the\nlast progress its run reported, and its times.\n\nOn a latest attempt that is a system error or staff cancelled,\n`last_good` is the latest earlier attempt that finished with a result,\nand `fallback` why its submission counts as that attempt now: `staff`,\nwho asked so on this one, or `contest`, whose `on_system_error` is\n`last_result`; null while it counts as still grading, or void once\ncancelled. `falls_back` is staff having asked so on this one.",
         "properties": {
           "attempt": {
             "title": "Attempt",
@@ -1655,6 +1783,17 @@
             "format": "date-time",
             "title": "Submitted At",
             "type": "string"
+          },
+          "submitted_by": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Submitted By"
           }
         },
         "required": [
@@ -1664,6 +1803,7 @@
           "publication",
           "attempt",
           "latest",
+          "submitted_by",
           "status",
           "error",
           "cancel_reason",
@@ -1720,9 +1860,10 @@
         "type": "string"
       },
       "Grant": {
-        "description": "What an invite gives once accepted: a contestant's place in a contest,\nwhich is eligibility to register for it, or one of the organiser roles\nat the invite's scope.",
+        "description": "What an invite gives once accepted: an organiser's place in a contest,\nwhich registers the person or puts them in the entrant it names, and\nlets them in by the contest's invite way; a member's place in their\nentrant, asked by one of its members; or one of the organiser roles at\nthe invite's scope.",
         "enum": [
           "contestant",
+          "member",
           "admin",
           "manager",
           "observer"
@@ -2010,9 +2151,50 @@
         "title": "InputField",
         "type": "object"
       },
-      "Invite": {
-        "description": "An invite: where it is to, by its names, what it grants, the username\nor the address it names, who sent it, where it stands, whether it has\nlapsed, its dates, and what became of its mail: `waiting`, `sent`,\n`failed`, or `off` where the deployment sends no mail.",
+      "Invitation": {
+        "description": "One of the caller's own invites into an entrant of the contest, still\nwaiting: the invite, the entrant, whether an organiser sent it, and when\nit lapses.",
         "properties": {
+          "by_organiser": {
+            "title": "By Organiser",
+            "type": "boolean"
+          },
+          "entrant": {
+            "$ref": "#/components/schemas/EntrantRef"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "invite": {
+            "format": "uuid",
+            "title": "Invite",
+            "type": "string"
+          }
+        },
+        "required": [
+          "invite",
+          "entrant",
+          "by_organiser",
+          "expires_at"
+        ],
+        "title": "Invitation",
+        "type": "object"
+      },
+      "Invite": {
+        "description": "An invite: where it is to, by its names, and the title of the contest\nit is at or under, null at an org; what it grants, a place in a\ncontest (`contestant`), a member's place in an entrant (`member`) or an\norganiser role, the entrant it asks someone into, if any, the username\nor the address it names, who sent it, where it stands, whether it has\nlapsed, its dates, and what became of its mail: `waiting`, `sent`,\n`failed`, or `off` where the deployment sends no mail.",
+        "properties": {
+          "contest_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contest Title"
+          },
           "created_at": {
             "format": "date-time",
             "title": "Created At",
@@ -2040,6 +2222,16 @@
               }
             ],
             "title": "Email"
+          },
+          "entrant": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EntrantRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "expired": {
             "title": "Expired",
@@ -2104,7 +2296,9 @@
         "required": [
           "id",
           "where",
+          "contest_title",
           "grants",
+          "entrant",
           "username",
           "email",
           "invited_by",
@@ -2120,7 +2314,7 @@
         "type": "object"
       },
       "InviteRequest": {
-        "description": "Who to invite, by exactly one of `username` and `email`, to what, and\nfor how many days the invite stands, 14 unless given.",
+        "description": "Who to invite, by exactly one of `username` and `email`, to what, for\nhow many days the invite stands, 14 unless given, and, for a place in a\ncontest, the `entrant` it puts them straight into, by its id, or none to\nregister them on their own. A member's place in an entrant is offered by\nthe entrant's members, never here.",
         "properties": {
           "days": {
             "anyOf": [
@@ -2146,8 +2340,27 @@
             ],
             "title": "Email"
           },
+          "entrant": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Entrant"
+          },
           "grants": {
-            "$ref": "#/components/schemas/Grant"
+            "enum": [
+              "admin",
+              "manager",
+              "observer",
+              "contestant"
+            ],
+            "title": "Grants",
+            "type": "string"
           },
           "username": {
             "anyOf": [
@@ -2177,18 +2390,59 @@
         "title": "InviteStatus",
         "type": "string"
       },
-      "InviteToTeamRequest": {
-        "description": "The username of the approved contestant the leader asks in.",
+      "InvitedIn": {
+        "description": "An invite into an entrant still waiting: its id, the username or the\naddress it names, who sent it, whether an organiser sent it, and when it\nlapses.",
         "properties": {
-          "username": {
-            "title": "Username",
+          "by_organiser": {
+            "title": "By Organiser",
+            "type": "boolean"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
             "type": "string"
+          },
+          "invite": {
+            "format": "uuid",
+            "title": "Invite",
+            "type": "string"
+          },
+          "invited_by": {
+            "title": "Invited By",
+            "type": "integer"
+          },
+          "username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Username"
           }
         },
         "required": [
-          "username"
+          "invite",
+          "username",
+          "email",
+          "invited_by",
+          "by_organiser",
+          "expires_at"
         ],
-        "title": "InviteToTeamRequest",
+        "title": "InvitedIn",
         "type": "object"
       },
       "LimitSource": {
@@ -2223,46 +2477,65 @@
         "title": "LimitSource",
         "type": "object"
       },
-      "ListedTeam": {
-        "description": "A team as a contestant choosing one sees it: its name, its leader, and\nhow many are in it of how many the contest allows.",
+      "ListedContest": {
+        "description": "A contest in its org's list, by name, with its state, start and end as\nits settings say them, all three null when its settings cannot be read.",
         "properties": {
-          "id": {
-            "format": "uuid",
-            "title": "Id",
-            "type": "string"
-          },
-          "leader": {
+          "end": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/Person"
+                "format": "date-time",
+                "type": "string"
               },
               {
                 "type": "null"
               }
-            ]
-          },
-          "max_size": {
-            "title": "Max Size",
-            "type": "integer"
+            ],
+            "title": "End"
           },
           "name": {
             "title": "Name",
             "type": "string"
           },
-          "size": {
-            "title": "Size",
-            "type": "integer"
+          "start": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/State"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
-          "id",
           "name",
-          "leader",
-          "size",
-          "max_size"
+          "state",
+          "start",
+          "end"
         ],
-        "title": "ListedTeam",
+        "title": "ListedContest",
         "type": "object"
+      },
+      "Locks": {
+        "description": "When an entrant's roster locks: at the contest's start, or at the\nentrant's first submission.",
+        "enum": [
+          "start",
+          "first_submission"
+        ],
+        "title": "Locks",
+        "type": "string"
       },
       "MailStatus": {
         "description": "What became of an invite's mail: `waiting` until it is handed to the\nmail server, `sent` once it took it, `failed` when it could not be sent,\nthe server refusing, not answering, or there being no address to send it\nto, and `off` where the deployment has no mail server. A mail still\n`waiting` minutes on was cut short by a restart, and is sent again from\nthe invite.",
@@ -2335,15 +2608,12 @@
         "type": "object"
       },
       "Member": {
-        "description": "Someone in a team, or asking or asked to be: their id, who they are,\nor none once their account is gone, where they stand, and since when.",
+        "description": "Someone in an entrant: their id, who they are, null once their account\nis gone, the way they came in by, `invite`, `signup` or `organiser`, that\nway's name, if it has one, and when they joined.",
         "properties": {
-          "since": {
+          "joined_at": {
             "format": "date-time",
-            "title": "Since",
+            "title": "Joined At",
             "type": "string"
-          },
-          "status": {
-            "$ref": "#/components/schemas/MemberStatus"
           },
           "user": {
             "anyOf": [
@@ -2358,26 +2628,62 @@
           "user_id": {
             "title": "User Id",
             "type": "integer"
+          },
+          "way_kind": {
+            "$ref": "#/components/schemas/WayKind"
+          },
+          "way_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Way Name"
           }
         },
         "required": [
           "user_id",
           "user",
-          "status",
-          "since"
+          "way_kind",
+          "way_name",
+          "joined_at"
         ],
         "title": "Member",
         "type": "object"
       },
-      "MemberStatus": {
-        "enum": [
-          "invited",
-          "requested",
-          "member",
-          "left"
-        ],
-        "title": "MemberStatus",
-        "type": "string"
+      "MemberInviteRequest": {
+        "description": "Who to ask into the caller's entrant, by exactly one of `username` and\n`email`.",
+        "properties": {
+          "email": {
+            "anyOf": [
+              {
+                "maxLength": 400,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "username": {
+            "anyOf": [
+              {
+                "maxLength": 400,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Username"
+          }
+        },
+        "title": "MemberInviteRequest",
+        "type": "object"
       },
       "Message": {
         "description": "One message under a question: whether the asker wrote it, what it\nsays, and when.",
@@ -2404,109 +2710,102 @@
         "title": "Message",
         "type": "object"
       },
-      "MyRegistration": {
-        "description": "The caller's own registration: where it stands, when it was made and\nlast decided, why it was rejected, and their own extension: how long, in\nseconds, it moves the due and the close of the tasks in\n`extension_tasks`, or of every task when that is null. It holds while\nthey work alone; in a team, the team's holds.",
+      "MoveRequest": {
+        "description": "The entrant of the same contest to move the member to, by its id.",
         "properties": {
-          "decided_at": {
-            "anyOf": [
-              {
-                "format": "date-time",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Decided At"
-          },
-          "extension_tasks": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "string"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Extension Tasks"
-          },
-          "reason": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Reason"
-          },
-          "registered_at": {
-            "format": "date-time",
-            "title": "Registered At",
+          "to": {
+            "format": "uuid",
+            "title": "To",
             "type": "string"
-          },
-          "status": {
-            "$ref": "#/components/schemas/Status"
-          },
-          "time_extension": {
-            "title": "Time Extension",
-            "type": "integer"
           }
         },
         "required": [
-          "status",
-          "registered_at",
-          "decided_at",
-          "reason",
-          "time_extension",
-          "extension_tasks"
+          "to"
         ],
-        "title": "MyRegistration",
+        "title": "MoveRequest",
         "type": "object"
       },
-      "MyTeams": {
-        "description": "The caller's team in the contest, if any, the teams they are asked\ninto or have asked to join, and how many a team holds.",
+      "MyEntry": {
+        "description": "The caller's registration panel: their entrant, if any, their own\ninvites into the contest's entrants, whether the registration window is\nopen, whether they can register and, when they cannot, why; whether to\nask them for a code, true only when a code would let them in; and the\ncontest's sizes, the most and the fewest people in an entrant, and when\nan entrant's roster locks, at the `start` or at its `first_submission`.",
         "properties": {
-          "invited_to": {
-            "items": {
-              "$ref": "#/components/schemas/ListedTeam"
-            },
-            "title": "Invited To",
-            "type": "array"
+          "asks_code": {
+            "title": "Asks Code",
+            "type": "boolean"
           },
-          "max_size": {
-            "title": "Max Size",
-            "type": "integer"
+          "can_register": {
+            "title": "Can Register",
+            "type": "boolean"
           },
-          "requested": {
-            "items": {
-              "$ref": "#/components/schemas/ListedTeam"
-            },
-            "title": "Requested",
-            "type": "array"
-          },
-          "team": {
+          "entrant": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/Team"
+                "$ref": "#/components/schemas/Entrant"
               },
               {
                 "type": "null"
               }
             ]
+          },
+          "fewest": {
+            "title": "Fewest",
+            "type": "integer"
+          },
+          "invitations": {
+            "items": {
+              "$ref": "#/components/schemas/Invitation"
+            },
+            "title": "Invitations",
+            "type": "array"
+          },
+          "locks": {
+            "$ref": "#/components/schemas/Locks"
+          },
+          "most": {
+            "title": "Most",
+            "type": "integer"
+          },
+          "refused": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Refusal"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "registration_open": {
+            "title": "Registration Open",
+            "type": "boolean"
           }
         },
         "required": [
-          "team",
-          "invited_to",
-          "requested",
-          "max_size"
+          "entrant",
+          "invitations",
+          "registration_open",
+          "can_register",
+          "asks_code",
+          "refused",
+          "most",
+          "fewest",
+          "locks"
         ],
-        "title": "MyTeams",
+        "title": "MyEntry",
+        "type": "object"
+      },
+      "NameRequest": {
+        "description": "An entrant's new name.",
+        "properties": {
+          "name": {
+            "maxLength": 120,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "NameRequest",
         "type": "object"
       },
       "Named": {
@@ -2616,32 +2915,6 @@
         "title": "OrgProfile",
         "type": "object"
       },
-      "OrganiseTeamRequest": {
-        "description": "A new team's name, and the username of the approved contestant who\nleads it, or none for an empty team.",
-        "properties": {
-          "leader": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Leader"
-          },
-          "name": {
-            "maxLength": 120,
-            "title": "Name",
-            "type": "string"
-          }
-        },
-        "required": [
-          "name"
-        ],
-        "title": "OrganiseTeamRequest",
-        "type": "object"
-      },
       "OrganisedBoard": {
         "description": "A board as organisers read it: `now`, every row given, or as the row\npicked sees it; `final`, every group of its scope counted as after the\nreveal; and what it asks of the tasks it covers that does not hold, each\na sentence, which the save reported when the tasks were published.",
         "properties": {
@@ -2665,6 +2938,171 @@
           "notes"
         ],
         "title": "OrganisedBoard",
+        "type": "object"
+      },
+      "OrganisedEntrant": {
+        "description": "An entrant as the contest's organisers read it, its members with\ntheir email.",
+        "properties": {
+          "complete": {
+            "title": "Complete",
+            "type": "boolean"
+          },
+          "decided_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided At"
+          },
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "extension_tasks": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Extension Tasks"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "invites": {
+            "items": {
+              "$ref": "#/components/schemas/InvitedIn"
+            },
+            "title": "Invites",
+            "type": "array"
+          },
+          "locked": {
+            "title": "Locked",
+            "type": "boolean"
+          },
+          "members": {
+            "items": {
+              "$ref": "#/components/schemas/OrganisedMember"
+            },
+            "title": "Members",
+            "type": "array"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "registered_at": {
+            "format": "date-time",
+            "title": "Registered At",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/Status"
+          },
+          "submitted": {
+            "title": "Submitted",
+            "type": "boolean"
+          },
+          "time_extension": {
+            "title": "Time Extension",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "display_name",
+          "status",
+          "registered_at",
+          "decided_at",
+          "reason",
+          "invites",
+          "time_extension",
+          "extension_tasks",
+          "submitted",
+          "complete",
+          "locked",
+          "members"
+        ],
+        "title": "OrganisedEntrant",
+        "type": "object"
+      },
+      "OrganisedMember": {
+        "description": "A member as the contest's organisers read them, with their email.",
+        "properties": {
+          "joined_at": {
+            "format": "date-time",
+            "title": "Joined At",
+            "type": "string"
+          },
+          "user": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Account"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "user_id": {
+            "title": "User Id",
+            "type": "integer"
+          },
+          "way_kind": {
+            "$ref": "#/components/schemas/WayKind"
+          },
+          "way_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Way Name"
+          }
+        },
+        "required": [
+          "user_id",
+          "user",
+          "way_kind",
+          "way_name",
+          "joined_at"
+        ],
+        "title": "OrganisedMember",
         "type": "object"
       },
       "OrganisedResult": {
@@ -2801,7 +3239,7 @@
         "type": "object"
       },
       "OrganisedSubmission": {
-        "description": "One submission of a contestant or a team, as organisers read it:\nits number among the row's, when it was taken, how many started days\nlate, and its grading with everything filled in.",
+        "description": "One submission of an entrant, as organisers read it: its number\namong the entrant's, when it was taken, how many started days late, and\nits grading with everything filled in.",
         "properties": {
           "grading": {
             "anyOf": [
@@ -2889,20 +3327,6 @@
         "title": "Person",
         "type": "object"
       },
-      "PersonRequest": {
-        "description": "Who, by their user id.",
-        "properties": {
-          "user_id": {
-            "title": "User Id",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "user_id"
-        ],
-        "title": "PersonRequest",
-        "type": "object"
-      },
       "Points": {
         "description": "A submission's points as its contestant sees them: those shown, those\nstill pending on groups whose verdict is not shown yet, and when they\nare shown, null when none are pending.",
         "properties": {
@@ -2944,12 +3368,23 @@
         "type": "object"
       },
       "Primitive": {
-        "description": "One version of a primitive, `ref` being what a step's `use:` names.\nIts declaration is in `batch`, `network`, `limits`, `limits_from`,\n`inputs` and `outputs`; a version in a format the platform no longer\nreads has none of them and `problem` instead, so no step uses it.",
+        "description": "One version of a primitive, `ref` being what a step's `use:` names.\nIts declaration is in `title` and `description`, what the editor shows\nof it, and in `batch`, `network`, `limits`, `limits_from`, `inputs` and\n`outputs`; a version in a format the platform no longer reads has none\nof them and `problem` instead, so no step uses it.",
         "properties": {
           "batch": {
             "default": false,
             "title": "Batch",
             "type": "boolean"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
           },
           "inputs": {
             "additionalProperties": {
@@ -3023,6 +3458,17 @@
             "title": "Ref",
             "type": "string"
           },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
           "version": {
             "title": "Version",
             "type": "string"
@@ -3032,6 +3478,8 @@
           "ref",
           "name",
           "version",
+          "title",
+          "description",
           "batch",
           "network",
           "limits",
@@ -3044,8 +3492,19 @@
         "type": "object"
       },
       "PrimitivePort": {
-        "description": "One port: its type, the options an enum takes, whether it may be left\nout, and on an input whether the primitive runs what arrives there and\nwhether it keeps it from the program it runs.",
+        "description": "One port: its type, the options an enum takes, whether it may be left\nout, on an input whether the primitive runs what arrives there and\nwhether it keeps it from the program it runs, and a sentence saying what\nit takes or gives back, none when the primitive gives none.",
         "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
           "optional": {
             "title": "Optional",
             "type": "boolean"
@@ -3089,7 +3548,8 @@
           "options",
           "optional",
           "runs",
-          "secret"
+          "secret",
+          "description"
         ],
         "title": "PrimitivePort",
         "type": "object"
@@ -3388,19 +3848,61 @@
         "title": "Ready",
         "type": "object"
       },
-      "RegisterRequest": {
-        "description": "The code the contest asks for, when it asks for one.",
+      "Refusal": {
+        "description": "Why the caller cannot register now: the code registering would be\nrefused with, or `forge_unavailable` when their addresses could not be\nchecked just now, and its sentence.",
         "properties": {
-          "invite_code": {
+          "code": {
+            "enum": [
+              "registration_closed",
+              "is_staff",
+              "already_registered",
+              "invite_required",
+              "wrong_invite_code",
+              "domain_not_allowed",
+              "contest_full",
+              "forge_unavailable"
+            ],
+            "title": "Code",
+            "type": "string"
+          },
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "detail"
+        ],
+        "title": "Refusal",
+        "type": "object"
+      },
+      "RegisterRequest": {
+        "description": "The new entrant's name, needed when the contest's entrants may be more\nthan one person and refused when they are one each, and the code a\nsign-up asks for, when the caller is asked for one.",
+        "properties": {
+          "code": {
             "anyOf": [
               {
+                "maxLength": 400,
                 "type": "string"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Invite Code"
+            "title": "Code"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
           }
         },
         "title": "RegisterRequest",
@@ -3427,7 +3929,7 @@
         "type": "object"
       },
       "RejectRequest": {
-        "description": "Why, in words the person reads on their own page.",
+        "description": "Why, in words the entrant's members read on their own page.",
         "properties": {
           "reason": {
             "title": "Reason",
@@ -4164,30 +4666,23 @@
         "type": "object"
       },
       "Submitter": {
-        "description": "Who made a submission, as an organiser recognises them: a contestant,\nby user id and username, or a team, by id and name. The name is none\nonce the account or the team is gone, or when the forge did not say.",
+        "description": "Whose a submission is, as an organiser recognises it: the entrant, by\nits id and the name it is shown under, none once it is gone; and the\nmember who submitted it, by user id and username, none when a reconcile\nfound it at the forge, the username none when the forge did not say.",
         "properties": {
-          "name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Name"
+          "entrant": {
+            "format": "uuid",
+            "title": "Entrant",
+            "type": "string"
           },
-          "team": {
+          "entrant_name": {
             "anyOf": [
               {
-                "format": "uuid",
                 "type": "string"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Team"
+            "title": "Entrant Name"
           },
           "user_id": {
             "anyOf": [
@@ -4199,12 +4694,24 @@
               }
             ],
             "title": "User Id"
+          },
+          "username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Username"
           }
         },
         "required": [
+          "entrant",
+          "entrant_name",
           "user_id",
-          "team",
-          "name"
+          "username"
         ],
         "title": "Submitter",
         "type": "object"
@@ -4315,7 +4822,7 @@
         "type": "object"
       },
       "TaskPage": {
-        "description": "A task as the caller reads it: its statement in Markdown, the caps a\nsubmit is counted against, the inputs a contestant gives, when it falls\ndue and closes for them, and `marks`, how many of their row's\nsubmissions they may mark for the `marked` boards, null unless such a\nboard covers the task and they are an approved contestant; and nothing\nelse the task holds.",
+        "description": "A task as the caller reads it: its statement in Markdown, the caps a\nsubmit is counted against, the inputs a contestant gives, when it falls\ndue and closes for them, and `marks`, how many of their entrant's\nsubmissions they may mark for the `marked` boards, null unless such a\nboard covers the task and their entrant is approved; and nothing\nelse the task holds.",
         "properties": {
           "closes": {
             "anyOf": [
@@ -4512,96 +5019,8 @@
         "title": "TaskState",
         "type": "object"
       },
-      "Team": {
-        "description": "A team: its name, its leader's user id, its members, the people\nasking or asked in, whether it has submitted anything, and its\nextension: how long, in seconds, it moves the due and the close of the\ntasks in `extension_tasks`, or of every task when that is null.",
-        "properties": {
-          "extension_tasks": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "string"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Extension Tasks"
-          },
-          "id": {
-            "format": "uuid",
-            "title": "Id",
-            "type": "string"
-          },
-          "leader": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Leader"
-          },
-          "members": {
-            "items": {
-              "$ref": "#/components/schemas/Member"
-            },
-            "title": "Members",
-            "type": "array"
-          },
-          "name": {
-            "title": "Name",
-            "type": "string"
-          },
-          "pending": {
-            "items": {
-              "$ref": "#/components/schemas/Member"
-            },
-            "title": "Pending",
-            "type": "array"
-          },
-          "submitted": {
-            "title": "Submitted",
-            "type": "boolean"
-          },
-          "time_extension": {
-            "title": "Time Extension",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "id",
-          "name",
-          "leader",
-          "members",
-          "pending",
-          "submitted",
-          "time_extension",
-          "extension_tasks"
-        ],
-        "title": "Team",
-        "type": "object"
-      },
-      "TeamRequest": {
-        "description": "A new team's name.",
-        "properties": {
-          "name": {
-            "maxLength": 120,
-            "title": "Name",
-            "type": "string"
-          }
-        },
-        "required": [
-          "name"
-        ],
-        "title": "TeamRequest",
-        "type": "object"
-      },
       "Timeline": {
-        "description": "A task's timeline in its contest, from its entry in `contest.yaml`,\neach time at its default where the entry gives none: `worth`, the most\npoints it gives, 100 unless the entry says, and none on a task whose\nlatest publication gives no points or that has none; `release_at`, the\ncontest's start unless the entry says; `due`, after which a submission\nis late, and `late_per_day`, the fraction a started late day takes off,\n1 unless the entry says, both none on a task with no due; and `closes`,\nthe contest's end unless the entry says. `worth` and `late_per_day` are\nexact.",
+        "description": "A task's timeline in its contest, from its entry in `contest.yaml`,\neach at its default where the entry gives none: `worth`, the most\npoints it gives, its groups' total unless the entry says, and none on a\ntask whose latest publication gives no points or that has none;\n`release_at`, the\ncontest's start unless the entry says; `due`, after which a submission\nis late, and `late_per_day`, the fraction a started late day takes off,\n1 unless the entry says, both none on a task with no due; and `closes`,\nthe contest's end unless the entry says. `worth` and `late_per_day` are\nexact.",
         "properties": {
           "closes": {
             "format": "date-time",
@@ -4887,6 +5306,16 @@
           "public"
         ],
         "title": "Visibility",
+        "type": "string"
+      },
+      "WayKind": {
+        "description": "How a member came into their entrant: by the contest's invite way, by\none of its sign-ups, or put there by an organiser.",
+        "enum": [
+          "invite",
+          "signup",
+          "organiser"
+        ],
+        "title": "WayKind",
         "type": "string"
       },
       "Who": {
@@ -5235,7 +5664,7 @@
   "info": {
     "summary": "Contests on top of a git host, a CI and an object store",
     "title": "Unicon API",
-    "version": "0.7.1"
+    "version": "0.8.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -5478,7 +5907,7 @@
     },
     "/api/v1/contests": {
       "get": {
-        "description": "Newest start first, each with the caller's own status. An organiser\nfinds their own contests from their orgs.",
+        "description": "Newest start first, each with the status of the caller's entrant. An\norganiser finds their own contests from their orgs.",
         "operationId": "listMyContests",
         "responses": {
           "200": {
@@ -5842,6 +6271,7 @@
     },
     "/api/v1/me/invites/{invite_id}/accept": {
       "post": {
+        "description": "A role is granted; a place in a contest registers the caller, puts\nthem in the entrant it names, or finds them in the one they are in\nalready, and the answer says which and where the entrant stands. Joining\nby a member's invite may ask for the contest's `code`.",
         "operationId": "acceptMyInvite",
         "parameters": [
           {
@@ -5855,12 +6285,29 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/AcceptRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Invite"
+                  "$ref": "#/components/schemas/AcceptedInvite"
                 }
               }
             },
@@ -6195,7 +6642,7 @@
     },
     "/api/v1/orgs/{org}/contests": {
       "get": {
-        "description": "The contests the forge lets the caller read, by name.",
+        "description": "The contests the forge lets the caller read, by name, each with its\nstate and dates.",
         "operationId": "listContests",
         "parameters": [
           {
@@ -6214,7 +6661,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "$ref": "#/components/schemas/Named"
+                    "$ref": "#/components/schemas/ListedContest"
                   },
                   "title": "Response Listcontests",
                   "type": "array"
@@ -6533,6 +6980,67 @@
           }
         },
         "summary": "Close an announcement, which stays readable",
+        "tags": [
+          "announcements"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/announcements/{number}/reopen": {
+      "post": {
+        "description": "Reopening an open one changes nothing.",
+        "operationId": "reopenContestAnnouncement",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "title": "Number",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Announcement"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Reopen a closed announcement, which its readers see again",
         "tags": [
           "announcements"
         ]
@@ -7010,10 +7518,72 @@
         ]
       }
     },
-    "/api/v1/orgs/{org}/contests/{contest}/contestants": {
+    "/api/v1/orgs/{org}/contests/{contest}/entrants": {
+      "post": {
+        "description": "Pending until an organiser decides it, or approved at once when it is\ncomplete and the caller came in by a way that approves straight away. A\nregistration the contest's rules refuse comes back with the rule's code,\nsuch as `registration_closed`, `wrong_invite_code` or `contest_full`.",
+        "operationId": "registerEntrant",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Entrant"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Register a new entrant with the caller as its first member",
+        "tags": [
+          "entrants"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/entrants/mine": {
       "get": {
-        "description": "Oldest first, each with where an approved contestant's workspace\nstands.",
-        "operationId": "listContestants",
+        "description": "Their entrant, null when they are in none, their invites into the\ncontest's entrants, and whether and how they may register.",
+        "operationId": "getMyEntry",
         "parameters": [
           {
             "in": "path",
@@ -7039,11 +7609,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/Contestant"
-                  },
-                  "title": "Response Listcontestants",
-                  "type": "array"
+                  "$ref": "#/components/schemas/MyEntry"
                 }
               }
             },
@@ -7060,24 +7626,86 @@
             "description": "An error, as an RFC 9457 problem document. `code` names it."
           }
         },
-        "summary": "Every registration for the contest",
+        "summary": "The caller's registration panel for the contest",
         "tags": [
-          "contestants"
+          "entrants"
         ]
       }
     },
-    "/api/v1/orgs/{org}/contests/{contest}/contestants/{user_id}/approve": {
+    "/api/v1/orgs/{org}/contests/{contest}/entrants/mine/invites": {
       "post": {
-        "description": "The contestant's workspace starts being made at once.",
-        "operationId": "approveContestant",
+        "description": "By username or by email address; the mail goes out after the answer.\nThe members and the invites waiting count against the contest's most.",
+        "operationId": "inviteIntoMyEntrant",
         "parameters": [
           {
             "in": "path",
-            "name": "user_id",
+            "name": "org",
             "required": true,
             "schema": {
-              "title": "User Id",
-              "type": "integer"
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MemberInviteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Invite"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Ask someone into the caller's entrant",
+        "tags": [
+          "entrants"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/entrants/mine/invites/{invite_id}": {
+      "delete": {
+        "operationId": "withdrawMyEntrantsInvite",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "invite_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Invite Id",
+              "type": "string"
             }
           },
           {
@@ -7104,7 +7732,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Contestant"
+                  "$ref": "#/components/schemas/Invite"
                 }
               }
             },
@@ -7121,26 +7749,61 @@
             "description": "An error, as an RFC 9457 problem document. `code` names it."
           }
         },
-        "summary": "Approve a pending registration",
+        "summary": "Take back an invite into the caller's entrant",
         "tags": [
-          "contestants"
+          "entrants"
         ]
       }
     },
-    "/api/v1/orgs/{org}/contests/{contest}/contestants/{user_id}/extension": {
+    "/api/v1/orgs/{org}/contests/{contest}/entrants/mine/leave": {
+      "post": {
+        "description": "Before its roster locks. Access to its workspace goes; what it made\nstays its own, and one left with nobody and no submissions goes.",
+        "operationId": "leaveMyEntrant",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Leave the caller's entrant",
+        "tags": [
+          "entrants"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/entrants/mine/name": {
       "put": {
-        "description": "It moves their due and close on the named tasks, or on every task\nwhen none are named, in place of any extension they had; zero takes it\naway. It holds while they work alone; in a team, the team's holds. One\nthat names a task the contest does not list, would let them submit to\na task whose reveal has passed, or would leave one of their submissions\nafter the due or the close it was made before is `invalid_extension`.",
-        "operationId": "extendContestant",
+        "operationId": "renameMyEntrant",
         "parameters": [
-          {
-            "in": "path",
-            "name": "user_id",
-            "required": true,
-            "schema": {
-              "title": "User Id",
-              "type": "integer"
-            }
-          },
           {
             "in": "path",
             "name": "org",
@@ -7164,7 +7827,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ExtensionRequest"
+                "$ref": "#/components/schemas/NameRequest"
               }
             }
           },
@@ -7175,7 +7838,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Contestant"
+                  "$ref": "#/components/schemas/Entrant"
                 }
               }
             },
@@ -7192,202 +7855,9 @@
             "description": "An error, as an RFC 9457 problem document. `code` names it."
           }
         },
-        "summary": "Give one person more time on the contest's tasks",
+        "summary": "Rename the caller's entrant",
         "tags": [
-          "contestants"
-        ]
-      }
-    },
-    "/api/v1/orgs/{org}/contests/{contest}/contestants/{user_id}/reject": {
-      "post": {
-        "description": "The person reads the reason on their own page.",
-        "operationId": "rejectContestant",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "user_id",
-            "required": true,
-            "schema": {
-              "title": "User Id",
-              "type": "integer"
-            }
-          },
-          {
-            "in": "path",
-            "name": "org",
-            "required": true,
-            "schema": {
-              "title": "Org",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "contest",
-            "required": true,
-            "schema": {
-              "title": "Contest",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RejectRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Contestant"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "default": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "An error, as an RFC 9457 problem document. `code` names it."
-          }
-        },
-        "summary": "Reject a pending registration with a reason",
-        "tags": [
-          "contestants"
-        ]
-      }
-    },
-    "/api/v1/orgs/{org}/contests/{contest}/contestants/{user_id}/remove": {
-      "post": {
-        "description": "They can no longer write their workspace, and what is in it stays.",
-        "operationId": "removeContestant",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "user_id",
-            "required": true,
-            "schema": {
-              "title": "User Id",
-              "type": "integer"
-            }
-          },
-          {
-            "in": "path",
-            "name": "org",
-            "required": true,
-            "schema": {
-              "title": "Org",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "contest",
-            "required": true,
-            "schema": {
-              "title": "Contest",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Contestant"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "default": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "An error, as an RFC 9457 problem document. `code` names it."
-          }
-        },
-        "summary": "Remove an approved contestant",
-        "tags": [
-          "contestants"
-        ]
-      }
-    },
-    "/api/v1/orgs/{org}/contests/{contest}/contestants/{user_id}/reopen": {
-      "post": {
-        "description": "The reason goes, and the registration waits for a decision again. It\ntakes a place again, so a full contest refuses it with `contest_full`, and\nsomeone who holds a role at the contest by now with `is_staff`.",
-        "operationId": "reopenContestant",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "user_id",
-            "required": true,
-            "schema": {
-              "title": "User Id",
-              "type": "integer"
-            }
-          },
-          {
-            "in": "path",
-            "name": "org",
-            "required": true,
-            "schema": {
-              "title": "Org",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "contest",
-            "required": true,
-            "schema": {
-              "title": "Contest",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Contestant"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "default": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "An error, as an RFC 9457 problem document. `code` names it."
-          }
-        },
-        "summary": "Take a rejection back, leaving the registration pending",
-        "tags": [
-          "contestants"
+          "entrants"
         ]
       }
     },
@@ -7609,7 +8079,7 @@
     },
     "/api/v1/orgs/{org}/contests/{contest}/gradings": {
       "get": {
-        "description": "At most `limit` gradings of the contest's tasks the caller observes,\nnewest first, every attempt a row of its own, so a submission graded\nagain shows more than once. One whose run is overdue or lost reads as\n`system_error` with the reason, and a filter by status takes it as it\nreads. A task, username or team the contest does not have, or a task\nthe caller does not observe, gives no rows; a username that breaks the\nforge's rule for one is a `validation_error`.",
+        "description": "At most `limit` gradings of the contest's tasks the caller observes,\nnewest first, every attempt a row of its own, so a submission graded\nagain shows more than once. One whose run is overdue or lost reads as\n`system_error` with the reason, and a filter by status takes it as it\nreads. A task, username or entrant the contest does not have, or a task\nthe caller does not observe, gives no rows; a username that breaks the\nforge's rule for one is a `validation_error`.",
         "operationId": "listContestGradings",
         "parameters": [
           {
@@ -7649,7 +8119,7 @@
             }
           },
           {
-            "description": "One contestant's submissions, their own and their teams', by username",
+            "description": "The submissions one member made, by username",
             "in": "query",
             "name": "user",
             "required": false,
@@ -7664,14 +8134,14 @@
                   "type": "null"
                 }
               ],
-              "description": "One contestant's submissions, their own and their teams', by username",
+              "description": "The submissions one member made, by username",
               "title": "User"
             }
           },
           {
-            "description": "One team's submissions",
+            "description": "One entrant's submissions",
             "in": "query",
-            "name": "team",
+            "name": "entrant",
             "required": false,
             "schema": {
               "anyOf": [
@@ -7683,8 +8153,8 @@
                   "type": "null"
                 }
               ],
-              "description": "One team's submissions",
-              "title": "Team"
+              "description": "One entrant's submissions",
+              "title": "Entrant"
             }
           },
           {
@@ -7877,7 +8347,7 @@
     },
     "/api/v1/orgs/{org}/contests/{contest}/home": {
       "get": {
-        "description": "The contest's dates, the caller's registration, the server's clock,\nand the tasks released to the caller, each with when it falls due and\ncloses for them.",
+        "description": "The contest's dates, the caller's registration panel, the server's\nclock, and the tasks released to the caller, each with when it falls\ndue and closes for their entrant.",
         "operationId": "getContestHome",
         "parameters": [
           {
@@ -8039,7 +8509,7 @@
         ]
       },
       "post": {
-        "description": "By username or by email address, to an organiser role here, or to\na contestant's place at a contest. The mail goes out after the answer.",
+        "description": "By username or by email address, to an organiser role here, or to\na place at a contest, on their own or straight into the `entrant`\nnamed, while its ways include `invite` (`no_invite_way`). The mail\ngoes out after the answer.",
         "operationId": "createContestInvite",
         "parameters": [
           {
@@ -8222,9 +8692,85 @@
         ]
       }
     },
-    "/api/v1/orgs/{org}/contests/{contest}/my-team": {
+    "/api/v1/orgs/{org}/contests/{contest}/organise/boards": {
       "get": {
-        "operationId": "getMyTeam",
+        "description": "Every row on both, unless a row is picked: then only the boards that\nrow sees, `now` as it sees it, its own row and the rows its `rows`\ngives. An entrant that is not a row of the contest is not found.",
+        "operationId": "listOrganisedBoards",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Read `now` as this entrant's row does",
+            "in": "query",
+            "name": "entrant",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Read `now` as this entrant's row does",
+              "title": "Entrant"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/OrganisedBoard"
+                  },
+                  "title": "Response Listorganisedboards",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Every board of the contest, now and final, with what it asks that does not hold",
+        "tags": [
+          "boards"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/organise/entrants": {
+      "get": {
+        "description": "The earliest registered first, each with its members and the way\neach came in by.",
+        "operationId": "listEntrants",
         "parameters": [
           {
             "in": "path",
@@ -8250,7 +8796,11 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/MyTeams"
+                  "items": {
+                    "$ref": "#/components/schemas/OrganisedEntrant"
+                  },
+                  "title": "Response Listentrants",
+                  "type": "array"
                 }
               }
             },
@@ -8267,17 +8817,27 @@
             "description": "An error, as an RFC 9457 problem document. `code` names it."
           }
         },
-        "summary": "The caller's team in the contest, and the teams they asked or are asked into",
+        "summary": "Every entrant of the contest",
         "tags": [
-          "teams"
+          "entrants"
         ]
       }
     },
-    "/api/v1/orgs/{org}/contests/{contest}/my-team/leave": {
-      "post": {
-        "description": "Access to the team's workspace goes; what the team made stays its own.",
-        "operationId": "leaveTeam",
+    "/api/v1/orgs/{org}/contests/{contest}/organise/entrants/{entrant_id}": {
+      "delete": {
+        "description": "Every member's access to its workspace goes, and the invites into it\nare withdrawn; one that has submitted is `entrant_has_submissions`.",
+        "operationId": "deleteEntrant",
         "parameters": [
+          {
+            "in": "path",
+            "name": "entrant_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Entrant Id",
+              "type": "string"
+            }
+          },
           {
             "in": "path",
             "name": "org",
@@ -8312,17 +8872,27 @@
             "description": "An error, as an RFC 9457 problem document. `code` names it."
           }
         },
-        "summary": "Leave the caller's team",
+        "summary": "Delete an entrant that has submitted nothing",
         "tags": [
-          "teams"
+          "entrants"
         ]
       }
     },
-    "/api/v1/orgs/{org}/contests/{contest}/organise/boards": {
-      "get": {
-        "description": "Every row on both, unless a row is picked: then only the boards that\nrow sees, `now` as it sees it, its own row and the rows its `rows`\ngives. A row is a contestant or a team, never both; one that is not a\nrow of the contest is not found.",
-        "operationId": "listOrganisedBoards",
+    "/api/v1/orgs/{org}/contests/{contest}/organise/entrants/{entrant_id}/approve": {
+      "post": {
+        "description": "Refused as `entrant_incomplete` while it has fewer members than the\ncontest asks. Its workspace starts being made at once.",
+        "operationId": "approveEntrant",
         "parameters": [
+          {
+            "in": "path",
+            "name": "entrant_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Entrant Id",
+              "type": "string"
+            }
+          },
           {
             "in": "path",
             "name": "org",
@@ -8340,43 +8910,6 @@
               "title": "Contest",
               "type": "string"
             }
-          },
-          {
-            "description": "Read `now` as this contestant's row does",
-            "in": "query",
-            "name": "user_id",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "integer"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "Read `now` as this contestant's row does",
-              "title": "User Id"
-            }
-          },
-          {
-            "description": "Read `now` as this team does",
-            "in": "query",
-            "name": "team",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "format": "uuid",
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "Read `now` as this team does",
-              "title": "Team"
-            }
           }
         ],
         "responses": {
@@ -8384,11 +8917,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/OrganisedBoard"
-                  },
-                  "title": "Response Listorganisedboards",
-                  "type": "array"
+                  "$ref": "#/components/schemas/OrganisedEntrant"
                 }
               }
             },
@@ -8405,9 +8934,508 @@
             "description": "An error, as an RFC 9457 problem document. `code` names it."
           }
         },
-        "summary": "Every board of the contest, now and final, with what it asks that does not hold",
+        "summary": "Approve a pending entrant",
         "tags": [
-          "boards"
+          "entrants"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/organise/entrants/{entrant_id}/extension": {
+      "put": {
+        "description": "It moves the entrant's due and close on the named tasks, or on every\ntask when none are named, in place of any extension it had; zero takes\nit away. One that names a task the contest does not list, would let it\nsubmit to a task whose reveal has passed, or would leave one of its\nsubmissions after the due or the close it was made before is\n`invalid_extension`.",
+        "operationId": "extendEntrant",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "entrant_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Entrant Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExtensionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganisedEntrant"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Give an entrant more time on the contest's tasks",
+        "tags": [
+          "entrants"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/organise/entrants/{entrant_id}/members/{user_id}": {
+      "delete": {
+        "description": "Their access to its workspace goes. Null when that leaves the entrant\nwith nobody and no submissions, which goes too.",
+        "operationId": "removeEntrantMember",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "entrant_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Entrant Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/OrganisedEntrant"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Removeentrantmember"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Take someone out of an entrant",
+        "tags": [
+          "entrants"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/organise/entrants/{entrant_id}/members/{user_id}/move": {
+      "post": {
+        "description": "Answers with the entrant they are in now. Refused as `entrant_full`\nwhen it has no room, and as `entrant_has_submissions` for the last\nmember of an entrant that has submitted, whose results would have\nnobody.",
+        "operationId": "moveEntrantMember",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "entrant_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Entrant Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MoveRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganisedEntrant"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Move someone to another entrant of the contest",
+        "tags": [
+          "entrants"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/organise/entrants/{entrant_id}/name": {
+      "put": {
+        "operationId": "renameEntrant",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "entrant_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Entrant Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NameRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganisedEntrant"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Rename an entrant",
+        "tags": [
+          "entrants"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/organise/entrants/{entrant_id}/reject": {
+      "post": {
+        "description": "Its members read the reason on their own page.",
+        "operationId": "rejectEntrant",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "entrant_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Entrant Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RejectRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganisedEntrant"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Reject a pending entrant with a reason",
+        "tags": [
+          "entrants"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/organise/entrants/{entrant_id}/remove": {
+      "post": {
+        "description": "Its members can no longer write its workspace, and what is in it\nstays.",
+        "operationId": "removeEntrant",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "entrant_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Entrant Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganisedEntrant"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Remove an approved entrant",
+        "tags": [
+          "entrants"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/organise/entrants/{entrant_id}/reopen": {
+      "post": {
+        "description": "The reason goes, and the entrant waits for a decision again. It takes\na place again, so a full contest refuses it with `contest_full`, and a\nmember who holds a role at the contest by now with `is_staff`.",
+        "operationId": "reopenEntrant",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "entrant_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Entrant Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganisedEntrant"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Take a rejection back, leaving the entrant pending",
+        "tags": [
+          "entrants"
         ]
       }
     },
@@ -8464,458 +9492,6 @@
         "summary": "The contest's tasks in its order, each with where it stands and its timeline",
         "tags": [
           "tasks"
-        ]
-      }
-    },
-    "/api/v1/orgs/{org}/contests/{contest}/organise/teams": {
-      "get": {
-        "operationId": "listEveryTeam",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "org",
-            "required": true,
-            "schema": {
-              "title": "Org",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "contest",
-            "required": true,
-            "schema": {
-              "title": "Contest",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/Team"
-                  },
-                  "title": "Response Listeveryteam",
-                  "type": "array"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "default": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "An error, as an RFC 9457 problem document. `code` names it."
-          }
-        },
-        "summary": "Every team of the contest with its members",
-        "tags": [
-          "teams"
-        ]
-      },
-      "post": {
-        "operationId": "organiseCreateTeam",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "org",
-            "required": true,
-            "schema": {
-              "title": "Org",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "contest",
-            "required": true,
-            "schema": {
-              "title": "Contest",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/OrganiseTeamRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Team"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "default": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "An error, as an RFC 9457 problem document. `code` names it."
-          }
-        },
-        "summary": "Make a team, empty or led by a named approved contestant",
-        "tags": [
-          "teams"
-        ]
-      }
-    },
-    "/api/v1/orgs/{org}/contests/{contest}/organise/teams/{team_id}": {
-      "delete": {
-        "operationId": "organiseDeleteTeam",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "team_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Team Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "org",
-            "required": true,
-            "schema": {
-              "title": "Org",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "contest",
-            "required": true,
-            "schema": {
-              "title": "Contest",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Successful Response"
-          },
-          "default": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "An error, as an RFC 9457 problem document. `code` names it."
-          }
-        },
-        "summary": "Delete a team that has submitted nothing",
-        "tags": [
-          "teams"
-        ]
-      }
-    },
-    "/api/v1/orgs/{org}/contests/{contest}/organise/teams/{team_id}/extension": {
-      "put": {
-        "description": "It moves the team's due and close on the named tasks, or on every\ntask when none are named, in place of any extension it had; zero takes\nit away. One that names a task the contest does not list, would let the\nteam submit to a task whose reveal has passed, or would leave one of its\nsubmissions after the due or the close it was made before is\n`invalid_extension`.",
-        "operationId": "organiseExtendTeam",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "team_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Team Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "org",
-            "required": true,
-            "schema": {
-              "title": "Org",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "contest",
-            "required": true,
-            "schema": {
-              "title": "Contest",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ExtensionRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Team"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "default": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "An error, as an RFC 9457 problem document. `code` names it."
-          }
-        },
-        "summary": "Give a team more time on the contest's tasks",
-        "tags": [
-          "teams"
-        ]
-      }
-    },
-    "/api/v1/orgs/{org}/contests/{contest}/organise/teams/{team_id}/leader": {
-      "put": {
-        "operationId": "organiseSetTeamLeader",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "team_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Team Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "org",
-            "required": true,
-            "schema": {
-              "title": "Org",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "contest",
-            "required": true,
-            "schema": {
-              "title": "Contest",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PersonRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Team"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "default": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "An error, as an RFC 9457 problem document. `code` names it."
-          }
-        },
-        "summary": "Make a member the team's leader",
-        "tags": [
-          "teams"
-        ]
-      }
-    },
-    "/api/v1/orgs/{org}/contests/{contest}/organise/teams/{team_id}/members": {
-      "post": {
-        "operationId": "organiseMoveIntoTeam",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "team_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Team Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "org",
-            "required": true,
-            "schema": {
-              "title": "Org",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "contest",
-            "required": true,
-            "schema": {
-              "title": "Contest",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PersonRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Team"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "default": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "An error, as an RFC 9457 problem document. `code` names it."
-          }
-        },
-        "summary": "Put an approved contestant in the team, out of any other",
-        "tags": [
-          "teams"
-        ]
-      }
-    },
-    "/api/v1/orgs/{org}/contests/{contest}/organise/teams/{team_id}/members/{user_id}": {
-      "delete": {
-        "operationId": "organiseRemoveFromTeam",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "team_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Team Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "user_id",
-            "required": true,
-            "schema": {
-              "title": "User Id",
-              "type": "integer"
-            }
-          },
-          {
-            "in": "path",
-            "name": "org",
-            "required": true,
-            "schema": {
-              "title": "Org",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "contest",
-            "required": true,
-            "schema": {
-              "title": "Contest",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Team"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "default": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "An error, as an RFC 9457 problem document. `code` names it."
-          }
-        },
-        "summary": "Take someone out of the team, or drop their request or invitation",
-        "tags": [
-          "teams"
         ]
       }
     },
@@ -9103,126 +9679,6 @@
         "summary": "Comment again on one's own question",
         "tags": [
           "clarifications"
-        ]
-      }
-    },
-    "/api/v1/orgs/{org}/contests/{contest}/registration": {
-      "get": {
-        "description": "Null when the caller has not registered.",
-        "operationId": "getMyRegistration",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "org",
-            "required": true,
-            "schema": {
-              "title": "Org",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "contest",
-            "required": true,
-            "schema": {
-              "title": "Contest",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "anyOf": [
-                    {
-                      "$ref": "#/components/schemas/MyRegistration"
-                    },
-                    {
-                      "type": "null"
-                    }
-                  ],
-                  "title": "Response Getmyregistration"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "default": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "An error, as an RFC 9457 problem document. `code` names it."
-          }
-        },
-        "summary": "The caller's own registration for the contest",
-        "tags": [
-          "contestants"
-        ]
-      },
-      "post": {
-        "description": "Pending until an organiser decides it, or approved at once when the\ncontest approves on its own. A registration the contest's rules refuse\ncomes back with the rule's code, such as `registration_closed` or\n`contest_full`.",
-        "operationId": "registerForContest",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "org",
-            "required": true,
-            "schema": {
-              "title": "Org",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "contest",
-            "required": true,
-            "schema": {
-              "title": "Contest",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RegisterRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/MyRegistration"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "default": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "An error, as an RFC 9457 problem document. `code` names it."
-          }
-        },
-        "summary": "Register the caller for the contest",
-        "tags": [
-          "contestants"
         ]
       }
     },
@@ -9845,6 +10301,76 @@
           }
         },
         "summary": "Close an announcement, which stays readable",
+        "tags": [
+          "announcements"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/announcements/{number}/reopen": {
+      "post": {
+        "description": "Reopening an open one changes nothing.",
+        "operationId": "reopenTaskAnnouncement",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "title": "Number",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "task",
+            "required": true,
+            "schema": {
+              "title": "Task",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Announcement"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Reopen a closed announcement, which its readers see again",
         "tags": [
           "announcements"
         ]
@@ -10697,7 +11223,7 @@
         ]
       },
       "post": {
-        "description": "By username or by email address, to an organiser role here, or to\na contestant's place at a contest. The mail goes out after the answer.",
+        "description": "By username or by email address, to an organiser role here, or to\na place at a contest, on their own or straight into the `entrant`\nnamed, while its ways include `invite` (`no_invite_way`). The mail\ngoes out after the answer.",
         "operationId": "createTaskInvite",
         "parameters": [
           {
@@ -11115,7 +11641,7 @@
     },
     "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/organise/submissions/{number}": {
       "get": {
-        "description": "The row is a contestant or a team, one of the two, or `rejected`. A\nrow with no submission of that number is `not_found`.",
+        "description": "A row with no submission of that number is `not_found`.",
         "operationId": "getOrganisedSubmission",
         "parameters": [
           {
@@ -11159,40 +11685,15 @@
             }
           },
           {
-            "description": "The contestant whose row it is",
+            "description": "The entrant whose row it is",
             "in": "query",
-            "name": "user_id",
-            "required": false,
+            "name": "entrant",
+            "required": true,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "integer"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "The contestant whose row it is",
-              "title": "User Id"
-            }
-          },
-          {
-            "description": "The team whose row it is",
-            "in": "query",
-            "name": "team",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "format": "uuid",
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "The team whose row it is",
-              "title": "Team"
+              "description": "The entrant whose row it is",
+              "format": "uuid",
+              "title": "Entrant",
+              "type": "string"
             }
           }
         ],
@@ -11419,6 +11920,131 @@
         "summary": "The open announcements of a released task",
         "tags": [
           "announcements"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/public/{path}": {
+      "get": {
+        "description": "`path` is the file's path under `public/`. Read with exactly the rights\nthe statement is read with, as the task's latest publication holds it,\nand, for a signed-in caller holding a role reaching the task, whether or\nnot it is released, as the task's head holds it, the draft the\nstatement's preview draws. Each answer carries an `ETag` of its bytes\nand is asked again each time; `If-None-Match` with that tag is answered\n304 while the bytes are the same. A path with an empty,\n`.` or `..` segment, or a file that is not there, is `not_found`, the\nsame as a task the caller may not read; one larger than a page is served\nis `public_file_too_large`, with the `limit` in bytes.",
+        "operationId": "getTaskPublicFile",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "path",
+            "required": true,
+            "schema": {
+              "title": "Path",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "task",
+            "required": true,
+            "schema": {
+              "title": "Task",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              },
+              "image/apng": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              },
+              "image/avif": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              },
+              "image/bmp": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              },
+              "image/gif": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              },
+              "image/jpeg": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              },
+              "image/png": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              },
+              "image/svg+xml": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              },
+              "image/webp": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              },
+              "image/x-icon": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "The file's bytes, typed by its ending."
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "A file under a task's public/, such as a statement's image",
+        "tags": [
+          "contest home"
         ]
       }
     },
@@ -11799,7 +12425,7 @@
     },
     "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/save": {
       "post": {
-        "description": "A valid save publishes and one that is not is kept as a draft with its\nerrors. While the contest runs, a save that changes how the task grades\nis refused as `confirmation_required`, with `changes`, what would change,\nand `regrades`, how many submissions it would grade again, unless it is\nconfirmed or kept as a draft. A change naming an upload writes the pointer to the file the\ncaller uploaded for that path; one that is not theirs for this task and\npath is `invalid_inputs`, and one whose bytes have not arrived\n`upload_not_ready`.",
+        "description": "A valid save publishes and one that is not is kept as a draft with its\nerrors. While the contest runs, a save that changes how the task grades\nis refused as `confirmation_required`, with `changes`, what would change,\nand `regrades`, how many submissions it would grade again, unless it is\nconfirmed or kept as a draft. A change naming an upload writes the pointer to the file the\ncaller uploaded for that path; one that is not theirs for this task and\npath is `invalid_inputs`, and one whose bytes have not arrived\n`upload_not_ready`. A change with `remove: true` removes the file it\nnames, with the token it was read with, a moved one being `conflict` as\nan edit's is; the state left is checked as any other, so removing a\ngroup's last test or a file an input names keeps the save as a draft.",
         "operationId": "saveTask",
         "parameters": [
           {
@@ -12436,446 +13062,6 @@
         ]
       }
     },
-    "/api/v1/orgs/{org}/contests/{contest}/teams": {
-      "get": {
-        "operationId": "listTeams",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "org",
-            "required": true,
-            "schema": {
-              "title": "Org",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "contest",
-            "required": true,
-            "schema": {
-              "title": "Contest",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/ListedTeam"
-                  },
-                  "title": "Response Listteams",
-                  "type": "array"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "default": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "An error, as an RFC 9457 problem document. `code` names it."
-          }
-        },
-        "summary": "The contest's teams, for an approved contestant choosing one",
-        "tags": [
-          "teams"
-        ]
-      },
-      "post": {
-        "operationId": "createTeam",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "org",
-            "required": true,
-            "schema": {
-              "title": "Org",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "contest",
-            "required": true,
-            "schema": {
-              "title": "Contest",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/TeamRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Team"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "default": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "An error, as an RFC 9457 problem document. `code` names it."
-          }
-        },
-        "summary": "Make a team, led by the caller",
-        "tags": [
-          "teams"
-        ]
-      }
-    },
-    "/api/v1/orgs/{org}/contests/{contest}/teams/{team_id}/cancel": {
-      "post": {
-        "operationId": "cancelTeamRequest",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "team_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Team Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "org",
-            "required": true,
-            "schema": {
-              "title": "Org",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "contest",
-            "required": true,
-            "schema": {
-              "title": "Contest",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Successful Response"
-          },
-          "default": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "An error, as an RFC 9457 problem document. `code` names it."
-          }
-        },
-        "summary": "Take back a request to join a team, or decline its invitation",
-        "tags": [
-          "teams"
-        ]
-      }
-    },
-    "/api/v1/orgs/{org}/contests/{contest}/teams/{team_id}/invite": {
-      "post": {
-        "operationId": "inviteToTeam",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "team_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Team Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "org",
-            "required": true,
-            "schema": {
-              "title": "Org",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "contest",
-            "required": true,
-            "schema": {
-              "title": "Contest",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/InviteToTeamRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Team"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "default": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "An error, as an RFC 9457 problem document. `code` names it."
-          }
-        },
-        "summary": "Ask an approved contestant into the caller's team, as its leader",
-        "tags": [
-          "teams"
-        ]
-      }
-    },
-    "/api/v1/orgs/{org}/contests/{contest}/teams/{team_id}/members/{user_id}": {
-      "delete": {
-        "operationId": "removeTeamMember",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "team_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Team Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "user_id",
-            "required": true,
-            "schema": {
-              "title": "User Id",
-              "type": "integer"
-            }
-          },
-          {
-            "in": "path",
-            "name": "org",
-            "required": true,
-            "schema": {
-              "title": "Org",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "contest",
-            "required": true,
-            "schema": {
-              "title": "Contest",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Team"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "default": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "An error, as an RFC 9457 problem document. `code` names it."
-          }
-        },
-        "summary": "Take someone out of the team, or turn down their request, as its leader",
-        "tags": [
-          "teams"
-        ]
-      }
-    },
-    "/api/v1/orgs/{org}/contests/{contest}/teams/{team_id}/members/{user_id}/approve": {
-      "post": {
-        "operationId": "approveTeamMember",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "team_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Team Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "user_id",
-            "required": true,
-            "schema": {
-              "title": "User Id",
-              "type": "integer"
-            }
-          },
-          {
-            "in": "path",
-            "name": "org",
-            "required": true,
-            "schema": {
-              "title": "Org",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "contest",
-            "required": true,
-            "schema": {
-              "title": "Contest",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Team"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "default": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "An error, as an RFC 9457 problem document. `code` names it."
-          }
-        },
-        "summary": "Let in someone who asked to join, as the team's leader",
-        "tags": [
-          "teams"
-        ]
-      }
-    },
-    "/api/v1/orgs/{org}/contests/{contest}/teams/{team_id}/request": {
-      "post": {
-        "operationId": "requestToJoinTeam",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "team_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Team Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "org",
-            "required": true,
-            "schema": {
-              "title": "Org",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "contest",
-            "required": true,
-            "schema": {
-              "title": "Contest",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Team"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "default": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "An error, as an RFC 9457 problem document. `code` names it."
-          }
-        },
-        "summary": "Ask to join a team, or accept its invitation",
-        "tags": [
-          "teams"
-        ]
-      }
-    },
     "/api/v1/orgs/{org}/contests/{contest}/tree": {
       "get": {
         "operationId": "listContestTree",
@@ -12990,7 +13176,7 @@
         ]
       },
       "post": {
-        "description": "By username or by email address, to an organiser role here, or to\na contestant's place at a contest. The mail goes out after the answer.",
+        "description": "By username or by email address, to an organiser role here, or to\na place at a contest, on their own or straight into the `entrant`\nnamed, while its ways include `invite` (`no_invite_way`). The mail\ngoes out after the answer.",
         "operationId": "createOrgInvite",
         "parameters": [
           {

@@ -1,5 +1,6 @@
 """What a signed-in person reads of a contest, over HTTP: the list of contests
-they see with their status, a contest's home with its released tasks, each
+they see with their entrant's status, a contest's home with their
+registration panel and its released tasks, each
 with its worth and when it closes for them, and a released task's page with
 its statement, its submission caps and the form of its inputs. A contest
 they may not see and a task that is not visible answer as not found.
@@ -27,12 +28,13 @@ async def test_a_signed_in_person_reads_the_home_and_a_released_task(
     ]
     body = home.json()
     assert (body["where"], body["state"]) == ({"org": "acme", "contest": "spring"}, "published")
-    assert (body["registration"], body["organises"], body["registration_open"]) == (
+    panel = body["registration"]
+    assert (panel["entrant"], body["organises"], panel["registration_open"]) == (
         None,
         False,
         True,
     )
-    assert body["asks_code"] is False
+    assert (panel["can_register"], panel["asks_code"], panel["refused"]) == (True, False, None)
     assert body["now"] == "2026-09-26T12:00:00Z"
     assert [
         (task["name"], task["label"], task["worth"], task["release"]["closed"])
@@ -57,7 +59,7 @@ async def test_a_signed_in_person_reads_the_home_and_a_released_task(
         {
             "id": "language",
             "type": "enum",
-            "label": "language",
+            "label": "Language",
             "options": ["python"],
             "per_test": False,
             "default": None,
@@ -73,12 +75,13 @@ async def test_the_home_carries_the_callers_registration(
 ) -> None:
     await run_contest(client, visibility="everyone")
     await sign_in_as(client, world, 20)
-    await client.post(f"{CONTEST}/registration", json={}, headers=ORIGIN)
+    await client.post(f"{CONTEST}/entrants", json={}, headers=ORIGIN)
 
     home = await client.get(f"{CONTEST}/home")
     listed = await client.get("/api/v1/contests")
 
-    assert home.json()["registration"]["status"] == "pending"
+    assert home.json()["registration"]["entrant"]["status"] == "pending"
+    assert home.json()["registration"]["refused"]["code"] == "already_registered"
     assert listed.json()[0]["status"] == "pending"
 
 

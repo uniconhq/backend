@@ -11,15 +11,15 @@ latest attempt is a system error, or staff cancelled, count as its last
 good result, and taking that back; and rejudging every submission's latest
 attempt against the task's current publication.
 
-An observer of the task also reads any contestant's or team's submission
-as its row reads it with everything filled in, beside its grading
-(TASK-FORMAT.md section 1.7): the row picked by `user_id` or `team`, as the
-boards pick one, and the submission by its number among the row's.
+An observer of the task also reads any entrant's submission as its row
+reads it with everything filled in, beside its grading (TASK-FORMAT.md
+section 1.7): the row picked by `entrant`, as the boards pick one, and the
+submission by its number among the row's.
 
 Anyone holding a role at a contest or at any of its tasks reads the
 gradings of the tasks they observe as one feed, newest first, each with
-its task's name and letter and who submitted it, narrowed by task, by a
-contestant's username, by team and by status; and how many of them wait
+its task's name and letter, its entrant and the member who submitted it,
+narrowed by task, by that member's username, by entrant and by status; and how many of them wait
 for a machine, `queued` and `dispatched`, counted when asked. Forge
 narrows both to the tasks the caller observes.
 
@@ -39,8 +39,8 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, Query, Response
 from forge.api import contests, gradings, names, submissions, tasks
 from forge.api.access import Organiser
-from forge.api.boards import TeamOwner, UserOwner
-from forge.api.errors import NotFound, Rejected
+from forge.api.boards import EntrantOwner
+from forge.api.errors import NotFound
 from forge.api.gradings import GradingStatus
 from forge.api.types import Role, ScopeKind, TaskId
 
@@ -102,19 +102,10 @@ async def list_gradings(
 async def get_organised_submission(
     organiser: TaskObserver,
     number: Number,
-    user_id: Annotated[int | None, Query(description="The contestant whose row it is")] = None,
-    team: Annotated[uuid.UUID | None, Query(description="The team whose row it is")] = None,
+    entrant: Annotated[uuid.UUID, Query(description="The entrant whose row it is")],
 ) -> submissions.Submission:
-    """The row is a contestant or a team, one of the two, or `rejected`. A
-    row with no submission of that number is `not_found`.
-    """
-    row: UserOwner | TeamOwner
-    if user_id is not None and team is None:
-        row = UserOwner(user_id)
-    elif team is not None and user_id is None:
-        row = TeamOwner(team)
-    else:
-        raise Rejected("Pick a contestant or a team, one of the two.")
+    """A row with no submission of that number is `not_found`."""
+    row = EntrantOwner(entrant)
     return await submissions.organised(organiser, tasks.task_id_of(organiser.scope), row, number)
 
 
@@ -241,12 +232,12 @@ async def list_contest_gradings(
     user: Annotated[
         str | None,
         Query(
-            description="One contestant's submissions, their own and their teams', by username",
+            description="The submissions one member made, by username",
             pattern=USERNAME_PATTERN,
             max_length=USERNAME_MAX,
         ),
     ] = None,
-    team: Annotated[uuid.UUID | None, Query(description="One team's submissions")] = None,
+    entrant: Annotated[uuid.UUID | None, Query(description="One entrant's submissions")] = None,
     status: Annotated[GradingStatus | None, Query(description="As the grading reads")] = None,
     limit: Annotated[int, Query(ge=1, le=LIST_MOST)] = 100,
 ) -> list[dict[str, Any]]:
@@ -254,7 +245,7 @@ async def list_contest_gradings(
     newest first, every attempt a row of its own, so a submission graded
     again shows more than once. One whose run is overdue or lost reads as
     `system_error` with the reason, and a filter by status takes it as it
-    reads. A task, username or team the contest does not have, or a task
+    reads. A task, username or entrant the contest does not have, or a task
     the caller does not observe, gives no rows; a username that breaks the
     forge's rule for one is a `validation_error`.
     """
@@ -269,7 +260,7 @@ async def list_contest_gradings(
         contests.contest_id_of(organiser.scope),
         task=task_id,
         user=user,
-        team=team,
+        entrant=entrant,
         status=status,
         limit=limit,
     )

@@ -24,7 +24,7 @@ async def test_creating_an_org_is_refused_while_creation_is_closed(
 
     assert refused.status_code == 403
     assert refused.json()["code"] == "forbidden"
-    assert "closed" in refused.json()["detail"]
+    assert "does not let people make orgs" in refused.json()["detail"]
     assert "acme" not in forge.state.orgs
 
 

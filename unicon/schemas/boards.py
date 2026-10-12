@@ -86,13 +86,11 @@ class BoardCell(BaseModel):
 
 
 class BoardRowOwner(BaseModel):
-    """Whose a row is: a contestant by `user_id`, or a team by its id as
-    `team`, and its name, a team's own or a contestant's username, empty
-    when the forge gives none.
+    """Whose a row is: an entrant by its id, and the name it is shown under,
+    its own or its member's username, empty when the forge gives none.
     """
 
-    user_id: int | None
-    team: uuid.UUID | None
+    entrant: uuid.UUID
     name: str
 
 
@@ -116,11 +114,7 @@ class BoardRow(BaseModel):
         owner = _fields(found["owner"])
         return {
             "rank": found["rank"],
-            "row": {
-                "user_id": owner.get("user_id"),
-                "team": owner.get("team_id"),
-                "name": found["name"],
-            },
+            "row": {"entrant": owner.get("entrant_id"), "name": found["name"]},
             "keys": found["keys"],
             "cells": found["cells"],
         }
