@@ -835,7 +835,8 @@ status, `cancelled` for the last; cancelling or retrying an earlier attempt
 of a submission graded again, or retrying one with another attempt still
 being graded, is `conflict`. A grading that ends in `system_error` is
 retried once by the platform itself, started by whatever finds it so, the
-CI's report or any read that finds it overdue or lost; that attempt is
+CI's report or any read that finds it overdue or lost (one whose run could
+not be started waits a minute, for the first read after); that attempt is
 `automatic`, and a failure of it waits for staff, who retry as often as
 they like. Of a submission's attempts the latest that finished with a
 result counts, on the boards, to its contestant and against the task's
