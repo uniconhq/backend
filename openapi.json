@@ -4703,7 +4703,7 @@
         "type": "object"
       },
       "TaskEntry": {
-        "description": "A task released to the caller: its name, the label its place in the\ncontest gives it, its title, the most points it gives, null on a task\nthat gives none, whether they may submit to it now, and when it falls\ndue, null when it has no due, and closes for them, their extension on it\nincluded.",
+        "description": "A task released to the caller: its name, the label its place in the\ncontest gives it, its title, the most points it gives, null on a task\nthat gives none, whether they may submit to it now, and when it falls\ndue, null when it has no due, and closes for them, their extension on it\nincluded.\n\n`points` is their entrant's points on it, for a member of an approved\nentrant, as a board over that task alone counts them now, every group,\nthe best submission by points: `shown`, over the groups whose results\nare shown, and `pending`, the most the groups not shown yet could still\nadd, until `pending_until`, the task's reveal, null when nothing is\npending. A group whose results are not shown yet never counts in\n`shown`, as on every board. Null for anyone else, and on a task that\ngives no points.",
         "properties": {
           "closes": {
             "anyOf": [
@@ -4737,6 +4737,16 @@
             "title": "Name",
             "type": "string"
           },
+          "points": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Points"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "release": {
             "$ref": "#/components/schemas/TaskRelease"
           },
@@ -4767,7 +4777,8 @@
           "worth",
           "release",
           "due",
-          "closes"
+          "closes",
+          "points"
         ],
         "title": "TaskEntry",
         "type": "object"

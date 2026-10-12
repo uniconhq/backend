@@ -332,6 +332,39 @@ async def test_organisers_read_a_submission_scored_with_everything_filled_in(
     assert (own["status"], own["points"]["pending"]) == ("graded", "100")
 
 
+async def test_the_contest_home_gives_a_task_the_points_a_board_over_it_counts_exactly(
+    client: httpx.AsyncClient, entered: FakeForge, clock: FakeClock
+) -> None:
+    await _ranked(client, entered, clock)
+
+    [task] = (await client.get(f"{CONTEST}/home")).json()["tasks"]
+    standings = (await client.get(f"{BOARDS}/Standings")).json()
+
+    assert task["points"] == {"shown": "100", "pending": "0", "pending_until": None}
+    assert standings["rows"][0]["keys"][0] == task["points"]["shown"]
+
+
+async def test_a_hidden_groups_points_stay_out_of_the_contest_home_until_shown(
+    client: httpx.AsyncClient, entered: FakeForge, clock: FakeClock
+) -> None:
+    await sign_in_as(client, entered, 7)
+    await edit_task(client, "main: {each: 100}", "main: {each: 100, show: after_close}")
+    await sign_in_as(client, entered, 20)
+    await _graded(client, entered, "key-0001-aaaa")
+
+    [before] = (await client.get(f"{CONTEST}/home")).json()["tasks"]
+    clock.advance(timedelta(hours=3))
+    await sign_in_as(client, entered, 20)
+    [after] = (await client.get(f"{CONTEST}/home")).json()["tasks"]
+
+    assert before["points"] == {
+        "shown": "0",
+        "pending": "100",
+        "pending_until": "2026-09-26T15:00:00Z",
+    }
+    assert after["points"] == {"shown": "100", "pending": "0", "pending_until": None}
+
+
 async def test_organisers_pick_one_row_with_such_a_submission(
     client: httpx.AsyncClient, entered: FakeForge
 ) -> None:
