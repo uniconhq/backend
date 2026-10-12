@@ -107,8 +107,8 @@ class SaveRequest(BaseModel):
     """The files a save writes, several at once. `keep_as_draft` writes them
     as a draft that says what it held back and publishes nothing, on any
     save. Otherwise, while the task's contest runs, `confirm` publishes a
-    change to how the task grades; an empty save with `confirm` publishes a
-    draft kept earlier.
+    save, which every save that would publish something new needs then; an
+    empty save with `confirm` publishes a draft kept earlier.
     """
 
     changes: list[FileChange] = []

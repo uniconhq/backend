@@ -329,7 +329,12 @@ covers at that save, such as one that counts nothing from a task: the same
 notes the organisers' reading carries beside each board, and none for any
 other file. A rollback writes the file as
 it was at an older version back as a new change, so the history stays
-whole.
+whole. The platform alone writes a contest's and a task's files at the
+forge: every write, a rollback and a task's save included, is made by the
+platform's account with the organiser as the change's author, so the
+history names them, and the role checks in front of it, the guard's and
+forge's own, are the only gate on it, each refusing before anything is
+written.
 
 A task is published by saving it. A write to a task's file, a rollback
 there, and `POST <task>/save` are each a save, which `publications.save`
@@ -396,7 +401,8 @@ opened, it is `take_out_changed`, a 409 carrying `submissions` and
 `take_out` as they are now; a leaderboard naming a task to be removed, or
 settings that cannot be edited line by line, is `take_out_refused`, a 409,
 with the `boards` that name it. `POST <task>/put-back` takes `withdrawn` out
-of the entry again, checked as a save of the contest's settings is, and
+of the entry again, checked as a save of the contest's settings is, an
+entry that cannot be edited line by line being `take_out_refused`, and
 answers the boards' `notes` as that save does; after it the task scores
 exactly as before. Withdrawing a withdrawn task, or putting back one that
 is not, changes nothing.
@@ -650,9 +656,11 @@ so a regrade under way, a failure or a cancel leaves the result as it was,
 and while none has, the latest. It comes
 with its `id`, `attempt` and `status`, and once it is `done`, what the
 task's test groups let the contestant see now: what `stopped` the run, the
-`outcome` over the groups shown, the `values` reported once, and each of
-the `groups` with its `group` name, its `show`, its `outcome` and its
-`tests`, each test's row being its `test`, `<group>/<test>`, its `outcome`
+`outcome` over the groups shown, the `values` reported once, `folded`,
+each value reported per test with a fold, folded over the tests shown, a
+test that was not accepted having no value for it, so a wrong answer has
+no time, and each of the `groups` with its `group` name, its `show`, its
+`outcome` and its `tests`, each test's row being its `test`, `<group>/<test>`, its `outcome`
 and its `values`; and `meanings`, every value the workflow reports, in its
 order, each `{name, title, unit, fold, better}`, the title and unit being
 the words a page names it by ("Run time", "ms"), null where the workflow
@@ -1041,7 +1049,11 @@ nowhere else:
 `sole_admin` carries `scopes`, each `{"kind", "name"}`,
 `contestant_conflict` carries `contests`, `shared_workflow_owner` carries
 `workflows`, `admin_only` carries `keys`, `reserved_path` carries `paths`,
-`confirmation_required` carries `changes` and `regrades`, `already_invited` carries `invite`, the one held already, `invalid_definition` carries
+`confirmation_required` carries `changes`, `regrades`, `results_change`,
+`summary`, `runs_again`, `scores` and `reading`, `take_out_changed`
+carries `submissions` and `take_out`, `take_out_refused` carries `boards`
+when a leaderboard names the task, `already_invited` carries `invite`,
+the one held already, `invalid_definition` carries
 `errors`, each `{"path", "message"}`, `invalid_path` carries `path`,
 `wrong_status` carries `current`, and the refusals of an upload or a submit
 carry what the section above names, so the browser can show what stands in
@@ -1098,7 +1110,8 @@ reaches this one only when someone moves the pin. Moving it is one edit
 followed by `uv lock`, and it carries both the code and the migrations
 `unicon-forge migrate` applies. While a forge change this repository needs is
 not released yet, the source is the sibling checkout at `../forge` instead,
-editable. The image then builds with that checkout handed in as the named
+installed from it as it stands when `uv sync` builds it. The image then
+builds with that checkout handed in as the named
 context `forge`, `docker build --build-context forge=../forge .`, which the
 dev stack in `deploy` does; `docker build .` alone builds only once the pin
 names the release again, which is what this repository's CI builds.

@@ -158,8 +158,10 @@ class Result(Scored):
     itself, and then waits for staff, who grade it again or end it: then it
     is `cancelled`, with `reason`, the sentence they gave, which is null on
     every other status. A delayed one is graded again only while its
-    entrant's submissions with a result and those still waiting are fewer
-    than the task's most, and otherwise it is `over_limit`, with `limit`,
+    entrant's submissions with a result, those waiting that are not
+    delayed, and the delayed ones made before it are fewer than the task's
+    most, so the first ones to get a result count, and otherwise it is
+    `over_limit`, with `limit`,
     the most it reached ("Not graded: you had reached the limit of 10
     submissions for this task."), and nothing else; `limit` is null on every
     other status.

@@ -12,7 +12,8 @@ of one contest, answered ones included, which needs the observer role
 there; and, with the manager role at the contest, a reply, which leaves the
 question open, marking it answered, which closes it with or without a
 reply, taking the mark off again, and an answer made public as an
-announcement pointing at the question. A question is named by its desk,
+announcement pointing at the question, which marks it answered unless
+asked not to. A question is named by its desk,
 `asker`: the asking entrant's desk, `entrant.<id>` with the id's 32 hex
 digits, and its number among the desk's questions in the contest.
 """
