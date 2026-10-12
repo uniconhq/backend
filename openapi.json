@@ -1496,7 +1496,7 @@
         "type": "object"
       },
       "FileContent": {
-        "description": "One file at one version, with the token a write presents back, and\n`upload` when it is a file an organiser uploaded: its `content` is then\nthe pointer to the bytes, never opened as text, and `upload` the size\nand SHA-256 of what it holds. A typed file has none.",
+        "description": "One file at one version, with the token a write presents back, and\n`upload` when it is a file an organiser uploaded: its `content` is then\nthe pointer to the bytes, never opened as text, and `upload` the size\nand SHA-256 of what it holds. A typed file has none. `version` is a\nversion holding the file as read, the one it was read at or the latest\nchange to it, which a task's file is downloaded at\n(`/-/downloads/<org>/<contest>/<task>/versions/<version>/<path>`); null\nwhen the forge did not say.",
         "properties": {
           "content": {
             "title": "Content",
@@ -1527,6 +1527,17 @@
                 "type": "null"
               }
             ]
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
           }
         },
         "required": [
@@ -1534,7 +1545,8 @@
           "encoding",
           "content",
           "token",
-          "upload"
+          "upload",
+          "version"
         ],
         "title": "FileContent",
         "type": "object"
