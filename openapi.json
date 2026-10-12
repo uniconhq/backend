@@ -3642,7 +3642,7 @@
         "type": "object"
       },
       "PrimitivePort": {
-        "description": "One port: its type, the options an enum takes, whether it may be left\nout, on an input whether the primitive runs what arrives there and\nwhether it keeps it from the program it runs, and a sentence saying what\nit takes or gives back, none when the primitive gives none.",
+        "description": "One port: its type, the options an enum takes, whether it may be left\nout, on an input whether the primitive runs what arrives there and\nwhether it keeps it from the program it runs, and a sentence saying what\nit takes or gives back, none when the primitive gives none. The\n`outcome` port may carry `outcomes`: each outcome the step can report,\nin the declaration's order, with a line saying when (`accepted`: \"the\nsource compiles\"), for the step's drawer to say what it reports; none\nwhen the primitive does not say, and on every other port.",
         "properties": {
           "description": {
             "anyOf": [
@@ -3673,6 +3673,20 @@
             ],
             "title": "Options"
           },
+          "outcomes": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outcomes"
+          },
           "runs": {
             "anyOf": [
               {
@@ -3699,7 +3713,8 @@
           "optional",
           "runs",
           "secret",
-          "description"
+          "description",
+          "outcomes"
         ],
         "title": "PrimitivePort",
         "type": "object"
