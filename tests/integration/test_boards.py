@@ -20,6 +20,7 @@ from tests.integration.conftest import (
     ORIGIN,
     TASK,
     edit_task,
+    entrant_of,
     read,
     sign_in_as,
     upload,
@@ -112,7 +113,7 @@ async def _ranked(client: httpx.AsyncClient, forge: FakeForge, clock: FakeClock)
     await _graded(client, forge, "key-0002-bbbb")
 
 
-def _standings(cell: dict[str, Any]) -> dict[str, Any]:
+def _standings(cell: dict[str, Any], entrant: str) -> dict[str, Any]:
     return {
         "board": "Standings",
         "over": "all",
@@ -127,7 +128,7 @@ def _standings(cell: dict[str, Any]) -> dict[str, Any]:
         "rows": [
             {
                 "rank": 1,
-                "row": {"user_id": 20, "team": None, "name": "carol"},
+                "row": {"entrant": entrant, "name": "carol"},
                 "keys": ["100", "141"],
                 "cells": {"sum": cell},
             }
@@ -150,6 +151,7 @@ OTHER_CELL = {**OWN_CELL, "grading": None, "submissions": None}
 async def test_a_board_is_served_to_each_audience_it_names(
     client: httpx.AsyncClient, entered: FakeForge, clock: FakeClock
 ) -> None:
+    carols = await entrant_of(client)
     await _ranked(client, entered, clock)
 
     mine = await client.get(BOARDS)
@@ -160,38 +162,37 @@ async def test_a_board_is_served_to_each_audience_it_names(
     public_one = await client.get(f"{PUBLIC}/Standings")
 
     assert mine.status_code == 200, mine.text
-    assert mine.json() == [_standings(OWN_CELL)]
-    assert one.json() == _standings(OWN_CELL)
+    assert mine.json() == [_standings(OWN_CELL, carols)]
+    assert one.json() == _standings(OWN_CELL, carols)
     assert (staff.status_code, staff.json()["code"]) == (404, "not_found")
-    assert public.json() == [_standings(OTHER_CELL)]
-    assert public_one.json() == _standings(OTHER_CELL)
+    assert public.json() == [_standings(OTHER_CELL, carols)]
+    assert public_one.json() == _standings(OTHER_CELL, carols)
 
 
 async def test_organisers_read_every_board_now_and_final_and_nobody_else_does(
     client: httpx.AsyncClient, entered: FakeForge, clock: FakeClock
 ) -> None:
+    carols = await entrant_of(client)
     await _ranked(client, entered, clock)
     refused = await client.get(ORGANISE)
     await sign_in_as(client, entered, 7)
 
     organised = await client.get(ORGANISE)
-    as_carol = await client.get(ORGANISE, params={"user_id": 20})
-    nobody = await client.get(ORGANISE, params={"user_id": 99})
-    both = await client.get(
-        ORGANISE, params={"user_id": 20, "team": "0192f4a4-7b7e-7000-8000-000000000001"}
-    )
+    as_carol = await client.get(ORGANISE, params={"entrant": carols})
+    nobody = await client.get(ORGANISE, params={"entrant": "0192f4a4-7b7e-7000-8000-000000000001"})
+    malformed = await client.get(ORGANISE, params={"entrant": "carol"})
 
     assert (refused.status_code, refused.json()["code"]) == (403, "forbidden")
     assert organised.status_code == 200, organised.text
     standings, staff = organised.json()
-    assert standings["now"] == standings["final"] == _standings(OWN_CELL)
+    assert standings["now"] == standings["final"] == _standings(OWN_CELL, carols)
     assert standings["notes"] == []
     assert (staff["now"]["board"], staff["now"]["who"]) == ("Staff", "organisers")
     assert staff["now"]["rows"][0]["keys"] == ["100"]
-    [carols] = as_carol.json()
-    assert carols["now"] == _standings(OWN_CELL)
+    assert len(as_carol.json()) == 1
+    assert as_carol.json()[0]["now"] == _standings(OWN_CELL, carols)
     assert (nobody.status_code, nobody.json()["code"]) == (404, "not_found")
-    assert (both.status_code, both.json()["code"]) == (422, "rejected")
+    assert (malformed.status_code, malformed.json()["code"]) == (422, "validation_error")
 
 
 async def test_a_row_marks_its_own_submissions_up_to_the_tasks_marks_until_its_close(
@@ -280,8 +281,10 @@ async def test_a_save_of_the_contests_settings_answers_the_notes_its_boards_repo
     organised = await client.get(ORGANISE)
 
     assert written.status_code == 200, written.text
-    assert written.json()["notes"] == ["Late counts nothing from sum."]
-    assert [board["notes"] for board in organised.json()] == [["Late counts nothing from sum."]]
+    assert written.json()["notes"] == ["The leaderboard Late counts nothing from sum."]
+    assert [board["notes"] for board in organised.json()] == [
+        ["The leaderboard Late counts nothing from sum."]
+    ]
 
 
 async def test_a_save_of_the_contests_settings_with_nothing_to_report_answers_no_notes(
@@ -307,12 +310,13 @@ async def test_organisers_read_a_submission_scored_with_everything_filled_in(
     await sign_in_as(client, entered, 7)
     await edit_task(client, "main: {each: 100}", "main: {each: 100, show: after_close}")
     await sign_in_as(client, entered, 20)
+    carols = await entrant_of(client)
     await _graded(client, entered, "key-0001-aaaa")
     own = (await client.get(f"{TASK}/submissions/1")).json()["grading"]
-    refused = await client.get(ORGANISED, params={"user_id": 20})
+    refused = await client.get(ORGANISED, params={"entrant": carols})
     await sign_in_as(client, entered, 7)
 
-    seen = await client.get(ORGANISED, params={"user_id": 20})
+    seen = await client.get(ORGANISED, params={"entrant": carols})
 
     assert (refused.status_code, refused.json()["code"]) == (403, "forbidden")
     assert seen.status_code == 200, seen.text
@@ -331,22 +335,21 @@ async def test_organisers_read_a_submission_scored_with_everything_filled_in(
 async def test_organisers_pick_one_row_with_such_a_submission(
     client: httpx.AsyncClient, entered: FakeForge
 ) -> None:
+    carols = await entrant_of(client)
     await _graded(client, entered, "key-0001-aaaa")
     await sign_in_as(client, entered, 7)
-    team = "0192f4a4-7b7e-7000-8000-000000000001"
+    nobody = "0192f4a4-7b7e-7000-8000-000000000001"
 
     answers = [
         await client.get(ORGANISED),
-        await client.get(ORGANISED, params={"user_id": 20, "team": team}),
-        await client.get(ORGANISED, params={"user_id": 7}),
-        await client.get(f"{TASK}/organise/submissions/2", params={"user_id": 20}),
-        await client.get(ORGANISED, params={"team": team}),
+        await client.get(ORGANISED, params={"entrant": "carol"}),
+        await client.get(ORGANISED, params={"entrant": nobody}),
+        await client.get(f"{TASK}/organise/submissions/2", params={"entrant": carols}),
     ]
 
     assert [(answer.status_code, answer.json()["code"]) for answer in answers] == [
-        (422, "rejected"),
-        (422, "rejected"),
-        (404, "not_found"),
+        (422, "validation_error"),
+        (422, "validation_error"),
         (404, "not_found"),
         (404, "not_found"),
     ]

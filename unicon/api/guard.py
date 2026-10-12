@@ -112,7 +112,10 @@ async def _held_under(session: Session, org: str, contest: str | None = None) ->
         return await access.organiser_at(session, Role.OBSERVER, org, contest)
     except Forbidden:
         address = "/".join(part for part in (org, contest) if part is not None)
-        refused = Forbidden(f"This needs a role at {address} or at anything in it.")
+        refused = Forbidden(
+            f"This needs a role at {address} or at something in it. Ask an admin of "
+            f"{address} if you need one."
+        )
     try:
         scope = await names.scope_at(org, contest)
     except NotFound:
@@ -121,7 +124,7 @@ async def _held_under(session: Session, org: str, contest: str | None = None) ->
     if held.degraded:
         # No roles came back because the forge did not answer, not because
         # the person holds none.
-        raise Unavailable("The forge did not answer; try again in a moment.")
+        raise Unavailable("The server did not answer. Try again in a moment.")
     under = next((role.scope for role in held.roles if scope.covers(role.scope)), None)
     if under is None:
         raise refused

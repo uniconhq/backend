@@ -47,7 +47,10 @@ class OriginCheck:
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if _is_checked(scope) and _claimed_origin(_headers(scope)) != self._origin():
-            error = OriginMismatch("This request did not come from the site.")
+            error = OriginMismatch(
+                "This request did not come from Unicon's own pages, so it was refused. Reload "
+                "the page and try again."
+            )
             await problem_for(error)(scope, receive, send)
             return
         await self._app(scope, receive, send)

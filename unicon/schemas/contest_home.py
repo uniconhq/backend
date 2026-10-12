@@ -11,11 +11,11 @@ from decimal import Decimal
 from typing import Any, Literal
 
 from forge.api.contest_home import ContestVisibility, State
-from forge.api.contestants import Status
+from forge.api.entrants import Status
 from forge.api.release import TaskRelease
 from pydantic import BaseModel, model_validator
 
-from unicon.schemas.contestants import MyRegistration
+from unicon.schemas.entrants import MyEntry
 from unicon.schemas.exact import Exact, exactly
 from unicon.schemas.submissions import Value
 
@@ -29,7 +29,7 @@ class ContestNames(BaseModel):
 
 class ContestSummary(BaseModel):
     """A contest the caller sees, with its title, when it runs, who sees it,
-    and the caller's own registration status.
+    and the status of the caller's entrant, null when they are in none.
     """
 
     where: ContestNames
@@ -59,10 +59,10 @@ class TaskEntry(BaseModel):
 
 class ContestHome(BaseModel):
     """A contest's home for the caller. `organises` says the caller holds a
-    role at the contest, which keeps them from registering;
-    `registration_open` says whether the registration window is open now,
-    `invite_only` whether only invited people may register and `asks_code`
-    whether registering takes the contest's code.
+    role at the contest, which keeps them from registering; `registration`
+    is their registration panel, as `entrants/mine` answers it: their
+    entrant, whether and how they may register, and whether to ask them for
+    a code.
     """
 
     where: ContestNames
@@ -71,11 +71,8 @@ class ContestHome(BaseModel):
     start: datetime
     end: datetime
     state: State
-    registration: MyRegistration | None
+    registration: MyEntry
     organises: bool
-    registration_open: bool
-    invite_only: bool
-    asks_code: bool
     now: datetime
     tasks: list[TaskEntry]
 
@@ -139,9 +136,9 @@ class InputField(BaseModel):
 class TaskPage(BaseModel):
     """A task as the caller reads it: its statement in Markdown, the caps a
     submit is counted against, the inputs a contestant gives, when it falls
-    due and closes for them, and `marks`, how many of their row's
+    due and closes for them, and `marks`, how many of their entrant's
     submissions they may mark for the `marked` boards, null unless such a
-    board covers the task and they are an approved contestant; and nothing
+    board covers the task and their entrant is approved; and nothing
     else the task holds.
     """
 

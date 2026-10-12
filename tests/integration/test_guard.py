@@ -7,8 +7,9 @@ roles once. The few reads open to any role at a scope or anything in it are
 in a table of their own: a role at the scope or at any narrower one is
 admitted, and none there is refused naming the address. Every route under an
 org is in one of the two tables but the ones that need only a session, such
-as those a contestant calls, so a route added there is held to the guard the
-day it exists. Every route anywhere that needs no
+as those a contestant calls, and the ones open to a visitor, such as a task's
+public files, so a route added there is held to the guard the day it
+exists. Every route anywhere that needs no
 session at all is in a list of its own, so a route that forgets the session
 is caught the day it exists too.
 """
@@ -47,16 +48,23 @@ NO_GRADING = "0192f4a4-7b7e-7000-8000-000000000001"
 NOTE = {"title": "Welcome", "body": "Good luck."}
 COMMENT = {"body": "Yes."}
 INVITE = {"grants": "observer", "username": "carol"}
-TEAM = {"name": "Adders"}
-PERSON = {"user_id": 20}
+NAME = {"name": "Adders"}
+MOVE = {"to": "0192f4a4-7b7e-7000-8000-000000000002"}
 SECONDS = {"seconds": 60}
+ENTRANT = f"{CONTEST}/organise/entrants/{NO_GRADING}"
 CANCEL = {"reason": "Not counted."}
+ASKER = "entrant." + "0" * 31 + "1"
+"""An asker as a question names one: an entrant's desk."""
 TASK_FILE = {"path": "data/weights.bin", "size": 1, "sha256": "0" * 64}
 SESSION_ONLY = {
     "createOrg",
     "getTaskRelease",
-    "registerForContest",
-    "getMyRegistration",
+    "registerEntrant",
+    "getMyEntry",
+    "inviteIntoMyEntrant",
+    "withdrawMyEntrantsInvite",
+    "leaveMyEntrant",
+    "renameMyEntrant",
     "getContestHome",
     "getTaskPage",
     "requestUploadSlot",
@@ -71,21 +79,15 @@ SESSION_ONLY = {
     "listMyQuestions",
     "followUpQuestion",
     "listClarificationInbox",
-    "getMyTeam",
-    "listTeams",
-    "createTeam",
-    "requestToJoinTeam",
-    "cancelTeamRequest",
-    "leaveTeam",
-    "inviteToTeam",
-    "approveTeamMember",
-    "removeTeamMember",
     "listBoards",
     "getBoard",
     "getMyMarks",
     "markSubmission",
     "unmarkSubmission",
 }
+OPEN_UNDER_ORGS = {"getTaskPublicFile"}
+"""The routes under an org that need no session, since they answer a visitor
+what the contest makes public, and a signed-in caller what they may read."""
 
 ROUTES: list[tuple[str, str, dict[str, Any] | None, Role, Scope]] = [
     ("PATCH", ORG, {"description": "Acme"}, Role.ADMIN, ACME),
@@ -99,12 +101,16 @@ ROUTES: list[tuple[str, str, dict[str, Any] | None, Role, Scope]] = [
     ("DELETE", f"{CONTEST}/roles/20", None, Role.MANAGER, SPRING),
     ("GET", f"{CONTEST}/tasks", None, Role.OBSERVER, SPRING),
     ("POST", f"{CONTEST}/tasks", {"name": "product"}, Role.MANAGER, SPRING),
-    ("GET", f"{CONTEST}/contestants", None, Role.OBSERVER, SPRING),
-    ("POST", f"{CONTEST}/contestants/20/approve", None, Role.MANAGER, SPRING),
-    ("POST", f"{CONTEST}/contestants/20/reject", {"reason": "No."}, Role.MANAGER, SPRING),
-    ("POST", f"{CONTEST}/contestants/20/reopen", None, Role.MANAGER, SPRING),
-    ("POST", f"{CONTEST}/contestants/20/remove", None, Role.MANAGER, SPRING),
-    ("PUT", f"{CONTEST}/contestants/20/extension", {"seconds": 60}, Role.MANAGER, SPRING),
+    ("GET", f"{CONTEST}/organise/entrants", None, Role.OBSERVER, SPRING),
+    ("POST", f"{ENTRANT}/approve", None, Role.MANAGER, SPRING),
+    ("POST", f"{ENTRANT}/reject", {"reason": "No."}, Role.MANAGER, SPRING),
+    ("POST", f"{ENTRANT}/reopen", None, Role.MANAGER, SPRING),
+    ("POST", f"{ENTRANT}/remove", None, Role.MANAGER, SPRING),
+    ("PUT", f"{ENTRANT}/extension", SECONDS, Role.MANAGER, SPRING),
+    ("PUT", f"{ENTRANT}/name", NAME, Role.MANAGER, SPRING),
+    ("DELETE", ENTRANT, None, Role.MANAGER, SPRING),
+    ("DELETE", f"{ENTRANT}/members/20", None, Role.MANAGER, SPRING),
+    ("POST", f"{ENTRANT}/members/20/move", MOVE, Role.MANAGER, SPRING),
     ("GET", f"{CONTEST}/tree", None, Role.OBSERVER, SPRING),
     ("GET", f"{CONTEST}/files/contest.yaml", None, Role.OBSERVER, SPRING),
     ("GET", f"{CONTEST}/history", None, Role.OBSERVER, SPRING),
@@ -137,15 +143,17 @@ ROUTES: list[tuple[str, str, dict[str, Any] | None, Role, Scope]] = [
     ("POST", f"{CONTEST}/announcements", NOTE, Role.MANAGER, SPRING),
     ("PATCH", f"{CONTEST}/announcements/1", NOTE, Role.MANAGER, SPRING),
     ("POST", f"{CONTEST}/announcements/1/close", None, Role.MANAGER, SPRING),
+    ("POST", f"{CONTEST}/announcements/1/reopen", None, Role.MANAGER, SPRING),
     ("GET", f"{TASK}/announcements", None, Role.OBSERVER, SUM),
     ("POST", f"{TASK}/announcements", NOTE, Role.MANAGER, SUM),
     ("PATCH", f"{TASK}/announcements/1", NOTE, Role.MANAGER, SUM),
     ("POST", f"{TASK}/announcements/1/close", None, Role.MANAGER, SUM),
+    ("POST", f"{TASK}/announcements/1/reopen", None, Role.MANAGER, SUM),
     ("GET", f"{CONTEST}/clarifications", None, Role.OBSERVER, SPRING),
-    ("POST", f"{CONTEST}/clarifications/20/1/replies", COMMENT, Role.MANAGER, SPRING),
-    ("PUT", f"{CONTEST}/clarifications/20/1/answered", None, Role.MANAGER, SPRING),
-    ("DELETE", f"{CONTEST}/clarifications/20/1/answered", None, Role.MANAGER, SPRING),
-    ("POST", f"{CONTEST}/clarifications/20/1/announcement", NOTE, Role.MANAGER, SPRING),
+    ("POST", f"{CONTEST}/clarifications/{ASKER}/1/replies", COMMENT, Role.MANAGER, SPRING),
+    ("PUT", f"{CONTEST}/clarifications/{ASKER}/1/answered", None, Role.MANAGER, SPRING),
+    ("DELETE", f"{CONTEST}/clarifications/{ASKER}/1/answered", None, Role.MANAGER, SPRING),
+    ("POST", f"{CONTEST}/clarifications/{ASKER}/1/announcement", NOTE, Role.MANAGER, SPRING),
     ("GET", f"{ORG}/invites", None, Role.OBSERVER, ACME),
     ("POST", f"{ORG}/invites", INVITE, Role.MANAGER, ACME),
     ("POST", f"{ORG}/invites/{NO_GRADING}/send-again", None, Role.MANAGER, ACME),
@@ -158,13 +166,6 @@ ROUTES: list[tuple[str, str, dict[str, Any] | None, Role, Scope]] = [
     ("POST", f"{TASK}/invites", INVITE, Role.MANAGER, SUM),
     ("POST", f"{TASK}/invites/{NO_GRADING}/send-again", None, Role.MANAGER, SUM),
     ("POST", f"{TASK}/invites/{NO_GRADING}/withdraw", None, Role.MANAGER, SUM),
-    ("GET", f"{CONTEST}/organise/teams", None, Role.OBSERVER, SPRING),
-    ("POST", f"{CONTEST}/organise/teams", TEAM, Role.MANAGER, SPRING),
-    ("DELETE", f"{CONTEST}/organise/teams/{NO_GRADING}", None, Role.MANAGER, SPRING),
-    ("POST", f"{CONTEST}/organise/teams/{NO_GRADING}/members", PERSON, Role.MANAGER, SPRING),
-    ("DELETE", f"{CONTEST}/organise/teams/{NO_GRADING}/members/20", None, Role.MANAGER, SPRING),
-    ("PUT", f"{CONTEST}/organise/teams/{NO_GRADING}/leader", PERSON, Role.MANAGER, SPRING),
-    ("PUT", f"{CONTEST}/organise/teams/{NO_GRADING}/extension", SECONDS, Role.MANAGER, SPRING),
 ]
 ANY_ROLE: list[tuple[str, Scope]] = [
     (ORG, ACME),
@@ -208,7 +209,9 @@ def test_every_route_under_an_org_is_guarded_and_in_the_table() -> None:
 
     assert len(listed) == len(tables)
     assert guarded == listed
-    assert {route.operation_id for _, route in under_orgs} == guarded | SESSION_ONLY
+    assert {route.operation_id for _, route in under_orgs} == (
+        guarded | SESSION_ONLY | OPEN_UNDER_ORGS
+    )
 
 
 NO_SESSION = {
@@ -226,6 +229,7 @@ NO_SESSION = {
     "listPublicContests",
     "getPublicContest",
     "getPublicStatement",
+    "getTaskPublicFile",
     "listPublicBoards",
     "getPublicBoard",
 }
@@ -286,7 +290,10 @@ async def test_a_caller_just_below_the_role_is_refused_at_the_routes_scope(
 
     assert refused.status_code == 403, refused.text
     assert refused.json()["code"] == "forbidden"
-    assert refused.json()["detail"] == f"This needs the {role.value} role at {scope.name}."
+    assert refused.json()["detail"] == (
+        f"This needs the {role.value} role at {scope.name}. Ask an admin of {scope.name} if "
+        "you need it."
+    )
 
 
 @EACH_ROUTE
@@ -316,7 +323,10 @@ async def test_an_open_read_is_refused_to_a_caller_holding_no_role_in_its_scope(
 
     assert refused.status_code == 403, refused.text
     assert refused.json()["code"] == "forbidden"
-    assert refused.json()["detail"] == f"This needs a role at {scope.name} or at anything in it."
+    assert refused.json()["detail"] == (
+        f"This needs a role at {scope.name} or at something in it. Ask an admin of "
+        f"{scope.name} if you need one."
+    )
 
 
 @EACH_OPEN_ROUTE

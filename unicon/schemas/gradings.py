@@ -55,7 +55,8 @@ class Grading(BaseModel):
     """One grading as an organiser managing its task reads it: the
     submission by its number, the publication it grades against, its
     attempt and whether that is the submission's `latest`, the one staff
-    cancel or retry, where it stands, the reason it failed, the sentence
+    cancel or retry, the member who submitted it, `submitted_by`, null when
+    a reconcile found it at the forge, where it stands, the reason it failed, the sentence
     staff cancelled it with, its result, whether its log was written, the
     last progress its run reported, and its times.
 
@@ -73,6 +74,7 @@ class Grading(BaseModel):
     publication: PublicationNumber
     attempt: int
     latest: bool
+    submitted_by: int | None
     status: GradingStatus
     error: str | None
     cancel_reason: str | None
@@ -94,9 +96,10 @@ class FeedEntry(BaseModel):
     organiser reads it, its task by name, null for a task the platform has
     no name for, its `label`, the letter of its place in the contest's
     `tasks`, null once the contest no longer lists it or its settings do
-    not read, and `by`, who made the submission: a contestant by `user_id`
-    and username as `name`, or a team by its id as `team` and its `name`,
-    the name null once the account or the team is gone.
+    not read, and `by`, whose submission it is: the `entrant` by its id and
+    `entrant_name`, the name it is shown under, and the member who
+    submitted it by `user_id` and `username`, both null when a reconcile
+    found it at the forge, the username null when the forge did not say.
     """
 
     grading: Grading

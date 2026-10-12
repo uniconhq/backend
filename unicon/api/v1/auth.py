@@ -59,7 +59,9 @@ async def complete_login(
     attempt = cookies.read_sign_in(request)
     try:
         if error:
-            raise SignInDenied("The forge did not approve this sign-in.")
+            raise SignInDenied(
+                "The sign-in was not approved. Try again, and approve it when asked."
+            )
         session, landing = await sign_in.complete(
             code=code,
             state=state,

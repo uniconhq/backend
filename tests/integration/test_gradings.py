@@ -268,7 +268,7 @@ async def test_an_observer_lists_the_tasks_gradings_newest_first_with_their_reas
     assert rows[1]["error"]
     assert [row["cancel_reason"] for row in rows] == [None, None]
     assert [(entry["task"], entry["label"]) for entry in listed.json()] == [("sum", "A")] * 2
-    assert [entry["by"]["name"] for entry in listed.json()] == ["carol", "carol"]
+    assert [entry["by"]["username"] for entry in listed.json()] == ["carol", "carol"]
     assert [entry["grading"]["id"] for entry in one.json()] == [retried.json()["id"]]
     assert too_many.status_code == 422
 
@@ -326,9 +326,8 @@ async def test_a_save_that_changes_how_the_task_grades_says_how_many_it_regraded
     body = saved.json()
     assert (body["grading_changed"], body["regraded"]) == (True, 1)
     assert body["notes"] == [
-        "Each group's most points: main 100.",
-        "sum reveals at 2026-09-26T15:00:00+00:00.",
-        "This save moves Standings.",
+        "The most points each test group gives: main 100.",
+        "This save changes the leaderboard Standings.",
     ]
 
 

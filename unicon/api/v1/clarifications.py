@@ -13,8 +13,8 @@ there; and, with the manager role at the contest, a reply, which leaves the
 question open, marking it answered, which closes it with or without a
 reply, taking the mark off again, and an answer made public as an
 announcement pointing at the question. A question is named by its desk,
-`asker`: its asker's user id, or `team.<id>` for a team's, and its number
-among the desk's questions in the contest.
+`asker`: the asking entrant's desk, `entrant.<id>` with the id's 32 hex
+digits, and its number among the desk's questions in the contest.
 """
 
 from typing import Annotated
