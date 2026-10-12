@@ -13,7 +13,7 @@ from datetime import datetime
 from typing import Any
 
 from forge.api.gradings import GradingStatus, Submitter
-from forge.api.regrades import Change, RegradeCause
+from forge.api.regrades import ChangeKind, RegradeCause
 from pydantic import BaseModel, field_validator
 
 from unicon.schemas.exact import Exact, Reported
@@ -89,7 +89,7 @@ class RegradeChange(BaseModel):
     entrant at the task's most submissions.
     """
 
-    change: Change
+    change: ChangeKind
     earlier: RegradeSide | None
     now: RegradeSide | None
 

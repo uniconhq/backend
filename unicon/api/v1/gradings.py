@@ -56,7 +56,7 @@ from forge.api.access import Organiser
 from forge.api.boards import EntrantOwner
 from forge.api.errors import NotFound
 from forge.api.gradings import GradingStatus
-from forge.api.regrades import Change
+from forge.api.regrades import ChangeKind
 from forge.api.types import Role, ScopeKind, TaskId
 
 from unicon.api.guard import PREFIX, anywhere, require
@@ -225,7 +225,7 @@ async def list_contest_gradings(
         uuid.UUID | None, Query(description="One regrade of many's gradings, each with its change")
     ] = None,
     change: Annotated[
-        Change | None, Query(description="With regrade, what it did to the submission")
+        ChangeKind | None, Query(description="With regrade, what it did to the submission")
     ] = None,
     limit: Annotated[int, Query(ge=1, le=LIST_MOST)] = 100,
 ) -> list[dict[str, Any]]:

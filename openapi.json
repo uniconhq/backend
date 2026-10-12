@@ -594,7 +594,56 @@
         "title": "CancelRequest",
         "type": "object"
       },
-      "Change-Input": {
+      "Change": {
+        "description": "One entry of a place's history: the version it made, who made it, what\nthey said about it and when. `author` is the username of `author_id`,\nwhich the history names whether or not they still hold a role there, and\nnone when the forge knows no such account, the change has no author, or\nthe platform made it, which is no person (a new task's first files).",
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "author": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Author"
+          },
+          "author_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Author Id"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "author_id",
+          "message",
+          "at",
+          "author"
+        ],
+        "title": "Change",
+        "type": "object"
+      },
+      "ChangeKind": {
         "description": "What a regrade did to one submission, as the module says.",
         "enum": [
           "up",
@@ -606,7 +655,7 @@
           "failed",
           "over_limit"
         ],
-        "title": "Change",
+        "title": "ChangeKind",
         "type": "string"
       },
       "CheckDefinition": {
@@ -4181,7 +4230,7 @@
         "description": "What a regrade did to one submission: `change`, and the result it\nreplaced, `earlier`, the one that counted when the regrade began, null\nwhen there was none or it no longer reads, beside its own, `now`, null\nwhile it has none.\n\n`up` and `down`: its points went up or down; on a task that gives no\npoints, a larger or smaller share of its tests accepted, or with the\nsame share, its values with a direction, down when any got worse.\n`stopped`: it now stops before its tests where the earlier result did\nnot, which on the classic workflow is \"now fails to compile\".\n`unchanged`; `new`, graded with no earlier result to compare with;\n`running`, still being graded; `failed`, no result yet, its latest\nattempt a system error or cancelled; `over_limit`, not graded, its\nentrant at the task's most submissions.",
         "properties": {
           "change": {
-            "$ref": "#/components/schemas/forge__domain__regrades__Change"
+            "$ref": "#/components/schemas/ChangeKind"
           },
           "earlier": {
             "anyOf": [
@@ -6422,70 +6471,6 @@
         ],
         "title": "Written",
         "type": "object"
-      },
-      "forge__domain__content__Change": {
-        "description": "One entry of a place's history: the version it made, who made it, what\nthey said about it and when. `author` is the username of `author_id`,\nwhich the history names whether or not they still hold a role there, and\nnone when the forge knows no such account, the change has no author, or\nthe platform made it, which is no person (a new task's first files).",
-        "properties": {
-          "at": {
-            "format": "date-time",
-            "title": "At",
-            "type": "string"
-          },
-          "author": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Author"
-          },
-          "author_id": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Author Id"
-          },
-          "message": {
-            "title": "Message",
-            "type": "string"
-          },
-          "version": {
-            "title": "Version",
-            "type": "string"
-          }
-        },
-        "required": [
-          "version",
-          "author_id",
-          "message",
-          "at",
-          "author"
-        ],
-        "title": "Change",
-        "type": "object"
-      },
-      "forge__domain__regrades__Change": {
-        "description": "What a regrade did to one submission, as the module says.",
-        "enum": [
-          "up",
-          "down",
-          "stopped",
-          "unchanged",
-          "new",
-          "running",
-          "failed",
-          "over_limit"
-        ],
-        "title": "Change",
-        "type": "string"
       }
     }
   },
@@ -9042,7 +9027,7 @@
             "schema": {
               "anyOf": [
                 {
-                  "$ref": "#/components/schemas/Change-Input"
+                  "$ref": "#/components/schemas/ChangeKind"
                 },
                 {
                   "type": "null"
@@ -9252,7 +9237,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "$ref": "#/components/schemas/forge__domain__content__Change"
+                    "$ref": "#/components/schemas/Change"
                   },
                   "title": "Response Listcontesthistory",
                   "type": "array"
@@ -11925,7 +11910,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "$ref": "#/components/schemas/forge__domain__content__Change"
+                    "$ref": "#/components/schemas/Change"
                   },
                   "title": "Response Listtaskhistory",
                   "type": "array"
