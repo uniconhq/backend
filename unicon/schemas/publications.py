@@ -7,8 +7,9 @@ runs.
 
 import uuid
 from datetime import datetime
-from typing import Annotated, Any, Self
+from typing import Annotated, Any, Literal, Self
 
+from forge.api.boards import Better
 from forge.api.types import Uploaded
 from pydantic import BaseModel, BeforeValidator, model_validator
 
@@ -37,10 +38,29 @@ PublicationNumber = Annotated[int, BeforeValidator(_number_of)]
 """A publication by its number among its task's publications."""
 
 
+class ValueMeaning(BaseModel):
+    """One value the task's workflow reports, as a page names it: its `name`
+    in the report, its `title` ("Run time") and its `unit` ("ms", only on a
+    number), each null where the workflow gives none, so the page names it
+    by `name`; and, on a number reported for each test, how it `fold`s over
+    the tests and which way is `better`, both null otherwise.
+    """
+
+    name: str
+    title: str | None
+    unit: str | None
+    fold: Literal["sum", "mean", "max"] | None
+    better: Better | None
+
+
 class Publication(BaseModel):
     """One publication: its number among the task's publications, the version
-    it froze, whether it changed how the task grades and what, and when.
-    Which workflow each of its workflow names was at the forge stays out.
+    it froze, whether it changed how the task grades and what, and when;
+    and `meanings`, every value its workflow reports, in the workflow's
+    order, with the words it froze for each, which a form picking a value
+    lists. A publication made before those words were kept lists its values
+    reported for each test by name alone. Which workflow each of its
+    workflow names was at the forge stays out.
     """
 
     number: int
@@ -48,6 +68,7 @@ class Publication(BaseModel):
     grading_changed: bool
     changes: list[str]
     at: datetime
+    meanings: list[ValueMeaning]
 
 
 class FileChange(BaseModel):

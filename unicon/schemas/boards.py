@@ -31,12 +31,17 @@ class BoardKey(BaseModel):
     `penalty` or a declared value, which way is better, null for a value no
     covered task gives a direction, and, on `penalty`, the minutes each
     attempt before the counted submission charges; a `per_attempt` of 0
-    charges nothing, so the minute submitted is all it ranks on.
+    charges nothing, so the minute submitted is all it ranks on. On a value,
+    `title` and `unit` name its column, "Run time" and "ms", as the first
+    covered task giving them says; both null on `points`, on `penalty` and
+    on a value no covered task names, which a page names by `by`.
     """
 
     by: str
     better: Better | None
     per_attempt: int | None
+    title: str | None
+    unit: str | None
 
 
 class BoardTask(BaseModel):

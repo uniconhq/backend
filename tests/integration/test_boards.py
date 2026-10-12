@@ -120,8 +120,8 @@ def _standings(cell: dict[str, Any], entrant: str) -> dict[str, Any]:
         "select": "best",
         "who": "everyone",
         "keys": [
-            {"by": "points", "better": "higher", "per_attempt": None},
-            {"by": "penalty", "better": "lower", "per_attempt": 20},
+            {"by": "points", "better": "higher", "per_attempt": None, "title": None, "unit": None},
+            {"by": "penalty", "better": "lower", "per_attempt": 20, "title": None, "unit": None},
         ],
         "tasks": [{"id": "sum", "label": "A", "worth": "100"}],
         "not_in_view": [],

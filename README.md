@@ -168,7 +168,7 @@ the one the route needs at the scope in the third column.
 | `POST <task>/take-out` | manager | contest | `confirmed`, `remove` or `withdraw` | `done`, what was done |
 | `POST <task>/put-back` | manager | contest | | the boards' `notes` |
 | `GET <task>` | observer | task | | the task's state |
-| `GET <task>/publications` | observer | task | | the publications, oldest first |
+| `GET <task>/publications` | observer | task | | the publications, oldest first, each with the `meanings` of the values its workflow reports |
 | `GET <task>/workflow-form` | observer | task | | the inputs and test fields of the workflow the task names, or the `problem`, and whether the task is `graded` |
 | `GET <task>/release` | a session | | | whether the caller sees the task and may submit to it now, or 404 when the contest is hidden from them |
 | `GET <contest>/organise/entrants` | observer | contest | | every entrant, the earliest registered first, with its members and the invites into it |
@@ -635,7 +635,11 @@ task's test groups let the contestant see now: what `stopped` the run, the
 `outcome` over the groups shown, the `values` reported once, and each of
 the `groups` with its `group` name, its `show`, its `outcome` and its
 `tests`, each test's row being its `test`, `<group>/<test>`, its `outcome`
-and its `values`. On a task that gives points, the grading carries its
+and its `values`; and `meanings`, every value the workflow reports, in its
+order, each `{name, title, unit, fold, better}`, the title and unit being
+the words a page names it by ("Run time", "ms"), null where the workflow
+gives none so the page falls back to `name`, a value a sealed step holds
+back left out until the reveal. On a task that gives points, the grading carries its
 `points`, those `shown`, null while no group's verdict is shown yet,
 those `pending` on groups not shown yet and
 `pending_until`, and the late `factor` they include; each group its `max`,
@@ -705,7 +709,8 @@ every reader, cut to the rows the board's `rows` gives them.
 | `DELETE <task>/marks/{number}` | a session | the marks, with its mark taken off |
 
 A board carries its `board` name, `over`, `select` and `who`, its `keys`,
-each `{by, better, per_attempt}`, the `tasks` it covers, each `{id,
+each `{by, better, per_attempt, title, unit}`, a value's `title` and
+`unit` naming its column as the first covered task gives them, the `tasks` it covers, each `{id,
 label, worth}`, `not_in_view`, what of a task is in its scope and not yet
 in its numbers, with when it joins, and its `rows` in rank order. A row
 carries its `rank`, shared by ties, whose it is as `row`, `{entrant, name}`,

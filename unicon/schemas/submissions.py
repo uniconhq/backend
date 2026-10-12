@@ -21,6 +21,7 @@ from forge.api.submissions import GradingStatus, Show, SubmissionState, Submitte
 from pydantic import BaseModel, field_validator, model_validator
 
 from unicon.schemas.exact import Exact, Reported, exactly
+from unicon.schemas.publications import ValueMeaning
 
 Outcome = Literal[
     "accepted",
@@ -130,6 +131,7 @@ class Scored(BaseModel):
     points: Points | None
     factor: Exact | None
     limit: int | None
+    meanings: list[ValueMeaning]
 
 
 class Result(Scored):
@@ -143,7 +145,10 @@ class Result(Scored):
     with a fold, folded over the tests shown, a test that was not accepted
     or did not report it counting as its worst bound, and the value absent
     when it declares none, so a wrong answer has no time; each test's row
-    still carries what it reported. `status` is in the contestant's words: `queued` until
+    still carries what it reported; and `meanings`, every value the
+    workflow reports, in its order, with the title and unit a page names it
+    by, falling back to its name, a value a sealed step holds back left out
+    until the reveal. `status` is in the contestant's words: `queued` until
     its run is started, `grading` while it is graded, `graded` once it has
     a result, `delayed` while it has none and its grading failed on the
     platform's side, `over_limit` once it was to be graded again with no

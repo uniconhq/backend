@@ -113,6 +113,19 @@ async def test_the_organiser_path_from_an_org_to_a_publication(
     ]
     # The forge's id for a publication is built from keys, which stay home.
     assert all("id" not in entry for entry in published)
+    # Each value its workflow reports, with the words a page names it by.
+    assert published[0]["meanings"] == [
+        {"name": "time_ms", "title": "Run time", "unit": "ms", "fold": "max", "better": "lower"},
+        {
+            "name": "memory_kb",
+            "title": "Memory used",
+            "unit": "KB",
+            "fold": "max",
+            "better": "lower",
+        },
+        {"name": "log", "title": "Compile log", "unit": None, "fold": None, "better": None},
+    ]
+    assert state["latest"]["meanings"] == published[1]["meanings"]
 
 
 async def test_a_save_inside_plans_is_refused_naming_the_path(

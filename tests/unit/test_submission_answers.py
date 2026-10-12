@@ -13,8 +13,15 @@ from decimal import Decimal
 from fractions import Fraction
 
 import pytest
-from forge.api.boards import Points
-from forge.api.submissions import GroupShown, Result, Show, SubmissionState
+from forge.api.boards import Better, Points
+from forge.api.submissions import (
+    Fold,
+    GroupShown,
+    Result,
+    Show,
+    SubmissionState,
+    ValueMeaning,
+)
 from forge.api.submissions import SubmittedFiles as SubmittedFilesRecord
 from forge.api.types import TaskId
 
@@ -44,6 +51,7 @@ def test_a_grading_being_run_carries_its_status_alone() -> None:
         "points": None,
         "factor": None,
         "limit": None,
+        "meanings": [],
     }
 
 
@@ -144,6 +152,7 @@ def test_a_grading_carries_each_group_as_forge_let_it_through() -> None:
         "points": None,
         "factor": None,
         "limit": None,
+        "meanings": [],
     }
 
 
@@ -177,6 +186,10 @@ def test_numbers_are_served_as_exact_decimals_and_text_stays_text() -> None:
         points=Points(Fraction(85, 3), Fraction(15), REVEAL),
         factor=Fraction(9, 10),
         folded={"time_ms": Fraction(1, 3)},
+        meanings=(
+            ValueMeaning("time_ms", "Run time", "ms", Fold.MAX, Better.LOWER),
+            ValueMeaning("log", "Compile log"),
+        ),
     )
 
     served = json.loads(ResultAnswer.model_validate(result, from_attributes=True).model_dump_json())
@@ -198,6 +211,11 @@ def test_numbers_are_served_as_exact_decimals_and_text_stays_text() -> None:
     }
     assert served["factor"] == "0.9"
     assert served["folded"] == {"time_ms": "0." + "3" * 30}
+    # Each value with the words a page names it by, in the report's order.
+    assert served["meanings"] == [
+        {"name": "time_ms", "title": "Run time", "unit": "ms", "fold": "max", "better": "lower"},
+        {"name": "log", "title": "Compile log", "unit": None, "fold": None, "better": None},
+    ]
 
 
 def test_a_submissions_inputs_are_read_leniently() -> None:

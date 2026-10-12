@@ -154,6 +154,32 @@
         "title": "Announcement",
         "type": "object"
       },
+      "AnnouncementLink": {
+        "description": "The announcement a message names: on the question's contest, or on\nthe task of it named `task`, by its number there.",
+        "properties": {
+          "number": {
+            "title": "Number",
+            "type": "integer"
+          },
+          "task": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Task"
+          }
+        },
+        "required": [
+          "task",
+          "number"
+        ],
+        "title": "AnnouncementLink",
+        "type": "object"
+      },
       "AnnouncementRequest": {
         "description": "An announcement's title and text, as posted or as edited.",
         "properties": {
@@ -335,7 +361,7 @@
         "type": "object"
       },
       "BoardKey": {
-        "description": "One key rows are ranked on, in turn: what it ranks by, `points`,\n`penalty` or a declared value, which way is better, null for a value no\ncovered task gives a direction, and, on `penalty`, the minutes each\nattempt before the counted submission charges; a `per_attempt` of 0\ncharges nothing, so the minute submitted is all it ranks on.",
+        "description": "One key rows are ranked on, in turn: what it ranks by, `points`,\n`penalty` or a declared value, which way is better, null for a value no\ncovered task gives a direction, and, on `penalty`, the minutes each\nattempt before the counted submission charges; a `per_attempt` of 0\ncharges nothing, so the minute submitted is all it ranks on. On a value,\n`title` and `unit` name its column, \"Run time\" and \"ms\", as the first\ncovered task giving them says; both null on `points`, on `penalty` and\non a value no covered task names, which a page names by `by`.",
         "properties": {
           "better": {
             "anyOf": [
@@ -361,12 +387,36 @@
               }
             ],
             "title": "Per Attempt"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
           }
         },
         "required": [
           "by",
           "better",
-          "per_attempt"
+          "per_attempt",
+          "title",
+          "unit"
         ],
         "title": "BoardKey",
         "type": "object"
@@ -2748,8 +2798,18 @@
         "type": "object"
       },
       "Message": {
-        "description": "One message under a question: whether the asker wrote it, what it\nsays, and when.",
+        "description": "One message under a question: whether the asker wrote it, what it\nsays, when, and, on the message a public answer leaves, the\nannouncement it was answered in.",
         "properties": {
+          "announcement": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AnnouncementLink"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "at": {
             "format": "date-time",
             "title": "At",
@@ -2767,7 +2827,8 @@
         "required": [
           "from_asker",
           "body",
-          "at"
+          "at",
+          "announcement"
         ],
         "title": "Message",
         "type": "object"
@@ -3223,6 +3284,13 @@
             ],
             "title": "Limit"
           },
+          "meanings": {
+            "items": {
+              "$ref": "#/components/schemas/ValueMeaning"
+            },
+            "title": "Meanings",
+            "type": "array"
+          },
           "outcome": {
             "anyOf": [
               {
@@ -3307,6 +3375,7 @@
           "points",
           "factor",
           "limit",
+          "meanings",
           "status"
         ],
         "title": "OrganisedResult",
@@ -3756,7 +3825,7 @@
         "type": "object"
       },
       "Publication": {
-        "description": "One publication: its number among the task's publications, the version\nit froze, whether it changed how the task grades and what, and when.\nWhich workflow each of its workflow names was at the forge stays out.",
+        "description": "One publication: its number among the task's publications, the version\nit froze, whether it changed how the task grades and what, and when;\nand `meanings`, every value its workflow reports, in the workflow's\norder, with the words it froze for each, which a form picking a value\nlists. A publication made before those words were kept lists its values\nreported for each test by name alone. Which workflow each of its\nworkflow names was at the forge stays out.",
         "properties": {
           "at": {
             "format": "date-time",
@@ -3774,6 +3843,13 @@
             "title": "Grading Changed",
             "type": "boolean"
           },
+          "meanings": {
+            "items": {
+              "$ref": "#/components/schemas/ValueMeaning"
+            },
+            "title": "Meanings",
+            "type": "array"
+          },
           "number": {
             "title": "Number",
             "type": "integer"
@@ -3788,7 +3864,8 @@
           "version",
           "grading_changed",
           "changes",
-          "at"
+          "at",
+          "meanings"
         ],
         "title": "Publication",
         "type": "object"
@@ -4387,7 +4464,7 @@
         "type": "object"
       },
       "Result": {
-        "description": "The attempt of a submission's grading that counts, as its contestant\nsees it: the latest that finished with a result, as the boards count\nit, so a regrade under way, a failure or a cancel leaves the result as\nit was, and while none has, the latest. Its id, attempt and status, and\nonce it is done, what stopped the\nrun, the outcome over the groups shown, each test group as its `show`\nallows, the values reported once, and `folded`, each per-test value\nwith a fold, folded over the tests shown, a test that was not accepted\nor did not report it counting as its worst bound, and the value absent\nwhen it declares none, so a wrong answer has no time; each test's row\nstill carries what it reported. `status` is in the contestant's words: `queued` until\nits run is started, `grading` while it is graded, `graded` once it has\na result, `delayed` while it has none and its grading failed on the\nplatform's side, `over_limit` once it was to be graded again with no\nroom left under the task's most submissions, and `cancelled` once staff\nend it; organisers read the grading's own status in the gradings\nroutes. A `delayed` one carries nothing else: it is tried again once by\nitself, and then waits for staff, who grade it again or end it: then it\nis `cancelled`, with `reason`, the sentence they gave, which is null on\nevery other status. A delayed one is graded again only while its\nentrant's submissions with a result and those still waiting are fewer\nthan the task's most, and otherwise it is `over_limit`, with `limit`,\nthe most it reached (\"Not graded: you had reached the limit of 10\nsubmissions for this task.\"), and nothing else; `limit` is null on every\nother status.\nOnce done on a task that gives points, it carries\nits `points` and the late `factor` they include; both are null\notherwise. While a sealed step's stop is held to the reveal, nothing of\nthe run is shown: every group reads as hidden.",
+        "description": "The attempt of a submission's grading that counts, as its contestant\nsees it: the latest that finished with a result, as the boards count\nit, so a regrade under way, a failure or a cancel leaves the result as\nit was, and while none has, the latest. Its id, attempt and status, and\nonce it is done, what stopped the\nrun, the outcome over the groups shown, each test group as its `show`\nallows, the values reported once, and `folded`, each per-test value\nwith a fold, folded over the tests shown, a test that was not accepted\nor did not report it counting as its worst bound, and the value absent\nwhen it declares none, so a wrong answer has no time; each test's row\nstill carries what it reported; and `meanings`, every value the\nworkflow reports, in its order, with the title and unit a page names it\nby, falling back to its name, a value a sealed step holds back left out\nuntil the reveal. `status` is in the contestant's words: `queued` until\nits run is started, `grading` while it is graded, `graded` once it has\na result, `delayed` while it has none and its grading failed on the\nplatform's side, `over_limit` once it was to be graded again with no\nroom left under the task's most submissions, and `cancelled` once staff\nend it; organisers read the grading's own status in the gradings\nroutes. A `delayed` one carries nothing else: it is tried again once by\nitself, and then waits for staff, who grade it again or end it: then it\nis `cancelled`, with `reason`, the sentence they gave, which is null on\nevery other status. A delayed one is graded again only while its\nentrant's submissions with a result and those still waiting are fewer\nthan the task's most, and otherwise it is `over_limit`, with `limit`,\nthe most it reached (\"Not graded: you had reached the limit of 10\nsubmissions for this task.\"), and nothing else; `limit` is null on every\nother status.\nOnce done on a task that gives points, it carries\nits `points` and the late `factor` they include; both are null\notherwise. While a sealed step's stop is held to the reveal, nothing of\nthe run is shown: every group reads as hidden.",
         "properties": {
           "attempt": {
             "title": "Attempt",
@@ -4441,6 +4518,13 @@
               }
             ],
             "title": "Limit"
+          },
+          "meanings": {
+            "items": {
+              "$ref": "#/components/schemas/ValueMeaning"
+            },
+            "title": "Meanings",
+            "type": "array"
           },
           "outcome": {
             "anyOf": [
@@ -4526,6 +4610,7 @@
           "points",
           "factor",
           "limit",
+          "meanings",
           "status"
         ],
         "title": "Result",
@@ -5747,6 +5832,72 @@
         ],
         "title": "UploadStatus",
         "type": "string"
+      },
+      "ValueMeaning": {
+        "description": "One value the task's workflow reports, as a page names it: its `name`\nin the report, its `title` (\"Run time\") and its `unit` (\"ms\", only on a\nnumber), each null where the workflow gives none, so the page names it\nby `name`; and, on a number reported for each test, how it `fold`s over\nthe tests and which way is `better`, both null otherwise.",
+        "properties": {
+          "better": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Better"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fold": {
+            "anyOf": [
+              {
+                "enum": [
+                  "sum",
+                  "mean",
+                  "max"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fold"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          }
+        },
+        "required": [
+          "name",
+          "title",
+          "unit",
+          "fold",
+          "better"
+        ],
+        "title": "ValueMeaning",
+        "type": "object"
       },
       "Version": {
         "properties": {
