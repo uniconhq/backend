@@ -129,6 +129,7 @@ class Scored(BaseModel):
     reason: str | None
     points: Points | None
     factor: Exact | None
+    limit: int | None
 
 
 class Result(Scored):
@@ -145,11 +146,18 @@ class Result(Scored):
     still carries what it reported. `status` is in the contestant's words: `queued` until
     its run is started, `grading` while it is graded, `graded` once it has
     a result, `delayed` while it has none and its grading failed on the
-    platform's side, and `cancelled` once staff end it; organisers read the
-    grading's own status in the gradings routes. A `delayed` one carries
-    nothing else: it is tried again once by itself, and then waits for
-    staff, who grade it again or end it: then it is `cancelled`, with
-    `reason`, the sentence they gave, which is null on every other status.
+    platform's side, `over_limit` once it was to be graded again with no
+    room left under the task's most submissions, and `cancelled` once staff
+    end it; organisers read the grading's own status in the gradings
+    routes. A `delayed` one carries nothing else: it is tried again once by
+    itself, and then waits for staff, who grade it again or end it: then it
+    is `cancelled`, with `reason`, the sentence they gave, which is null on
+    every other status. A delayed one is graded again only while its
+    entrant's submissions with a result and those still waiting are fewer
+    than the task's most, and otherwise it is `over_limit`, with `limit`,
+    the most it reached ("Not graded: you had reached the limit of 10
+    submissions for this task."), and nothing else; `limit` is null on every
+    other status.
     Once done on a task that gives points, it carries
     its `points` and the late `factor` they include; both are null
     otherwise. While a sealed step's stop is held to the reveal, nothing of

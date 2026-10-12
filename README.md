@@ -647,15 +647,23 @@ as `shown_at`, when the rest is shown. A group with `ran` false did not
 run on this grading: it has no outcome, no tests and nothing held back,
 and the outcome over the groups leaves it out. What is not shown is null. A
 grading's `status` is in the contestant's words, `queued`, `grading`,
-`graded`, `delayed` or `cancelled`, as `TASK-FORMAT.md` section 1.7 has
-them; the gradings routes give organisers the grading's own status. A
+`graded`, `delayed`, `over_limit` or `cancelled`, as `TASK-FORMAT.md`
+section 1.7 has them; the gradings routes give organisers the grading's own
+status. A
 submission with no result whose run failed on the platform's side is
 `delayed` to its contestant, with nothing else, and does not count against
 the task's `max` meanwhile; it is tried again once by itself, and then
 waits for staff, who grade it again or cancel it: then it is `cancelled`,
 with `reason`, the sentence they gave, null on every other status, and the
-submission no longer counts against the task's `max`. A submission that
-has a result keeps it, whatever its later attempts read as. An outcome is one of the runner's list, and a value a number
+submission no longer counts against the task's `max`. It is graded again
+only while its entrant's submissions with a result and those waiting that
+are not delayed, with the delayed ones made before it, are fewer than the
+task's `max`, so the first `max` to get a result count; otherwise it is
+`over_limit`, with `limit`, the `max` it reached, and nothing else ("Not
+graded: you had reached the limit of 10 submissions for this task."),
+counted on no board and against nothing; `limit` is null on every other
+status. A submission that has a result keeps it, whatever its later
+attempts read as. An outcome is one of the runner's list, and a value a number
 or text. The route renders what forge gives it and nothing more. The files
 route answers each input's `files`, by their paths in the submission, or
 its `value`, a number as its exact digits.
@@ -876,10 +884,17 @@ result counts, on the boards, to its contestant and against the task's
 takes a result away, and a cancel voids only a submission that never had
 one. A latest attempt that has not finished with a result carries
 `last_good`, the latest earlier attempt that did, the one its submission
-counts meanwhile, null when there is none. `GET <task>/gradings` serves each grading as
+counts meanwhile, null when there is none. A retry or a rejudge of a
+delayed submission whose entrant has no room left under the task's `max`
+makes an attempt that ends `over_limit` at once, run by nothing, with
+`limit`, the `max` it reached; a latest attempt of a submission with no
+result that reads as `system_error` or `over_limit` carries `retry_limit`,
+the task's `max` when a retry now would end so, null when it would grade
+it, so the retry's confirmation can say so before it runs. `GET <task>/gradings` serves each grading as
 the feed below does, with its task's name and label and who submitted it. A rejudge answers the
 `publication` it grades against and how many attempts it `queued`,
-`cancelled` first and `left_running`. A run's log names every test, hidden
+`cancelled` first and `left_running`, and how many delayed submissions it
+ended `over_limit`. A run's log names every test, hidden
 ones too, so no contestant reads it. An observer of the task reads a
 grading's log as `text/plain; charset=utf-8`, with `X-Content-Type-Options:
 nosniff` and `Content-Security-Policy: default-src 'none'; sandbox`, so the

@@ -1687,7 +1687,7 @@
         "type": "object"
       },
       "Grading": {
-        "description": "One grading as an organiser managing its task reads it: the\nsubmission by its number, the publication it grades against, its\nattempt and whether that is the submission's `latest`, the one staff\ncancel or retry, the member who submitted it, `submitted_by`, null when\na reconcile found it at the forge, where it stands, the reason it failed, the sentence\nstaff cancelled it with, its result, whether its log was written, the\nlast progress its run reported, its times, and whether the platform made\nit by itself, `automatic`, retrying the attempt before it once that\nfailed.\n\nOn a latest attempt that has not finished with a result, still being\ngraded, a system error or staff cancelled, `last_good` is the latest\nearlier attempt that did, the one its submission counts meanwhile on\nthe boards and to its contestant; null on any other, and when no\nattempt has a result.",
+        "description": "One grading as an organiser managing its task reads it: the\nsubmission by its number, the publication it grades against, its\nattempt and whether that is the submission's `latest`, the one staff\ncancel or retry, the member who submitted it, `submitted_by`, null when\na reconcile found it at the forge, where it stands, the reason it failed, the sentence\nstaff cancelled it with, its result, whether its log was written, the\nlast progress its run reported, its times, and whether the platform made\nit by itself, `automatic`, retrying the attempt before it once that\nfailed.\n\nOn a latest attempt that has not finished with a result, still being\ngraded, a system error or staff cancelled, `last_good` is the latest\nearlier attempt that did, the one its submission counts meanwhile on\nthe boards and to its contestant; null on any other, and when no\nattempt has a result.\n\nAn attempt that is `over_limit` was made to grade a delayed submission\nagain and ended at once, run by nothing, since its entrant had no room\nleft under the task's most submissions: `limit` is that most, null on\nevery other status. On a latest attempt of a submission with no result\nthat reads as `system_error` or `over_limit`, `retry_limit` is the\ntask's most when a retry now would end over the limit, so the retry's\nconfirmation says so before it runs (\"Not graded: the entrant has\nreached the limit of 10 submissions for this task.\"); null otherwise,\nwhen a retry would grade it.",
         "properties": {
           "attempt": {
             "title": "Attempt",
@@ -1775,6 +1775,17 @@
             "title": "Latest",
             "type": "boolean"
           },
+          "limit": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Limit"
+          },
           "log": {
             "title": "Log",
             "type": "boolean"
@@ -1807,6 +1818,17 @@
                 "type": "null"
               }
             ]
+          },
+          "retry_limit": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retry Limit"
           },
           "started_at": {
             "anyOf": [
@@ -1864,7 +1886,9 @@
           "finished_at",
           "deadline_at",
           "automatic",
-          "last_good"
+          "last_good",
+          "limit",
+          "retry_limit"
         ],
         "title": "Grading",
         "type": "object"
@@ -1894,14 +1918,15 @@
         "type": "object"
       },
       "GradingStatus": {
-        "description": "Where one grading stands. `queued` waits for its run to be started,\nwhich happens as soon as the request that made it commits; `dispatched`\nis held by the CI, waiting for a machine or checking out; `running` has\nhad its envelope fetched by the harness. It ends `done` with a result,\n`system_error`, a grading that failed for a reason of the platform's,\nnever a grade: its run could not be started, or did not report before\nits deadline; or `cancelled`, by staff ending one in `system_error`, or\nby a rejudge replacing one still being graded.",
+        "description": "Where one grading stands. `queued` waits for its run to be started,\nwhich happens as soon as the request that made it commits; `dispatched`\nis held by the CI, waiting for a machine or checking out; `running` has\nhad its envelope fetched by the harness. It ends `done` with a result,\n`system_error`, a grading that failed for a reason of the platform's,\nnever a grade: its run could not be started, or did not report before\nits deadline; `cancelled`, by staff ending one in `system_error`, or\nby a rejudge replacing one still being graded; or `over_limit`, made to\ngrade a delayed submission again and ended at once, run by nothing,\nsince its entrant had no room left under the task's `submissions.max`.",
         "enum": [
           "queued",
           "dispatched",
           "running",
           "done",
           "cancelled",
-          "system_error"
+          "system_error",
+          "over_limit"
         ],
         "title": "GradingStatus",
         "type": "string"
@@ -3197,6 +3222,17 @@
             "title": "Id",
             "type": "string"
           },
+          "limit": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Limit"
+          },
           "outcome": {
             "anyOf": [
               {
@@ -3280,6 +3316,7 @@
           "reason",
           "points",
           "factor",
+          "limit",
           "status"
         ],
         "title": "OrganisedResult",
@@ -4019,7 +4056,7 @@
         "type": "object"
       },
       "Rejudged": {
-        "description": "What a rejudge did: the publication the new attempts grade against,\nhow many it queued, how many unfinished attempts against an older\npublication it cancelled first, and how many it left to finish against\nthe current one.",
+        "description": "What a rejudge did: the publication the new attempts grade against,\nhow many it queued, how many unfinished attempts against an older\npublication it cancelled first, how many it left to finish against\nthe current one, and how many delayed submissions it ended\n`over_limit`, their entrants at the task's most submissions.",
         "properties": {
           "cancelled": {
             "title": "Cancelled",
@@ -4027,6 +4064,10 @@
           },
           "left_running": {
             "title": "Left Running",
+            "type": "integer"
+          },
+          "over_limit": {
+            "title": "Over Limit",
             "type": "integer"
           },
           "publication": {
@@ -4042,7 +4083,8 @@
           "publication",
           "queued",
           "cancelled",
-          "left_running"
+          "left_running",
+          "over_limit"
         ],
         "title": "Rejudged",
         "type": "object"
@@ -4077,7 +4119,7 @@
         "type": "object"
       },
       "Result": {
-        "description": "The attempt of a submission's grading that counts, as its contestant\nsees it: the latest that finished with a result, as the boards count\nit, so a regrade under way, a failure or a cancel leaves the result as\nit was, and while none has, the latest. Its id, attempt and status, and\nonce it is done, what stopped the\nrun, the outcome over the groups shown, each test group as its `show`\nallows, the values reported once, and `folded`, each per-test value\nwith a fold, folded over the tests shown, a test that was not accepted\nor did not report it counting as its worst bound, and the value absent\nwhen it declares none, so a wrong answer has no time; each test's row\nstill carries what it reported. `status` is in the contestant's words: `queued` until\nits run is started, `grading` while it is graded, `graded` once it has\na result, `delayed` while it has none and its grading failed on the\nplatform's side, and `cancelled` once staff end it; organisers read the\ngrading's own status in the gradings routes. A `delayed` one carries\nnothing else: it is tried again once by itself, and then waits for\nstaff, who grade it again or end it: then it is `cancelled`, with\n`reason`, the sentence they gave, which is null on every other status.\nOnce done on a task that gives points, it carries\nits `points` and the late `factor` they include; both are null\notherwise. While a sealed step's stop is held to the reveal, nothing of\nthe run is shown: every group reads as hidden.",
+        "description": "The attempt of a submission's grading that counts, as its contestant\nsees it: the latest that finished with a result, as the boards count\nit, so a regrade under way, a failure or a cancel leaves the result as\nit was, and while none has, the latest. Its id, attempt and status, and\nonce it is done, what stopped the\nrun, the outcome over the groups shown, each test group as its `show`\nallows, the values reported once, and `folded`, each per-test value\nwith a fold, folded over the tests shown, a test that was not accepted\nor did not report it counting as its worst bound, and the value absent\nwhen it declares none, so a wrong answer has no time; each test's row\nstill carries what it reported. `status` is in the contestant's words: `queued` until\nits run is started, `grading` while it is graded, `graded` once it has\na result, `delayed` while it has none and its grading failed on the\nplatform's side, `over_limit` once it was to be graded again with no\nroom left under the task's most submissions, and `cancelled` once staff\nend it; organisers read the grading's own status in the gradings\nroutes. A `delayed` one carries nothing else: it is tried again once by\nitself, and then waits for staff, who grade it again or end it: then it\nis `cancelled`, with `reason`, the sentence they gave, which is null on\nevery other status. A delayed one is graded again only while its\nentrant's submissions with a result and those still waiting are fewer\nthan the task's most, and otherwise it is `over_limit`, with `limit`,\nthe most it reached (\"Not graded: you had reached the limit of 10\nsubmissions for this task.\"), and nothing else; `limit` is null on every\nother status.\nOnce done on a task that gives points, it carries\nits `points` and the late `factor` they include; both are null\notherwise. While a sealed step's stop is held to the reveal, nothing of\nthe run is shown: every group reads as hidden.",
         "properties": {
           "attempt": {
             "title": "Attempt",
@@ -4120,6 +4162,17 @@
             "format": "uuid",
             "title": "Id",
             "type": "string"
+          },
+          "limit": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Limit"
           },
           "outcome": {
             "anyOf": [
@@ -4204,6 +4257,7 @@
           "reason",
           "points",
           "factor",
+          "limit",
           "status"
         ],
         "title": "Result",
@@ -4607,12 +4661,13 @@
         "type": "object"
       },
       "SubmissionState": {
-        "description": "Where a submission stands as its contestant is told, in TASK-FORMAT.md\nsection 1.7's words, which say nothing of the CI's stages: `queued`\nuntil its run is started, `grading` while the CI holds it or runs it,\n`graded` once it has a result, `delayed` while it has none and its\nlatest attempt failed for a reason of the platform's, and `cancelled`\nonce staff ended it.",
+        "description": "Where a submission stands as its contestant is told, in TASK-FORMAT.md\nsection 1.7's words, which say nothing of the CI's stages: `queued`\nuntil its run is started, `grading` while the CI holds it or runs it,\n`graded` once it has a result, `delayed` while it has none and its\nlatest attempt failed for a reason of the platform's, `over_limit` once\nit was to be graded again and its entrant had no room left under the\ntask's `submissions.max`, and `cancelled` once staff ended it.",
         "enum": [
           "queued",
           "grading",
           "graded",
           "delayed",
+          "over_limit",
           "cancelled"
         ],
         "title": "SubmissionState",

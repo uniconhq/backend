@@ -10,7 +10,10 @@ stuck one included, whose old run is cancelled, as often as staff like
 after the one retry the platform makes by itself of a grading that fails;
 and rejudging every submission's latest attempt against the task's current
 publication. A failed or cancelled attempt never takes a result away: a
-submission counts its latest attempt that finished with a result.
+submission counts its latest attempt that finished with a result. A delayed
+submission is graded again, by a retry or a rejudge, only while its entrant
+has room under the task's most submissions, and otherwise ends
+`over_limit`; a grading's `retry_limit` says beforehand when a retry would.
 
 An observer of the task also reads any entrant's submission as its row
 reads it with everything filled in, beside its grading (TASK-FORMAT.md

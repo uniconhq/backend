@@ -67,6 +67,16 @@ class Grading(BaseModel):
     earlier attempt that did, the one its submission counts meanwhile on
     the boards and to its contestant; null on any other, and when no
     attempt has a result.
+
+    An attempt that is `over_limit` was made to grade a delayed submission
+    again and ended at once, run by nothing, since its entrant had no room
+    left under the task's most submissions: `limit` is that most, null on
+    every other status. On a latest attempt of a submission with no result
+    that reads as `system_error` or `over_limit`, `retry_limit` is the
+    task's most when a retry now would end over the limit, so the retry's
+    confirmation says so before it runs ("Not graded: the entrant has
+    reached the limit of 10 submissions for this task."); null otherwise,
+    when a retry would grade it.
     """
 
     id: uuid.UUID
@@ -89,6 +99,8 @@ class Grading(BaseModel):
     deadline_at: datetime | None
     automatic: bool
     last_good: int | None
+    limit: int | None
+    retry_limit: int | None
 
 
 class FeedEntry(BaseModel):
@@ -111,14 +123,16 @@ class FeedEntry(BaseModel):
 class Rejudged(BaseModel):
     """What a rejudge did: the publication the new attempts grade against,
     how many it queued, how many unfinished attempts against an older
-    publication it cancelled first, and how many it left to finish against
-    the current one.
+    publication it cancelled first, how many it left to finish against
+    the current one, and how many delayed submissions it ended
+    `over_limit`, their entrants at the task's most submissions.
     """
 
     publication: PublicationNumber
     queued: int
     cancelled: int
     left_running: int
+    over_limit: int
 
 
 class CallbackAnswer(BaseModel):

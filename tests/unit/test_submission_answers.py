@@ -43,6 +43,7 @@ def test_a_grading_being_run_carries_its_status_alone() -> None:
         "reason": None,
         "points": None,
         "factor": None,
+        "limit": None,
     }
 
 
@@ -142,6 +143,7 @@ def test_a_grading_carries_each_group_as_forge_let_it_through() -> None:
         "reason": None,
         "points": None,
         "factor": None,
+        "limit": None,
     }
 
 
