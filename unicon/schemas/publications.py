@@ -124,12 +124,28 @@ class SaveRequest(BaseModel):
         return self
 
 
+class SaveEffect(BaseModel):
+    """What a save does, in the words and parts a running contest's
+    `confirmation_required` asks with: `summary`, "Results change." or
+    "Nobody's result changes.", with `results_change` its flag; and the
+    sentences under "Runs again", "Scores" and "What entrants read", each
+    list holding at least one, a "nothing changes" line when nothing does.
+    """
+
+    results_change: bool
+    summary: str
+    runs_again: list[str]
+    scores: list[str]
+    reading: list[str]
+
+
 class Published(BaseModel):
     """A save that published: the new publication's number among the task's,
     whether it changed how the task grades, and what, the notes the save
     makes of the task beside publishing it, such as which steps it seals
-    until the reveal, and how many submissions it `regraded`, queued to be
-    graded again against it.
+    until the reveal, how many submissions it `regraded`, queued to be
+    graded again against it, and what it did, `effect`, in the words the
+    question before a save in a running contest uses.
     """
 
     number: int
@@ -137,6 +153,7 @@ class Published(BaseModel):
     changes: list[str]
     notes: list[str]
     regraded: int
+    effect: SaveEffect
 
 
 class Draft(BaseModel):

@@ -191,10 +191,13 @@ async def get_task_workflow_form(organiser: TaskObserver) -> publications.Workfl
 )
 async def save_task(organiser: TaskManager, body: SaveRequest) -> Published | Draft:
     """A valid save publishes and one that is not is kept as a draft with its
-    errors. While the contest runs, a save that changes how the task grades
-    is refused as `confirmation_required`, with `changes`, what would change,
-    and `regrades`, how many submissions it would grade again, unless it is
-    confirmed or kept as a draft. A change naming an upload writes the pointer to the file the
+    errors. Once the contest has started, until it is archived, every save
+    that would publish something new is refused as `confirmation_required`
+    unless it is confirmed or kept as a draft, with `changes`, what would
+    change how the task grades, `regrades`, how many submissions it would
+    grade again, and what the save does, as a published save's `effect`
+    gives it: `results_change`, `summary`, `runs_again`, `scores` and
+    `reading`. A change naming an upload writes the pointer to the file the
     caller uploaded for that path; one that is not theirs for this task and
     path is `invalid_inputs`, and one whose bytes have not arrived
     `upload_not_ready`. A change with `remove: true` removes the file it

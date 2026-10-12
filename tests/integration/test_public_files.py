@@ -35,7 +35,9 @@ def _binary(path: str, content: bytes) -> dict[str, Any]:
 
 
 async def _publish_public(client: httpx.AsyncClient) -> None:
-    """acme/spring/sum published with its public files, saved by ada."""
+    """acme/spring/sum published with its public files, saved by ada and
+    confirmed, since a save asks first once the contest has started.
+    """
     saved = await client.post(
         f"{TASK}/save",
         json={
@@ -44,7 +46,8 @@ async def _publish_public(client: httpx.AsyncClient) -> None:
                 _binary("public/Photo.JPG", PNG),
                 _typed("public/diagram.svg", SVG),
                 _typed("public/data/train.csv", "a,b\n1,2\n"),
-            ]
+            ],
+            "confirm": True,
         },
         headers=ORIGIN,
     )

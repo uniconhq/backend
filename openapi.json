@@ -3927,7 +3927,7 @@
         "type": "object"
       },
       "Published": {
-        "description": "A save that published: the new publication's number among the task's,\nwhether it changed how the task grades, and what, the notes the save\nmakes of the task beside publishing it, such as which steps it seals\nuntil the reveal, and how many submissions it `regraded`, queued to be\ngraded again against it.",
+        "description": "A save that published: the new publication's number among the task's,\nwhether it changed how the task grades, and what, the notes the save\nmakes of the task beside publishing it, such as which steps it seals\nuntil the reveal, how many submissions it `regraded`, queued to be\ngraded again against it, and what it did, `effect`, in the words the\nquestion before a save in a running contest uses.",
         "properties": {
           "changes": {
             "items": {
@@ -3935,6 +3935,9 @@
             },
             "title": "Changes",
             "type": "array"
+          },
+          "effect": {
+            "$ref": "#/components/schemas/SaveEffect"
           },
           "grading_changed": {
             "title": "Grading Changed",
@@ -3961,7 +3964,8 @@
           "grading_changed",
           "changes",
           "notes",
-          "regraded"
+          "regraded",
+          "effect"
         ],
         "title": "Published",
         "type": "object"
@@ -4808,6 +4812,49 @@
           "token"
         ],
         "title": "SaveDefinition",
+        "type": "object"
+      },
+      "SaveEffect": {
+        "description": "What a save does, in the words and parts a running contest's\n`confirmation_required` asks with: `summary`, \"Results change.\" or\n\"Nobody's result changes.\", with `results_change` its flag; and the\nsentences under \"Runs again\", \"Scores\" and \"What entrants read\", each\nlist holding at least one, a \"nothing changes\" line when nothing does.",
+        "properties": {
+          "reading": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Reading",
+            "type": "array"
+          },
+          "results_change": {
+            "title": "Results Change",
+            "type": "boolean"
+          },
+          "runs_again": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Runs Again",
+            "type": "array"
+          },
+          "scores": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Scores",
+            "type": "array"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          }
+        },
+        "required": [
+          "results_change",
+          "summary",
+          "runs_again",
+          "scores",
+          "reading"
+        ],
+        "title": "SaveEffect",
         "type": "object"
       },
       "SaveRequest": {
@@ -13262,7 +13309,7 @@
     },
     "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/save": {
       "post": {
-        "description": "A valid save publishes and one that is not is kept as a draft with its\nerrors. While the contest runs, a save that changes how the task grades\nis refused as `confirmation_required`, with `changes`, what would change,\nand `regrades`, how many submissions it would grade again, unless it is\nconfirmed or kept as a draft. A change naming an upload writes the pointer to the file the\ncaller uploaded for that path; one that is not theirs for this task and\npath is `invalid_inputs`, and one whose bytes have not arrived\n`upload_not_ready`. A change with `remove: true` removes the file it\nnames, with the token it was read with, a moved one being `conflict` as\nan edit's is; the state left is checked as any other, so removing a\ngroup's last test or a file an input names keeps the save as a draft.",
+        "description": "A valid save publishes and one that is not is kept as a draft with its\nerrors. Once the contest has started, until it is archived, every save\nthat would publish something new is refused as `confirmation_required`\nunless it is confirmed or kept as a draft, with `changes`, what would\nchange how the task grades, `regrades`, how many submissions it would\ngrade again, and what the save does, as a published save's `effect`\ngives it: `results_change`, `summary`, `runs_again`, `scores` and\n`reading`. A change naming an upload writes the pointer to the file the\ncaller uploaded for that path; one that is not theirs for this task and\npath is `invalid_inputs`, and one whose bytes have not arrived\n`upload_not_ready`. A change with `remove: true` removes the file it\nnames, with the token it was read with, a moved one being `conflict` as\nan edit's is; the state left is checked as any other, so removing a\ngroup's last test or a file an input names keeps the save as a draft.",
         "operationId": "saveTask",
         "parameters": [
           {

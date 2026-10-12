@@ -170,11 +170,18 @@ async def run_contest(client: httpx.AsyncClient, *, visibility: str = "signed-in
 
 
 async def publish(client: httpx.AsyncClient) -> None:
-    """acme/spring/sum published once, by a save of its statement."""
+    """acme/spring/sum published once, by a save of its statement,
+    confirmed, since a save asks first once the contest has started.
+    """
     statement = await read(client, f"{TASK}/files/statement.md")
     saved = await client.put(
         f"{TASK}/files/statement.md",
-        json={"encoding": "utf-8", "content": "Add two numbers.\n", "token": statement["token"]},
+        json={
+            "encoding": "utf-8",
+            "content": "Add two numbers.\n",
+            "token": statement["token"],
+            "confirm": True,
+        },
         headers=ORIGIN,
     )
     assert "number" in saved.json(), saved.text

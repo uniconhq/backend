@@ -338,10 +338,15 @@ runs; the save route takes several files at once, each with its token. A save in
 `submissions` or `statement.md` is `admin_only`. A save that checks publishes,
 and one that does not is kept as a draft: its files are written, nothing is
 published, and the last publication keeps grading. Once the contest has
-started, and until it is archived, a save that changes how the task grades
-is `confirmation_required`, listing what would change and how many
-submissions it would grade again (`regrades`), and nothing is
-written. The same save with `confirm`
+started, and until it is archived, every save that would publish something
+new (files other than the latest publication's, or another plan) is
+`confirmation_required`, and nothing is written. The refusal lists what
+would change how the task grades (`changes`), how many submissions it
+would grade again (`regrades`), and what the save does, laid out as the
+page shows it: `results_change` and `summary` ("Results change." or
+"Nobody's result changes."), then the sentences of `runs_again`,
+`scores` and `reading` ("What entrants read"), each list holding at
+least one. The same save with `confirm`
 publishes. A save with `keep_as_draft` is written as a draft that says what
 it held back and publishes nothing, on any save, and an empty save with
 `confirm` publishes that draft later.
@@ -349,8 +354,10 @@ it held back and publishes nothing, on any save, and an empty save with
 A save answers with what it published or with the draft it kept. A
 publication carries its `number`, `grading_changed`, the
 `changes`, the `notes` the save makes of the task beside publishing it,
-such as which steps it seals until the reveal, and how many submissions it
-`regraded`, queued to be graded again against it; a draft carries the `version` written, the `errors`, each
+such as which steps it seals until the reveal, how many submissions it
+`regraded`, queued to be graded again against it, and its `effect`, what
+it did in the same fields and words as the question before it
+(`results_change`, `summary`, `runs_again`, `scores`, `reading`); a draft carries the `version` written, the `errors`, each
 `{path, message}`, and what it `held_back`. `GET <task>` answers the version at the head, the
 latest publication or none, whether the head is a draft, and the draft's
 errors, worked out again on every read.
