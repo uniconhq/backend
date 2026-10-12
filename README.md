@@ -322,7 +322,10 @@ answered `conflict` with nothing written. Forge checks every path, and one
 that is empty, absolute, climbs out with `..` or holds a character a URL or
 git reads as something else is `invalid_path` before the forge is asked. A
 write to `contest.yaml` that does not validate is `invalid_definition`,
-with each error at its YAML path, and a manager's change to one of its
+with each error at its YAML path, one that opens the contest while a task
+it lists is not published or its statement is not written among them, each
+such task at `state` ("A · sum: its statement is not written yet."), and
+a manager's change to one of its
 admin-only keys is `admin_only`, naming each. A contest's file written
 answers its `version` and `notes`, what each board reports of the tasks it
 covers at that save, such as one that counts nothing from a task: the same

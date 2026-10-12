@@ -4,8 +4,8 @@ file at the latest and at an older version, the history, a write that
 answers with its version at a contest and as a save at a task, a stale
 token answered as a conflict, a binary file's round trip through base64, a
 rollback as a new change, and the refusals a write meets: an admin-only key
-changed by a manager, a `contest.yaml` that does not validate, and a path
-that leaves the place.
+changed by a manager, a `contest.yaml` that does not validate or opens the
+contest before its task is published, and a path that leaves the place.
 """
 
 import base64
@@ -199,6 +199,21 @@ async def test_a_contest_file_that_does_not_validate_is_refused_with_its_errors(
     (error,) = refused.json()["errors"]
     assert error["path"] == "visibility"
     assert error["message"]
+
+
+async def test_a_contest_opened_before_its_task_is_published_is_refused_at_its_state(
+    client: httpx.AsyncClient, sum_task: FakeForge
+) -> None:
+    before = await read(client, f"{CONTEST}/files/contest.yaml")
+    opened = before["content"].replace("state: draft", "state: published")
+
+    refused = await _put(client, f"{CONTEST}/files/contest.yaml", opened, before["token"])
+
+    assert refused.status_code == 422
+    assert refused.json()["code"] == "invalid_definition"
+    assert refused.json()["errors"] == [
+        {"path": "state", "message": "A · sum: it is not published yet."}
+    ]
 
 
 async def test_a_path_that_leaves_the_place_is_refused_before_the_forge_is_asked(
