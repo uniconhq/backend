@@ -9,7 +9,15 @@ they may not see and a task that is not visible answer as not found.
 import httpx
 from forge.testing import FakeForge
 
-from tests.integration.conftest import CONTEST, ORIGIN, TASK, publish, run_contest, sign_in_as
+from tests.integration.conftest import (
+    CONTEST,
+    ORIGIN,
+    TASK,
+    edit_task,
+    publish,
+    run_contest,
+    sign_in_as,
+)
 
 
 async def test_a_signed_in_person_reads_the_home_and_a_released_task(
@@ -67,6 +75,23 @@ async def test_a_signed_in_person_reads_the_home_and_a_released_task(
             "max": None,
             "max_size": 10 * 1024 * 1024,
         },
+    ]
+
+
+async def test_an_input_the_task_gives_no_label_reads_as_its_workflows_title(
+    client: httpx.AsyncClient, world: FakeForge
+) -> None:
+    await run_contest(client, visibility="signed-in")
+    await publish(client)
+    await sign_in_as(client, world, 7)
+    await edit_task(client, "submission: {label: Your solution}", "submission: {}")
+    await sign_in_as(client, world, 20)
+
+    page = await client.get(f"{TASK}/page")
+
+    assert [(field["id"], field["label"]) for field in page.json()["inputs"]] == [
+        ("submission", "Solution"),
+        ("language", "Language"),
     ]
 
 
