@@ -403,6 +403,19 @@ path is
 `upload_not_ready`. A file that is an upload is listed by the tree and read
 with `upload`, the `size` and `digest` of what it holds, its `content` then
 being the pointer, never opened as text; a typed file's `upload` is null.
+Every file read names a `version` holding the file as read: the `at` it was
+read at, or the change that last wrote it. A task's file, typed or uploaded,
+is downloaded at that version through the proxy's download door,
+`/-/downloads/<org>/<contest>/<task>/versions/<version>/<path>`, each
+segment of the path quoted on its own, by whoever holds a role reaching the
+task, observer or above, `plans/` included. The proxy asks this process
+first, which answers with the forge's media endpoint for the file at that
+commit, the organiser's own credential and the download's name, and streams
+the file from the forge whatever its size, never through this process.
+Anyone else, an entrant included, a path that is not plain, and a version
+that is not a commit's id (40 or 64 lowercase hex) are refused alike, and a
+file or a version the task does not have is the forge's refusal as it
+serves; the proxy answers 404 to each.
 
 `GET <task>/release` is what a contestant is told, and needs only a session:
 whether the task is `released`, `visible` and `open` to the caller now by
@@ -608,7 +621,8 @@ or text. The route renders what forge gives it and nothing more. The files
 route answers each input's `files`, by their paths in the submission, or
 its `value`, a number as its exact digits.
 A file itself is downloaded through the proxy's download door,
-`/-/downloads/<org>/<contest>/<task>/<number>/<path>`, which asks this
+`/-/downloads/<org>/<contest>/<task>/<number>/<path>` (a task's own files go
+through the same door at `.../<task>/versions/<version>/<path>`), which asks this
 process whether the caller may read it and then streams it from the forge
 as an attachment named after the file, so a file of any size passes
 through the proxy and never through this process. Another contestant's submission is not found, the same as one
