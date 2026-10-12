@@ -6,10 +6,11 @@ role there, cancelling the latest attempt of a submission that reads as a
 system error, with a sentence its contestant reads, when a regrade would
 only repeat the fault; retrying a submission's latest attempt once it is
 finished as a new attempt against the publication it graded against, a
-stuck one included, whose old run is cancelled; having a submission whose
-latest attempt is a system error, or staff cancelled, count as its last
-good result, and taking that back; and rejudging every submission's latest
-attempt against the task's current publication.
+stuck one included, whose old run is cancelled, as often as staff like
+after the one retry the platform makes by itself of a grading that fails;
+and rejudging every submission's latest attempt against the task's current
+publication. A failed or cancelled attempt never takes a result away: a
+submission counts its latest attempt that finished with a result.
 
 An observer of the task also reads any entrant's submission as its row
 reads it with everything filled in, beside its grading (TASK-FORMAT.md
@@ -19,9 +20,12 @@ submission by its number among the row's.
 Anyone holding a role at a contest or at any of its tasks reads the
 gradings of the tasks they observe as one feed, newest first, each with
 its task's name and letter, its entrant and the member who submitted it,
-narrowed by task, by that member's username, by entrant and by status; and how many of them wait
-for a machine, `queued` and `dispatched`, counted when asked. Forge
-narrows both to the tasks the caller observes.
+narrowed by task, by that member's username, by entrant, by status and to
+each submission's latest attempt; and how many of them wait for a machine,
+`queued` and `dispatched`, and for staff, `failed`, counted when asked, so
+a contest's page can say how many gradings failed and link to the feed
+filtered to them (`status=system_error&latest=true`). Forge narrows both
+to the tasks the caller observes.
 
 A grading is named by its id under its task's prefix, which is where the
 guard reads the scope the role is checked at, as for every other organiser
@@ -169,41 +173,6 @@ async def retry_grading(organiser: TaskManager, grading: uuid.UUID) -> gradings.
     return await gradings.retry(organiser, await _of_this_task(organiser, grading))
 
 
-@router.put(
-    "/gradings/{grading}/fallback",
-    operation_id="fallBackGrading",
-    summary="Count a broken grading's submission as its last good result",
-    response_model=Grading,
-)
-async def fall_back_grading(organiser: TaskManager, grading: uuid.UUID) -> gradings.GradingRecord:
-    """The grading as it now stands, its `fallback` `staff`: its submission
-    counts as `last_good`, the latest earlier attempt that finished with a
-    result, whatever the contest's `on_system_error` says, on the boards,
-    to its contestant and under the task's limit. Asked again, it changes
-    nothing. A grading that is neither a system error nor staff cancelled is
-    `wrong_status` with its status as `current`; an earlier attempt of a
-    submission graded again, and a submission with no earlier result, are
-    `conflict`.
-    """
-    return await gradings.fall_back(organiser, await _of_this_task(organiser, grading))
-
-
-@router.delete(
-    "/gradings/{grading}/fallback",
-    operation_id="clearGradingFallback",
-    summary="Take back staff's fallback on a grading",
-    response_model=Grading,
-)
-async def clear_grading_fallback(
-    organiser: TaskManager, grading: uuid.UUID
-) -> gradings.GradingRecord:
-    """The grading as it now stands, its submission counting as the contest's
-    `on_system_error` says. A grading with no fallback of staff's changes
-    nothing.
-    """
-    return await gradings.clear_fallback(organiser, await _of_this_task(organiser, grading))
-
-
 @router.post(
     "/rejudge",
     operation_id="rejudgeTask",
@@ -239,13 +208,16 @@ async def list_contest_gradings(
     ] = None,
     entrant: Annotated[uuid.UUID | None, Query(description="One entrant's submissions")] = None,
     status: Annotated[GradingStatus | None, Query(description="As the grading reads")] = None,
+    latest: Annotated[bool, Query(description="Only each submission's latest attempt")] = False,
     limit: Annotated[int, Query(ge=1, le=LIST_MOST)] = 100,
 ) -> list[dict[str, Any]]:
     """At most `limit` gradings of the contest's tasks the caller observes,
     newest first, every attempt a row of its own, so a submission graded
-    again shows more than once. One whose run is overdue or lost reads as
+    again shows more than once, or, with `latest`, only each submission's
+    latest attempt. One whose run is overdue or lost reads as
     `system_error` with the reason, and a filter by status takes it as it
-    reads. A task, username or entrant the contest does not have, or a task
+    reads, so `status=system_error&latest=true` gives the failed gradings
+    the queue's `failed` counts. A task, username or entrant the contest does not have, or a task
     the caller does not observe, gives no rows; a username that breaks the
     forge's rule for one is a `validation_error`.
     """
@@ -262,6 +234,7 @@ async def list_contest_gradings(
         user=user,
         entrant=entrant,
         status=status,
+        latest=latest,
         limit=limit,
     )
     return [_entry(row) for row in rows]
@@ -270,13 +243,16 @@ async def list_contest_gradings(
 @feed.get(
     "/gradings/queue",
     operation_id="getContestQueueDepth",
-    summary="How many of the contest's gradings wait for a machine",
+    summary="How many of the contest's gradings wait for a machine or for staff",
 )
 async def get_contest_queue_depth(organiser: InContest) -> gradings.QueueDepth:
     """`queued`, whose run is not started yet, and `dispatched`, whose run
     the CI holds until a machine takes it, counted when asked over the
-    contest's tasks the caller observes. One that is overdue or lost reads
-    as a system error and is not counted.
+    contest's tasks the caller observes, one that is overdue or lost
+    reading as a system error and not counted there; and `failed`, the
+    submissions' latest attempts that read as a system error, which wait
+    for their retry or for staff: the gradings the feed gives with
+    `status=system_error&latest=true`.
     """
     return await gradings.queue_depth(organiser, contests.contest_id_of(organiser.scope))
 

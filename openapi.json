@@ -1391,15 +1391,6 @@
         "title": "ExtensionRequest",
         "type": "object"
       },
-      "Fallback": {
-        "description": "Why a submission counts as its last good result in place of its\nlatest attempt, a system error or staff cancelled: staff asked so on\nthat attempt, or the contest's `on_system_error` says so.",
-        "enum": [
-          "staff",
-          "contest"
-        ],
-        "title": "Fallback",
-        "type": "string"
-      },
       "FeedEntry": {
         "description": "One grading among a task's or a contest's: the grading as an\norganiser reads it, its task by name, null for a task the platform has\nno name for, its `label`, the letter of its place in the contest's\n`tasks`, null once the contest no longer lists it or its settings do\nnot read, and `by`, whose submission it is: the `entrant` by its id and\n`entrant_name`, the name it is shown under, and the member who\nsubmitted it by `user_id` and `username`, both null when a reconcile\nfound it at the forge, the username null when the forge did not say.",
         "properties": {
@@ -1629,11 +1620,15 @@
         "type": "object"
       },
       "Grading": {
-        "description": "One grading as an organiser managing its task reads it: the\nsubmission by its number, the publication it grades against, its\nattempt and whether that is the submission's `latest`, the one staff\ncancel or retry, the member who submitted it, `submitted_by`, null when\na reconcile found it at the forge, where it stands, the reason it failed, the sentence\nstaff cancelled it with, its result, whether its log was written, the\nlast progress its run reported, and its times.\n\nOn a latest attempt that is a system error or staff cancelled,\n`last_good` is the latest earlier attempt that finished with a result,\nand `fallback` why its submission counts as that attempt now: `staff`,\nwho asked so on this one, or `contest`, whose `on_system_error` is\n`last_result`; null while it counts as still grading, or void once\ncancelled. `falls_back` is staff having asked so on this one.",
+        "description": "One grading as an organiser managing its task reads it: the\nsubmission by its number, the publication it grades against, its\nattempt and whether that is the submission's `latest`, the one staff\ncancel or retry, the member who submitted it, `submitted_by`, null when\na reconcile found it at the forge, where it stands, the reason it failed, the sentence\nstaff cancelled it with, its result, whether its log was written, the\nlast progress its run reported, its times, and whether the platform made\nit by itself, `automatic`, retrying the attempt before it once that\nfailed.\n\nOn a latest attempt that has not finished with a result, still being\ngraded, a system error or staff cancelled, `last_good` is the latest\nearlier attempt that did, the one its submission counts meanwhile on\nthe boards and to its contestant; null on any other, and when no\nattempt has a result.",
         "properties": {
           "attempt": {
             "title": "Attempt",
             "type": "integer"
+          },
+          "automatic": {
+            "title": "Automatic",
+            "type": "boolean"
           },
           "cancel_reason": {
             "anyOf": [
@@ -1680,20 +1675,6 @@
               }
             ],
             "title": "Error"
-          },
-          "fallback": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/Fallback"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "falls_back": {
-            "title": "Falls Back",
-            "type": "boolean"
           },
           "finished_at": {
             "anyOf": [
@@ -1815,9 +1796,8 @@
           "started_at",
           "finished_at",
           "deadline_at",
-          "falls_back",
-          "last_good",
-          "fallback"
+          "automatic",
+          "last_good"
         ],
         "title": "Grading",
         "type": "object"
@@ -3328,7 +3308,7 @@
         "type": "object"
       },
       "Points": {
-        "description": "A submission's points as its contestant sees them: those shown, those\nstill pending on groups whose verdict is not shown yet, and when they\nare shown, null when none are pending.",
+        "description": "Points as a contestant sees them, a submission's or their entrant's on\na task: those shown, those still pending on groups whose verdict is not\nshown yet, and when they are shown, null when none are pending.",
         "properties": {
           "pending": {
             "examples": [
@@ -3783,10 +3763,14 @@
         "type": "object"
       },
       "QueueDepth": {
-        "description": "How many of a contest's gradings wait for a machine: `queued`, whose\nrun is not started yet, and `dispatched`, whose run the CI holds until a\nmachine takes it.",
+        "description": "How many of a contest's gradings wait: for a machine, `queued`, whose\nrun is not started yet, and `dispatched`, whose run the CI holds until a\nmachine takes it; and for staff, `failed`, the latest attempts of\nsubmissions that read as a system error.",
         "properties": {
           "dispatched": {
             "title": "Dispatched",
+            "type": "integer"
+          },
+          "failed": {
+            "title": "Failed",
             "type": "integer"
           },
           "queued": {
@@ -3796,7 +3780,8 @@
         },
         "required": [
           "queued",
-          "dispatched"
+          "dispatched",
+          "failed"
         ],
         "title": "QueueDepth",
         "type": "object"
@@ -4001,7 +3986,7 @@
         "type": "object"
       },
       "Result": {
-        "description": "The latest attempt of a submission's grading, as its contestant sees\nit: its id, attempt and status, and once it is done, what stopped the\nrun, the outcome over the groups shown, each test group as its `show`\nallows, the values reported once, and `folded`, each per-test value\nwith a fold, folded over the tests shown, a test without it counting as\nits worst bound. `status` is in the contestant's words: `queued` until\nits run is started, `grading` while it is graded, `graded` once it has\na result, `cancelled` once staff end it; organisers read the grading's\nown status in the gradings routes. A run that failed on the platform's\nside is `grading` to its contestant, with nothing else, until staff end\nit: then it is `cancelled`, with `reason`, the sentence they gave, which\nis null on every other status. Once done on a task that gives points, it carries\nits `points` and the late `factor` they include; both are null\notherwise. While a sealed step's stop is held to the reveal, nothing of\nthe run is shown: every group reads as hidden.",
+        "description": "The attempt of a submission's grading that counts, as its contestant\nsees it: the latest that finished with a result, as the boards count\nit, so a regrade under way, a failure or a cancel leaves the result as\nit was, and while none has, the latest. Its id, attempt and status, and\nonce it is done, what stopped the\nrun, the outcome over the groups shown, each test group as its `show`\nallows, the values reported once, and `folded`, each per-test value\nwith a fold, folded over the tests shown, a test without it counting as\nits worst bound. `status` is in the contestant's words: `queued` until\nits run is started, `grading` while it is graded, `graded` once it has\na result, `delayed` while it has none and its grading failed on the\nplatform's side, and `cancelled` once staff end it; organisers read the\ngrading's own status in the gradings routes. A `delayed` one carries\nnothing else: it is tried again once by itself, and then waits for\nstaff, who grade it again or end it: then it is `cancelled`, with\n`reason`, the sentence they gave, which is null on every other status.\nOnce done on a task that gives points, it carries\nits `points` and the late `factor` they include; both are null\notherwise. While a sealed step's stop is held to the reveal, nothing of\nthe run is shown: every group reads as hidden.",
         "properties": {
           "attempt": {
             "title": "Attempt",
@@ -4531,11 +4516,12 @@
         "type": "object"
       },
       "SubmissionState": {
-        "description": "Where a submission stands as its contestant is told, in TASK-FORMAT.md\nsection 1.7's words, which say nothing of the CI's stages: `queued`\nuntil its run is started, `grading` while the CI holds it or runs it,\n`graded` once it has a result, and `cancelled` once staff ended it.",
+        "description": "Where a submission stands as its contestant is told, in TASK-FORMAT.md\nsection 1.7's words, which say nothing of the CI's stages: `queued`\nuntil its run is started, `grading` while the CI holds it or runs it,\n`graded` once it has a result, `delayed` while it has none and its\nlatest attempt failed for a reason of the platform's, and `cancelled`\nonce staff ended it.",
         "enum": [
           "queued",
           "grading",
           "graded",
+          "delayed",
           "cancelled"
         ],
         "title": "SubmissionState",
@@ -8079,7 +8065,7 @@
     },
     "/api/v1/orgs/{org}/contests/{contest}/gradings": {
       "get": {
-        "description": "At most `limit` gradings of the contest's tasks the caller observes,\nnewest first, every attempt a row of its own, so a submission graded\nagain shows more than once. One whose run is overdue or lost reads as\n`system_error` with the reason, and a filter by status takes it as it\nreads. A task, username or entrant the contest does not have, or a task\nthe caller does not observe, gives no rows; a username that breaks the\nforge's rule for one is a `validation_error`.",
+        "description": "At most `limit` gradings of the contest's tasks the caller observes,\nnewest first, every attempt a row of its own, so a submission graded\nagain shows more than once, or, with `latest`, only each submission's\nlatest attempt. One whose run is overdue or lost reads as\n`system_error` with the reason, and a filter by status takes it as it\nreads, so `status=system_error&latest=true` gives the failed gradings\nthe queue's `failed` counts. A task, username or entrant the contest does not have, or a task\nthe caller does not observe, gives no rows; a username that breaks the\nforge's rule for one is a `validation_error`.",
         "operationId": "listContestGradings",
         "parameters": [
           {
@@ -8176,6 +8162,18 @@
             }
           },
           {
+            "description": "Only each submission's latest attempt",
+            "in": "query",
+            "name": "latest",
+            "required": false,
+            "schema": {
+              "default": false,
+              "description": "Only each submission's latest attempt",
+              "title": "Latest",
+              "type": "boolean"
+            }
+          },
+          {
             "in": "query",
             "name": "limit",
             "required": false,
@@ -8222,7 +8220,7 @@
     },
     "/api/v1/orgs/{org}/contests/{contest}/gradings/queue": {
       "get": {
-        "description": "`queued`, whose run is not started yet, and `dispatched`, whose run\nthe CI holds until a machine takes it, counted when asked over the\ncontest's tasks the caller observes. One that is overdue or lost reads\nas a system error and is not counted.",
+        "description": "`queued`, whose run is not started yet, and `dispatched`, whose run\nthe CI holds until a machine takes it, counted when asked over the\ncontest's tasks the caller observes, one that is overdue or lost\nreading as a system error and not counted there; and `failed`, the\nsubmissions' latest attempts that read as a system error, which wait\nfor their retry or for staff: the gradings the feed gives with\n`status=system_error&latest=true`.",
         "operationId": "getContestQueueDepth",
         "parameters": [
           {
@@ -8266,7 +8264,7 @@
             "description": "An error, as an RFC 9457 problem document. `code` names it."
           }
         },
-        "summary": "How many of the contest's gradings wait for a machine",
+        "summary": "How many of the contest's gradings wait for a machine or for staff",
         "tags": [
           "gradings"
         ]
@@ -10789,146 +10787,6 @@
           }
         },
         "summary": "End a submission whose grading is a system error, saying why",
-        "tags": [
-          "gradings"
-        ]
-      }
-    },
-    "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/gradings/{grading}/fallback": {
-      "delete": {
-        "description": "The grading as it now stands, its submission counting as the contest's\n`on_system_error` says. A grading with no fallback of staff's changes\nnothing.",
-        "operationId": "clearGradingFallback",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "grading",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Grading",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "org",
-            "required": true,
-            "schema": {
-              "title": "Org",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "contest",
-            "required": true,
-            "schema": {
-              "title": "Contest",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "task",
-            "required": true,
-            "schema": {
-              "title": "Task",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Grading"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "default": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "An error, as an RFC 9457 problem document. `code` names it."
-          }
-        },
-        "summary": "Take back staff's fallback on a grading",
-        "tags": [
-          "gradings"
-        ]
-      },
-      "put": {
-        "description": "The grading as it now stands, its `fallback` `staff`: its submission\ncounts as `last_good`, the latest earlier attempt that finished with a\nresult, whatever the contest's `on_system_error` says, on the boards,\nto its contestant and under the task's limit. Asked again, it changes\nnothing. A grading that is neither a system error nor staff cancelled is\n`wrong_status` with its status as `current`; an earlier attempt of a\nsubmission graded again, and a submission with no earlier result, are\n`conflict`.",
-        "operationId": "fallBackGrading",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "grading",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Grading",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "org",
-            "required": true,
-            "schema": {
-              "title": "Org",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "contest",
-            "required": true,
-            "schema": {
-              "title": "Contest",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "task",
-            "required": true,
-            "schema": {
-              "title": "Task",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Grading"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "default": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "An error, as an RFC 9457 problem document. `code` names it."
-          }
-        },
-        "summary": "Count a broken grading's submission as its last good result",
         "tags": [
           "gradings"
         ]
