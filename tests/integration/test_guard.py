@@ -122,6 +122,8 @@ ROUTES: list[tuple[str, str, dict[str, Any] | None, Role, Scope]] = [
     ("GET", f"{TASK}/workflow-form", None, Role.OBSERVER, SUM),
     ("GET", f"{TASK}/publications", None, Role.OBSERVER, SUM),
     ("POST", f"{TASK}/save", {"changes": []}, Role.MANAGER, SUM),
+    ("POST", f"{TASK}/take-out", {"confirmed": "withdraw"}, Role.MANAGER, SPRING),
+    ("POST", f"{TASK}/put-back", None, Role.MANAGER, SPRING),
     ("GET", f"{TASK}/roles", None, Role.OBSERVER, SUM),
     ("POST", f"{TASK}/roles", CAROL, Role.MANAGER, SUM),
     ("DELETE", f"{TASK}/roles/20", None, Role.MANAGER, SUM),

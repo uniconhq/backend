@@ -696,6 +696,7 @@
       "Closed": {
         "description": "Why a task is not open to a row, the first of these that applies; and,\nto a person who holds no approved row, `not_approved` where it is\notherwise open, as a submit would be refused.",
         "enum": [
+          "withdrawn",
           "not_released",
           "archived",
           "closed",
@@ -3805,6 +3806,23 @@
         "title": "Published",
         "type": "object"
       },
+      "PutBack": {
+        "description": "A withdrawn task put back: what each board reports of its tasks now,\nas a save of the contest's settings answers.",
+        "properties": {
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Notes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "notes"
+        ],
+        "title": "PutBack",
+        "type": "object"
+      },
       "QuestionRequest": {
         "description": "A question's title and text, and the name of the task it is about,\nwhen it is about one released to the asker.",
         "properties": {
@@ -4775,6 +4793,41 @@
         "title": "Submitter",
         "type": "object"
       },
+      "TakeOut": {
+        "description": "What taking a task out of its contest does: `remove` it, while nobody\nhas submitted to it, or `withdraw` it, once anyone has.",
+        "enum": [
+          "remove",
+          "withdraw"
+        ],
+        "title": "TakeOut",
+        "type": "string"
+      },
+      "TakeOutRequest": {
+        "description": "What taking a task out of its contest should do, as the organiser\nconfirmed it: `remove` or `withdraw`, as the task list's `take_out`\nsaid when the dialog asked.",
+        "properties": {
+          "confirmed": {
+            "$ref": "#/components/schemas/TakeOut"
+          }
+        },
+        "required": [
+          "confirmed"
+        ],
+        "title": "TakeOutRequest",
+        "type": "object"
+      },
+      "TakenOut": {
+        "description": "What taking the task out did: `remove`d it or `withdraw`n it.",
+        "properties": {
+          "done": {
+            "$ref": "#/components/schemas/TakeOut"
+          }
+        },
+        "required": [
+          "done"
+        ],
+        "title": "TakenOut",
+        "type": "object"
+      },
       "TaskEntry": {
         "description": "A task released to the caller: its name, the label its place in the\ncontest gives it, its title, the most points it gives, null on a task\nthat gives none, whether they may submit to it now, and when it falls\ndue, null when it has no due, and closes for them, their extension on it\nincluded.\n\n`points` is, for a member of an approved entrant, their entrant's points\non it on each leaderboard of the home's `boards`, one for each, in the\nsame order, so a page draws one column per board under one header row.\nEmpty for anyone else, who reads the task's `worth`.",
         "properties": {
@@ -5023,7 +5076,7 @@
         "type": "object"
       },
       "TaskStanding": {
-        "description": "One task of a contest as its organisers work from it: the task by\nname, its letter by its place in the contest's `tasks`, where its files\nstand as `GET <task>` gives it, and its timeline from its entry, each\ntime at its default where the entry gives none: `worth`, null on a task\nthat gives no points or has no publication, `release_at`, `due` and\n`late_per_day`, both null on a task with no due, and `closes`.",
+        "description": "One task of a contest as its organisers work from it: the task by\nname, its letter by its place in the contest's `tasks`, where its files\nstand as `GET <task>` gives it, and its timeline from its entry, each\ntime at its default where the entry gives none: `worth`, null on a task\nthat gives no points or has no publication, `release_at`, `due` and\n`late_per_day`, both null on a task with no due, and `closes`.\n\n`withdrawn` says the task is withdrawn from the contest: it keeps its\nplace and its letter, entrants do not see it and no leaderboard counts\nit, until it is put back. `submissions` is how many submissions it has,\nany entrant's, and `take_out` what taking it out of the contest would\ndo, for the dialog that asks first: `remove`, while it has none, which\ndeletes it, or `withdraw`, once it has; null while it is withdrawn,\nwhen it can only be put back.",
         "properties": {
           "label": {
             "title": "Label",
@@ -5032,18 +5085,39 @@
           "state": {
             "$ref": "#/components/schemas/TaskState"
           },
+          "submissions": {
+            "title": "Submissions",
+            "type": "integer"
+          },
+          "take_out": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TakeOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "task": {
             "$ref": "#/components/schemas/Named"
           },
           "timeline": {
             "$ref": "#/components/schemas/Timeline"
+          },
+          "withdrawn": {
+            "title": "Withdrawn",
+            "type": "boolean"
           }
         },
         "required": [
           "task",
           "label",
           "state",
-          "timeline"
+          "timeline",
+          "withdrawn",
+          "submissions",
+          "take_out"
         ],
         "title": "TaskStanding",
         "type": "object"
@@ -12063,6 +12137,67 @@
         ]
       }
     },
+    "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/put-back": {
+      "post": {
+        "description": "Needs the manager role at the contest. Takes `withdrawn` out of the\ntask's entry, after which it scores exactly as before; checked as a\nsave of the contest's settings is, so what a leaderboard or a timeline\nrefuses is `invalid_definition` naming `contest.yaml`. Answers the notes\nthe boards report, as that save does. A task not withdrawn changes\nnothing.",
+        "operationId": "putBackTask",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "task",
+            "required": true,
+            "schema": {
+              "title": "Task",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PutBack"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Put a withdrawn task back in its contest",
+        "tags": [
+          "tasks"
+        ]
+      }
+    },
     "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/rejudge": {
       "post": {
         "description": "How many new attempts it queued, and how many earlier attempts it\ncancelled first and left to finish. A task with no publication is\n`not_found`.",
@@ -12731,6 +12866,77 @@
         "summary": "What one of the caller's own submissions was made with",
         "tags": [
           "submissions"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/take-out": {
+      "post": {
+        "description": "Needs the manager role at the contest. `confirmed` is what the\norganiser agreed to, as the task list's `take_out` said: `remove`, while\nnobody has submitted to the task, takes its entry out of the contest's\n`tasks`, so the letters after it move up, and deletes the task with its\nroles; `withdraw`, once anyone has, marks its entry `withdrawn`, so it\nkeeps its letter, entrants no longer see it or submit to it and no\nleaderboard counts it, and its submissions are kept. Refused as\n`take_out_changed`, with `submissions` and `take_out` as they are now,\nwhen it would now do the other, and as `take_out_refused` when a\nleaderboard names a task to be removed, with those `boards`, or the\nsettings cannot be edited line by line. Withdrawing a withdrawn task\nchanges nothing.",
+        "operationId": "takeOutTask",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "task",
+            "required": true,
+            "schema": {
+              "title": "Task",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TakeOutRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TakenOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Take the task out of its contest: remove it, or withdraw it once anyone has submitted",
+        "tags": [
+          "tasks"
         ]
       }
     },

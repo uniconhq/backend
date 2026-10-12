@@ -164,7 +164,9 @@ the one the route needs at the scope in the third column.
 | `GET <org>/contests` | observer | org | | each contest's `name`, `state`, `start` and `end`, the last three null when its settings do not read |
 | `POST <contest>/tasks` | manager | contest | `name`, `title` | 201, the task's `name` |
 | `GET <contest>/tasks` | observer | contest | | the tasks by name |
-| `GET <contest>/organise/tasks` | observer | contest | | the tasks the contest lists, in its order, each with its letter, state and timeline |
+| `GET <contest>/organise/tasks` | observer | contest | | the tasks the contest lists, in its order, each with its letter, state and timeline, whether it is withdrawn, its submissions and what taking it out would do |
+| `POST <task>/take-out` | manager | contest | `confirmed`, `remove` or `withdraw` | `done`, what was done |
+| `POST <task>/put-back` | manager | contest | | the boards' `notes` |
 | `GET <task>` | observer | task | | the task's state |
 | `GET <task>/publications` | observer | task | | the publications, oldest first |
 | `GET <task>/workflow-form` | observer | task | | the inputs and test fields of the workflow the task names, or the `problem`, and whether the task is `graded` |
@@ -357,10 +359,33 @@ with its `task` by name, its `label`, the letter of its place, its `state`
 as `GET <task>` gives it, and its `timeline` from its entry, each time at
 its default where the entry gives none: `worth`, null on a task that gives
 no points or has no publication, `release_at`, `due` and `late_per_day`,
-both null on a task with no due, and `closes`. A task the contest does not
+both null on a task with no due, and `closes`; `withdrawn`, whether it is
+withdrawn from the contest; `submissions`, how many it has, any entrant's;
+and `take_out`, what taking it out would do, `remove` while it has none and
+`withdraw` once it has, null while it is withdrawn. A withdrawn task keeps
+its place and its letter. A task the contest does not
 list is not on it. Settings that do not read answer `invalid_definition`, a
 422 naming `contest.yaml`, with each of its `errors` at its `path`, as a
 save of them would be refused.
+
+`POST <task>/take-out` takes the task out of its contest, for a manager of
+the contest, `confirmed` saying what the organiser agreed to, as the list's
+`take_out` said: `remove`, while nobody has submitted to it, takes its entry
+out of the contest's `tasks`, so the letters after it move up, and deletes
+the task with its roles; `withdraw`, once anyone has, marks its entry
+`withdrawn: true`, so it keeps its letter, entrants no longer see it, its
+announcements or their own submissions to it, a submit to it is refused as
+`task_withdrawn`, and no leaderboard counts it, its submissions kept for the
+organisers. It answers `{"done": "remove"}` or `{"done": "withdraw"}`. When
+it would now do the other, someone having submitted since the dialog
+opened, it is `take_out_changed`, a 409 carrying `submissions` and
+`take_out` as they are now; a leaderboard naming a task to be removed, or
+settings that cannot be edited line by line, is `take_out_refused`, a 409,
+with the `boards` that name it. `POST <task>/put-back` takes `withdrawn` out
+of the entry again, checked as a save of the contest's settings is, and
+answers the boards' `notes` as that save does; after it the task scores
+exactly as before. Withdrawing a withdrawn task, or putting back one that
+is not, changes nothing.
 
 `GET <task>/workflow-form` is what the form over `task.yaml` is built from,
 for an observer of the task: the `workflow` the task names as it is saved
@@ -644,7 +669,8 @@ that is not there, and a number that cannot be one is `validation_error`.
 
 A slot or a submit the task's rules refuse answers with the rule's code:
 `task_closed`, with its `reason`, `closed` once the task has closed for
-the caller, `archived` and `not_approved` as 403; `submission_limit` with its `limit`,
+the caller, `task_withdrawn`, with its `reason`, `withdrawn`, for a task
+withdrawn from its contest, `archived` and `not_approved` as 403; `submission_limit` with its `limit`,
 `upload_not_ready` with the `uploads` refused, and `upload_limit`, too many
 open uploads, with its `limit` and `bytes`, as 409; `rate_limited` as 429 with the `rate` and
 `retry_at`, which the `Retry-After` header carries too; `too_large` as 413
@@ -930,8 +956,8 @@ nowhere else:
 | Code | Status |
 |---|---|
 | `not_found`, `upload_not_yours` | 404 |
-| `forbidden`, `ci_request_refused`, `fresh_sign_in_required`, `origin_mismatch`, `admin_only`, `reserved_path`, `registration_closed`, `is_staff`, `invite_required`, `wrong_invite_code`, `domain_not_allowed`, `roster_locked`, `task_closed`, `archived`, `not_approved`, `marks_frozen` | 403 |
-| `conflict`, `sole_admin`, `contestant_conflict`, `shared_workflow_owner`, `confirmation_required`, `already_registered`, `contest_full`, `already_invited`, `no_invite_way`, `entrants_alone`, `entrant_name_taken`, `entrant_full`, `in_entrant`, `entrant_incomplete`, `entrant_has_submissions`, `entrant_changed`, `wrong_status`, `submission_limit`, `upload_not_ready`, `upload_limit`, `marks_off`, `mark_limit`, `log_too_large`, `public_file_too_large` | 409 |
+| `forbidden`, `ci_request_refused`, `fresh_sign_in_required`, `origin_mismatch`, `admin_only`, `reserved_path`, `registration_closed`, `is_staff`, `invite_required`, `wrong_invite_code`, `domain_not_allowed`, `roster_locked`, `task_closed`, `task_withdrawn`, `archived`, `not_approved`, `marks_frozen` | 403 |
+| `conflict`, `sole_admin`, `contestant_conflict`, `shared_workflow_owner`, `confirmation_required`, `already_registered`, `contest_full`, `already_invited`, `no_invite_way`, `entrants_alone`, `entrant_name_taken`, `entrant_full`, `in_entrant`, `entrant_incomplete`, `entrant_has_submissions`, `entrant_changed`, `wrong_status`, `submission_limit`, `upload_not_ready`, `upload_limit`, `marks_off`, `mark_limit`, `log_too_large`, `public_file_too_large`, `take_out_changed`, `take_out_refused` | 409 |
 | `grading_closed`, `invite_expired` | 410 |
 | `payload_too_large`, `too_large` | 413 |
 | `rate_limited`, `invite_limit` | 429, with `Retry-After` |

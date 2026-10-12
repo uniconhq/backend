@@ -3,8 +3,10 @@ with where it stands and its timeline, where a task's files stand against
 its publications, its publications, the form of the workflow it names, and
 the save, which is how a task is published. Creating needs the manager role
 at the contest and makes the task before it answers, and the lists the
-observer role there. The task's own routes need the observer role at the
-task, and the save the manager role. Whether a task is released to the
+observer role there; taking a task out of the contest and putting a
+withdrawn one back need the manager role at the contest. The task's own
+routes need the observer role at the task, and the save the manager role.
+Whether a task is released to the
 caller needs only a session: it is what a contestant is told, and a contest
 hidden from the caller answers as no such task.
 """
@@ -20,7 +22,15 @@ from forge.api.types import Named as NamedRecord
 
 from unicon.api.deps import CurrentSession
 from unicon.api.guard import PREFIX, TaskAtPath, require
-from unicon.schemas.contests import CreateTask, Named, TaskStanding, TaskState
+from unicon.schemas.contests import (
+    CreateTask,
+    Named,
+    PutBack,
+    TakenOut,
+    TakeOutRequest,
+    TaskStanding,
+    TaskState,
+)
 from unicon.schemas.files import token_of
 from unicon.schemas.publications import Publication, SaveRequest, SaveResult
 
@@ -75,6 +85,50 @@ async def list_task_standings(organiser: ContestObserver) -> tuple[tasks.TaskSta
     `contest.yaml`, with every one of its `errors` at its path.
     """
     return await tasks.standing(organiser, contests.contest_id_of(organiser.scope))
+
+
+@router.post(
+    f"{TASK}/take-out",
+    operation_id="takeOutTask",
+    summary="Take the task out of its contest: remove it, or withdraw it once anyone has submitted",
+    response_model=TakenOut,
+)
+async def take_out_task(
+    organiser: ContestManager, scope: TaskAtPath, body: TakeOutRequest
+) -> TakenOut:
+    """Needs the manager role at the contest. `confirmed` is what the
+    organiser agreed to, as the task list's `take_out` said: `remove`, while
+    nobody has submitted to the task, takes its entry out of the contest's
+    `tasks`, so the letters after it move up, and deletes the task with its
+    roles; `withdraw`, once anyone has, marks its entry `withdrawn`, so it
+    keeps its letter, entrants no longer see it or submit to it and no
+    leaderboard counts it, and its submissions are kept. Refused as
+    `take_out_changed`, with `submissions` and `take_out` as they are now,
+    when it would now do the other, and as `take_out_refused` when a
+    leaderboard names a task to be removed, with those `boards`, or the
+    settings cannot be edited line by line. Withdrawing a withdrawn task
+    changes nothing.
+    """
+    done = await tasks.take_out(organiser, tasks.task_id_of(scope), body.confirmed)
+    return TakenOut(done=done)
+
+
+@router.post(
+    f"{TASK}/put-back",
+    operation_id="putBackTask",
+    summary="Put a withdrawn task back in its contest",
+    response_model=PutBack,
+)
+async def put_back_task(organiser: ContestManager, scope: TaskAtPath) -> PutBack:
+    """Needs the manager role at the contest. Takes `withdrawn` out of the
+    task's entry, after which it scores exactly as before; checked as a
+    save of the contest's settings is, so what a leaderboard or a timeline
+    refuses is `invalid_definition` naming `contest.yaml`. Answers the notes
+    the boards report, as that save does. A task not withdrawn changes
+    nothing.
+    """
+    returned = await tasks.put_back(organiser, tasks.task_id_of(scope))
+    return PutBack(notes=list(returned.notes))
 
 
 @router.get(

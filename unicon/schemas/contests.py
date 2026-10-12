@@ -5,6 +5,7 @@ goes out as the forge's own `Timeline` says it, its numbers exactly.
 from datetime import datetime
 
 from forge.api.contest_home import State
+from forge.api.tasks import TakeOut
 from pydantic import BaseModel
 
 from unicon.schemas.exact import Exact
@@ -83,9 +84,43 @@ class TaskStanding(BaseModel):
     time at its default where the entry gives none: `worth`, null on a task
     that gives no points or has no publication, `release_at`, `due` and
     `late_per_day`, both null on a task with no due, and `closes`.
+
+    `withdrawn` says the task is withdrawn from the contest: it keeps its
+    place and its letter, entrants do not see it and no leaderboard counts
+    it, until it is put back. `submissions` is how many submissions it has,
+    any entrant's, and `take_out` what taking it out of the contest would
+    do, for the dialog that asks first: `remove`, while it has none, which
+    deletes it, or `withdraw`, once it has; null while it is withdrawn,
+    when it can only be put back.
     """
 
     task: Named
     label: str
     state: TaskState
     timeline: Timeline
+    withdrawn: bool
+    submissions: int
+    take_out: TakeOut | None
+
+
+class TakeOutRequest(BaseModel):
+    """What taking a task out of its contest should do, as the organiser
+    confirmed it: `remove` or `withdraw`, as the task list's `take_out`
+    said when the dialog asked.
+    """
+
+    confirmed: TakeOut
+
+
+class TakenOut(BaseModel):
+    """What taking the task out did: `remove`d it or `withdraw`n it."""
+
+    done: TakeOut
+
+
+class PutBack(BaseModel):
+    """A withdrawn task put back: what each board reports of its tasks now,
+    as a save of the contest's settings answers.
+    """
+
+    notes: list[str]
