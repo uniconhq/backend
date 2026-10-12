@@ -48,13 +48,18 @@ class TaskState(BaseModel):
     publication or none, and whether the head is a draft, a state no
     publication froze. A draft carries the errors that keep it from
     publishing; a draft with none was held back, or has not been saved since
-    it was made.
+    it was made. `statement_written` says whether the latest publication
+    holds a statement, there, not blank and not the starter's placeholder,
+    false when nothing is published, and `head_statement_written` the same
+    of the head.
     """
 
     head: str
     latest: Publication | None
     draft: bool
     errors: list[DefinitionError]
+    statement_written: bool
+    head_statement_written: bool
 
 
 class Timeline(BaseModel):

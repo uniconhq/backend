@@ -42,6 +42,7 @@ async def test_a_new_task_is_an_unsaved_draft_with_nothing_wrong(
     assert state.status_code == 200
     body = state.json()
     assert (body["latest"], body["draft"], body["errors"]) == (None, True, [])
+    assert (body["statement_written"], body["head_statement_written"]) == (False, False)
     assert body["head"]
     assert (await client.get(f"{TASK}/publications")).json() == []
 
@@ -83,6 +84,7 @@ async def test_the_contests_tasks_stand_with_their_publication_and_timeline(
     }
     (row,) = published.json()
     assert (row["state"]["latest"]["number"], row["state"]["draft"]) == (1, False)
+    assert row["state"]["statement_written"] is True
     assert row["timeline"]["worth"] == "100"
 
 

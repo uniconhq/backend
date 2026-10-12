@@ -5634,7 +5634,7 @@
         "type": "object"
       },
       "TaskState": {
-        "description": "Where a task's files stand: the version at their head, the latest\npublication or none, and whether the head is a draft, a state no\npublication froze. A draft carries the errors that keep it from\npublishing; a draft with none was held back, or has not been saved since\nit was made.",
+        "description": "Where a task's files stand: the version at their head, the latest\npublication or none, and whether the head is a draft, a state no\npublication froze. A draft carries the errors that keep it from\npublishing; a draft with none was held back, or has not been saved since\nit was made. `statement_written` says whether the latest publication\nholds a statement, there, not blank and not the starter's placeholder,\nfalse when nothing is published, and `head_statement_written` the same\nof the head.",
         "properties": {
           "draft": {
             "title": "Draft",
@@ -5651,6 +5651,10 @@
             "title": "Head",
             "type": "string"
           },
+          "head_statement_written": {
+            "title": "Head Statement Written",
+            "type": "boolean"
+          },
           "latest": {
             "anyOf": [
               {
@@ -5660,13 +5664,19 @@
                 "type": "null"
               }
             ]
+          },
+          "statement_written": {
+            "title": "Statement Written",
+            "type": "boolean"
           }
         },
         "required": [
           "head",
           "latest",
           "draft",
-          "errors"
+          "errors",
+          "statement_written",
+          "head_statement_written"
         ],
         "title": "TaskState",
         "type": "object"

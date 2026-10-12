@@ -360,7 +360,12 @@ it did in the same fields and words as the question before it
 (`results_change`, `summary`, `runs_again`, `scores`, `reading`); a draft carries the `version` written, the `errors`, each
 `{path, message}`, and what it `held_back`. `GET <task>` answers the version at the head, the
 latest publication or none, whether the head is a draft, and the draft's
-errors, worked out again on every read.
+errors, worked out again on every read, and whether the latest
+publication's statement is written (`statement_written`: there, not blank
+and not the starter's placeholder; false when nothing is published) and
+the head's (`head_statement_written`). Opening a contest whose task's
+published statement is not written is for the opening checklist to stop;
+the forge itself does not check what opening needs.
 
 `GET <contest>/organise/tasks` is the list an observer of the contest works
 its tasks from: every task the contest's `tasks` lists, in that order, each
