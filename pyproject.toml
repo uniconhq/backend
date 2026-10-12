@@ -29,7 +29,7 @@ dev = [
 ]
 
 [tool.uv.sources]
-unicon-forge = { url = "https://github.com/uniconhq/forge/releases/download/v0.24.0/unicon_forge-0.24.0-py3-none-any.whl" }
+unicon-forge = { path = "../forge" }
 
 [build-system]
 requires = ["hatchling"]
