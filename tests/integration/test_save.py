@@ -5,9 +5,13 @@ that does not check, kept as a draft with its errors, which the task then
 shows; the refusals, a path inside `plans/`, a manager's change to an
 admin-only file and a grading change while the contest runs, which the same
 save confirmed publishes; a change kept as a draft and published by an
-empty confirmed save; and a stale token answered as a conflict.
+empty confirmed save; a stale token answered as a conflict; and a removal,
+a path with its token and `remove`, which takes a test out or replaces it
+by one with other entry names, is checked as any other state, and is
+refused as an edit is.
 """
 
+import uuid
 from typing import Any
 
 import httpx
@@ -31,12 +35,12 @@ from tests.integration.conftest import (
 MISSING = [
     {
         "path": "tests/main/",
-        "message": "main is a folder of tests/ but not a group in test_groups: list it, or move "
-        "its tests.",
+        "message": "main holds tests but is not one of the task's test groups. Add a test group "
+        "called main, or move its tests.",
     },
     {
         "path": "test_groups.hidden",
-        "message": "There is no folder tests/hidden/ with a test in it.",
+        "message": "The test group hidden has no tests. Add a test to it.",
     },
 ]
 
@@ -84,9 +88,8 @@ async def test_the_organiser_path_from_an_org_to_a_publication(
     first = written.json()
     assert (first["number"], first["grading_changed"]) == (1, False)
     assert first["notes"] == [
-        "Each group's most points: main 100.",
-        "sum reveals at 2026-10-03T17:00:00+00:00.",
-        "sum joins Standings.",
+        "The most points each test group gives: main 100.",
+        "sum now counts on the leaderboard Standings.",
     ]
 
     statement = await _save(client, await _edit(client, "statement.md", "Write", "Add. Write"))
@@ -152,7 +155,7 @@ async def test_a_grading_change_while_the_contest_runs_asks_first(
 
     assert asked.status_code == 409
     assert asked.json()["code"] == "confirmation_required"
-    assert asked.json()["changes"] == ["plans/plan.json changed"]
+    assert asked.json()["changes"] == ["The way the task grades changed."]
     assert asked.json()["regrades"] == 0
     assert len((await client.get(f"{TASK}/publications")).json()) == 1
 
@@ -160,7 +163,7 @@ async def test_a_grading_change_while_the_contest_runs_asks_first(
 
     assert confirmed.status_code == 200
     assert (confirmed.json()["number"], confirmed.json()["grading_changed"]) == (2, True)
-    assert confirmed.json()["changes"] == ["plans/plan.json changed"]
+    assert confirmed.json()["changes"] == ["The way the task grades changed."]
 
 
 async def test_a_change_kept_as_a_draft_is_published_by_an_empty_confirmed_save(
@@ -173,7 +176,7 @@ async def test_a_change_kept_as_a_draft_is_published_by_an_empty_confirmed_save(
     assert kept.json() == {
         "version": kept.json()["version"],
         "errors": [],
-        "held_back": ["plans/plan.json changed"],
+        "held_back": ["The way the task grades changed."],
     }
     assert (await client.get(TASK)).json()["draft"] is True
 
@@ -193,6 +196,128 @@ async def test_a_save_with_a_stale_token_is_a_conflict(
 
     assert stale.status_code == 409
     assert stale.json()["code"] == "conflict"
+
+
+def _removal(path: str, token: str | None) -> dict[str, Any]:
+    return {"path": path, "token": token, "remove": True}
+
+
+async def _token(client: httpx.AsyncClient, path: str) -> str:
+    token: str = (await read(client, f"{TASK}/files/{path}"))["token"]
+    return token
+
+
+async def test_a_save_removes_a_test_and_its_publication_names_the_removal(
+    client: httpx.AsyncClient, sum_task: FakeForge
+) -> None:
+    await publish(client)
+    added = await _save(
+        client,
+        _change("tests/main/2/input", "1 1\n", None),
+        _change("tests/main/2/answer", "2\n", None),
+    )
+    assert added.json()["number"] == 2, added.text
+
+    removed = await _save(
+        client,
+        _removal("tests/main/2/input", await _token(client, "tests/main/2/input")),
+        _removal("tests/main/2/answer", await _token(client, "tests/main/2/answer")),
+    )
+
+    assert removed.status_code == 200, removed.text
+    assert (removed.json()["number"], removed.json()["grading_changed"]) == (3, True)
+    assert removed.json()["changes"] == [
+        "The way the task grades changed.",
+        "The answer of test 2 in the group main was removed.",
+        "The input of test 2 in the group main was removed.",
+    ]
+    gone = await client.get(f"{TASK}/files/tests/main/2/input")
+    assert gone.status_code == 404
+
+
+async def test_a_test_is_replaced_by_one_with_other_entry_names(
+    client: httpx.AsyncClient, sum_task: FakeForge
+) -> None:
+    await publish(client)
+
+    replaced = await _save(
+        client,
+        _removal("tests/main/1/input", await _token(client, "tests/main/1/input")),
+        _removal("tests/main/1/answer", await _token(client, "tests/main/1/answer")),
+        _change("tests/main/1/input.txt", "4 5\n", None),
+        _change("tests/main/1/answer.txt", "9\n", None),
+    )
+
+    assert replaced.status_code == 200, replaced.text
+    assert replaced.json()["number"] == 2
+
+
+async def test_removing_every_test_keeps_the_save_as_a_draft(
+    client: httpx.AsyncClient, sum_task: FakeForge
+) -> None:
+    await publish(client)
+
+    kept = await _save(
+        client,
+        _removal("tests/main/1/input", await _token(client, "tests/main/1/input")),
+        _removal("tests/main/1/answer", await _token(client, "tests/main/1/answer")),
+    )
+
+    assert kept.status_code == 200, kept.text
+    assert kept.json()["errors"] == [
+        {
+            "path": "test_groups",
+            "message": "The task has no tests yet. Add a test to each test group.",
+        }
+    ]
+    assert len((await client.get(f"{TASK}/publications")).json()) == 1
+
+
+async def test_a_removal_with_a_stale_token_is_a_conflict(
+    client: httpx.AsyncClient, sum_task: FakeForge
+) -> None:
+    await _save(client, _change("public/hint.txt", "One.\n", None))
+    stale = _removal("public/hint.txt", await _token(client, "public/hint.txt"))
+    await _save(client, await _edit(client, "public/hint.txt", "One.", "Two."))
+
+    refused = await _save(client, stale)
+
+    assert refused.status_code == 409
+    assert refused.json()["code"] == "conflict"
+    assert (await read(client, f"{TASK}/files/public/hint.txt"))["content"] == "Two.\n"
+
+
+async def test_a_managers_removal_of_the_statement_is_refused(
+    client: httpx.AsyncClient, sum_task: FakeForge
+) -> None:
+    token = await _token(client, "statement.md")
+    await sum_task.orgs.grant_role(8, SUM, Role.MANAGER)
+    await sign_in_as(client, sum_task, 8)
+
+    refused = await _save(client, _removal("statement.md", token))
+
+    assert refused.status_code == 403
+    assert (refused.json()["code"], refused.json()["keys"]) == ("admin_only", ["statement.md"])
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        {"path": "public/a.txt", "token": None, "remove": True},
+        {"path": "public/a.txt", "token": "abc", "remove": True, "content": "x"},
+        {"path": "public/a.txt", "token": "abc", "remove": True, "upload": str(uuid.uuid4())},
+        {"path": "public/a.txt", "token": "abc"},
+    ],
+    ids=["no-token", "with-content", "with-upload", "nothing"],
+)
+async def test_a_removal_is_a_path_and_its_token_and_nothing_else(
+    client: httpx.AsyncClient, sum_task: FakeForge, change: dict[str, Any]
+) -> None:
+    refused = await _save(client, change)
+
+    assert refused.status_code == 422
+    assert refused.json()["code"] == "validation_error"
+    assert sum_task.calls_to("save_files") == []
 
 
 async def test_a_path_named_twice_in_one_save_is_a_validation_error(
@@ -220,4 +345,4 @@ async def test_a_task_rollback_is_a_save(client: httpx.AsyncClient, sum_task: Fa
     assert rolled.status_code == 200, rolled.text
     assert rolled.json()["number"] == 2
     back = await read(client, f"{TASK}/files/statement.md")
-    assert back["content"] == "Write the statement contestants read here.\n"
+    assert back["content"] == "Write the statement entrants read here.\n"

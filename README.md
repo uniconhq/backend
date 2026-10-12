@@ -161,7 +161,7 @@ the one the route needs at the scope in the third column.
 | `GET <org>` | a role at the org or in it | org | | the org's `display_name` and `description` |
 | `PATCH <org>` | admin | org | `description`, `display_name` | 204 |
 | `POST <org>/contests` | manager | org | `name`, `title` | 201, the contest's `name` |
-| `GET <org>/contests` | observer | org | | the contests by name |
+| `GET <org>/contests` | observer | org | | each contest's `name`, `state`, `start` and `end`, the last three null when its settings do not read |
 | `POST <contest>/tasks` | manager | contest | `name`, `title` | 201, the task's `name` |
 | `GET <contest>/tasks` | observer | contest | | the tasks by name |
 | `GET <contest>/organise/tasks` | observer | contest | | the tasks the contest lists, in its order, each with its letter, state and timeline |
@@ -169,26 +169,23 @@ the one the route needs at the scope in the third column.
 | `GET <task>/publications` | observer | task | | the publications, oldest first |
 | `GET <task>/workflow-form` | observer | task | | the inputs and test fields of the workflow the task names, or the `problem`, and whether the task is `graded` |
 | `GET <task>/release` | a session | | | whether the caller sees the task and may submit to it now, or 404 when the contest is hidden from them |
-| `GET <contest>/contestants` | observer | contest | | every registration, oldest first |
-| `POST <contest>/contestants/{user_id}/approve` | manager | contest | | the registration |
-| `POST <contest>/contestants/{user_id}/reject` | manager | contest | `reason` | the registration |
-| `POST <contest>/contestants/{user_id}/reopen` | manager | contest | | the registration, pending again |
-| `POST <contest>/contestants/{user_id}/remove` | manager | contest | | the registration |
-| `PUT <contest>/contestants/{user_id}/extension` | manager | contest | `seconds`, `tasks` | the registration |
-| `GET <contest>/organise/teams` | observer | contest | | every team, with its members and the people asking or asked in |
-| `POST <contest>/organise/teams` | manager | contest | `name`, `leader` | 201, the team |
-| `DELETE <contest>/organise/teams/{team_id}` | manager | contest | | 204 |
-| `POST <contest>/organise/teams/{team_id}/members` | manager | contest | `user_id` | the team, the person moved in from any other |
-| `DELETE <contest>/organise/teams/{team_id}/members/{user_id}` | manager | contest | | the team |
-| `PUT <contest>/organise/teams/{team_id}/leader` | manager | contest | `user_id` | the team |
-| `PUT <contest>/organise/teams/{team_id}/extension` | manager | contest | `seconds`, `tasks` | the team |
+| `GET <contest>/organise/entrants` | observer | contest | | every entrant, the earliest registered first, with its members and the invites into it |
+| `POST <contest>/organise/entrants/{entrant_id}/approve` | manager | contest | | the entrant |
+| `POST <contest>/organise/entrants/{entrant_id}/reject` | manager | contest | `reason` | the entrant |
+| `POST <contest>/organise/entrants/{entrant_id}/reopen` | manager | contest | | the entrant, pending again |
+| `POST <contest>/organise/entrants/{entrant_id}/remove` | manager | contest | | the entrant |
+| `PUT <contest>/organise/entrants/{entrant_id}/extension` | manager | contest | `seconds`, `tasks` | the entrant |
+| `PUT <contest>/organise/entrants/{entrant_id}/name` | manager | contest | `name` | the entrant |
+| `DELETE <contest>/organise/entrants/{entrant_id}` | manager | contest | | 204 |
+| `DELETE <contest>/organise/entrants/{entrant_id}/members/{user_id}` | manager | contest | | the entrant, or null when that left it with nobody and no submissions |
+| `POST <contest>/organise/entrants/{entrant_id}/members/{user_id}/move` | manager | contest | `to` | the entrant the person is in now |
 | `POST <task>/save` | manager | task | `changes`, `confirm`, `keep_as_draft`, `message` | the save's result |
 | `POST <task>/organise/uploads` | manager | task | `path`, `size`, `sha256`, `content_type` | 201, a slot |
 | `GET <scope>/roles` | observer | scope | | the holders |
 | `POST <scope>/roles` | manager | scope | `username`, `role` | 204 |
 | `DELETE <scope>/roles/{user_id}` | manager | scope | | 204 |
 | `GET <scope>/invites` | observer | scope | | the scope's invites, newest first |
-| `POST <scope>/invites` | manager | scope | `grants`, `username` or `email`, `days` | 201, the invite |
+| `POST <scope>/invites` | manager | scope | `grants`, `username` or `email`, `days`, `entrant` | 201, the invite |
 | `POST <scope>/invites/{invite_id}/send-again` | manager | scope | | the invite, mailed again with a new link |
 | `POST <scope>/invites/{invite_id}/withdraw` | manager | scope | | the invite, `withdrawn` |
 | `GET <place>/tree?path=` | observer | place | | a folder's entries, each with its `upload` or null |
@@ -198,18 +195,19 @@ the one the route needs at the scope in the third column.
 | `POST <place>/files/{path}/rollback` | manager | place | `version`, `token`, `message`, `confirm`, `keep_as_draft` | as a write |
 | `GET <task>/gradings?limit=` | observer | task | | the task's gradings, newest first, each as the feed gives it |
 | `GET <task>/gradings/{grading}/log` | observer | task | | the grading's run log, as plain text |
-| `GET <task>/organise/submissions/{number}?user_id=&team=` | observer | task | | a row's submission as the row reads it, with everything filled in |
+| `GET <task>/organise/submissions/{number}?entrant=` | observer | task | | a row's submission as the row reads it, with everything filled in |
 | `POST <task>/gradings/{grading}/cancel` | manager | task | `reason` | the grading, `cancelled` with its `cancel_reason` |
 | `POST <task>/gradings/{grading}/retry` | manager | task | | the new attempt, `queued` |
 | `PUT <task>/gradings/{grading}/fallback` | manager | task | | the grading, its submission counting as `last_good`, `fallback` `staff` |
 | `DELETE <task>/gradings/{grading}/fallback` | manager | task | | the grading, counting as the contest's `on_system_error` says |
 | `POST <task>/rejudge` | manager | task | | what the rejudge did |
-| `GET <contest>/gradings?task=&user=&team=&status=&limit=` | a role at the contest or at one of its tasks | contest | | the gradings of the tasks the caller observes, newest first, each with its `task`, `label` and `by` |
+| `GET <contest>/gradings?task=&user=&entrant=&status=&limit=` | a role at the contest or at one of its tasks | contest | | the gradings of the tasks the caller observes, newest first, each with its `task`, `label` and `by` |
 | `GET <contest>/gradings/queue` | a role at the contest or at one of its tasks | contest | | how many of theirs are `queued` and `dispatched` |
 | `GET <place>/announcements` | observer | place | | every announcement, closed ones included, oldest first |
 | `POST <place>/announcements` | manager | place | `title`, `body` | 201, the announcement |
 | `PATCH <place>/announcements/{number}` | manager | place | `title`, `body` | the announcement |
 | `POST <place>/announcements/{number}/close` | manager | place | | the announcement, `closed` |
+| `POST <place>/announcements/{number}/reopen` | manager | place | | the announcement, open again; an open one is left as it is |
 | `GET <org>/clarifications` | a role anywhere in the org | | | every question still open across the org, oldest first |
 | `GET <contest>/clarifications` | observer | contest | | every question of the contest, answered ones included |
 | `POST <contest>/clarifications/{asker}/{number}/replies` | manager | contest | `body` | the question, still open |
@@ -238,58 +236,79 @@ asked about, or a broader one. Granting a different role than the one held moves
 person to it, which is how a person is promoted or demoted. Forge refuses a
 manager granting admin or demoting or removing an admin (`forbidden`),
 removing the last admin of a scope (`sole_admin`), and a role for a
-contestant of that contest (`contestant_conflict`).
+member of an entrant of that contest (`contestant_conflict`).
 
 The invite routes are served under each of the three scope prefixes too. An
 invite names a `username` or an `email`, and `grants` one of the three
-roles at the scope or, at a contest, a `contestant`'s place; it stands for
-`days`, 14 unless given and at most 90. It carries `where`, the scope's
-names, `invited_by`, its `status` (`pending`, `accepted`, `declined` or
+roles at the scope or, at a contest, a place in it (`contestant`), straight
+into the `entrant` named when the body names one; it stands for `days`, 14
+unless given and at most 90. A member's invite into their entrant is
+`member`, made by the member (below), never offered here: `grants` takes
+the three roles and `contestant` alone. An invite carries `where`, the
+scope's names, `contest_title`, the title of the contest it is at or
+under, null at an org, `entrant`, the entrant it asks someone into, `{id, name}`,
+or null, `invited_by`, its `status` (`pending`, `accepted`, `declined` or
 `withdrawn`), `expired` for a pending one past `expires_at`, and
 `mail_status`: `waiting` until the mail server takes it, `sent`, `failed`,
 or `off` on a deployment with no mail server. The mail goes out after the
 route answers, so a mail server that is down never fails the click. Forge
-refuses a manager inviting an admin (`forbidden`), a contestant's place
-anywhere but a contest, a target that is both or neither, and someone who
-holds it already or could not take it (`invalid_invite`), the same pending
+refuses a manager inviting an admin (`forbidden`), a place anywhere but a
+contest, a target that is both or neither, and someone
+who holds it already or could not take it (`invalid_invite`), a place at a
+contest whose ways have no `invite` (`no_invite_way`), into an entrant
+with no room (`entrant_full`), the same pending
 invite twice (`already_invited`), and an org's thousand-and-first invite of
 a day (`invite_limit`). Sending again makes a new link, so the old one
 stops working, and gives the invite its whole lifetime again, a lapsed one
 included; it is refused within ten minutes of the last mail
 (`invite_limit`) and where the deployment sends no mail (`invalid_invite`).
-Withdrawing takes back a pending invite, or an accepted contestant's place
-until its person registers; anything else is `wrong_status`. A list shows
+Withdrawing takes back a pending invite, or an accepted place in a contest,
+which otherwise lets its person in by the invite way when they register
+again; anything else is `wrong_status`. A list shows
 at most 500. A username whose account has no confirmed address gets no
 mail, and its invite reads `failed`.
 
-A contestant of a contest with teams works with a session alone, and forge
-checks they are its approved contestant and, for the leader's routes, that
-they lead the team named: `GET <contest>/my-team` gives their team and the
-teams they asked or are asked into; `GET <contest>/teams` lists the teams
-with their size and the contest's `max_size`; `POST <contest>/teams` with a
-`name` makes one they lead; `POST <contest>/teams/{team_id}/request` asks to
-join, or accepts the leader's invitation, and `/cancel` takes that back;
-`POST <contest>/my-team/leave` leaves; and the leader's
-`POST <contest>/teams/{team_id}/invite` with a `username`,
-`POST .../members/{user_id}/approve` and `DELETE .../members/{user_id}` ask
-someone in, let a request in, and take someone out or turn a request down.
-Once in a team, the person's submissions, the caps they count against,
-their extension and their questions are the team's, and a question on a team's desk is named `team.<id>` where a
-person's is named by their user id. Refusals: `teams_off`,
-`invalid_team_name`, `team_name_taken`, `team_full` (with `limit`),
-`in_team`, `submitted_alone`, `team_has_submissions` and `team_changed`.
+A contest's one kind of entry is the entrant, one or more people who enter
+together, from `entrants.fewest` to `entrants.most` in `contest.yaml`, one
+each by default. A contestant's entrant routes need a session alone, and
+forge checks they are in the entrant they act for:
+`POST <contest>/entrants` with a `name`, needed when entrants may be more
+than one person, and the `code` a sign-up asks for, registers a new one
+with the caller its first member; `GET <contest>/entrants/mine` is their
+registration panel (below); `POST <contest>/entrants/mine/invites` with a
+`username` or an `email` asks someone in, as an invite that `grants`
+`member`, and `DELETE <contest>/entrants/mine/invites/{invite_id}` takes
+one back; `POST <contest>/entrants/mine/leave` leaves, and
+`PUT <contest>/entrants/mine/name` with a `name` renames it. Someone joins
+an entrant by accepting an invite into it (below). An entrant's
+submissions, the caps they count against, its extension and its questions
+are its own, and a question on its desk is named `entrant.<id>`, the id's 32
+hex digits. Refusals: `entrants_alone` (the contest's entrants are one
+person each), `invalid_entrant_name`, `entrant_name_required`,
+`entrant_name_taken`, `entrant_full` (with `limit`), `in_entrant`,
+`entrant_has_submissions` and `entrant_changed` as 409 or 422 (below),
+`roster_locked` (the roster locks at the contest's start, or at the
+entrant's first submission when the contest says so, and from then on only
+organisers change it) as 403, and `entrant_incomplete` (with `fewest` and
+`members`) when an entrant short of members is approved or submits.
 
 The person an invite is for acts on it with a session alone:
 `GET /api/v1/me/invites` lists their pending invites, lapsed ones flagged,
 including any sent to an address the forge has confirmed is theirs;
 `POST /api/v1/me/invites/open` with the `token` after the `#` of the mail's
 link opens one, in the body so the token never sits in a URL;
-`POST /api/v1/me/invites/{invite_id}/accept` takes what it grants and
+`POST /api/v1/me/invites/{invite_id}/accept`, with the `code` joining an
+entrant may ask for, takes what it grants and answers with the `invite` and
+`entered`: for a place in a contest, the `entrant` the person is in now,
+`{id, name}`, its `status`, and `how`, whether accepting `made` it,
+`joined` it or found them in it `already`, and null for a role;
 `/decline` grants nothing, and either on a decided invite is
 `wrong_status`. Anyone else's invite is `not_found`, a lapsed one is
 `invite_expired` (410), and a link opened while the forge cannot say whose
-address it is answers `forge_unavailable`. Accepting a contestant's place lets
-the person register for an invite-only contest and see a hidden one.
+address it is answers `forge_unavailable`. Accepting an organiser's place
+registers the person by the contest's invite way, or puts them in the
+entrant it names, and shows them a hidden contest while they are in no
+entrant there.
 
 ## Files and the save
 
@@ -371,8 +390,17 @@ completes it with the same `POST <task>/uploads/{upload}/complete`, its
 gives `upload`, the upload's id, in place of `encoding` and `content`, and
 the save writes the pointer to the file beside the other changes, one
 commit and one publication. A change gives content or an upload, never both
-or neither, and a contest's file takes no upload (`validation_error`). An
-upload that is not the caller's for that task and path is
+or neither, and a contest's file takes no upload (`validation_error`). A
+change of `POST <task>/save` may instead remove its file: `{"path", "token",
+"remove": true}`, with the token the file was read with and no content or
+upload (`validation_error` otherwise), a moved token being `conflict` as an
+edit's is. Removing a folder, such as a test `tests/<group>/<test>/`, is
+removing each file under it, named one by one, in the same save as any
+files it is replaced by; the state left is checked as any other, so a
+group left with no test or a file an input names removed keeps the save as
+a draft with its errors, and the publication names each removed test file
+among its `changes`. An upload that is not the caller's for that task and
+path is
 `invalid_inputs`, naming the path, and one whose bytes have not arrived
 `upload_not_ready`. A file that is an upload is listed by the tree and read
 with `upload`, the `size` and `digest` of what it holds, its `content` then
@@ -392,33 +420,49 @@ in the contest they enter:
 
 | Route | Body | Answer |
 |---|---|---|
-| `GET /api/v1/contests` | | every published contest the caller may enter or has entered, newest start first, with their own `status` |
-| `POST <contest>/registration` | `invite_code` | 201, the caller's registration |
-| `GET <contest>/registration` | | the caller's registration, or null |
+| `GET /api/v1/contests` | | every published contest the caller may enter or has entered, newest start first, with their entrant's `status` |
+| `POST <contest>/entrants` | `name`, `code` | 201, the caller's new entrant |
+| `GET <contest>/entrants/mine` | | the caller's registration panel |
+| `POST <contest>/entrants/mine/invites` | `username` or `email` | 201, the invite |
+| `DELETE <contest>/entrants/mine/invites/{invite_id}` | | the invite, `withdrawn` |
+| `POST <contest>/entrants/mine/leave` | | 204 |
+| `PUT <contest>/entrants/mine/name` | `name` | the caller's entrant |
 | `GET <contest>/home` | | the contest's home for the caller |
 | `GET <task>/page` | | a released task's statement, its submission caps and the form of its inputs |
 | `GET <contest>/home/announcements` | | the open announcements of the contest and of each task released to the caller |
 | `GET <task>/page/announcements` | | the open announcements of a released task |
+| `GET <task>/public/{path}` | | a file under the task's `public/`, as its bytes; no session needed, below |
 | `POST <contest>/questions` | `title`, `body`, `task` | 201, the question, asked privately |
 | `GET <contest>/questions` | | the caller's own questions, with every message |
 | `POST <contest>/questions/{number}/comments` | `body` | the question, opened again when it was answered |
 | `GET /api/v1/live` | | the session's live updates, as Server-Sent Events |
 
-Registering answers pending, or approved when the contest approves on its
-own. A registration the contest's rules refuse answers with the rule's code:
+Registering answers pending, or approved when the entrant is complete and
+the caller came in by a way that approves straight away. A registration
+the contest's rules refuse answers with the rule's code:
 `registration_closed`, `is_staff`, `invite_required`, `wrong_invite_code` and
 `domain_not_allowed` as 403, `already_registered` and `contest_full` as 409.
-A registration carries its `status`, the `reason` when it was rejected, its
-times, and the person's own extension: the `time_extension` in seconds, on
-the `extension_tasks` by name, or on every task when that is null. The home
+An entrant carries its `id`, its own `name`, null for one of a contest
+whose entrants are one person each, the `display_name` it is shown under,
+its member's username then, its `status`, the `reason` when it was
+rejected, its times, its `members`, each with the way they came in by,
+`way_kind` (`invite`, `signup` or `organiser`) and `way_name`, the
+`invites` into it still waiting, its extension: the `time_extension` in
+seconds, on the `extension_tasks` by name, or on every task when that is
+null, and whether it has `submitted`, is `complete` and is `locked`. The
+panel carries the caller's `entrant`, or null, their own `invitations`
+into the contest's entrants, whether the window is `registration_open`,
+whether they `can_register` and, when they cannot, `refused`, the code and
+sentence registering would answer, or `forge_unavailable` when their
+confirmed addresses could not be read to say, `asks_code`, true only when a code
+would let them in, and the contest's `most`, `fewest` and `locks`. The home
 carries the contest `where` it is, its title as `name`, its dates and
-`state`, the caller's `registration`, whether the caller `organises` the
-contest and so may not enter it, whether the window is `registration_open`
-and whether registering is `invite_only` or `asks_code`, `now`, the
-server's clock when it was read, and the `tasks` released to them, each
+`state`, the caller's panel as `registration`, whether the caller
+`organises` the contest and so may not enter it, `now`, the server's clock
+when it was read, and the `tasks` released to them, each
 with its `name`, `label`, `title`, `worth`, the most points it gives or
 null, its `release`, and when it falls `due`, null when it has none, and
-`closes` for the caller, their extension on it included. A task's page
+`closes` for the caller, their entrant's extension on it included. A task's page
 carries the same, its `statement` in Markdown, its `submissions`: at most
 `max` in all and `rate.count` in any `rate.per` seconds, and its `inputs`,
 the form the submit panel is built from: each input's `id`, `type`
@@ -428,25 +472,27 @@ value takes when it is left out, `min` and `max` of a number, and
 `max_size`, the most its files may total in bytes.
 For a contest the caller may not see, the home answers 404, the same as for
 one that is not there, and so does the page of a task that is not visible to
-them; the caller's own registration reads null wherever they have none.
+them; the panel's `entrant` reads null wherever they are in none.
 
-The organiser's contestants routes are in the table above, and answer with
-the same registration and the person's `user_id` and `user`, which carries
-their `id`, `username`, `name`, `email` and `avatar_url` and is null once
-the account is gone. A decision the registration's status does not allow
-is `wrong_status`, carrying the status as `current`; a rejection needs a `reason` (`invalid_reason`). An
-extension moves the person's due and close on the named `tasks`, or on
-every task when it names none, in place of any they had, and holds while
-they work alone; in a team, the team's holds, which
-`PUT <contest>/organise/teams/{team_id}/extension` gives the same way. It
-is between none and a year, names tasks the contest lists, and neither lets
-a row submit to a task whose reveal has passed nor leaves one of its
-submissions after the due or the close it was made before
-(`invalid_extension`); one of more than a billion seconds either way is not
-taken at all (`validation_error`). Reopening takes a rejection back: the registration is
-pending again with its reason cleared, and since it takes a place again it
-is refused with `contest_full` when none is free and `is_staff` when the
-person holds a role at the contest by now.
+The organiser's entrant routes are in the table above, and answer with
+the entrant, each member's `user` carrying their `id`, `username`, `name`,
+`email` and `avatar_url`, null once the account is gone. A decision the
+entrant's status does not allow is `wrong_status`, carrying the status as
+`current`; approving one short of members is `entrant_incomplete`; a
+rejection needs a `reason` (`invalid_reason`). An extension moves the
+entrant's due and close on the named `tasks`, or on every task when it
+names none, in place of any it had. It is between none and a year, names
+tasks the contest lists, and neither lets an entrant submit to a task whose
+reveal has passed nor leaves one of its submissions after the due or the
+close it was made before (`invalid_extension`); one of more than a billion
+seconds either way is not taken at all (`validation_error`). Reopening
+takes a rejection back: the entrant is pending again with its reason
+cleared, and since it takes a place again it is refused with
+`contest_full` when none is free and `is_staff` when a member holds a role
+at the contest by now. Moving a member is refused with
+`entrant_has_submissions` for the last member of an entrant that has
+submitted, whose results would have nobody, and deleting an entrant that
+has submitted the same way.
 
 A visitor with no session calls the routes under `/api/v1/public`, which
 read no cookie: `GET /api/v1/public/contests`, every contest whose
@@ -456,7 +502,29 @@ tasks; and `GET /api/v1/public/contests/{org}/{contest}/tasks/{task}`, a
 released task's statement. Anything else answers 404 there. Every
 contestant's and organiser's route answers a request with no session 401;
 the few others that need none are the sign-in's own, the server's clock, the
-health checks and the machines' doors, and a test lists them all.
+health checks, the machines' doors and a task's public files, and a test
+lists them all.
+
+A task's public files, the ones under its `public/` such as a statement's
+images, are read at `GET <task>/public/{path}`, `path` being the file's path
+under `public/`, as the task's latest publication holds it, never a draft
+saved after it. It reads the session when there is one and answers without:
+a visitor, or a caller whose session has ended, reads it where the
+statement is public; a signed-in caller where they read the task's page;
+and a caller holding a role at the task, its contest or its org, whether or
+not the task is released, as the task's head holds it, the draft the
+statement's preview draws. A file that is an upload is answered with its
+bytes, never its pointer. The answer is the bytes, typed by the file's
+ending (`png`, `jpg`, `jpeg`, `gif`, `webp`, `svg`, `avif`, `apng`, `bmp`,
+`ico`, in any case), `application/octet-stream` for anything else, with
+`X-Content-Type-Options: nosniff`, `Cache-Control: private, no-cache` and
+an `ETag` of the bytes, so the browser asks again each time and a picture a
+save replaced shows at once (`If-None-Match` with the tag is a 304 while
+the bytes are the same), and for an SVG `Content-Security-Policy: default-src 'none'; style-src
+'unsafe-inline'; sandbox`, so one opened on its own runs no script. A path
+with an empty, `.` or `..` segment, a file that is not there, and a task the
+caller may not read are each `not_found`; a file larger than 10 MiB is
+`public_file_too_large`, a 409 with the `limit` in bytes.
 
 ## Uploads and submissions
 
@@ -555,7 +623,7 @@ every reader, cut to the rows the board's `rows` gives them.
 | `GET /api/v1/public/contests/{org}/{contest}/boards/{board}` | anyone, no cookie | one of them |
 | `GET <contest>/boards` | a session | the boards the caller's audience sees |
 | `GET <contest>/boards/{board}` | a session | one of them |
-| `GET <contest>/organise/boards?user_id=&team=` | observer at the contest | every board, `now` and `final`, with its `notes` |
+| `GET <contest>/organise/boards?entrant=` | observer at the contest | every board, `now` and `final`, with its `notes` |
 | `GET <task>/marks` | a session | the marks the caller's row holds on the task |
 | `PUT <task>/marks/{number}` | a session | the marks, with the submission marked |
 | `DELETE <task>/marks/{number}` | a session | the marks, with its mark taken off |
@@ -564,19 +632,18 @@ A board carries its `board` name, `over`, `select` and `who`, its `keys`,
 each `{by, better, per_attempt}`, the `tasks` it covers, each `{id,
 label, worth}`, `not_in_view`, what of a task is in its scope and not yet
 in its numbers, with when it joins, and its `rows` in rank order. A row
-carries its `rank`, shared by ties, whose it is as `row`, `{user_id, team,
-name}`, its number on each key in `keys`, and its `cells` by task name,
+carries its `rank`, shared by ties, whose it is as `row`, `{entrant, name}`,
+its number on each key in `keys`, and its `cells` by task name,
 each with `counting`, its `numbers` by key, and `attempts`; only the
 reader's own row carries `grading`, how many of its submissions are not
 graded yet, and `submissions`, the numbers it counts. Every number is an
 exact decimal string. A board whose scope shows nothing yet has no rows
 and its `shown_at`. A board the reader may not see is not found.
-Organisers read `now`, every row, or, given a contestant's `user_id` or a
-team's id as `team`, `now` as that row sees it; `final`, as after every
-reveal; and `notes`, what the board asks of its tasks that does not hold.
-Both a `user_id` and a `team` is `rejected`.
+Organisers read `now`, every row, or, given an entrant's id as `entrant`,
+`now` as that row sees it; `final`, as after every reveal; and `notes`,
+what the board asks of its tasks that does not hold.
 
-A row, a contestant or a team, marks up to the task's `marks` of its own
+A row, an entrant, marks up to the task's `marks` of its own
 submissions for the `marked` boards, until its close on the task. Marks
 carry the `numbers` marked, the `most`, `closes_at` and whether they are
 `frozen`. Marking twice or unmarking what is not marked changes nothing. A
@@ -754,9 +821,8 @@ log is `not_found`, and a log larger than the 9 MiB read back is
 
 Beside a grading, an observer of the task reads its submission as its row
 reads it, with everything filled in (`TASK-FORMAT.md` section 1.7): `GET
-<task>/organise/submissions/{number}` with the row's `user_id` or `team`,
-one of the two (`rejected` otherwise), and a row with no such submission
-`not_found`. It is the contestant's own payload, scored and shown by the
+<task>/organise/submissions/{number}` with the row's `entrant`, and a row
+with no such submission `not_found`. It is the contestant's own payload, scored and shown by the
 same code as once the task has revealed: every group's outcome, tests and
 points and every value a sealed step reported, its points all shown and
 none pending. Each group's `shown_at` is kept as a note of when the row is
@@ -770,19 +836,19 @@ of the contest, or of its org, every task's, and someone holding a role at
 some of its tasks alone those tasks', a task they do not observe giving no
 rows. Each row is the `grading` as above, its `task` by name, its `label`,
 the letter of its place in the contest's `tasks`, null once the contest no
-longer lists it or its settings do not read, and `by`, who made the
-submission: a contestant by `user_id` and username as
-`name`, or a team by its id as `team` and its `name`, the name null once
-the account or the team is gone. Every attempt is a row of its own, so a
-submission graded again shows more than once. `task` narrows the feed to a
-task by name, `user` to the submissions a contestant made, on their own
-and in their teams while they were in them, by username, `team` to a
-team's, by id, and `status` to the gradings that read as it, an overdue or
-lost one counting as `system_error`; a task, username or team the contest
-does not have gives no rows. A `user` that breaks Forgejo's rule for a
-username (letters, digits, `-`, `_` and `.`, beginning and ending with a
-letter or a digit, no two of `-`, `_` and `.` side by side, at most 40
-characters), or a `team` that is not a UUID, is a `validation_error`.
+longer lists it or its settings do not read, and `by`, whose submission
+it is: the `entrant` by id and `entrant_name`, the name it is shown under,
+and the member who submitted it by `user_id` and `username`, null when a
+reconcile found the submission at the forge. Every attempt is a row of
+its own, so a submission graded again shows more than once. `task` narrows
+the feed to a task by name, `user` to the submissions a member made, by
+username, `entrant` to an entrant's, by id, and `status` to the gradings
+that read as it, an overdue or lost one counting as `system_error`; a task,
+username or entrant the contest does not have gives no rows. A `user` that
+breaks Forgejo's rule for a username (letters, digits, `-`, `_` and `.`,
+beginning and ending with a letter or a digit, no two of `-`, `_` and `.`
+side by side, at most 40 characters), or an `entrant` that is not a UUID,
+is a `validation_error`.
 `GET <contest>/gradings/queue` counts the contest's gradings waiting for a
 machine, `queued`, whose run is not started yet, and `dispatched`, whose
 run the CI holds until a machine takes it, when asked; one overdue or lost
@@ -818,12 +884,12 @@ nowhere else:
 | Code | Status |
 |---|---|
 | `not_found`, `upload_not_yours` | 404 |
-| `forbidden`, `ci_request_refused`, `fresh_sign_in_required`, `origin_mismatch`, `admin_only`, `reserved_path`, `registration_closed`, `is_staff`, `invite_required`, `wrong_invite_code`, `domain_not_allowed`, `task_closed`, `archived`, `not_approved`, `marks_frozen` | 403 |
-| `conflict`, `sole_admin`, `contestant_conflict`, `shared_workflow_owner`, `confirmation_required`, `already_registered`, `contest_full`, `already_invited`, `teams_off`, `team_name_taken`, `team_full`, `in_team`, `submitted_alone`, `team_has_submissions`, `team_changed`, `wrong_status`, `submission_limit`, `upload_not_ready`, `upload_limit`, `marks_off`, `mark_limit`, `log_too_large` | 409 |
+| `forbidden`, `ci_request_refused`, `fresh_sign_in_required`, `origin_mismatch`, `admin_only`, `reserved_path`, `registration_closed`, `is_staff`, `invite_required`, `wrong_invite_code`, `domain_not_allowed`, `roster_locked`, `task_closed`, `archived`, `not_approved`, `marks_frozen` | 403 |
+| `conflict`, `sole_admin`, `contestant_conflict`, `shared_workflow_owner`, `confirmation_required`, `already_registered`, `contest_full`, `already_invited`, `no_invite_way`, `entrants_alone`, `entrant_name_taken`, `entrant_full`, `in_entrant`, `entrant_incomplete`, `entrant_has_submissions`, `entrant_changed`, `wrong_status`, `submission_limit`, `upload_not_ready`, `upload_limit`, `marks_off`, `mark_limit`, `log_too_large`, `public_file_too_large` | 409 |
 | `grading_closed`, `invite_expired` | 410 |
 | `payload_too_large`, `too_large` | 413 |
 | `rate_limited`, `invite_limit` | 429, with `Retry-After` |
-| `rejected`, `invalid_name`, `invalid_definition`, `invalid_path`, `invalid_reason`, `invalid_extension`, `invalid_invite`, `invalid_team_name`, `invalid_inputs`, `invalid_idempotency_key`, `invalid_callback`, `invalid_message`, `validation_error` | 422 |
+| `rejected`, `invalid_name`, `invalid_definition`, `invalid_path`, `invalid_reason`, `invalid_extension`, `invalid_invite`, `invalid_entrant_name`, `entrant_name_required`, `invalid_inputs`, `invalid_idempotency_key`, `invalid_callback`, `invalid_message`, `validation_error` | 422 |
 | `unauthenticated`, `session_expired` | 401, and the session cookie is cleared |
 | `invalid_token` | 401 |
 | `sign_in_invalid`, `sign_in_denied` | 400 |

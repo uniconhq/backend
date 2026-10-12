@@ -11,9 +11,9 @@ signed in. `world` adds carol (20), who holds nothing. `ORG`, `CONTEST` and
 `TASK` are the three scopes' URLs, and `ACME`, `SPRING` and `SUM` the scopes
 themselves. `run_contest` and `publish` are the two writes a test of a
 running contest starts with, and `edit_task` changes the task's settings.
-`entered` adds carol as the task's approved contestant, and `enter` makes
-anyone else one; `upload` sends a file the way the
-browser does.
+`entered` adds carol alone in an approved entrant of the task's contest, and
+`enter` makes anyone else one, answering with the entrant's id; `upload`
+sends a file the way the browser does.
 """
 
 import asyncio
@@ -200,17 +200,19 @@ async def edit_task(client: httpx.AsyncClient, old: str, new: str) -> None:
     assert "number" in saved.json(), saved.text
 
 
-async def enter(client: httpx.AsyncClient, forge: FakeForge, setup: Setup, user_id: int) -> None:
-    """The user registered for acme/spring through the routes and approved by
-    ada, leaving the client signed in as them.
+async def enter(client: httpx.AsyncClient, forge: FakeForge, setup: Setup, user_id: int) -> str:
+    """The user registered alone for acme/spring through the routes and
+    approved by ada, leaving the client signed in as them; the entrant's id.
     """
     await sign_in_as(client, forge, user_id)
-    registered = await client.post(f"{CONTEST}/registration", json={}, headers=ORIGIN)
+    registered = await client.post(f"{CONTEST}/entrants", json={}, headers=ORIGIN)
     assert registered.status_code == 201, registered.text
+    entrant: str = registered.json()["id"]
     await sign_in_as(client, forge, 7)
-    approved = await client.post(f"{CONTEST}/contestants/{user_id}/approve", headers=ORIGIN)
+    approved = await client.post(f"{CONTEST}/organise/entrants/{entrant}/approve", headers=ORIGIN)
     assert approved.status_code == 200, approved.text
     await sign_in_as(client, forge, user_id)
+    return entrant
 
 
 @pytest.fixture
@@ -223,6 +225,14 @@ async def entered(client: httpx.AsyncClient, world: FakeForge, held_setup: Setup
     await enter(client, world, held_setup, 20)
     world.reset_calls()
     return world
+
+
+async def entrant_of(client: httpx.AsyncClient) -> str:
+    """The id of the entrant the signed-in person is in."""
+    panel = await client.get(f"{CONTEST}/entrants/mine")
+    assert panel.status_code == 200, panel.text
+    entrant: str = panel.json()["entrant"]["id"]
+    return entrant
 
 
 async def upload(

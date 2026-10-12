@@ -15,11 +15,17 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, status
 from forge.api import invites
 from forge.api.access import Organiser
-from forge.api.types import Role, ScopeKind
+from forge.api.types import Grant, Role, ScopeKind
 
 from unicon.api.deps import CurrentSession
 from unicon.api.guard import PREFIX, require
-from unicon.schemas.invites import Invite, InviteRequest, OpenInviteRequest
+from unicon.schemas.invites import (
+    AcceptedInvite,
+    AcceptRequest,
+    Invite,
+    InviteRequest,
+    OpenInviteRequest,
+)
 
 CREATED = status.HTTP_201_CREATED
 
@@ -50,15 +56,18 @@ def router_at(kind: ScopeKind) -> APIRouter:
     )
     async def create_invite(organiser: Manager, body: InviteRequest) -> invites.Invite:
         """By username or by email address, to an organiser role here, or to
-        a contestant's place at a contest. The mail goes out after the answer.
+        a place at a contest, on their own or straight into the `entrant`
+        named, while its ways include `invite` (`no_invite_way`). The mail
+        goes out after the answer.
         """
         return await invites.create(
             organiser,
             organiser.scope,
-            body.grants,
+            Grant(body.grants),
             username=body.username,
             email=body.email,
             lifetime=timedelta(days=body.days) if body.days is not None else None,
+            entrant=body.entrant,
         )
 
     @router.post(
@@ -116,10 +125,17 @@ async def open_my_invite(session: CurrentSession, body: OpenInviteRequest) -> in
     "/{invite_id}/accept",
     operation_id="acceptMyInvite",
     summary="Accept an invite and take what it grants",
-    response_model=Invite,
+    response_model=AcceptedInvite,
 )
-async def accept_my_invite(session: CurrentSession, invite_id: uuid.UUID) -> invites.Invite:
-    return await invites.accept(session, invite_id)
+async def accept_my_invite(
+    session: CurrentSession, invite_id: uuid.UUID, body: AcceptRequest | None = None
+) -> invites.Accepted:
+    """A role is granted; a place in a contest registers the caller, puts
+    them in the entrant it names, or finds them in the one they are in
+    already, and the answer says which and where the entrant stands. Joining
+    by a member's invite may ask for the contest's `code`.
+    """
+    return await invites.accept(session, invite_id, code=body.code if body is not None else None)
 
 
 @mine.post(

@@ -5,12 +5,14 @@ publishing, each at its YAML path, or what it held back while the contest
 runs.
 """
 
+import uuid
 from datetime import datetime
 from typing import Annotated, Any, Self
 
+from forge.api.types import Uploaded
 from pydantic import BaseModel, BeforeValidator, model_validator
 
-from unicon.schemas.files import EncodedOrUploaded
+from unicon.schemas.files import Encoding, written_content
 
 
 class DefinitionError(BaseModel):
@@ -48,13 +50,36 @@ class Publication(BaseModel):
     at: datetime
 
 
-class FileChange(EncodedOrUploaded):
-    """One file of a save, typed or uploaded for this path, with the token it
-    was read with, or null for a file the save creates.
+class FileChange(BaseModel):
+    """One file of a save, with the token it was read with: typed as
+    `content`, uploaded for this path as `upload`, or removed with `remove:
+    true`, exactly one of the three. The token is null for a file the save
+    creates, and a removal always carries one. Removing a folder, such as a
+    test, is removing each file under it, named one by one.
     """
 
     path: str
     token: str | None
+    encoding: Encoding = "utf-8"
+    content: str | None = None
+    upload: uuid.UUID | None = None
+    remove: bool = False
+
+    @model_validator(mode="after")
+    def _written_or_removed(self) -> Self:
+        if self.remove:
+            if self.content is not None or self.upload is not None:
+                raise ValueError("A file being removed cannot also have content or an upload.")
+            if self.token is None:
+                raise ValueError("To remove a file, say which version of it was read.")
+        self.edit_content()
+        return self
+
+    def edit_content(self) -> bytes | Uploaded | None:
+        """What the save writes at the path, or none to remove the file."""
+        if self.remove:
+            return None
+        return written_content(self.encoding, self.content, self.upload)
 
 
 class SaveRequest(BaseModel):
@@ -74,7 +99,7 @@ class SaveRequest(BaseModel):
     def _one_change_per_path(self) -> Self:
         paths = [change.path for change in self.changes]
         if len(set(paths)) != len(paths):
-            raise ValueError("Each path may appear once in a save.")
+            raise ValueError("Each file can appear only once in a save.")
         return self
 
 

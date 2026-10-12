@@ -1,5 +1,6 @@
-"""Making a contest in an org and listing the org's contests. Creating needs
-the manager role at the org and makes the contest before it answers.
+"""Making a contest in an org and listing the org's contests, each with its
+state and dates. Creating needs the manager role at the org and makes the
+contest before it answers.
 """
 
 from typing import Annotated
@@ -7,11 +8,12 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, status
 from forge.api import contests
 from forge.api.access import Organiser
+from forge.api.contests import Listed
 from forge.api.types import Named as NamedRecord
 from forge.api.types import OrgId, Role, ScopeKind
 
 from unicon.api.guard import PREFIX, require
-from unicon.schemas.contests import CreateContest, Named
+from unicon.schemas.contests import CreateContest, ListedContest, Named
 
 CREATED = status.HTTP_201_CREATED
 ORG = PREFIX[ScopeKind.ORG]
@@ -37,8 +39,10 @@ async def create_contest(organiser: OrgManager, body: CreateContest) -> NamedRec
     f"{ORG}/contests",
     operation_id="listContests",
     summary="The org's contests",
-    response_model=list[Named],
+    response_model=list[ListedContest],
 )
-async def list_contests(organiser: OrgObserver) -> tuple[NamedRecord, ...]:
-    """The contests the forge lets the caller read, by name."""
+async def list_contests(organiser: OrgObserver) -> tuple[Listed, ...]:
+    """The contests the forge lets the caller read, by name, each with its
+    state and dates.
+    """
     return await contests.list(organiser, OrgId(organiser.scope.org))

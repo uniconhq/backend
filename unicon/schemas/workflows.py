@@ -182,8 +182,9 @@ class Reader(BaseModel):
 
 class PrimitivePort(BaseModel):
     """One port: its type, the options an enum takes, whether it may be left
-    out, and on an input whether the primitive runs what arrives there and
-    whether it keeps it from the program it runs.
+    out, on an input whether the primitive runs what arrives there and
+    whether it keeps it from the program it runs, and a sentence saying what
+    it takes or gives back, none when the primitive gives none.
     """
 
     type: str
@@ -191,6 +192,7 @@ class PrimitivePort(BaseModel):
     optional: bool
     runs: bool | None
     secret: bool
+    description: str | None = None
 
     @classmethod
     def of(cls, port: Port) -> Self:
@@ -200,6 +202,7 @@ class PrimitivePort(BaseModel):
             optional=port.optional,
             runs=port.runs,
             secret=port.secret,
+            description=port.description,
         )
 
 
@@ -218,14 +221,17 @@ Limit = Literal["time_ms", "cpu_ms", "memory_mb", "pids", "output_mb", "gpus"]
 
 class Primitive(BaseModel):
     """One version of a primitive, `ref` being what a step's `use:` names.
-    Its declaration is in `batch`, `network`, `limits`, `limits_from`,
-    `inputs` and `outputs`; a version in a format the platform no longer
-    reads has none of them and `problem` instead, so no step uses it.
+    Its declaration is in `title` and `description`, what the editor shows
+    of it, and in `batch`, `network`, `limits`, `limits_from`, `inputs` and
+    `outputs`; a version in a format the platform no longer reads has none
+    of them and `problem` instead, so no step uses it.
     """
 
     ref: str
     name: str
     version: str
+    title: str | None = None
+    description: str | None = None
     batch: bool = False
     network: bool = False
     limits: dict[Limit, int] = Field(default_factory=dict)
@@ -243,6 +249,8 @@ class Primitive(BaseModel):
             ref=found.ref,
             name=found.name,
             version=found.version,
+            title=declared.title,
+            description=declared.description,
             batch=declared.batch,
             network=declared.network,
             limits=declared.limits.as_mapping(),

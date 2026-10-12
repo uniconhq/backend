@@ -4,6 +4,7 @@ goes out as the forge's own `Timeline` says it, its numbers exactly.
 
 from datetime import datetime
 
+from forge.api.contest_home import State
 from pydantic import BaseModel
 
 from unicon.schemas.exact import Exact
@@ -14,6 +15,17 @@ class Named(BaseModel):
     """An org, a contest or a task, by the name people call it."""
 
     name: str
+
+
+class ListedContest(BaseModel):
+    """A contest in its org's list, by name, with its state, start and end as
+    its settings say them, all three null when its settings cannot be read.
+    """
+
+    name: str
+    state: State | None
+    start: datetime | None
+    end: datetime | None
 
 
 class CreateContest(BaseModel):
@@ -46,9 +58,10 @@ class TaskState(BaseModel):
 
 class Timeline(BaseModel):
     """A task's timeline in its contest, from its entry in `contest.yaml`,
-    each time at its default where the entry gives none: `worth`, the most
-    points it gives, 100 unless the entry says, and none on a task whose
-    latest publication gives no points or that has none; `release_at`, the
+    each at its default where the entry gives none: `worth`, the most
+    points it gives, its groups' total unless the entry says, and none on a
+    task whose latest publication gives no points or that has none;
+    `release_at`, the
     contest's start unless the entry says; `due`, after which a submission
     is late, and `late_per_day`, the fraction a started late day takes off,
     1 unless the entry says, both none on a task with no due; and `closes`,
