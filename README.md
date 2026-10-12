@@ -414,8 +414,9 @@ task, observer or above, `plans/` included. The proxy asks this process
 first, which answers with the forge's media endpoint for the file at that
 commit, the organiser's own credential and the download's name, and streams
 the file from the forge whatever its size, never through this process.
-Anyone else, an entrant included, a path that is not plain, and a version
-that is not a commit's id (40 or 64 lowercase hex) are refused alike, and a
+Anyone else, an entrant included, a path that is not plain, a segment
+that decodes to one holding a slash (`%2F`), and a version that is not a
+commit's id (40 or 64 lowercase hex) are refused alike, and a
 file or a version the task does not have is the forge's refusal as it
 serves; the proxy answers 404 to each.
 

@@ -174,11 +174,13 @@ class Download:
 
 
 def _download_of(original_uri: str) -> Download:
-    """What the browser's request names, each segment decoded on its own, so
-    an encoded slash stays inside its segment: after the task, either a
-    submission's number and the file's path in it, or `versions`, the
-    version and the file's path in the task. Whether that file is the
-    caller's to read is the forge's question; this only reads the address.
+    """What the browser's request names, each segment decoded on its own:
+    after the task, either a submission's number and the file's path in
+    it, or `versions`, the version and the file's path in the task. A
+    segment that decodes to something holding a slash names no file and
+    no place, so it is refused, and one file has one address. Whether that
+    file is the caller's to read is the forge's question; this only reads
+    the address.
     """
     raw = original_uri.split("?", 1)[0]
     if not raw.startswith(DOWNLOADS):
@@ -188,10 +190,20 @@ def _download_of(original_uri: str) -> Download:
     if not task_file and (len(parts) < 5 or not _number(parts[3])):
         raise Forbidden(DOWNLOAD_REFUSED)
     try:
-        org, contest, task = (unquote(part, errors="strict") for part in parts[:3])
-        version = unquote(parts[4], errors="strict") if task_file else None
-        path = "/".join(unquote(part, errors="strict") for part in parts[5 if task_file else 4 :])
+        org, contest, task = (_segment(part) for part in parts[:3])
+        version = _segment(parts[4]) if task_file else None
+        path = "/".join(_segment(part) for part in parts[5 if task_file else 4 :])
     except UnicodeDecodeError:
         raise Forbidden(DOWNLOAD_REFUSED) from None
     number = None if task_file else int(parts[3])
     return Download(org, contest, task, number, version, path)
+
+
+def _segment(part: str) -> str:
+    """One segment of a download's address, decoded; refused when it
+    decodes to more than one.
+    """
+    decoded = unquote(part, errors="strict")
+    if "/" in decoded:
+        raise Forbidden(DOWNLOAD_REFUSED)
+    return decoded

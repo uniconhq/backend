@@ -210,6 +210,7 @@ async def test_nobody_else_gets_a_door_an_entrant_included(
         "0123abc/task.yaml",
         "{upper}/task.yaml",
         "/task.yaml",
+        "{at}/data%2Fanswer.bin",
     ],
     ids=[
         "up",
@@ -225,6 +226,7 @@ async def test_nobody_else_gets_a_door_an_entrant_included(
         "short",
         "upper case",
         "no version",
+        "an encoded slash",
     ],
 )
 async def test_the_door_refuses_anything_else_without_saying_why(
@@ -262,8 +264,9 @@ async def test_a_file_or_a_version_the_task_lacks_is_the_forges_to_refuse(
         "/-/downloads/acme/spring/nothing/versions/{at}/task.yaml",
         "/-/downloads/acme/autumn/sum/versions/{at}/task.yaml",
         "/-/downloads/acme/spring/sum/version/{at}/task.yaml",
+        "/-/downloads/acme/spring%2Fsum/sum/versions/{at}/task.yaml",
     ],
-    ids=["a task not there", "a contest not there", "not the word"],
+    ids=["a task not there", "a contest not there", "not the word", "an encoded slash"],
 )
 async def test_the_door_refuses_a_place_that_is_not_there(
     client: httpx.AsyncClient, sum_task: FakeForge, address: str
