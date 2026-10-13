@@ -155,6 +155,7 @@ async def test_a_question_is_asked_answered_followed_up_and_answered_publicly(
     assert question_now["messages"][-1]["announcement"] == {
         "task": "sum",
         "number": posted["number"],
+        "title": posted["title"],
     }
     assert (followed.json()["answered"], followed.json()["closed"]) == (False, False)
     [own] = mine.json()

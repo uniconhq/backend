@@ -215,7 +215,7 @@ the one the route needs at the scope in the third column.
 | `POST <contest>/clarifications/{asker}/{number}/replies` | manager | contest | `body` | the question, still open |
 | `PUT <contest>/clarifications/{asker}/{number}/answered` | manager | contest | | the question, answered and closed |
 | `DELETE <contest>/clarifications/{asker}/{number}/answered` | manager | contest | | the question, open again |
-| `POST <contest>/clarifications/{asker}/{number}/announcement` | manager | contest | `title`, `body`, `mark` (default true) | 201, `{announcement, question}`: the announcement it made, and the question, marked answered unless `mark` is false, with a last message "Answered publicly in the announcement" and its title whose `announcement` is `{task, number}` (`task` null for the contest's own); sent again after a failure part way it finishes that announcement instead of posting a second |
+| `POST <contest>/clarifications/{asker}/{number}/announcement` | manager | contest | `title`, `body`, `mark` (default true) | 201, `{announcement, question}`: the announcement it made, and the question, marked answered unless `mark` is false, with a last message "Answered publicly in the announcement" and its title whose `announcement` is `{task, number, title}` (`task` null for the contest's own, `title` null once the message is edited at the forge); sent again after a failure part way it finishes that announcement instead of posting a second |
 
 Creating an org, a contest or a task makes the whole thing at the forge
 and the CI before the route answers, and the answer is the new thing's

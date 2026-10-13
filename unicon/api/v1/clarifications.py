@@ -172,8 +172,9 @@ async def answer_question_publicly(
     the question, which stays private. The question is marked answered
     unless `mark` is false, and gets a message, "Answered publicly in the
     announcement" and its title, which only its readers see, with the
-    announcement's `task` and `number` as the message's `announcement`, so
-    the page links to it. Answers with the announcement and the question as
+    announcement's `task`, `number` and `title` as the message's
+    `announcement`, so the page writes the message with the title as a
+    link to it. Answers with the announcement and the question as
     it now stands. Sent again after a failure part way, it finishes the
     announcement it posted rather than posting a second.
     """
