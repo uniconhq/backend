@@ -1,7 +1,8 @@
-"""A contest's or a task's files, read and written as the organiser: a
-folder's entries, one file at a version, the history, a write and a
-rollback. The same five routes are served under the contest and the task
-prefixes, made by `router_at`, so each kind gets its own operation names.
+"""A contest's or a task's files, read as the organiser and written by the
+platform with the organiser as each change's author: a folder's entries,
+one file at a version, the history, a write and a rollback. The same five
+routes are served under the contest and the task prefixes, made by
+`router_at`, so each kind gets its own operation names.
 Reading needs the observer role at the place and writing the manager role.
 The history names each change's `author` by username beside `author_id`,
 whether or not they still hold a role there, so a page names every author
@@ -101,6 +102,7 @@ def router_at(kind: ScopeKind) -> APIRouter:
                     token_of(body.token),
                     message=body.message,
                     confirm=body.confirm,
+                    asked=body.asked,
                     keep_as_draft=body.keep_as_draft,
                 )
             return await _write(organiser, path, content, body)
@@ -130,6 +132,7 @@ def router_at(kind: ScopeKind) -> APIRouter:
             token_of(body.token),
             message=body.message,
             confirm=body.confirm,
+            asked=body.asked,
             keep_as_draft=body.keep_as_draft,
         )
         return _answered(result)
@@ -148,6 +151,7 @@ async def _write(
         token_of(body.token),
         message=body.message,
         confirm=body.confirm,
+        asked=body.asked,
         keep_as_draft=body.keep_as_draft,
     )
     return _answered(result)

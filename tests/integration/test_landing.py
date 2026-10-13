@@ -8,7 +8,15 @@ organiser's path refuses a request with no session.
 import httpx
 from forge.testing import FakeForge
 
-from tests.integration.conftest import CONTEST, ORG, ORIGIN, TASK, publish, run_contest
+from tests.integration.conftest import (
+    CONTEST,
+    ORG,
+    ORIGIN,
+    TASK,
+    add_task,
+    publish,
+    run_contest,
+)
 
 PUBLIC = "/api/v1/public/contests"
 
@@ -56,14 +64,16 @@ async def test_what_is_not_public_answers_as_not_found(
 async def test_a_task_not_released_yet_is_not_found(
     client: httpx.AsyncClient, sum_task: FakeForge
 ) -> None:
+    # A task made once the contest is open, not published yet.
     await run_contest(client, visibility="everyone")
+    await add_task(client, "product")
     client.cookies.clear()
 
-    unpublished = await client.get(f"{PUBLIC}/acme/spring/tasks/sum")
+    unpublished = await client.get(f"{PUBLIC}/acme/spring/tasks/product")
     contest = await client.get(f"{PUBLIC}/acme/spring")
 
     assert (unpublished.status_code, unpublished.json()["code"]) == (404, "not_found")
-    assert contest.json()["tasks"] == []
+    assert [task["name"] for task in contest.json()["tasks"]] == ["sum"]
 
 
 async def test_every_other_route_refuses_a_request_with_no_session(
