@@ -4381,7 +4381,7 @@
         "type": "string"
       },
       "RegradeChange": {
-        "description": "What a regrade did to one submission: `change`, and the result it\nreplaced, `earlier`, the one that counted when the regrade began, null\nwhen there was none or it no longer reads, beside its own, `now`, null\nwhile it has none.\n\n`up` and `down`: its points went up or down; on a task that gives no\npoints, a larger or smaller share of its tests accepted, or with the\nsame share, its values with a direction, down when any got worse.\n`stopped`: it now stops before its tests where the earlier result did\nnot, which on the classic workflow is \"now fails to compile\".\n`unchanged`; `new`, graded with no earlier result to compare with;\n`running`, still being graded; `failed`, no result yet, its latest\nattempt a system error or cancelled; `over_limit`, not graded, its\nentrant at the task's most submissions.",
+        "description": "What a regrade did to one submission: `change`, and the result it\nreplaced, `earlier`, the one that counted when the regrade began, null\nwhen there was none or it no longer reads, beside its own, `now`, null\nwhile it has none.\n\n`up` and `down`: its points went up or down; on a task that gives no\npoints, a larger or smaller share of its tests accepted, or with the\nsame share, the values its boards rank, down when any got worse.\n`stopped`: it now stops before its tests where the earlier result did\nnot, which on the classic workflow is \"now fails to compile\".\n`unchanged`; `new`, graded with no earlier result to compare with;\n`running`, still being graded; `failed`, no result yet, its latest\nattempt a system error or cancelled; `over_limit`, not graded, its\nentrant at the task's most submissions.",
         "properties": {
           "change": {
             "$ref": "#/components/schemas/ChangeKind"
@@ -4465,7 +4465,7 @@
         "type": "object"
       },
       "RegradeSide": {
-        "description": "One result a regrade compares, as organisers see it, every group,\nnothing held back, the late factor applied: its attempt, its `points`,\nnull on a task that gives no points, how many of its tests were\n`accepted` of how many `tests` it has, the outcome that `stopped` its run\nbefore its tests, null when nothing did, and each value with a fold and\na declared direction, folded over every test.",
+        "description": "One result a regrade compares, as organisers see it, every group,\nnothing held back, the late factor applied: its attempt, its `points`,\nnull on a task that gives no points, how many of its tests were\n`accepted` of how many `tests` it has, the outcome that `stopped` its run\nbefore its tests, null when nothing did, and each value a board covering\nthe task ranks, folded over every test as that board folds it.",
         "properties": {
           "accepted": {
             "title": "Accepted",
@@ -4517,15 +4517,11 @@
             "type": "integer"
           },
           "values": {
-            "additionalProperties": {
-              "examples": [
-                "82.5"
-              ],
-              "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
-              "type": "string"
+            "items": {
+              "$ref": "#/components/schemas/RegradeValue"
             },
             "title": "Values",
-            "type": "object"
+            "type": "array"
           }
         },
         "required": [
@@ -4634,6 +4630,33 @@
           "counts"
         ],
         "title": "RegradeSummary",
+        "type": "object"
+      },
+      "RegradeValue": {
+        "description": "One value a board covering the task ranks, as a regrade compares it:\nthe value by name, how that board folds it across the tests, and the\nnumber it comes to.",
+        "properties": {
+          "by": {
+            "title": "By",
+            "type": "string"
+          },
+          "fold": {
+            "$ref": "#/components/schemas/Fold"
+          },
+          "value": {
+            "examples": [
+              "82.5"
+            ],
+            "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "by",
+          "fold",
+          "value"
+        ],
+        "title": "RegradeValue",
         "type": "object"
       },
       "RejectRequest": {
