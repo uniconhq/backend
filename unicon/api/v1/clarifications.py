@@ -12,7 +12,8 @@ of one contest, answered ones included, which needs the observer role
 there; and, with the manager role at the contest, a reply, which leaves the
 question open, marking it answered, which closes it with or without a
 reply, taking the mark off again, and an answer made public as an
-announcement pointing at the question. A question is named by its desk,
+announcement pointing at the question, which marks it answered unless
+asked not to. A question is named by its desk,
 `asker`: the asking entrant's desk, `entrant.<id>` with the id's 32 hex
 digits, and its number among the desk's questions in the contest.
 """
@@ -20,13 +21,17 @@ digits, and its number among the desk's questions in the contest.
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, status
-from forge.api import announcements, clarifications, contests
+from forge.api import clarifications, contests
 from forge.api.access import Organiser
 from forge.api.types import Role, ScopeKind
 
 from unicon.api.deps import CurrentSession
 from unicon.api.guard import PREFIX, ContestAtPath, require
-from unicon.schemas.threads import AnnouncementRequest, CommentRequest, QuestionRequest
+from unicon.schemas.threads import (
+    CommentRequest,
+    PublicAnswerRequest,
+    QuestionRequest,
+)
 
 ORG = PREFIX[ScopeKind.ORG]
 CONTEST = PREFIX[ScopeKind.CONTEST]
@@ -157,13 +162,21 @@ async def unmark_question_answered(
     operation_id="answerQuestionPublicly",
     summary="Turn an answer into an announcement every contestant reads",
     status_code=status.HTTP_201_CREATED,
-    response_model=announcements.Announcement,
+    response_model=clarifications.PublicAnswer,
 )
 async def answer_question_publicly(
-    organiser: ContestManager, asker: str, number: int, body: AnnouncementRequest
-) -> announcements.Announcement:
-    """On the task the question names, or else on the contest, pointing at
-    the question, which stays private.
+    organiser: ContestManager, asker: str, number: int, body: PublicAnswerRequest
+) -> clarifications.PublicAnswer:
+    """On the task the question names, or else, or when that task is
+    withdrawn, on the contest, where every entrant reads it, pointing at
+    the question, which stays private. The question is marked answered
+    unless `mark` is false, and gets a message, "Answered publicly in the
+    announcement" and its title, which only its readers see, with the
+    announcement's `task`, `number` and `title` as the message's
+    `announcement`, so the page writes the message with the title as a
+    link to it. Answers with the announcement and the question as
+    it now stands. Sent again after a failure part way, it finishes the
+    announcement it posted rather than posting a second.
     """
     return await clarifications.answer_publicly(
         organiser,
@@ -172,4 +185,5 @@ async def answer_question_publicly(
         number,
         title=body.title,
         body=body.body,
+        mark=body.mark,
     )

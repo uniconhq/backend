@@ -1,7 +1,8 @@
 """What the announcement and clarification routes take: an announcement's
-title and text, a question with the task it may name, and a comment. What
-they answer with are the forge's own `Announcement` and `Clarification`,
-every field of which may go out to the caller the route admits.
+title and text, an answer made public, a question with the task it may name,
+and a comment. What they answer with are the forge's own `Announcement`,
+`Clarification` and `PublicAnswer`, every field of which may go out to the
+caller the route admits.
 """
 
 from pydantic import BaseModel
@@ -12,6 +13,15 @@ class AnnouncementRequest(BaseModel):
 
     title: str
     body: str
+
+
+class PublicAnswerRequest(AnnouncementRequest):
+    """An answer made public: the announcement's title and text, and
+    whether to mark the question answered, as a reply's "Mark it answered"
+    does; it is unless `mark` is false.
+    """
+
+    mark: bool = True
 
 
 class QuestionRequest(BaseModel):

@@ -13,6 +13,7 @@ from tests.integration.conftest import (
     CONTEST,
     ORIGIN,
     TASK,
+    add_task,
     edit_task,
     publish,
     run_contest,
@@ -113,9 +114,11 @@ async def test_the_home_carries_the_callers_registration(
 async def test_a_hidden_contest_and_an_unreleased_task_are_not_found(
     client: httpx.AsyncClient, world: FakeForge
 ) -> None:
+    # A task made once the contest is open, not published yet.
     await run_contest(client, visibility="signed-in")
+    product = await add_task(client, "product")
     await sign_in_as(client, world, 20)
-    unreleased = await client.get(f"{TASK}/page")
+    unreleased = await client.get(f"{product}/page")
 
     await sign_in_as(client, world, 7)
     await run_contest(client, visibility="hidden")

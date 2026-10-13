@@ -345,6 +345,7 @@ async def test_the_primitives_are_listed_with_their_ports(
         "runs": True,
         "secret": False,
         "description": "The program to run.",
+        "outcomes": None,
     }
     assert run["inputs"]["args"]["optional"] is True
     assert run["limits_from"]["time_ms"] == {
@@ -353,7 +354,17 @@ async def test_the_primitives_are_listed_with_their_ports(
         "add": "3000",
     }
     assert run["limits"]["memory_mb"] == 256
-    assert "outcome" in run["outputs"]
+    # The outcome port says what each outcome the step reports means, in
+    # the declaration's order, for the step's drawer.
+    assert list(run["outputs"]["outcome"]["outcomes"]) == [
+        "accepted",
+        "time_limit",
+        "memory_limit",
+        "output_limit",
+        "runtime_error",
+    ]
+    compiled = by_ref["unicon/compile@v2"]["outputs"]["outcome"]["outcomes"]
+    assert compiled["accepted"] == "the source compiles"
     assert run["problem"] is None
 
 

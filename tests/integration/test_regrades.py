@@ -1,0 +1,148 @@
+"""What a regrade of many changed, over HTTP (#448). A rejudge answers with
+the regrade it is kept as; the contest's regrades read each task's latest
+one summed up by what it did to each submission, the feed read by it gives
+its gradings each with the earlier and new points side by side, narrowed to
+one change, and a manager dismisses it from the contest's page.
+"""
+
+from urllib.parse import urlsplit
+
+import httpx
+from forge.api.types import Role, Scope
+from forge.testing import FakeForge
+
+from tests.integration.conftest import CONTEST, ORIGIN, SUM, TASK, add_task, sign_in_as, upload
+
+SOURCE = b"print(sum(map(int, input().split())))\n"
+REGRADES = f"{CONTEST}/gradings/regrades"
+FEED = f"{CONTEST}/gradings"
+
+
+def _finished(outcome: str) -> bytes:
+    return (
+        b'{"event": "finished", "result": {"schema_version": 5, "stopped": null, '
+        b'"stopped_by": null, "tests": [{"test": "main/1", "outcome": "'
+        + outcome.encode()
+        + b'", "values": {"time_ms": 12}}], "values": {"log": ""}, "run_log": null, '
+        b'"error": null}}'
+    )
+
+
+async def _submit(client: httpx.AsyncClient, forge: FakeForge, key: str) -> str:
+    """A submission of acme/spring/sum by whoever is signed in; its grading."""
+    made = await upload(client, forge, SOURCE)
+    submitted = await client.post(
+        f"{TASK}/submissions",
+        json={
+            "idempotency_key": key,
+            "inputs": {
+                "submission": {"uploads": [made["id"]]},
+                "language": {"value": "python"},
+            },
+        },
+        headers=ORIGIN,
+    )
+    assert submitted.status_code == 201, submitted.text
+    grading: str = submitted.json()["grading"]["id"]
+    return grading
+
+
+async def _report(client: httpx.AsyncClient, forge: FakeForge, outcome: str) -> None:
+    """The latest run started at the CI fetches its envelope and reports a
+    finished result with one test of `outcome`.
+    """
+    run = list(forge.ci.runs.values())[-1]
+    parts = urlsplit(run.variables["UNICON_ENVELOPE_URL"])
+    envelope = (await client.get(f"{parts.path}?{parts.query}")).json()
+    reported = await client.post(
+        urlsplit(envelope["callback"]["url"]).path,
+        content=_finished(outcome),
+        headers={"Authorization": f"Bearer {envelope['callback']['token']}"},
+    )
+    assert reported.status_code == 200, reported.text
+
+
+async def test_a_rejudge_is_summed_up_and_its_gradings_read_with_what_it_changed(
+    client: httpx.AsyncClient, entered: FakeForge
+) -> None:
+    await _submit(client, entered, "key-0001-aaaa")
+    await _report(client, entered, "accepted")
+    await sign_in_as(client, entered, 7)
+
+    rejudged = await client.post(f"{TASK}/rejudge", headers=ORIGIN)
+    running = await client.get(REGRADES)
+    await _report(client, entered, "wrong_answer")
+    summed = await client.get(REGRADES)
+    down = await client.get(FEED, params={"regrade": rejudged.json()["regrade"], "change": "down"})
+    up = await client.get(FEED, params={"regrade": rejudged.json()["regrade"], "change": "up"})
+    unnamed = await client.get(FEED, params={"change": "down"})
+
+    assert rejudged.status_code == 200, rejudged.text
+    assert (rejudged.json()["queued"], rejudged.json()["over_limit"]) == (1, 0)
+    assert running.json()[0]["running"] is True
+    assert summed.status_code == 200, summed.text
+    (summary,) = summed.json()
+    assert summary["id"] == rejudged.json()["regrade"]
+    assert (summary["task"], summary["label"], summary["cause"]) == ("sum", "A", "rejudge")
+    assert summary["publication"] == rejudged.json()["publication"]
+    assert (summary["started_by"], summary["started_by_name"]) == (7, "ada")
+    assert (summary["total"], summary["graded"], summary["running"]) == (1, 1, False)
+    assert summary["counts"] == {
+        "up": 0,
+        "down": 1,
+        "stopped": 0,
+        "unchanged": 0,
+        "new": 0,
+        "running": 0,
+        "failed": 0,
+        "over_limit": 0,
+    }
+    (row,) = down.json()
+    grading = row["grading"]
+    assert (grading["attempt"], grading["regrade"], row["task"]) == (2, summary["id"], "sum")
+    change = grading["change"]
+    assert change["change"] == "down"
+    assert (change["earlier"]["attempt"], change["earlier"]["points"]) == (1, "100")
+    assert (change["now"]["attempt"], change["now"]["points"]) == (2, "0")
+    assert (change["now"]["accepted"], change["now"]["tests"]) == (0, 1)
+    assert up.json() == [] and unnamed.json() == []
+
+    dismissed = await client.post(f"{TASK}/regrades/{summary['id']}/dismiss", headers=ORIGIN)
+    gone = await client.get(REGRADES)
+    unknown = await client.post(
+        f"{TASK}/regrades/0192f4a4-7b7e-7000-8000-000000000001/dismiss", headers=ORIGIN
+    )
+
+    assert dismissed.status_code == 204, dismissed.text
+    assert gone.json() == []
+    assert (unknown.status_code, unknown.json()["code"]) == (404, "not_found")
+
+
+async def test_an_observer_reads_only_their_tasks_regrades_and_dismisses_none(
+    client: httpx.AsyncClient, entered: FakeForge
+) -> None:
+    await _submit(client, entered, "key-0001-aaaa")
+    await _report(client, entered, "accepted")
+    await sign_in_as(client, entered, 7)
+    await add_task(client, "product")
+    rejudged = await client.post(f"{TASK}/rejudge", headers=ORIGIN)
+    regrade = rejudged.json()["regrade"]
+    await _report(client, entered, "wrong_answer")
+    entered.add_user(30, "dave")
+    await entered.orgs.grant_role(30, SUM, Role.OBSERVER)
+    entered.add_user(31, "erin")
+    await entered.orgs.grant_role(31, Scope("acme", "spring", "product"), Role.OBSERVER)
+
+    await sign_in_as(client, entered, 30)
+    seen = await client.get(REGRADES)
+    dismissed = await client.post(f"{TASK}/regrades/{regrade}/dismiss", headers=ORIGIN)
+    await sign_in_as(client, entered, 31)
+    elsewhere = await client.get(REGRADES)
+    feed = await client.get(FEED, params={"regrade": regrade})
+
+    assert [summary["id"] for summary in seen.json()] == [regrade]
+    assert (dismissed.status_code, dismissed.json()["code"]) == (403, "forbidden")
+    assert (elsewhere.status_code, elsewhere.json()) == (200, [])
+    assert (feed.status_code, feed.json()) == (200, [])
+    await sign_in_as(client, entered, 7)
+    assert [summary["id"] for summary in (await client.get(REGRADES)).json()] == [regrade]

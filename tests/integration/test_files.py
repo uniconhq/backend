@@ -1,10 +1,11 @@
-"""A contest's and a task's files through the routes: a folder's entries, a
+"""A contest's and a task's files through the routes: a folder's entries (a task's
+`public/` empty until its first file), a
 file at the latest and at an older version, the history, a write that
 answers with its version at a contest and as a save at a task, a stale
 token answered as a conflict, a binary file's round trip through base64, a
 rollback as a new change, and the refusals a write meets: an admin-only key
-changed by a manager, a `contest.yaml` that does not validate, and a path
-that leaves the place.
+changed by a manager, a `contest.yaml` that does not validate or opens the
+contest before its task is published, and a path that leaves the place.
 """
 
 import base64
@@ -32,13 +33,35 @@ async def test_a_tasks_top_folder_lists_its_starter_files(
 ) -> None:
     listed = await client.get(f"{TASK}/tree")
     inside = await client.get(f"{TASK}/tree", params={"path": "tests/main"})
+    public = await client.get(f"{TASK}/tree", params={"path": "public"})
+    missing = await client.get(f"{TASK}/tree", params={"path": "data"})
 
     assert listed.status_code == 200
     entries = {entry["path"]: entry["kind"] for entry in listed.json()}
-    assert entries["task.yaml"] == "file"
-    assert entries["statement.md"] == "file"
-    assert (entries["public"], entries["tests"]) == ("directory", "directory")
+    assert entries == {
+        "statement.md": "file",
+        "task.yaml": "file",
+        "tests": "directory",
+    }
     assert [entry["path"] for entry in inside.json()] == ["tests/main/1"]
+    # No public/ until its first picture, and it lists empty, not missing.
+    assert (public.status_code, public.json()) == (200, [])
+    assert missing.status_code == 404
+
+
+async def test_a_tests_folder_lists_how_each_small_file_starts(
+    client: httpx.AsyncClient, sum_task: FakeForge
+) -> None:
+    listed = await client.get(f"{TASK}/tree", params={"path": "tests/main/1"})
+
+    assert listed.status_code == 200
+    entries = {entry["path"]: entry for entry in listed.json()}
+    assert {path: entry["start"] for path, entry in entries.items()} == {
+        "tests/main/1/answer": "3\n",
+        "tests/main/1/input": "1 2\n",
+    }
+    answer = await read(client, f"{TASK}/files/tests/main/1/answer")
+    assert entries["tests/main/1/answer"]["token"] == answer["token"]
 
 
 async def test_a_contest_write_answers_its_version_and_shows_in_the_history(
@@ -176,6 +199,21 @@ async def test_a_contest_file_that_does_not_validate_is_refused_with_its_errors(
     (error,) = refused.json()["errors"]
     assert error["path"] == "visibility"
     assert error["message"]
+
+
+async def test_a_contest_opened_before_its_task_is_published_is_refused_at_its_state(
+    client: httpx.AsyncClient, sum_task: FakeForge
+) -> None:
+    before = await read(client, f"{CONTEST}/files/contest.yaml")
+    opened = before["content"].replace("state: draft", "state: published")
+
+    refused = await _put(client, f"{CONTEST}/files/contest.yaml", opened, before["token"])
+
+    assert refused.status_code == 422
+    assert refused.json()["code"] == "invalid_definition"
+    assert refused.json()["errors"] == [
+        {"path": "state", "message": "A · sum: it is not published yet."}
+    ]
 
 
 async def test_a_path_that_leaves_the_place_is_refused_before_the_forge_is_asked(

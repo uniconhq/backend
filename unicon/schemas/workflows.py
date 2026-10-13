@@ -184,7 +184,11 @@ class PrimitivePort(BaseModel):
     """One port: its type, the options an enum takes, whether it may be left
     out, on an input whether the primitive runs what arrives there and
     whether it keeps it from the program it runs, and a sentence saying what
-    it takes or gives back, none when the primitive gives none.
+    it takes or gives back, none when the primitive gives none. The
+    `outcome` port may carry `outcomes`: each outcome the step can report,
+    in the declaration's order, with a line saying when (`accepted`: "the
+    source compiles"), for the step's drawer to say what it reports; none
+    when the primitive does not say, and on every other port.
     """
 
     type: str
@@ -193,6 +197,7 @@ class PrimitivePort(BaseModel):
     runs: bool | None
     secret: bool
     description: str | None = None
+    outcomes: dict[str, str] | None = None
 
     @classmethod
     def of(cls, port: Port) -> Self:
@@ -203,6 +208,7 @@ class PrimitivePort(BaseModel):
             runs=port.runs,
             secret=port.secret,
             description=port.description,
+            outcomes=dict(port.outcomes) if port.outcomes is not None else None,
         )
 
 

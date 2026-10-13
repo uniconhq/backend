@@ -7,8 +7,9 @@ runs.
 
 import uuid
 from datetime import datetime
-from typing import Annotated, Any, Self
+from typing import Annotated, Any, Literal, Self
 
+from forge.api.boards import Better
 from forge.api.types import Uploaded
 from pydantic import BaseModel, BeforeValidator, model_validator
 
@@ -37,10 +38,29 @@ PublicationNumber = Annotated[int, BeforeValidator(_number_of)]
 """A publication by its number among its task's publications."""
 
 
+class ValueMeaning(BaseModel):
+    """One value the task's workflow reports, as a page names it: its `name`
+    in the report, its `title` ("Run time") and its `unit` ("ms", only on a
+    number), each null where the workflow gives none, so the page names it
+    by `name`; and, on a number reported for each test, how it `fold`s over
+    the tests and which way is `better`, both null otherwise.
+    """
+
+    name: str
+    title: str | None
+    unit: str | None
+    fold: Literal["sum", "mean", "max"] | None
+    better: Better | None
+
+
 class Publication(BaseModel):
     """One publication: its number among the task's publications, the version
-    it froze, whether it changed how the task grades and what, and when.
-    Which workflow each of its workflow names was at the forge stays out.
+    it froze, whether it changed how the task grades and what, and when;
+    and `meanings`, every value its workflow reports, in the workflow's
+    order, with the words it froze for each, which a form picking a value
+    lists. A publication made before those words were kept lists its values
+    reported for each test by name alone. Which workflow each of its
+    workflow names was at the forge stays out.
     """
 
     number: int
@@ -48,6 +68,7 @@ class Publication(BaseModel):
     grading_changed: bool
     changes: list[str]
     at: datetime
+    meanings: list[ValueMeaning]
 
 
 class FileChange(BaseModel):
@@ -86,12 +107,15 @@ class SaveRequest(BaseModel):
     """The files a save writes, several at once. `keep_as_draft` writes them
     as a draft that says what it held back and publishes nothing, on any
     save. Otherwise, while the task's contest runs, `confirm` publishes a
-    change to how the task grades; an empty save with `confirm` publishes a
-    draft kept earlier.
+    save, which every save that would publish something new needs then; an
+    empty save with `confirm` publishes a draft kept earlier. `asked` is the
+    `confirmation_required`'s own: with it, the confirmation stands only
+    while the head and the latest publication are the ones asked about.
     """
 
     changes: list[FileChange] = []
     confirm: bool = False
+    asked: str | None = None
     keep_as_draft: bool = False
     message: str | None = None
 
@@ -103,12 +127,28 @@ class SaveRequest(BaseModel):
         return self
 
 
+class SaveEffect(BaseModel):
+    """What a save does, in the words and parts a running contest's
+    `confirmation_required` asks with: `summary`, "Results change." or
+    "Nobody's result changes.", with `results_change` its flag; and the
+    sentences under "Runs again", "Scores" and "What entrants read", each
+    list holding at least one, a "nothing changes" line when nothing does.
+    """
+
+    results_change: bool
+    summary: str
+    runs_again: list[str]
+    scores: list[str]
+    reading: list[str]
+
+
 class Published(BaseModel):
     """A save that published: the new publication's number among the task's,
     whether it changed how the task grades, and what, the notes the save
     makes of the task beside publishing it, such as which steps it seals
-    until the reveal, and how many submissions it `regraded`, queued to be
-    graded again against it.
+    until the reveal, how many submissions it `regraded`, queued to be
+    graded again against it, and what it did, `effect`, in the words the
+    question before a save in a running contest uses.
     """
 
     number: int
@@ -116,6 +156,7 @@ class Published(BaseModel):
     changes: list[str]
     notes: list[str]
     regraded: int
+    effect: SaveEffect
 
 
 class Draft(BaseModel):
