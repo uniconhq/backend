@@ -444,6 +444,71 @@
         "title": "BoardKey",
         "type": "object"
       },
+      "BoardNumber": {
+        "description": "A submission's number on one key of a board: what the key ranks by,\n`points` or a value, how the board combines a value across the task's\ntests (`fold`, null on `points`), the `title` and `unit` the board names\na value by, null where no covered task gives them, and the number, null\nwhere it has none.",
+        "properties": {
+          "by": {
+            "title": "By",
+            "type": "string"
+          },
+          "fold": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Fold"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "examples": [
+                  "82.5"
+                ],
+                "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "by",
+          "fold",
+          "title",
+          "unit",
+          "value"
+        ],
+        "title": "BoardNumber",
+        "type": "object"
+      },
       "BoardPoints": {
         "description": "The caller's entrant's points on a task as one leaderboard counts\nthem. `board` is the leaderboard's name; `covers` whether it covers the\ntask, the page reading \"\u2014\" where it does not. Where it does, `points`\nis the points now as that board counts the task, its scope (`over`) and\nthe submissions its `select` counts under its `order`, the same number\nthe board's own row counts: `shown`, over the scope's groups whose\nresults are shown, 0 while the board's cell for the task does not count,\nnull while the board shows nothing of the task yet; and `pending`, the\nmost the scope's groups not shown yet could still add, until\n`pending_until`, the task's reveal, null when nothing is pending. A\ngroup whose results are not shown yet never counts in `shown`, as on\nevery board. `most` is the most the board can count from the task, its\nscope's groups' most points. `points` and `most` are null where the\nboard does not cover the task, and on a task that gives no points.",
         "properties": {
@@ -3078,6 +3143,66 @@
         "title": "NotReady",
         "type": "object"
       },
+      "OnBoard": {
+        "description": "A submission as one board covering its task reads it: the board's\nname and scope (`over`), its number on each of the board's keys but\n`penalty`, in the board's order, read as the rest of the result is\nshown; the most the scope's groups not shown yet could still add to its\npoints, the late factor included, null on a task that gives no points;\n`shown_at`, when the scope first shows something, while it shows nothing\nyet, null otherwise; and whether the row's cell on the board counts\nthis submission now.",
+        "properties": {
+          "board": {
+            "title": "Board",
+            "type": "string"
+          },
+          "counted": {
+            "title": "Counted",
+            "type": "boolean"
+          },
+          "numbers": {
+            "items": {
+              "$ref": "#/components/schemas/BoardNumber"
+            },
+            "title": "Numbers",
+            "type": "array"
+          },
+          "over": {
+            "$ref": "#/components/schemas/Over"
+          },
+          "pending": {
+            "anyOf": [
+              {
+                "examples": [
+                  "82.5"
+                ],
+                "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pending"
+          },
+          "shown_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shown At"
+          }
+        },
+        "required": [
+          "board",
+          "over",
+          "numbers",
+          "pending",
+          "shown_at",
+          "counted"
+        ],
+        "title": "OnBoard",
+        "type": "object"
+      },
       "OpenInviteRequest": {
         "description": "The token after the `#` of the link an invite's mail carried.",
         "properties": {
@@ -3317,6 +3442,13 @@
             "title": "Attempt",
             "type": "integer"
           },
+          "boards": {
+            "items": {
+              "$ref": "#/components/schemas/OnBoard"
+            },
+            "title": "Boards",
+            "type": "array"
+          },
           "factor": {
             "anyOf": [
               {
@@ -3331,17 +3463,6 @@
               }
             ],
             "title": "Factor"
-          },
-          "folded": {
-            "additionalProperties": {
-              "examples": [
-                "82.5"
-              ],
-              "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
-              "type": "string"
-            },
-            "title": "Folded",
-            "type": "object"
           },
           "groups": {
             "items": {
@@ -3452,12 +3573,12 @@
           "outcome",
           "groups",
           "values",
-          "folded",
           "reason",
           "points",
           "factor",
           "limit",
           "meanings",
+          "boards",
           "status"
         ],
         "title": "OrganisedResult",
@@ -4606,11 +4727,18 @@
         "type": "object"
       },
       "Result": {
-        "description": "The attempt of a submission's grading that counts, as its contestant\nsees it: the latest that finished with a result, as the boards count\nit, so a regrade under way, a failure or a cancel leaves the result as\nit was, and while none has, the latest. Its id, attempt and status, and\nonce it is done, what stopped the\nrun, the outcome over the groups shown, each test group as its `show`\nallows, the values reported once, and `folded`, each per-test value\nwith a fold, folded over the tests shown, a test that was not accepted\nor did not report it counting as its worst bound, and the value absent\nwhen it declares none, so a wrong answer has no time; each test's row\nstill carries what it reported; and `meanings`, every value the\nworkflow reports, in its order, with the title and unit a page names it\nby, falling back to its name, a value a sealed step holds back left out\nuntil the reveal. `status` is in the contestant's words: `queued` until\nits run is started, `grading` while it is graded, `graded` once it has\na result, `delayed` while it has none and its grading failed on the\nplatform's side, `over_limit` once it was to be graded again with no\nroom left under the task's most submissions, and `cancelled` once staff\nend it; organisers read the grading's own status in the gradings\nroutes. A `delayed` one carries nothing else: it is tried again once by\nitself, and then waits for staff, who grade it again or end it: then it\nis `cancelled`, with `reason`, the sentence they gave, which is null on\nevery other status. A delayed one is graded again only while its\nentrant's submissions with a result, those waiting that are not\ndelayed, and the delayed ones made before it are fewer than the task's\nmost, so the first ones to get a result count, and otherwise it is\n`over_limit`, with `limit`,\nthe most it reached (\"Not graded: you had reached the limit of 10\nsubmissions for this task.\"), and nothing else; `limit` is null on every\nother status.\nOnce done on a task that gives points, it carries\nits `points` and the late `factor` they include; both are null\notherwise. While a sealed step's stop is held to the reveal, nothing of\nthe run is shown: every group reads as hidden.",
+        "description": "The attempt of a submission's grading that counts, as its contestant\nsees it: the latest that finished with a result, as the boards count\nit, so a regrade under way, a failure or a cancel leaves the result as\nit was, and while none has, the latest. Its id, attempt and status, and\nonce it is done, what stopped the\nrun, the outcome over the groups shown, each test group as its `show`\nallows, the values reported once; `meanings`, every value the\nworkflow reports, in its order, with the title and unit a page names it\nby, falling back to its name, a value a sealed step holds back left out\nuntil the reveal; and `boards`, its line on each board its reader sees\nthat covers the task, in the contest's order, each value folded over\nthe tests shown as that board says, a test that was not accepted or did\nnot report it counting as its worst bound, and the value absent when it\ndeclares none, so a wrong answer has no time. `status` is in the\ncontestant's words: `queued` until its run is started, `grading` while\nit is graded, `graded` once it has a result, `delayed` while it has\nnone and its grading failed on the platform's side, `over_limit` once\nit was to be graded again with no room left under the task's most\nsubmissions, and `cancelled` once staff end it; organisers read the\ngrading's own status in the gradings routes. A `delayed` one carries\nnothing else: it is tried again once by itself, and then waits for\nstaff, who grade it again or end it: then it is `cancelled`, with\n`reason`, the sentence they gave, which is null on every other status.\nA delayed one is graded again only while its\nentrant's submissions with a result, those waiting that are not\ndelayed, and the delayed ones made before it are fewer than the task's\nmost, so the first ones to get a result count, and otherwise it is\n`over_limit`, with `limit`,\nthe most it reached (\"Not graded: you had reached the limit of 10\nsubmissions for this task.\"), and nothing else; `limit` is null on every\nother status.\nOnce done on a task that gives points, it carries\nits `points` and the late `factor` they include; both are null\notherwise. While a sealed step's stop is held to the reveal, nothing of\nthe run is shown: every group reads as hidden.",
         "properties": {
           "attempt": {
             "title": "Attempt",
             "type": "integer"
+          },
+          "boards": {
+            "items": {
+              "$ref": "#/components/schemas/OnBoard"
+            },
+            "title": "Boards",
+            "type": "array"
           },
           "factor": {
             "anyOf": [
@@ -4626,17 +4754,6 @@
               }
             ],
             "title": "Factor"
-          },
-          "folded": {
-            "additionalProperties": {
-              "examples": [
-                "82.5"
-              ],
-              "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
-              "type": "string"
-            },
-            "title": "Folded",
-            "type": "object"
           },
           "groups": {
             "items": {
@@ -4747,12 +4864,12 @@
           "outcome",
           "groups",
           "values",
-          "folded",
           "reason",
           "points",
           "factor",
           "limit",
           "meanings",
+          "boards",
           "status"
         ],
         "title": "Result",

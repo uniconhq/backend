@@ -244,7 +244,17 @@ async def test_a_finished_report_leaves_the_result_the_contestant_reads(
         }
     ]
     assert grading["values"] == {"numbers": {}, "texts": {"log": ""}}
-    assert grading["folded"] == {"time_ms": "12.5", "memory_kb": "2048"}
+    points = {"by": "points", "fold": None, "title": None, "unit": None, "value": "100"}
+    assert grading["boards"] == [
+        {
+            "board": "Standings",
+            "over": "all",
+            "numbers": [points],
+            "pending": "0",
+            "shown_at": None,
+            "counted": True,
+        }
+    ]
     assert (grading["points"], grading["factor"]) == (
         {"shown": "100", "pending": "0", "pending_until": None},
         "1",
