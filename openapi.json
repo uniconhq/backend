@@ -154,6 +154,44 @@
         "title": "Announcement",
         "type": "object"
       },
+      "AnnouncementLink": {
+        "description": "The announcement a message names: on the question's contest, or on\nthe task of it named `task`, by its number there, and its `title` as\nthe message names it, so a page writes the message with the title as\nthe link; none when the message no longer reads as the platform wrote\nit, edited at the forge.",
+        "properties": {
+          "number": {
+            "title": "Number",
+            "type": "integer"
+          },
+          "task": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Task"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "required": [
+          "task",
+          "number",
+          "title"
+        ],
+        "title": "AnnouncementLink",
+        "type": "object"
+      },
       "AnnouncementRequest": {
         "description": "An announcement's title and text, as posted or as edited.",
         "properties": {
@@ -335,7 +373,7 @@
         "type": "object"
       },
       "BoardKey": {
-        "description": "One key rows are ranked on, in turn: what it ranks by, `points`,\n`penalty` or a declared value, which way is better, null for a value no\ncovered task gives a direction, and, on `penalty`, the minutes each\nattempt before the counted submission charges; a `per_attempt` of 0\ncharges nothing, so the minute submitted is all it ranks on.",
+        "description": "One key rows are ranked on, in turn: what it ranks by, `points`,\n`penalty` or a declared value, which way is better, null for a value no\ncovered task gives a direction, and, on `penalty`, the minutes each\nattempt before the counted submission charges; a `per_attempt` of 0\ncharges nothing, so the minute submitted is all it ranks on. On a value,\n`title` and `unit` name its column, \"Run time\" and \"ms\", as the first\ncovered task giving them says; both null on `points`, on `penalty` and\non a value no covered task names, which a page names by `by`.",
         "properties": {
           "better": {
             "anyOf": [
@@ -361,14 +399,84 @@
               }
             ],
             "title": "Per Attempt"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
           }
         },
         "required": [
           "by",
           "better",
-          "per_attempt"
+          "per_attempt",
+          "title",
+          "unit"
         ],
         "title": "BoardKey",
+        "type": "object"
+      },
+      "BoardPoints": {
+        "description": "The caller's entrant's points on a task as one leaderboard counts\nthem. `board` is the leaderboard's name; `covers` whether it covers the\ntask, the page reading \"\u2014\" where it does not. Where it does, `points`\nis the points now as that board counts the task, its scope (`over`) and\nthe submissions its `select` counts under its `order`, the same number\nthe board's own row counts: `shown`, over the scope's groups whose\nresults are shown, 0 while the board's cell for the task does not count,\nnull while the board shows nothing of the task yet; and `pending`, the\nmost the scope's groups not shown yet could still add, until\n`pending_until`, the task's reveal, null when nothing is pending. A\ngroup whose results are not shown yet never counts in `shown`, as on\nevery board. `most` is the most the board can count from the task, its\nscope's groups' most points. `points` and `most` are null where the\nboard does not cover the task, and on a task that gives no points.",
+        "properties": {
+          "board": {
+            "title": "Board",
+            "type": "string"
+          },
+          "covers": {
+            "title": "Covers",
+            "type": "boolean"
+          },
+          "most": {
+            "anyOf": [
+              {
+                "examples": [
+                  "82.5"
+                ],
+                "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Most"
+          },
+          "points": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Points"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "board",
+          "covers",
+          "points",
+          "most"
+        ],
+        "title": "BoardPoints",
         "type": "object"
       },
       "BoardRow": {
@@ -547,6 +655,21 @@
         "title": "Change",
         "type": "object"
       },
+      "ChangeKind": {
+        "description": "What a regrade did to one submission, as the module says.",
+        "enum": [
+          "up",
+          "down",
+          "stopped",
+          "unchanged",
+          "new",
+          "running",
+          "failed",
+          "over_limit"
+        ],
+        "title": "ChangeKind",
+        "type": "string"
+      },
       "CheckDefinition": {
         "description": "A `workflow.yaml` to check as a version would be, writing nothing.",
         "properties": {
@@ -650,6 +773,7 @@
       "Closed": {
         "description": "Why a task is not open to a row, the first of these that applies; and,\nto a person who holds no approved row, `not_approved` where it is\notherwise open, as a submit would be refused.",
         "enum": [
+          "withdrawn",
           "not_released",
           "archived",
           "closed",
@@ -702,8 +826,15 @@
         "type": "object"
       },
       "ContestHome": {
-        "description": "A contest's home for the caller. `organises` says the caller holds a\nrole at the contest, which keeps them from registering; `registration`\nis their registration panel, as `entrants/mine` answers it: their\nentrant, whether and how they may register, and whether to ask them for\na code.",
+        "description": "A contest's home for the caller. `organises` says the caller holds a\nrole at the contest, which keeps them from registering; `registration`\nis their registration panel, as `entrants/mine` answers it: their\nentrant, whether and how they may register, and whether to ask them for\na code. `boards` names the leaderboards a member of an approved entrant\nsees, in the contest's order, which each task's `points` follow; empty\nfor anyone else.",
         "properties": {
+          "boards": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Boards",
+            "type": "array"
+          },
           "description": {
             "title": "Description",
             "type": "string"
@@ -758,7 +889,8 @@
           "registration",
           "organises",
           "now",
-          "tasks"
+          "tasks",
+          "boards"
         ],
         "title": "ContestHome",
         "type": "object"
@@ -1632,7 +1764,7 @@
         "type": "object"
       },
       "Grading": {
-        "description": "One grading as an organiser managing its task reads it: the\nsubmission by its number, the publication it grades against, its\nattempt and whether that is the submission's `latest`, the one staff\ncancel or retry, the member who submitted it, `submitted_by`, null when\na reconcile found it at the forge, where it stands, the reason it failed, the sentence\nstaff cancelled it with, its result, whether its log was written, the\nlast progress its run reported, its times, and whether the platform made\nit by itself, `automatic`, retrying the attempt before it once that\nfailed.\n\nOn a latest attempt that has not finished with a result, still being\ngraded, a system error or staff cancelled, `last_good` is the latest\nearlier attempt that did, the one its submission counts meanwhile on\nthe boards and to its contestant; null on any other, and when no\nattempt has a result.",
+        "description": "One grading as an organiser managing its task reads it: the\nsubmission by its number, the publication it grades against, its\nattempt and whether that is the submission's `latest`, the one staff\ncancel or retry, the member who submitted it, `submitted_by`, null when\na reconcile found it at the forge, where it stands, the reason it failed, the sentence\nstaff cancelled it with, its result, whether its log was written, the\nlast progress its run reported, its times, and whether the platform made\nit by itself, `automatic`, retrying the attempt before it once that\nfailed.\n\nOn a latest attempt that has not finished with a result, still being\ngraded, a system error or staff cancelled, `last_good` is the latest\nearlier attempt that did, the one its submission counts meanwhile on\nthe boards and to its contestant; null on any other, and when no\nattempt has a result.\n\nAn attempt that is `over_limit` was made to grade a delayed submission\nagain and ended at once, run by nothing, since its entrant had no room\nleft under the task's most submissions: `limit` is that most, null on\nevery other status. On a latest attempt of a submission with no result\nthat reads as `system_error` or `over_limit`, `retry_limit` is the\ntask's most when a retry now would end over the limit, so the retry's\nconfirmation says so before it runs (\"Not graded: the entrant has\nreached the limit of 10 submissions for this task.\"); null otherwise,\nwhen a retry would grade it. `regrade` is the regrade of many the\nattempt belongs to, null for none; `change`, given only on the feed read\nby `regrade`, what that regrade did to the submission.",
         "properties": {
           "attempt": {
             "title": "Attempt",
@@ -1652,6 +1784,16 @@
               }
             ],
             "title": "Cancel Reason"
+          },
+          "change": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RegradeChange"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "deadline_at": {
             "anyOf": [
@@ -1720,6 +1862,17 @@
             "title": "Latest",
             "type": "boolean"
           },
+          "limit": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Limit"
+          },
           "log": {
             "title": "Log",
             "type": "boolean"
@@ -1743,6 +1896,18 @@
             "title": "Queued At",
             "type": "string"
           },
+          "regrade": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Regrade"
+          },
           "result": {
             "anyOf": [
               {
@@ -1752,6 +1917,17 @@
                 "type": "null"
               }
             ]
+          },
+          "retry_limit": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retry Limit"
           },
           "started_at": {
             "anyOf": [
@@ -1809,7 +1985,11 @@
           "finished_at",
           "deadline_at",
           "automatic",
-          "last_good"
+          "last_good",
+          "limit",
+          "retry_limit",
+          "regrade",
+          "change"
         ],
         "title": "Grading",
         "type": "object"
@@ -1839,14 +2019,15 @@
         "type": "object"
       },
       "GradingStatus": {
-        "description": "Where one grading stands. `queued` waits for its run to be started,\nwhich happens as soon as the request that made it commits; `dispatched`\nis held by the CI, waiting for a machine or checking out; `running` has\nhad its envelope fetched by the harness. It ends `done` with a result,\n`system_error`, a grading that failed for a reason of the platform's,\nnever a grade: its run could not be started, or did not report before\nits deadline; or `cancelled`, by staff ending one in `system_error`, or\nby a rejudge replacing one still being graded.",
+        "description": "Where one grading stands. `queued` waits for its run to be started,\nwhich happens as soon as the request that made it commits; `dispatched`\nis held by the CI, waiting for a machine or checking out; `running` has\nhad its envelope fetched by the harness. It ends `done` with a result,\n`system_error`, a grading that failed for a reason of the platform's,\nnever a grade: its run could not be started, or did not report before\nits deadline; `cancelled`, by staff ending one in `system_error`, or\nby a rejudge replacing one still being graded; or `over_limit`, made to\ngrade a delayed submission again and ended at once, run by nothing,\nsince its entrant had no room left under the task's `submissions.max`.",
         "enum": [
           "queued",
           "dispatched",
           "running",
           "done",
           "cancelled",
-          "system_error"
+          "system_error",
+          "over_limit"
         ],
         "title": "GradingStatus",
         "type": "string"
@@ -2678,8 +2859,18 @@
         "type": "object"
       },
       "Message": {
-        "description": "One message under a question: whether the asker wrote it, what it\nsays, and when.",
+        "description": "One message under a question: whether the asker wrote it, what it\nsays, when, and, on the message a public answer leaves, the\nannouncement it was answered in.",
         "properties": {
+          "announcement": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AnnouncementLink"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "at": {
             "format": "date-time",
             "title": "At",
@@ -2697,7 +2888,8 @@
         "required": [
           "from_asker",
           "body",
-          "at"
+          "at",
+          "announcement"
         ],
         "title": "Message",
         "type": "object"
@@ -3142,6 +3334,24 @@
             "title": "Id",
             "type": "string"
           },
+          "limit": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Limit"
+          },
+          "meanings": {
+            "items": {
+              "$ref": "#/components/schemas/ValueMeaning"
+            },
+            "title": "Meanings",
+            "type": "array"
+          },
           "outcome": {
             "anyOf": [
               {
@@ -3225,6 +3435,8 @@
           "reason",
           "points",
           "factor",
+          "limit",
+          "meanings",
           "status"
         ],
         "title": "OrganisedResult",
@@ -3491,7 +3703,7 @@
         "type": "object"
       },
       "PrimitivePort": {
-        "description": "One port: its type, the options an enum takes, whether it may be left\nout, on an input whether the primitive runs what arrives there and\nwhether it keeps it from the program it runs, and a sentence saying what\nit takes or gives back, none when the primitive gives none.",
+        "description": "One port: its type, the options an enum takes, whether it may be left\nout, on an input whether the primitive runs what arrives there and\nwhether it keeps it from the program it runs, and a sentence saying what\nit takes or gives back, none when the primitive gives none. The\n`outcome` port may carry `outcomes`: each outcome the step can report,\nin the declaration's order, with a line saying when (`accepted`: \"the\nsource compiles\"), for the step's drawer to say what it reports; none\nwhen the primitive does not say, and on every other port.",
         "properties": {
           "description": {
             "anyOf": [
@@ -3522,6 +3734,20 @@
             ],
             "title": "Options"
           },
+          "outcomes": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outcomes"
+          },
           "runs": {
             "anyOf": [
               {
@@ -3548,7 +3774,8 @@
           "optional",
           "runs",
           "secret",
-          "description"
+          "description",
+          "outcomes"
         ],
         "title": "PrimitivePort",
         "type": "object"
@@ -3586,6 +3813,47 @@
           "code"
         ],
         "title": "Problem",
+        "type": "object"
+      },
+      "PublicAnswer": {
+        "description": "A public answer: the announcement every entrant reads, and the\nquestion as it now stands, with the message naming it.",
+        "properties": {
+          "announcement": {
+            "$ref": "#/components/schemas/Announcement"
+          },
+          "question": {
+            "$ref": "#/components/schemas/Clarification"
+          }
+        },
+        "required": [
+          "announcement",
+          "question"
+        ],
+        "title": "PublicAnswer",
+        "type": "object"
+      },
+      "PublicAnswerRequest": {
+        "description": "An answer made public: the announcement's title and text, and\nwhether to mark the question answered, as a reply's \"Mark it answered\"\ndoes; it is unless `mark` is false.",
+        "properties": {
+          "body": {
+            "title": "Body",
+            "type": "string"
+          },
+          "mark": {
+            "default": true,
+            "title": "Mark",
+            "type": "boolean"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "body"
+        ],
+        "title": "PublicAnswerRequest",
         "type": "object"
       },
       "PublicContest": {
@@ -3674,7 +3942,7 @@
         "type": "object"
       },
       "Publication": {
-        "description": "One publication: its number among the task's publications, the version\nit froze, whether it changed how the task grades and what, and when.\nWhich workflow each of its workflow names was at the forge stays out.",
+        "description": "One publication: its number among the task's publications, the version\nit froze, whether it changed how the task grades and what, and when;\nand `meanings`, every value its workflow reports, in the workflow's\norder, with the words it froze for each, which a form picking a value\nlists. A publication made before those words were kept lists its values\nreported for each test by name alone. Which workflow each of its\nworkflow names was at the forge stays out.",
         "properties": {
           "at": {
             "format": "date-time",
@@ -3692,6 +3960,13 @@
             "title": "Grading Changed",
             "type": "boolean"
           },
+          "meanings": {
+            "items": {
+              "$ref": "#/components/schemas/ValueMeaning"
+            },
+            "title": "Meanings",
+            "type": "array"
+          },
           "number": {
             "title": "Number",
             "type": "integer"
@@ -3706,13 +3981,14 @@
           "version",
           "grading_changed",
           "changes",
-          "at"
+          "at",
+          "meanings"
         ],
         "title": "Publication",
         "type": "object"
       },
       "Published": {
-        "description": "A save that published: the new publication's number among the task's,\nwhether it changed how the task grades, and what, the notes the save\nmakes of the task beside publishing it, such as which steps it seals\nuntil the reveal, and how many submissions it `regraded`, queued to be\ngraded again against it.",
+        "description": "A save that published: the new publication's number among the task's,\nwhether it changed how the task grades, and what, the notes the save\nmakes of the task beside publishing it, such as which steps it seals\nuntil the reveal, how many submissions it `regraded`, queued to be\ngraded again against it, and what it did, `effect`, in the words the\nquestion before a save in a running contest uses.",
         "properties": {
           "changes": {
             "items": {
@@ -3720,6 +3996,9 @@
             },
             "title": "Changes",
             "type": "array"
+          },
+          "effect": {
+            "$ref": "#/components/schemas/SaveEffect"
           },
           "grading_changed": {
             "title": "Grading Changed",
@@ -3746,9 +4025,27 @@
           "grading_changed",
           "changes",
           "notes",
-          "regraded"
+          "regraded",
+          "effect"
         ],
         "title": "Published",
+        "type": "object"
+      },
+      "PutBack": {
+        "description": "A withdrawn task put back: what each board reports of its tasks now,\nas a save of the contest's settings answers.",
+        "properties": {
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Notes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "notes"
+        ],
+        "title": "PutBack",
         "type": "object"
       },
       "QuestionRequest": {
@@ -3932,6 +4229,271 @@
         "title": "RegisterUrl",
         "type": "object"
       },
+      "RegradeCause": {
+        "description": "What started a regrade of many: staff's `rejudge` of the task, or the\n`save` that published a change to how it grades.",
+        "enum": [
+          "rejudge",
+          "save"
+        ],
+        "title": "RegradeCause",
+        "type": "string"
+      },
+      "RegradeChange": {
+        "description": "What a regrade did to one submission: `change`, and the result it\nreplaced, `earlier`, the one that counted when the regrade began, null\nwhen there was none or it no longer reads, beside its own, `now`, null\nwhile it has none.\n\n`up` and `down`: its points went up or down; on a task that gives no\npoints, a larger or smaller share of its tests accepted, or with the\nsame share, its values with a direction, down when any got worse.\n`stopped`: it now stops before its tests where the earlier result did\nnot, which on the classic workflow is \"now fails to compile\".\n`unchanged`; `new`, graded with no earlier result to compare with;\n`running`, still being graded; `failed`, no result yet, its latest\nattempt a system error or cancelled; `over_limit`, not graded, its\nentrant at the task's most submissions.",
+        "properties": {
+          "change": {
+            "$ref": "#/components/schemas/ChangeKind"
+          },
+          "earlier": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RegradeSide"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "now": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RegradeSide"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "change",
+          "earlier",
+          "now"
+        ],
+        "title": "RegradeChange",
+        "type": "object"
+      },
+      "RegradeCounts": {
+        "description": "How many of a regrade's submissions each change counts.",
+        "properties": {
+          "down": {
+            "title": "Down",
+            "type": "integer"
+          },
+          "failed": {
+            "title": "Failed",
+            "type": "integer"
+          },
+          "new": {
+            "title": "New",
+            "type": "integer"
+          },
+          "over_limit": {
+            "title": "Over Limit",
+            "type": "integer"
+          },
+          "running": {
+            "title": "Running",
+            "type": "integer"
+          },
+          "stopped": {
+            "title": "Stopped",
+            "type": "integer"
+          },
+          "unchanged": {
+            "title": "Unchanged",
+            "type": "integer"
+          },
+          "up": {
+            "title": "Up",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "up",
+          "down",
+          "stopped",
+          "unchanged",
+          "new",
+          "running",
+          "failed",
+          "over_limit"
+        ],
+        "title": "RegradeCounts",
+        "type": "object"
+      },
+      "RegradeSide": {
+        "description": "One result a regrade compares, as organisers see it, every group,\nnothing held back, the late factor applied: its attempt, its `points`,\nnull on a task that gives no points, how many of its tests were\n`accepted` of how many `tests` it has, the outcome that `stopped` its run\nbefore its tests, null when nothing did, and each value with a fold and\na declared direction, folded over every test.",
+        "properties": {
+          "accepted": {
+            "title": "Accepted",
+            "type": "integer"
+          },
+          "attempt": {
+            "title": "Attempt",
+            "type": "integer"
+          },
+          "points": {
+            "anyOf": [
+              {
+                "examples": [
+                  "82.5"
+                ],
+                "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Points"
+          },
+          "stopped": {
+            "anyOf": [
+              {
+                "enum": [
+                  "accepted",
+                  "wrong_answer",
+                  "time_limit",
+                  "memory_limit",
+                  "output_limit",
+                  "runtime_error",
+                  "compile_error",
+                  "skipped",
+                  "system_error"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stopped"
+          },
+          "tests": {
+            "title": "Tests",
+            "type": "integer"
+          },
+          "values": {
+            "additionalProperties": {
+              "examples": [
+                "82.5"
+              ],
+              "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+              "type": "string"
+            },
+            "title": "Values",
+            "type": "object"
+          }
+        },
+        "required": [
+          "attempt",
+          "points",
+          "accepted",
+          "tests",
+          "stopped",
+          "values"
+        ],
+        "title": "RegradeSide",
+        "type": "object"
+      },
+      "RegradeSummary": {
+        "description": "A task's latest regrade of many as the contest's page shows it, \"Regrade\nof A: 120 graded \u00b7 4 went down \u00b7 2 now fail to compile \u00b7 1 went up\": its\nid, the one the feed is read by; its task by name and `label`, the letter\nof its place in the contest's `tasks`, null once the contest no longer\nlists it; what started it, `cause`, a staff `rejudge` or the `save` that\npublished `publication`, the publication its attempts grade against;\nwhen and by whom, by user id and `started_by_name`, their username, null\nwhen the forge does not say; how many submissions it took, `total`; how\nmany it `graded`, finishing with a result (`up`, `down`, `stopped`,\n`unchanged` and `new` together); whether any is still `running`; and\n`counts`, by change. It stays until a newer regrade of the task replaces\nit or a manager of the task dismisses it.",
+        "properties": {
+          "cause": {
+            "$ref": "#/components/schemas/RegradeCause"
+          },
+          "counts": {
+            "$ref": "#/components/schemas/RegradeCounts"
+          },
+          "graded": {
+            "title": "Graded",
+            "type": "integer"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "publication": {
+            "title": "Publication",
+            "type": "integer"
+          },
+          "running": {
+            "title": "Running",
+            "type": "boolean"
+          },
+          "started_at": {
+            "format": "date-time",
+            "title": "Started At",
+            "type": "string"
+          },
+          "started_by": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started By"
+          },
+          "started_by_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started By Name"
+          },
+          "task": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Task"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "task",
+          "label",
+          "cause",
+          "publication",
+          "started_at",
+          "started_by",
+          "started_by_name",
+          "total",
+          "graded",
+          "running",
+          "counts"
+        ],
+        "title": "RegradeSummary",
+        "type": "object"
+      },
       "RejectRequest": {
         "description": "Why, in words the entrant's members read on their own page.",
         "properties": {
@@ -3947,7 +4509,7 @@
         "type": "object"
       },
       "Rejudged": {
-        "description": "What a rejudge did: the publication the new attempts grade against,\nhow many it queued, how many unfinished attempts against an older\npublication it cancelled first, and how many it left to finish against\nthe current one.",
+        "description": "What a rejudge did: the publication the new attempts grade against,\nhow many it queued, how many unfinished attempts against an older\npublication it cancelled first, how many it left to finish against\nthe current one, how many delayed submissions it ended `over_limit`,\ntheir entrants at the task's most submissions, and `regrade`, the\nregrade of many it is kept as, null when it made no attempt.",
         "properties": {
           "cancelled": {
             "title": "Cancelled",
@@ -3957,6 +4519,10 @@
             "title": "Left Running",
             "type": "integer"
           },
+          "over_limit": {
+            "title": "Over Limit",
+            "type": "integer"
+          },
           "publication": {
             "title": "Publication",
             "type": "integer"
@@ -3964,13 +4530,27 @@
           "queued": {
             "title": "Queued",
             "type": "integer"
+          },
+          "regrade": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Regrade"
           }
         },
         "required": [
           "publication",
           "queued",
           "cancelled",
-          "left_running"
+          "left_running",
+          "over_limit",
+          "regrade"
         ],
         "title": "Rejudged",
         "type": "object"
@@ -4005,7 +4585,7 @@
         "type": "object"
       },
       "Result": {
-        "description": "The attempt of a submission's grading that counts, as its contestant\nsees it: the latest that finished with a result, as the boards count\nit, so a regrade under way, a failure or a cancel leaves the result as\nit was, and while none has, the latest. Its id, attempt and status, and\nonce it is done, what stopped the\nrun, the outcome over the groups shown, each test group as its `show`\nallows, the values reported once, and `folded`, each per-test value\nwith a fold, folded over the tests shown, a test without it counting as\nits worst bound. `status` is in the contestant's words: `queued` until\nits run is started, `grading` while it is graded, `graded` once it has\na result, `delayed` while it has none and its grading failed on the\nplatform's side, and `cancelled` once staff end it; organisers read the\ngrading's own status in the gradings routes. A `delayed` one carries\nnothing else: it is tried again once by itself, and then waits for\nstaff, who grade it again or end it: then it is `cancelled`, with\n`reason`, the sentence they gave, which is null on every other status.\nOnce done on a task that gives points, it carries\nits `points` and the late `factor` they include; both are null\notherwise. While a sealed step's stop is held to the reveal, nothing of\nthe run is shown: every group reads as hidden.",
+        "description": "The attempt of a submission's grading that counts, as its contestant\nsees it: the latest that finished with a result, as the boards count\nit, so a regrade under way, a failure or a cancel leaves the result as\nit was, and while none has, the latest. Its id, attempt and status, and\nonce it is done, what stopped the\nrun, the outcome over the groups shown, each test group as its `show`\nallows, the values reported once, and `folded`, each per-test value\nwith a fold, folded over the tests shown, a test that was not accepted\nor did not report it counting as its worst bound, and the value absent\nwhen it declares none, so a wrong answer has no time; each test's row\nstill carries what it reported; and `meanings`, every value the\nworkflow reports, in its order, with the title and unit a page names it\nby, falling back to its name, a value a sealed step holds back left out\nuntil the reveal. `status` is in the contestant's words: `queued` until\nits run is started, `grading` while it is graded, `graded` once it has\na result, `delayed` while it has none and its grading failed on the\nplatform's side, `over_limit` once it was to be graded again with no\nroom left under the task's most submissions, and `cancelled` once staff\nend it; organisers read the grading's own status in the gradings\nroutes. A `delayed` one carries nothing else: it is tried again once by\nitself, and then waits for staff, who grade it again or end it: then it\nis `cancelled`, with `reason`, the sentence they gave, which is null on\nevery other status. A delayed one is graded again only while its\nentrant's submissions with a result, those waiting that are not\ndelayed, and the delayed ones made before it are fewer than the task's\nmost, so the first ones to get a result count, and otherwise it is\n`over_limit`, with `limit`,\nthe most it reached (\"Not graded: you had reached the limit of 10\nsubmissions for this task.\"), and nothing else; `limit` is null on every\nother status.\nOnce done on a task that gives points, it carries\nits `points` and the late `factor` they include; both are null\notherwise. While a sealed step's stop is held to the reveal, nothing of\nthe run is shown: every group reads as hidden.",
         "properties": {
           "attempt": {
             "title": "Attempt",
@@ -4048,6 +4628,24 @@
             "format": "uuid",
             "title": "Id",
             "type": "string"
+          },
+          "limit": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Limit"
+          },
+          "meanings": {
+            "items": {
+              "$ref": "#/components/schemas/ValueMeaning"
+            },
+            "title": "Meanings",
+            "type": "array"
           },
           "outcome": {
             "anyOf": [
@@ -4132,6 +4730,8 @@
           "reason",
           "points",
           "factor",
+          "limit",
+          "meanings",
           "status"
         ],
         "title": "Result",
@@ -4147,8 +4747,19 @@
         "type": "string"
       },
       "RollbackFile": {
-        "description": "Write the file as it was at `version` back as a new change, `token`\nbeing the one of the file as it is now.",
+        "description": "Write the file as it was at `version` back as a new change, `token`\nbeing the one of the file as it is now, and, for a task, `confirm`,\n`asked` and `keep_as_draft` doing what they do for a save.",
         "properties": {
+          "asked": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Asked"
+          },
           "confirm": {
             "default": false,
             "title": "Confirm",
@@ -4275,9 +4886,63 @@
         "title": "SaveDefinition",
         "type": "object"
       },
-      "SaveRequest": {
-        "description": "The files a save writes, several at once. `keep_as_draft` writes them\nas a draft that says what it held back and publishes nothing, on any\nsave. Otherwise, while the task's contest runs, `confirm` publishes a\nchange to how the task grades; an empty save with `confirm` publishes a\ndraft kept earlier.",
+      "SaveEffect": {
+        "description": "What a save does, in the words and parts a running contest's\n`confirmation_required` asks with: `summary`, \"Results change.\" or\n\"Nobody's result changes.\", with `results_change` its flag; and the\nsentences under \"Runs again\", \"Scores\" and \"What entrants read\", each\nlist holding at least one, a \"nothing changes\" line when nothing does.",
         "properties": {
+          "reading": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Reading",
+            "type": "array"
+          },
+          "results_change": {
+            "title": "Results Change",
+            "type": "boolean"
+          },
+          "runs_again": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Runs Again",
+            "type": "array"
+          },
+          "scores": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Scores",
+            "type": "array"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          }
+        },
+        "required": [
+          "results_change",
+          "summary",
+          "runs_again",
+          "scores",
+          "reading"
+        ],
+        "title": "SaveEffect",
+        "type": "object"
+      },
+      "SaveRequest": {
+        "description": "The files a save writes, several at once. `keep_as_draft` writes them\nas a draft that says what it held back and publishes nothing, on any\nsave. Otherwise, while the task's contest runs, `confirm` publishes a\nsave, which every save that would publish something new needs then; an\nempty save with `confirm` publishes a draft kept earlier. `asked` is the\n`confirmation_required`'s own: with it, the confirmation stands only\nwhile the head and the latest publication are the ones asked about.",
+        "properties": {
+          "asked": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Asked"
+          },
           "changes": {
             "default": [],
             "items": {
@@ -4535,12 +5200,13 @@
         "type": "object"
       },
       "SubmissionState": {
-        "description": "Where a submission stands as its contestant is told, in TASK-FORMAT.md\nsection 1.7's words, which say nothing of the CI's stages: `queued`\nuntil its run is started, `grading` while the CI holds it or runs it,\n`graded` once it has a result, `delayed` while it has none and its\nlatest attempt failed for a reason of the platform's, and `cancelled`\nonce staff ended it.",
+        "description": "Where a submission stands as its contestant is told, in TASK-FORMAT.md\nsection 1.7's words, which say nothing of the CI's stages: `queued`\nuntil its run is started, `grading` while the CI holds it or runs it,\n`graded` once it has a result, `delayed` while it has none and its\nlatest attempt failed for a reason of the platform's, `over_limit` once\nit was to be graded again and its entrant had no room left under the\ntask's `submissions.max`, and `cancelled` once staff ended it.",
         "enum": [
           "queued",
           "grading",
           "graded",
           "delayed",
+          "over_limit",
           "cancelled"
         ],
         "title": "SubmissionState",
@@ -4721,8 +5387,43 @@
         "title": "Submitter",
         "type": "object"
       },
+      "TakeOut": {
+        "description": "What taking a task out of its contest does: `remove` it, while nobody\nhas submitted to it, or `withdraw` it, once anyone has.",
+        "enum": [
+          "remove",
+          "withdraw"
+        ],
+        "title": "TakeOut",
+        "type": "string"
+      },
+      "TakeOutRequest": {
+        "description": "What taking a task out of its contest should do, as the organiser\nconfirmed it: `remove` or `withdraw`, as the task list's `take_out`\nsaid when the dialog asked.",
+        "properties": {
+          "confirmed": {
+            "$ref": "#/components/schemas/TakeOut"
+          }
+        },
+        "required": [
+          "confirmed"
+        ],
+        "title": "TakeOutRequest",
+        "type": "object"
+      },
+      "TakenOut": {
+        "description": "What taking the task out did: `remove`d it or `withdraw`n it.",
+        "properties": {
+          "done": {
+            "$ref": "#/components/schemas/TakeOut"
+          }
+        },
+        "required": [
+          "done"
+        ],
+        "title": "TakenOut",
+        "type": "object"
+      },
       "TaskEntry": {
-        "description": "A task released to the caller: its name, the label its place in the\ncontest gives it, its title, the most points it gives, null on a task\nthat gives none, whether they may submit to it now, and when it falls\ndue, null when it has no due, and closes for them, their extension on it\nincluded.\n\n`points` is their entrant's points on it, for a member of an approved\nentrant, as a board over that task alone counts them now, every group,\nthe submissions counted as the contest's leaderboard for the task\ncounts them (the first entrants see that covers it and ranks by points\nfirst): `shown`, over the groups whose results are shown, null while\nno group of the task is shown yet, and `pending`, the most the groups\nnot shown yet could still add, until `pending_until`, the task's\nreveal, null when nothing is pending. A group whose results are not\nshown yet never counts in `shown`, as on every board. Null for anyone\nelse, and on a task that gives no points.",
+        "description": "A task released to the caller: its name, the label its place in the\ncontest gives it, its title, the most points it gives, null on a task\nthat gives none, whether they may submit to it now, and when it falls\ndue, null when it has no due, and closes for them, their extension on it\nincluded.\n\n`points` is, for a member of an approved entrant, their entrant's points\non it on each leaderboard of the home's `boards`, one for each, in the\nsame order, so a page draws one column per board under one header row.\nEmpty for anyone else, who reads the task's `worth`.",
         "properties": {
           "closes": {
             "anyOf": [
@@ -4757,14 +5458,11 @@
             "type": "string"
           },
           "points": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/Points"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "items": {
+              "$ref": "#/components/schemas/BoardPoints"
+            },
+            "title": "Points",
+            "type": "array"
           },
           "release": {
             "$ref": "#/components/schemas/TaskRelease"
@@ -4972,7 +5670,7 @@
         "type": "object"
       },
       "TaskStanding": {
-        "description": "One task of a contest as its organisers work from it: the task by\nname, its letter by its place in the contest's `tasks`, where its files\nstand as `GET <task>` gives it, and its timeline from its entry, each\ntime at its default where the entry gives none: `worth`, null on a task\nthat gives no points or has no publication, `release_at`, `due` and\n`late_per_day`, both null on a task with no due, and `closes`.",
+        "description": "One task of a contest as its organisers work from it: the task by\nname, its letter by its place in the contest's `tasks`, where its files\nstand as `GET <task>` gives it, and its timeline from its entry, each\ntime at its default where the entry gives none: `worth`, null on a task\nthat gives no points or has no publication, `release_at`, `due` and\n`late_per_day`, both null on a task with no due, and `closes`.\n\n`withdrawn` says the task is withdrawn from the contest: it keeps its\nplace and its letter, entrants do not see it and no leaderboard counts\nit, until it is put back. `submissions` is how many submissions it has,\nany entrant's, and `take_out` what taking it out of the contest would\ndo, for the dialog that asks first: `remove`, while it has none, which\ndeletes it, or `withdraw`, once it has; null while it is withdrawn,\nwhen it can only be put back.",
         "properties": {
           "label": {
             "title": "Label",
@@ -4981,24 +5679,45 @@
           "state": {
             "$ref": "#/components/schemas/TaskState"
           },
+          "submissions": {
+            "title": "Submissions",
+            "type": "integer"
+          },
+          "take_out": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TakeOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "task": {
             "$ref": "#/components/schemas/Named"
           },
           "timeline": {
             "$ref": "#/components/schemas/Timeline"
+          },
+          "withdrawn": {
+            "title": "Withdrawn",
+            "type": "boolean"
           }
         },
         "required": [
           "task",
           "label",
           "state",
-          "timeline"
+          "timeline",
+          "withdrawn",
+          "submissions",
+          "take_out"
         ],
         "title": "TaskStanding",
         "type": "object"
       },
       "TaskState": {
-        "description": "Where a task's files stand: the version at their head, the latest\npublication or none, and whether the head is a draft, a state no\npublication froze. A draft carries the errors that keep it from\npublishing; a draft with none was held back, or has not been saved since\nit was made.",
+        "description": "Where a task's files stand: the version at their head, the latest\npublication or none, and whether the head is a draft, a state no\npublication froze. A draft carries the errors that keep it from\npublishing; a draft with none was held back, or has not been saved since\nit was made. `statement_written` says whether the latest publication\nholds a statement, there, not blank and not the starter's placeholder,\nfalse when nothing is published, and `head_statement_written` the same\nof the head.",
         "properties": {
           "draft": {
             "title": "Draft",
@@ -5015,6 +5734,10 @@
             "title": "Head",
             "type": "string"
           },
+          "head_statement_written": {
+            "title": "Head Statement Written",
+            "type": "boolean"
+          },
           "latest": {
             "anyOf": [
               {
@@ -5024,13 +5747,19 @@
                 "type": "null"
               }
             ]
+          },
+          "statement_written": {
+            "title": "Statement Written",
+            "type": "boolean"
           }
         },
         "required": [
           "head",
           "latest",
           "draft",
-          "errors"
+          "errors",
+          "statement_written",
+          "head_statement_written"
         ],
         "title": "TaskState",
         "type": "object"
@@ -5102,7 +5831,7 @@
         "type": "object"
       },
       "TreeEntry": {
-        "description": "One entry of a folder: a file, with the size of what its commit\nholds and that commit, the one that last changed it, which holds it as\nlisted whatever the head has moved to since (none when the forge does\nnot say), or a folder. `upload` tells an uploaded file from a typed one.",
+        "description": "One entry of a folder: a file, with the size of what its commit\nholds and that commit, the one that last changed it, which holds it as\nlisted whatever the head has moved to since (none when the forge does\nnot say), or a folder. `upload` tells an uploaded file from a typed one.\n`token` is the file's `ConflictToken`, as a read gives it, plain text so the\nentry is served as it is; `start` is how a small text\nfile begins (`start_of`), none for any other file and for an upload,\nwhose commit holds only the pointer to its bytes.",
         "properties": {
           "kind": {
             "$ref": "#/components/schemas/EntryKind"
@@ -5121,6 +5850,28 @@
               }
             ],
             "title": "Size"
+          },
+          "start": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start"
+          },
+          "token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Token"
           },
           "upload": {
             "anyOf": [
@@ -5149,7 +5900,9 @@
           "kind",
           "size",
           "upload",
-          "version"
+          "version",
+          "token",
+          "start"
         ],
         "title": "TreeEntry",
         "type": "object"
@@ -5299,6 +6052,72 @@
         ],
         "title": "UploadStatus",
         "type": "string"
+      },
+      "ValueMeaning": {
+        "description": "One value the task's workflow reports, as a page names it: its `name`\nin the report, its `title` (\"Run time\") and its `unit` (\"ms\", only on a\nnumber), each null where the workflow gives none, so the page names it\nby `name`; and, on a number reported for each test, how it `fold`s over\nthe tests and which way is `better`, both null otherwise.",
+        "properties": {
+          "better": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Better"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fold": {
+            "anyOf": [
+              {
+                "enum": [
+                  "sum",
+                  "mean",
+                  "max"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fold"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          }
+        },
+        "required": [
+          "name",
+          "title",
+          "unit",
+          "fold",
+          "better"
+        ],
+        "title": "ValueMeaning",
+        "type": "object"
       },
       "Version": {
         "properties": {
@@ -5536,8 +6355,19 @@
         "type": "object"
       },
       "WriteFile": {
-        "description": "One file written, `token` being the one it was read with or null for\na new file. For a task this is a save, and `confirm` and\n`keep_as_draft` do what they do for one.",
+        "description": "One file written, `token` being the one it was read with or null for\na new file. For a task this is a save, and `confirm`, `asked` and\n`keep_as_draft` do what they do for one.",
         "properties": {
+          "asked": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Asked"
+          },
           "confirm": {
             "default": false,
             "title": "Confirm",
@@ -5592,8 +6422,19 @@
         "type": "object"
       },
       "WriteTaskFile": {
-        "description": "One file of a task written, as a save: typed content or an upload\nmade for this path, `token` being the one it was read with or null for\na new file, and `confirm` and `keep_as_draft` doing what they do for a\nsave.",
+        "description": "One file of a task written, as a save: typed content or an upload\nmade for this path, `token` being the one it was read with or null for\na new file, and `confirm`, `asked` and `keep_as_draft` doing what they\ndo for a save.",
         "properties": {
+          "asked": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Asked"
+          },
           "confirm": {
             "default": false,
             "title": "Confirm",
@@ -5692,7 +6533,7 @@
   "info": {
     "summary": "Contests on top of a git host, a CI and an object store",
     "title": "Unicon API",
-    "version": "0.9.0"
+    "version": "0.10.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -7250,7 +8091,7 @@
     },
     "/api/v1/orgs/{org}/contests/{contest}/clarifications/{asker}/{number}/announcement": {
       "post": {
-        "description": "On the task the question names, or else on the contest, pointing at\nthe question, which stays private.",
+        "description": "On the task the question names, or else, or when that task is\nwithdrawn, on the contest, where every entrant reads it, pointing at\nthe question, which stays private. The question is marked answered\nunless `mark` is false, and gets a message, \"Answered publicly in the\nannouncement\" and its title, which only its readers see, with the\nannouncement's `task`, `number` and `title` as the message's\n`announcement`, so the page writes the message with the title as a\nlink to it. Answers with the announcement and the question as\nit now stands. Sent again after a failure part way, it finishes the\nannouncement it posted rather than posting a second.",
         "operationId": "answerQuestionPublicly",
         "parameters": [
           {
@@ -7294,7 +8135,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/AnnouncementRequest"
+                "$ref": "#/components/schemas/PublicAnswerRequest"
               }
             }
           },
@@ -7305,7 +8146,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Announcement"
+                  "$ref": "#/components/schemas/PublicAnswer"
                 }
               }
             },
@@ -8107,7 +8948,7 @@
     },
     "/api/v1/orgs/{org}/contests/{contest}/gradings": {
       "get": {
-        "description": "At most `limit` gradings of the contest's tasks the caller observes,\nnewest first, every attempt a row of its own, so a submission graded\nagain shows more than once, or, with `latest`, only each submission's\nlatest attempt. One whose run is overdue or lost reads as\n`system_error` with the reason, and a filter by status takes it as it\nreads, so `status=system_error&latest=true` gives the failed gradings\nthe queue's `failed` counts. A task, username or entrant the contest does not have, or a task\nthe caller does not observe, gives no rows; a username that breaks the\nforge's rule for one is a `validation_error`.",
+        "description": "At most `limit` gradings of the contest's tasks the caller observes,\nnewest first, every attempt a row of its own, so a submission graded\nagain shows more than once, or, with `latest`, only each submission's\nlatest attempt. One whose run is overdue or lost reads as\n`system_error` with the reason, and a filter by status takes it as it\nreads, so `status=system_error&latest=true` gives the failed gradings\nthe queue's `failed` counts. A task, username or entrant the contest does not have, or a task\nthe caller does not observe, gives no rows; a username that breaks the\nforge's rule for one is a `validation_error`.\n\nWith `regrade`, the regrade of many a summary of `/gradings/regrades`\nnames, it lists that regrade's gradings, one per submission, its latest\nattempt of the regrade, newest first, each with `change`, what it did\nto the submission beside the result it replaced, the earlier and new\npoints side by side; `change` narrows them to one kind, and `user` and\n`entrant` narrow as ever, while `task`, `status` and `latest` are not\nread with it. A regrade the caller cannot see gives no rows, and so\ndoes `change` without `regrade`.",
         "operationId": "listContestGradings",
         "parameters": [
           {
@@ -8216,6 +9057,43 @@
             }
           },
           {
+            "description": "One regrade of many's gradings, each with its change",
+            "in": "query",
+            "name": "regrade",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "One regrade of many's gradings, each with its change",
+              "title": "Regrade"
+            }
+          },
+          {
+            "description": "With regrade, what it did to the submission",
+            "in": "query",
+            "name": "change",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/ChangeKind"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "With regrade, what it did to the submission",
+              "title": "Change"
+            }
+          },
+          {
             "in": "query",
             "name": "limit",
             "required": false,
@@ -8307,6 +9185,62 @@
           }
         },
         "summary": "How many of the contest's gradings wait for a machine or for staff",
+        "tags": [
+          "gradings"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/gradings/regrades": {
+      "get": {
+        "description": "The latest regrade of each of the contest's tasks the caller\nobserves, newest first, a staff rejudge or the regrade a save that\nchanged how the task grades started, summed up by what it did to each\nsubmission, until a newer regrade of the task replaces it or a manager\nof the task dismisses it. Each summary's `id` reads its gradings on the\nfeed, `?regrade=<id>`, narrowed to one kind with `&change=`.",
+        "operationId": "listContestRegrades",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RegradeSummary"
+                  },
+                  "title": "Response Listcontestregrades",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Each task's latest regrade of many, with what it changed",
         "tags": [
           "gradings"
         ]
@@ -12012,6 +12946,131 @@
         ]
       }
     },
+    "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/put-back": {
+      "post": {
+        "description": "Needs the manager role at the contest. Takes `withdrawn` out of the\ntask's entry, after which it scores exactly as before; checked as a\nsave of the contest's settings is, so what a leaderboard or a timeline\nrefuses is `invalid_definition` naming `contest.yaml`. Answers the notes\nthe boards report, as that save does. A task not withdrawn changes\nnothing.",
+        "operationId": "putBackTask",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "task",
+            "required": true,
+            "schema": {
+              "title": "Task",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PutBack"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Put a withdrawn task back in its contest",
+        "tags": [
+          "tasks"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/regrades/{regrade}/dismiss": {
+      "post": {
+        "description": "For everyone; one dismissed already stays so. A regrade of another\ntask is `not_found`, the same as none.",
+        "operationId": "dismissRegrade",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "regrade",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Regrade",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "task",
+            "required": true,
+            "schema": {
+              "title": "Task",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Take the task's regrade off the contest's page",
+        "tags": [
+          "gradings"
+        ]
+      }
+    },
     "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/rejudge": {
       "post": {
         "description": "How many new attempts it queued, and how many earlier attempts it\ncancelled first and left to finish. A task with no publication is\n`not_found`.",
@@ -12325,7 +13384,7 @@
     },
     "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/save": {
       "post": {
-        "description": "A valid save publishes and one that is not is kept as a draft with its\nerrors. While the contest runs, a save that changes how the task grades\nis refused as `confirmation_required`, with `changes`, what would change,\nand `regrades`, how many submissions it would grade again, unless it is\nconfirmed or kept as a draft. A change naming an upload writes the pointer to the file the\ncaller uploaded for that path; one that is not theirs for this task and\npath is `invalid_inputs`, and one whose bytes have not arrived\n`upload_not_ready`. A change with `remove: true` removes the file it\nnames, with the token it was read with, a moved one being `conflict` as\nan edit's is; the state left is checked as any other, so removing a\ngroup's last test or a file an input names keeps the save as a draft.",
+        "description": "A valid save publishes and one that is not is kept as a draft with its\nerrors. Once the contest has started, until it is archived, every save\nthat would publish something new is refused as `confirmation_required`\nunless it is confirmed or kept as a draft, with `changes`, what would\nchange how the task grades, `regrades`, how many submissions it would\ngrade again, and what the save does, as a published save's `effect`\ngives it: `results_change`, `summary`, `runs_again`, `scores` and\n`reading`, and `asked`, the head and latest publication it was worked\nout from. A confirmation sent with that `asked` is asked again when\neither has moved since, so a change someone made after the question is\nnever published unread. A change naming an upload writes the pointer to\nthe file the caller uploaded for that path; one that is not theirs for this task and\npath is `invalid_inputs`, and one whose bytes have not arrived\n`upload_not_ready`. A change with `remove: true` removes the file it\nnames, with the token it was read with, a moved one being `conflict` as\nan edit's is; the state left is checked as any other, so removing a\ngroup's last test or a file an input names keeps the save as a draft.",
         "operationId": "saveTask",
         "parameters": [
           {
@@ -12680,6 +13739,77 @@
         "summary": "What one of the caller's own submissions was made with",
         "tags": [
           "submissions"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/take-out": {
+      "post": {
+        "description": "Needs the manager role at the contest. `confirmed` is what the\norganiser agreed to, as the task list's `take_out` said: `remove`, while\nnobody has submitted to the task, takes its entry out of the contest's\n`tasks`, so the letters after it move up, and deletes the task with its\nroles; `withdraw`, once anyone has, marks its entry `withdrawn`, so it\nkeeps its letter, entrants no longer see it or submit to it and no\nleaderboard counts it, and its submissions are kept. Refused as\n`take_out_changed`, with `submissions` and `take_out` as they are now,\nwhen it would now do the other, and as `take_out_refused` when a\nleaderboard names a task to be removed, with those `boards`, or the\nsettings cannot be edited line by line. Withdrawing a withdrawn task\nchanges nothing.",
+        "operationId": "takeOutTask",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "task",
+            "required": true,
+            "schema": {
+              "title": "Task",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TakeOutRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TakenOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Take the task out of its contest: remove it, or withdraw it once anyone has submitted",
+        "tags": [
+          "tasks"
         ]
       }
     },

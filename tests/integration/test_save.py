@@ -45,12 +45,16 @@ MISSING = [
 ]
 
 
+EFFECT = ("results_change", "summary", "runs_again", "scores", "reading")
+"""What a save does, as the question before it and the answer after give it."""
+
+
 def _change(path: str, content: str, token: str | None) -> dict[str, Any]:
     return {"path": path, "encoding": "utf-8", "content": content, "token": token}
 
 
 async def _save(
-    client: httpx.AsyncClient, *changes: dict[str, Any], **options: bool
+    client: httpx.AsyncClient, *changes: dict[str, Any], **options: bool | str
 ) -> httpx.Response:
     return await client.post(
         f"{TASK}/save", json={"changes": list(changes), **options}, headers=ORIGIN
@@ -87,8 +91,9 @@ async def test_the_organiser_path_from_an_org_to_a_publication(
     assert written.status_code == 200, written.text
     first = written.json()
     assert (first["number"], first["grading_changed"]) == (1, False)
-    assert first["notes"] == [
-        "The most points each test group gives: main 100.",
+    assert first["notes"] == []
+    assert first["effect"]["scores"] == [
+        "Points: main is worth up to 100.",
         "sum now counts on the leaderboard Standings.",
     ]
 
@@ -113,6 +118,19 @@ async def test_the_organiser_path_from_an_org_to_a_publication(
     ]
     # The forge's id for a publication is built from keys, which stay home.
     assert all("id" not in entry for entry in published)
+    # Each value its workflow reports, with the words a page names it by.
+    assert published[0]["meanings"] == [
+        {"name": "time_ms", "title": "Run time", "unit": "ms", "fold": "max", "better": "lower"},
+        {
+            "name": "memory_kb",
+            "title": "Memory used",
+            "unit": "KB",
+            "fold": "max",
+            "better": "lower",
+        },
+        {"name": "log", "title": "Compile log", "unit": None, "fold": None, "better": None},
+    ]
+    assert state["latest"]["meanings"] == published[1]["meanings"]
 
 
 async def test_a_save_inside_plans_is_refused_naming_the_path(
@@ -157,13 +175,99 @@ async def test_a_grading_change_while_the_contest_runs_asks_first(
     assert asked.json()["code"] == "confirmation_required"
     assert asked.json()["changes"] == ["The way the task grades changed."]
     assert asked.json()["regrades"] == 0
+    assert {key: asked.json()[key] for key in EFFECT} == {
+        "results_change": False,
+        "summary": "Nobody's result changes.",
+        "runs_again": [
+            "No submission runs again: there are none yet.",
+            "The way the task grades changed.",
+        ],
+        "scores": ["The leaderboard Standings is counted again."],
+        "reading": ["Nothing entrants read changes."],
+    }
     assert len((await client.get(f"{TASK}/publications")).json()) == 1
 
-    confirmed = await _save(client, faster, confirm=True)
+    confirmed = await _save(client, faster, confirm=True, asked=asked.json()["asked"])
 
     assert confirmed.status_code == 200
     assert (confirmed.json()["number"], confirmed.json()["grading_changed"]) == (2, True)
     assert confirmed.json()["changes"] == ["The way the task grades changed."]
+    assert confirmed.json()["effect"] == {key: asked.json()[key] for key in EFFECT}
+
+
+async def test_a_confirmation_asked_about_another_head_is_asked_again(
+    client: httpx.AsyncClient, running: FakeForge
+) -> None:
+    statement = await _edit(client, "statement.md", "Add", "Now add")
+    asked = await _save(client, statement)
+    faster = await _edit(client, "task.yaml", "time_limit: 2", "time_limit: 1")
+    assert (await _save(client, faster, keep_as_draft=True)).status_code == 200
+
+    again = await _save(client, statement, confirm=True, asked=asked.json()["asked"])
+
+    assert again.status_code == 409
+    assert again.json()["changes"] == ["The way the task grades changed."]
+    confirmed = await _save(client, statement, confirm=True, asked=again.json()["asked"])
+    assert (confirmed.status_code, confirmed.json()["grading_changed"]) == (200, True)
+
+
+async def _written_as_asked(
+    client: httpx.AsyncClient, method: str, url: str, body: dict[str, Any]
+) -> httpx.Response:
+    """The write sent once, asked about while the contest runs, then sent
+    again with the confirmation and what it was asked about."""
+    asked = await client.request(method, url, json=body, headers=ORIGIN)
+    assert (asked.status_code, asked.json()["code"]) == (409, "confirmation_required")
+    confirmed = {**body, "confirm": True, "asked": asked.json()["asked"]}
+    return await client.request(method, url, json=confirmed, headers=ORIGIN)
+
+
+async def test_a_file_written_or_rolled_back_while_the_contest_runs_asks_and_is_confirmed(
+    client: httpx.AsyncClient, running: FakeForge
+) -> None:
+    statement = await read(client, f"{TASK}/files/statement.md")
+    [*_, first] = (await client.get(f"{TASK}/history", params={"path": "statement.md"})).json()
+
+    written = await _written_as_asked(
+        client,
+        "PUT",
+        f"{TASK}/files/statement.md",
+        {"encoding": "utf-8", "content": "Now add.\n", "token": statement["token"]},
+    )
+    assert (written.status_code, written.json()["number"]) == (200, 2), written.text
+    current = await read(client, f"{TASK}/files/statement.md")
+    rolled = await _written_as_asked(
+        client,
+        "POST",
+        f"{TASK}/files/statement.md/rollback",
+        {"version": first["version"], "token": current["token"]},
+    )
+    assert (rolled.status_code, rolled.json()["number"]) == (200, 3), rolled.text
+
+
+async def test_a_change_to_the_statement_or_the_points_while_the_contest_runs_asks_first(
+    client: httpx.AsyncClient, running: FakeForge
+) -> None:
+    statement = await _edit(client, "statement.md", "Add", "Now add")
+
+    asked = await _save(client, statement)
+
+    assert asked.status_code == 409
+    assert (asked.json()["changes"], asked.json()["reading"]) == (
+        [],
+        ["The statement changes."],
+    )
+    assert asked.json()["runs_again"] == [
+        "No submission runs again: the tests and how they run are the same."
+    ]
+    points = await _edit(client, "task.yaml", "{each: 100}", "{each: 110}")
+    assert (await _save(client, points)).json()["scores"] == [
+        "Points: main is now worth up to 110 (was 100).",
+        "Every result is scored again, and the leaderboard Standings with it.",
+    ]
+    # Saved as the latest publication holds it, nothing new: no question.
+    same = await _edit(client, "task.yaml", "{each: 100}", "{each: 100}")
+    assert (await _save(client, same)).status_code == 200
 
 
 async def test_a_change_kept_as_a_draft_is_published_by_an_empty_confirmed_save(

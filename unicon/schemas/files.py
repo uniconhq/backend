@@ -122,13 +122,14 @@ class FileContent(BaseModel):
 
 class WriteFile(Encoded):
     """One file written, `token` being the one it was read with or null for
-    a new file. For a task this is a save, and `confirm` and
+    a new file. For a task this is a save, and `confirm`, `asked` and
     `keep_as_draft` do what they do for one.
     """
 
     token: str | None
     message: str | None = None
     confirm: bool = False
+    asked: str | None = None
     keep_as_draft: bool = False
 
     @model_validator(mode="before")
@@ -144,25 +145,28 @@ class WriteFile(Encoded):
 class WriteTaskFile(EncodedOrUploaded):
     """One file of a task written, as a save: typed content or an upload
     made for this path, `token` being the one it was read with or null for
-    a new file, and `confirm` and `keep_as_draft` doing what they do for a
-    save.
+    a new file, and `confirm`, `asked` and `keep_as_draft` doing what they
+    do for a save.
     """
 
     token: str | None
     message: str | None = None
     confirm: bool = False
+    asked: str | None = None
     keep_as_draft: bool = False
 
 
 class RollbackFile(BaseModel):
     """Write the file as it was at `version` back as a new change, `token`
-    being the one of the file as it is now.
+    being the one of the file as it is now, and, for a task, `confirm`,
+    `asked` and `keep_as_draft` doing what they do for a save.
     """
 
     version: str
     token: str | None
     message: str | None = None
     confirm: bool = False
+    asked: str | None = None
     keep_as_draft: bool = False
 
 

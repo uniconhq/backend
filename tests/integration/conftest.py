@@ -10,7 +10,8 @@ task acme/spring/sum in it made through the routes, with ada
 signed in. `world` adds carol (20), who holds nothing. `ORG`, `CONTEST` and
 `TASK` are the three scopes' URLs, and `ACME`, `SPRING` and `SUM` the scopes
 themselves. `run_contest` and `publish` are the two writes a test of a
-running contest starts with, and `edit_task` changes the task's settings.
+running contest starts with, `add_task` makes another task, and `edit_task`
+changes the task's settings.
 `entered` adds carol alone in an approved entrant of the task's contest, and
 `enter` makes anyone else one, answering with the entrant's id; `upload`
 sends a file the way the browser does.
@@ -155,8 +156,15 @@ async def read(client: httpx.AsyncClient, path: str) -> dict[str, Any]:
 async def run_contest(client: httpx.AsyncClient, *, visibility: str = "signed-in") -> None:
     """acme/spring published and running around the fake clock, seen by
     `visibility`, written through `contest.yaml` as the signed-in organiser.
+    A contest opens only once each of its tasks is published with its
+    statement written, so a draft's task is published first (`publish`); a
+    task not published in a running contest is one made once it is open
+    (`add_task`).
     """
     settings = await read(client, f"{CONTEST}/files/contest.yaml")
+    if re.search(r"(?m)^state: draft$", settings["content"]):
+        await publish(client)
+        settings = await read(client, f"{CONTEST}/files/contest.yaml")
     content = re.sub(r"(?m)^start: .*$", "start: 2026-09-26T10:00:00Z", settings["content"])
     content = re.sub(r"(?m)^end: .*$", "end: 2026-09-26T15:00:00Z", content)
     content = re.sub(r"(?m)^state: .*$", "state: published", content)
@@ -169,15 +177,51 @@ async def run_contest(client: httpx.AsyncClient, *, visibility: str = "signed-in
     assert written.status_code == 200, written.text
 
 
-async def publish(client: httpx.AsyncClient) -> None:
-    """acme/spring/sum published once, by a save of its statement."""
-    statement = await read(client, f"{TASK}/files/statement.md")
+async def publish(client: httpx.AsyncClient, task: str = TASK) -> None:
+    """acme/spring/sum, or the `task` at that URL, published with its
+    statement written, by a save of its statement, confirmed, since a save
+    asks first once the contest has started; a task already so, with no
+    draft, stays as it is.
+    """
+    state = (await client.get(task)).json()
+    if state["latest"] is not None and state["statement_written"] and not state["draft"]:
+        return
+    statement = await read(client, f"{task}/files/statement.md")
     saved = await client.put(
-        f"{TASK}/files/statement.md",
-        json={"encoding": "utf-8", "content": "Add two numbers.\n", "token": statement["token"]},
+        f"{task}/files/statement.md",
+        json={
+            "encoding": "utf-8",
+            "content": "Add two numbers.\n",
+            "token": statement["token"],
+            "confirm": True,
+        },
         headers=ORIGIN,
     )
     assert "number" in saved.json(), saved.text
+
+
+async def add_task(client: httpx.AsyncClient, name: str) -> str:
+    """Another task of acme/spring made through the routes by the signed-in
+    organiser, listed last in the contest, opening with it, and not yet
+    published; its URL. In an open contest a new task's entry holds it back
+    to the contest's end, so that hold is taken off its entry.
+    """
+    made = await client.post(f"{CONTEST}/tasks", json={"name": name}, headers=ORIGIN)
+    assert made.status_code == 201, made.text
+    settings = await read(client, f"{CONTEST}/files/contest.yaml")
+    held = rf"(?m)^(\s*- id: {re.escape(name)}\n)\s+release_at: .*\n"
+    if re.search(held, settings["content"]):
+        written = await client.put(
+            f"{CONTEST}/files/contest.yaml",
+            json={
+                "encoding": "utf-8",
+                "content": re.sub(held, r"\1", settings["content"]),
+                "token": settings["token"],
+            },
+            headers=ORIGIN,
+        )
+        assert written.status_code == 200, written.text
+    return f"{CONTEST}/tasks/{name}"
 
 
 async def edit_task(client: httpx.AsyncClient, old: str, new: str) -> None:

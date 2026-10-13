@@ -21,6 +21,7 @@ from forge.api.submissions import GradingStatus, Show, SubmissionState, Submitte
 from pydantic import BaseModel, field_validator, model_validator
 
 from unicon.schemas.exact import Exact, Reported, exactly
+from unicon.schemas.publications import ValueMeaning
 
 Outcome = Literal[
     "accepted",
@@ -129,6 +130,8 @@ class Scored(BaseModel):
     reason: str | None
     points: Points | None
     factor: Exact | None
+    limit: int | None
+    meanings: list[ValueMeaning]
 
 
 class Result(Scored):
@@ -139,15 +142,29 @@ class Result(Scored):
     once it is done, what stopped the
     run, the outcome over the groups shown, each test group as its `show`
     allows, the values reported once, and `folded`, each per-test value
-    with a fold, folded over the tests shown, a test without it counting as
-    its worst bound. `status` is in the contestant's words: `queued` until
+    with a fold, folded over the tests shown, a test that was not accepted
+    or did not report it counting as its worst bound, and the value absent
+    when it declares none, so a wrong answer has no time; each test's row
+    still carries what it reported; and `meanings`, every value the
+    workflow reports, in its order, with the title and unit a page names it
+    by, falling back to its name, a value a sealed step holds back left out
+    until the reveal. `status` is in the contestant's words: `queued` until
     its run is started, `grading` while it is graded, `graded` once it has
     a result, `delayed` while it has none and its grading failed on the
-    platform's side, and `cancelled` once staff end it; organisers read the
-    grading's own status in the gradings routes. A `delayed` one carries
-    nothing else: it is tried again once by itself, and then waits for
-    staff, who grade it again or end it: then it is `cancelled`, with
-    `reason`, the sentence they gave, which is null on every other status.
+    platform's side, `over_limit` once it was to be graded again with no
+    room left under the task's most submissions, and `cancelled` once staff
+    end it; organisers read the grading's own status in the gradings
+    routes. A `delayed` one carries nothing else: it is tried again once by
+    itself, and then waits for staff, who grade it again or end it: then it
+    is `cancelled`, with `reason`, the sentence they gave, which is null on
+    every other status. A delayed one is graded again only while its
+    entrant's submissions with a result, those waiting that are not
+    delayed, and the delayed ones made before it are fewer than the task's
+    most, so the first ones to get a result count, and otherwise it is
+    `over_limit`, with `limit`,
+    the most it reached ("Not graded: you had reached the limit of 10
+    submissions for this task."), and nothing else; `limit` is null on every
+    other status.
     Once done on a task that gives points, it carries
     its `points` and the late `factor` they include; both are null
     otherwise. While a sealed step's stop is held to the reveal, nothing of
