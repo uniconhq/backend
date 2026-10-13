@@ -108,11 +108,14 @@ class SaveRequest(BaseModel):
     as a draft that says what it held back and publishes nothing, on any
     save. Otherwise, while the task's contest runs, `confirm` publishes a
     save, which every save that would publish something new needs then; an
-    empty save with `confirm` publishes a draft kept earlier.
+    empty save with `confirm` publishes a draft kept earlier. `asked` is the
+    `confirmation_required`'s own: with it, the confirmation stands only
+    while the head and the latest publication are the ones asked about.
     """
 
     changes: list[FileChange] = []
     confirm: bool = False
+    asked: str | None = None
     keep_as_draft: bool = False
     message: str | None = None
 

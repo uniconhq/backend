@@ -102,6 +102,7 @@ def router_at(kind: ScopeKind) -> APIRouter:
                     token_of(body.token),
                     message=body.message,
                     confirm=body.confirm,
+                    asked=body.asked,
                     keep_as_draft=body.keep_as_draft,
                 )
             return await _write(organiser, path, content, body)
@@ -131,6 +132,7 @@ def router_at(kind: ScopeKind) -> APIRouter:
             token_of(body.token),
             message=body.message,
             confirm=body.confirm,
+            asked=body.asked,
             keep_as_draft=body.keep_as_draft,
         )
         return _answered(result)
@@ -149,6 +151,7 @@ async def _write(
         token_of(body.token),
         message=body.message,
         confirm=body.confirm,
+        asked=body.asked,
         keep_as_draft=body.keep_as_draft,
     )
     return _answered(result)

@@ -197,8 +197,11 @@ async def save_task(organiser: TaskManager, body: SaveRequest) -> Published | Dr
     change how the task grades, `regrades`, how many submissions it would
     grade again, and what the save does, as a published save's `effect`
     gives it: `results_change`, `summary`, `runs_again`, `scores` and
-    `reading`. A change naming an upload writes the pointer to the file the
-    caller uploaded for that path; one that is not theirs for this task and
+    `reading`, and `asked`, the head and latest publication it was worked
+    out from. A confirmation sent with that `asked` is asked again when
+    either has moved since, so a change someone made after the question is
+    never published unread. A change naming an upload writes the pointer to
+    the file the caller uploaded for that path; one that is not theirs for this task and
     path is `invalid_inputs`, and one whose bytes have not arrived
     `upload_not_ready`. A change with `remove: true` removes the file it
     names, with the token it was read with, a moved one being `conflict` as
@@ -213,6 +216,7 @@ async def save_task(organiser: TaskManager, body: SaveRequest) -> Published | Dr
             for change in body.changes
         },
         confirm=body.confirm,
+        asked=body.asked,
         keep_as_draft=body.keep_as_draft,
         message=body.message,
     )

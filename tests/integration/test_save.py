@@ -54,7 +54,7 @@ def _change(path: str, content: str, token: str | None) -> dict[str, Any]:
 
 
 async def _save(
-    client: httpx.AsyncClient, *changes: dict[str, Any], **options: bool
+    client: httpx.AsyncClient, *changes: dict[str, Any], **options: bool | str
 ) -> httpx.Response:
     return await client.post(
         f"{TASK}/save", json={"changes": list(changes), **options}, headers=ORIGIN
@@ -187,12 +187,28 @@ async def test_a_grading_change_while_the_contest_runs_asks_first(
     }
     assert len((await client.get(f"{TASK}/publications")).json()) == 1
 
-    confirmed = await _save(client, faster, confirm=True)
+    confirmed = await _save(client, faster, confirm=True, asked=asked.json()["asked"])
 
     assert confirmed.status_code == 200
     assert (confirmed.json()["number"], confirmed.json()["grading_changed"]) == (2, True)
     assert confirmed.json()["changes"] == ["The way the task grades changed."]
     assert confirmed.json()["effect"] == {key: asked.json()[key] for key in EFFECT}
+
+
+async def test_a_confirmation_asked_about_another_head_is_asked_again(
+    client: httpx.AsyncClient, running: FakeForge
+) -> None:
+    statement = await _edit(client, "statement.md", "Add", "Now add")
+    asked = await _save(client, statement)
+    faster = await _edit(client, "task.yaml", "time_limit: 2", "time_limit: 1")
+    assert (await _save(client, faster, keep_as_draft=True)).status_code == 200
+
+    again = await _save(client, statement, confirm=True, asked=asked.json()["asked"])
+
+    assert again.status_code == 409
+    assert again.json()["changes"] == ["The way the task grades changed."]
+    confirmed = await _save(client, statement, confirm=True, asked=again.json()["asked"])
+    assert (confirmed.status_code, confirmed.json()["grading_changed"]) == (200, True)
 
 
 async def test_a_change_to_the_statement_or_the_points_while_the_contest_runs_asks_first(

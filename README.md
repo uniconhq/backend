@@ -181,7 +181,7 @@ the one the route needs at the scope in the third column.
 | `DELETE <contest>/organise/entrants/{entrant_id}` | manager | contest | | 204 |
 | `DELETE <contest>/organise/entrants/{entrant_id}/members/{user_id}` | manager | contest | | the entrant, or null when that left it with nobody and no submissions |
 | `POST <contest>/organise/entrants/{entrant_id}/members/{user_id}/move` | manager | contest | `to` | the entrant the person is in now |
-| `POST <task>/save` | manager | task | `changes`, `confirm`, `keep_as_draft`, `message` | the save's result |
+| `POST <task>/save` | manager | task | `changes`, `confirm`, `asked`, `keep_as_draft`, `message` | the save's result |
 | `POST <task>/organise/uploads` | manager | task | `path`, `size`, `sha256`, `content_type` | 201, a slot |
 | `GET <scope>/roles` | observer | scope | | the holders |
 | `POST <scope>/roles` | manager | scope | `username`, `role` | 204 |
@@ -193,8 +193,8 @@ the one the route needs at the scope in the third column.
 | `GET <place>/tree?path=` | observer | place | | a folder's entries, each with its `upload` or null, its `token`, and a small text file's `start` |
 | `GET <place>/files/{path}?at=` | observer | place | | `path`, `encoding`, `content`, `token`, `upload` |
 | `GET <place>/history?path=` | observer | place | | every change, newest first |
-| `PUT <place>/files/{path}` | manager | place | `encoding`, `content` or, at a task, `upload`, `token`, `message`, `confirm`, `keep_as_draft` | `version` and `notes` at a contest, the save's result at a task |
-| `POST <place>/files/{path}/rollback` | manager | place | `version`, `token`, `message`, `confirm`, `keep_as_draft` | as a write |
+| `PUT <place>/files/{path}` | manager | place | `encoding`, `content` or, at a task, `upload`, `token`, `message`, `confirm`, `asked`, `keep_as_draft` | `version` and `notes` at a contest, the save's result at a task |
+| `POST <place>/files/{path}/rollback` | manager | place | `version`, `token`, `message`, `confirm`, `asked`, `keep_as_draft` | as a write |
 | `GET <task>/gradings?limit=` | observer | task | | the task's gradings, newest first, each as the feed gives it |
 | `GET <task>/gradings/{grading}/log` | observer | task | | the grading's run log, as plain text |
 | `GET <task>/organise/submissions/{number}?entrant=` | observer | task | | a row's submission as the row reads it, with everything filled in |
@@ -354,8 +354,10 @@ would grade again (`regrades`), and what the save does, laid out as the
 page shows it: `results_change` and `summary` ("Results change." or
 "Nobody's result changes."), then the sentences of `runs_again`,
 `scores` and `reading` ("What entrants read"), each list holding at
-least one. The same save with `confirm`
-publishes. A save with `keep_as_draft` is written as a draft that says what
+least one, and `asked`, the head and latest publication it was worked out
+from. The same save with `confirm` and that `asked` publishes while neither
+has moved; once either has, it is asked again, so a change someone made
+after the question is never published unread. A save with `keep_as_draft` is written as a draft that says what
 it held back and publishes nothing, on any save, and an empty save with
 `confirm` publishes that draft later.
 
@@ -1053,7 +1055,7 @@ nowhere else:
 `contestant_conflict` carries `contests`, `shared_workflow_owner` carries
 `workflows`, `admin_only` carries `keys`, `reserved_path` carries `paths`,
 `confirmation_required` carries `changes`, `regrades`, `results_change`,
-`summary`, `runs_again`, `scores` and `reading`, `take_out_changed`
+`summary`, `runs_again`, `scores`, `reading` and `asked`, `take_out_changed`
 carries `submissions` and `take_out`, `take_out_refused` carries `boards`
 when a leaderboard names the task, `already_invited` carries `invite`,
 the one held already, `invalid_definition` carries

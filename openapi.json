@@ -4747,8 +4747,19 @@
         "type": "string"
       },
       "RollbackFile": {
-        "description": "Write the file as it was at `version` back as a new change, `token`\nbeing the one of the file as it is now.",
+        "description": "Write the file as it was at `version` back as a new change, `token`\nbeing the one of the file as it is now, and, for a task, `confirm`,\n`asked` and `keep_as_draft` doing what they do for a save.",
         "properties": {
+          "asked": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Asked"
+          },
           "confirm": {
             "default": false,
             "title": "Confirm",
@@ -4919,8 +4930,19 @@
         "type": "object"
       },
       "SaveRequest": {
-        "description": "The files a save writes, several at once. `keep_as_draft` writes them\nas a draft that says what it held back and publishes nothing, on any\nsave. Otherwise, while the task's contest runs, `confirm` publishes a\nsave, which every save that would publish something new needs then; an\nempty save with `confirm` publishes a draft kept earlier.",
+        "description": "The files a save writes, several at once. `keep_as_draft` writes them\nas a draft that says what it held back and publishes nothing, on any\nsave. Otherwise, while the task's contest runs, `confirm` publishes a\nsave, which every save that would publish something new needs then; an\nempty save with `confirm` publishes a draft kept earlier. `asked` is the\n`confirmation_required`'s own: with it, the confirmation stands only\nwhile the head and the latest publication are the ones asked about.",
         "properties": {
+          "asked": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Asked"
+          },
           "changes": {
             "default": [],
             "items": {
@@ -6333,8 +6355,19 @@
         "type": "object"
       },
       "WriteFile": {
-        "description": "One file written, `token` being the one it was read with or null for\na new file. For a task this is a save, and `confirm` and\n`keep_as_draft` do what they do for one.",
+        "description": "One file written, `token` being the one it was read with or null for\na new file. For a task this is a save, and `confirm`, `asked` and\n`keep_as_draft` do what they do for one.",
         "properties": {
+          "asked": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Asked"
+          },
           "confirm": {
             "default": false,
             "title": "Confirm",
@@ -6389,8 +6422,19 @@
         "type": "object"
       },
       "WriteTaskFile": {
-        "description": "One file of a task written, as a save: typed content or an upload\nmade for this path, `token` being the one it was read with or null for\na new file, and `confirm` and `keep_as_draft` doing what they do for a\nsave.",
+        "description": "One file of a task written, as a save: typed content or an upload\nmade for this path, `token` being the one it was read with or null for\na new file, and `confirm`, `asked` and `keep_as_draft` doing what they\ndo for a save.",
         "properties": {
+          "asked": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Asked"
+          },
           "confirm": {
             "default": false,
             "title": "Confirm",
@@ -13340,7 +13384,7 @@
     },
     "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/save": {
       "post": {
-        "description": "A valid save publishes and one that is not is kept as a draft with its\nerrors. Once the contest has started, until it is archived, every save\nthat would publish something new is refused as `confirmation_required`\nunless it is confirmed or kept as a draft, with `changes`, what would\nchange how the task grades, `regrades`, how many submissions it would\ngrade again, and what the save does, as a published save's `effect`\ngives it: `results_change`, `summary`, `runs_again`, `scores` and\n`reading`. A change naming an upload writes the pointer to the file the\ncaller uploaded for that path; one that is not theirs for this task and\npath is `invalid_inputs`, and one whose bytes have not arrived\n`upload_not_ready`. A change with `remove: true` removes the file it\nnames, with the token it was read with, a moved one being `conflict` as\nan edit's is; the state left is checked as any other, so removing a\ngroup's last test or a file an input names keeps the save as a draft.",
+        "description": "A valid save publishes and one that is not is kept as a draft with its\nerrors. Once the contest has started, until it is archived, every save\nthat would publish something new is refused as `confirmation_required`\nunless it is confirmed or kept as a draft, with `changes`, what would\nchange how the task grades, `regrades`, how many submissions it would\ngrade again, and what the save does, as a published save's `effect`\ngives it: `results_change`, `summary`, `runs_again`, `scores` and\n`reading`, and `asked`, the head and latest publication it was worked\nout from. A confirmation sent with that `asked` is asked again when\neither has moved since, so a change someone made after the question is\nnever published unread. A change naming an upload writes the pointer to\nthe file the caller uploaded for that path; one that is not theirs for this task and\npath is `invalid_inputs`, and one whose bytes have not arrived\n`upload_not_ready`. A change with `remove: true` removes the file it\nnames, with the token it was read with, a moved one being `conflict` as\nan edit's is; the state left is checked as any other, so removing a\ngroup's last test or a file an input names keeps the save as a draft.",
         "operationId": "saveTask",
         "parameters": [
           {
