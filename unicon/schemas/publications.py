@@ -7,7 +7,7 @@ runs.
 
 import uuid
 from datetime import datetime
-from typing import Annotated, Any, Literal, Self
+from typing import Annotated, Any, Self
 
 from forge.api.boards import Better
 from forge.api.types import Uploaded
@@ -42,14 +42,14 @@ class ValueMeaning(BaseModel):
     """One value the task's workflow reports, as a page names it: its `name`
     in the report, its `title` ("Run time") and its `unit` ("ms", only on a
     number), each null where the workflow gives none, so the page names it
-    by `name`; and, on a number reported for each test, how it `fold`s over
-    the tests and which way is `better`, both null otherwise.
+    by `name`; and, on a number reported for each test, which way is
+    `better`, null otherwise. How a value combines across the tests is each
+    board's own choice, on its key.
     """
 
     name: str
     title: str | None
     unit: str | None
-    fold: Literal["sum", "mean", "max"] | None
     better: Better | None
 
 

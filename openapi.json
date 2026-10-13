@@ -373,7 +373,7 @@
         "type": "object"
       },
       "BoardKey": {
-        "description": "One key rows are ranked on, in turn: what it ranks by, `points`,\n`penalty` or a declared value, which way is better, null for a value no\ncovered task gives a direction, and, on `penalty`, the minutes each\nattempt before the counted submission charges; a `per_attempt` of 0\ncharges nothing, so the minute submitted is all it ranks on. On a value,\n`title` and `unit` name its column, \"Run time\" and \"ms\", as the first\ncovered task giving them says; both null on `points`, on `penalty` and\non a value no covered task names, which a page names by `by`.",
+        "description": "One key rows are ranked on, in turn: what it ranks by, `points`,\n`penalty` or a declared value, which way is better, null for a value no\ncovered task gives a direction, and, on `penalty`, the minutes each\nattempt before the counted submission charges; a `per_attempt` of 0\ncharges nothing, so the minute submitted is all it ranks on. On a value,\n`title` and `unit` name its column, \"Run time\" and \"ms\", as the first\ncovered task giving them says; both null on `points`, on `penalty` and\non a value no covered task names, which a page names by `by`. `fold`\nis how a value combines across each task's tests, the board's own\nchoice: `sum`, `mean` or `max`; null on `points` and `penalty`.",
         "properties": {
           "better": {
             "anyOf": [
@@ -388,6 +388,16 @@
           "by": {
             "title": "By",
             "type": "string"
+          },
+          "fold": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Fold"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "per_attempt": {
             "anyOf": [
@@ -428,7 +438,8 @@
           "better",
           "per_attempt",
           "title",
-          "unit"
+          "unit",
+          "fold"
         ],
         "title": "BoardKey",
         "type": "object"
@@ -1682,6 +1693,16 @@
         ],
         "title": "FileContent",
         "type": "object"
+      },
+      "Fold": {
+        "description": "How a board combines a value over a task's tests: the total, the\naverage, or the highest.",
+        "enum": [
+          "sum",
+          "mean",
+          "max"
+        ],
+        "title": "Fold",
+        "type": "string"
       },
       "ForgeUrl": {
         "description": "Where a browser reaches the forge's own pages: sign-in and the account\nsettings. No trailing slash.",
@@ -6054,7 +6075,7 @@
         "type": "string"
       },
       "ValueMeaning": {
-        "description": "One value the task's workflow reports, as a page names it: its `name`\nin the report, its `title` (\"Run time\") and its `unit` (\"ms\", only on a\nnumber), each null where the workflow gives none, so the page names it\nby `name`; and, on a number reported for each test, how it `fold`s over\nthe tests and which way is `better`, both null otherwise.",
+        "description": "One value the task's workflow reports, as a page names it: its `name`\nin the report, its `title` (\"Run time\") and its `unit` (\"ms\", only on a\nnumber), each null where the workflow gives none, so the page names it\nby `name`; and, on a number reported for each test, which way is\n`better`, null otherwise. How a value combines across the tests is each\nboard's own choice, on its key.",
         "properties": {
           "better": {
             "anyOf": [
@@ -6065,22 +6086,6 @@
                 "type": "null"
               }
             ]
-          },
-          "fold": {
-            "anyOf": [
-              {
-                "enum": [
-                  "sum",
-                  "mean",
-                  "max"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Fold"
           },
           "name": {
             "title": "Name",
@@ -6113,7 +6118,6 @@
           "name",
           "title",
           "unit",
-          "fold",
           "better"
         ],
         "title": "ValueMeaning",
