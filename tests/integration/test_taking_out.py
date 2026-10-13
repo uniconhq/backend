@@ -7,9 +7,10 @@ count as it is now. Only a manager of the contest may.
 """
 
 import httpx
+from forge.api.types import Role
 from forge.testing import FakeForge
 
-from tests.integration.conftest import CONTEST, ORIGIN, TASK, sign_in_as, upload
+from tests.integration.conftest import CONTEST, ORIGIN, SUM, TASK, sign_in_as, upload
 
 STANDINGS = f"{CONTEST}/organise/tasks"
 
@@ -105,3 +106,21 @@ async def test_only_a_manager_of_the_contest_takes_a_task_out(
 
     assert (refused.status_code, refused.json()["code"]) == (403, "forbidden")
     assert (put_back.status_code, put_back.json()["code"]) == (403, "forbidden")
+
+
+async def test_a_manager_of_the_task_alone_does_not_take_it_out(
+    client: httpx.AsyncClient, entered: FakeForge
+) -> None:
+    entered.add_user(30, "dave")
+    await entered.orgs.grant_role(30, SUM, Role.MANAGER)
+    await sign_in_as(client, entered, 30)
+
+    rejudged = await client.post(f"{TASK}/rejudge", headers=ORIGIN)
+    refused = await client.post(f"{TASK}/take-out", json={"confirmed": "remove"}, headers=ORIGIN)
+    put_back = await client.post(f"{TASK}/put-back", headers=ORIGIN)
+
+    assert rejudged.status_code == 200, rejudged.text
+    assert (refused.status_code, refused.json()["code"]) == (403, "forbidden")
+    assert (put_back.status_code, put_back.json()["code"]) == (403, "forbidden")
+    await sign_in_as(client, entered, 7)
+    assert await _standing(client) == (False, 0, "remove")

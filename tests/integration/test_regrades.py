@@ -8,9 +8,10 @@ one change, and a manager dismisses it from the contest's page.
 from urllib.parse import urlsplit
 
 import httpx
+from forge.api.types import Role, Scope
 from forge.testing import FakeForge
 
-from tests.integration.conftest import CONTEST, ORIGIN, TASK, sign_in_as, upload
+from tests.integration.conftest import CONTEST, ORIGIN, SUM, TASK, add_task, sign_in_as, upload
 
 SOURCE = b"print(sum(map(int, input().split())))\n"
 REGRADES = f"{CONTEST}/gradings/regrades"
@@ -115,3 +116,33 @@ async def test_a_rejudge_is_summed_up_and_its_gradings_read_with_what_it_changed
     assert dismissed.status_code == 204, dismissed.text
     assert gone.json() == []
     assert (unknown.status_code, unknown.json()["code"]) == (404, "not_found")
+
+
+async def test_an_observer_reads_only_their_tasks_regrades_and_dismisses_none(
+    client: httpx.AsyncClient, entered: FakeForge
+) -> None:
+    await _submit(client, entered, "key-0001-aaaa")
+    await _report(client, entered, "accepted")
+    await sign_in_as(client, entered, 7)
+    await add_task(client, "product")
+    rejudged = await client.post(f"{TASK}/rejudge", headers=ORIGIN)
+    regrade = rejudged.json()["regrade"]
+    await _report(client, entered, "wrong_answer")
+    entered.add_user(30, "dave")
+    await entered.orgs.grant_role(30, SUM, Role.OBSERVER)
+    entered.add_user(31, "erin")
+    await entered.orgs.grant_role(31, Scope("acme", "spring", "product"), Role.OBSERVER)
+
+    await sign_in_as(client, entered, 30)
+    seen = await client.get(REGRADES)
+    dismissed = await client.post(f"{TASK}/regrades/{regrade}/dismiss", headers=ORIGIN)
+    await sign_in_as(client, entered, 31)
+    elsewhere = await client.get(REGRADES)
+    feed = await client.get(FEED, params={"regrade": regrade})
+
+    assert [summary["id"] for summary in seen.json()] == [regrade]
+    assert (dismissed.status_code, dismissed.json()["code"]) == (403, "forbidden")
+    assert (elsewhere.status_code, elsewhere.json()) == (200, [])
+    assert (feed.status_code, feed.json()) == (200, [])
+    await sign_in_as(client, entered, 7)
+    assert [summary["id"] for summary in (await client.get(REGRADES)).json()] == [regrade]
