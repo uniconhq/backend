@@ -19,7 +19,15 @@ import httpx
 from forge.api.types import Role
 from forge.testing import FakeForge
 
-from tests.integration.conftest import CONTEST, ORIGIN, SUM, TASK, read, sign_in_as
+from tests.integration.conftest import (
+    CONTEST,
+    ORIGIN,
+    SUM,
+    TASK,
+    read,
+    run_contest,
+    sign_in_as,
+)
 
 DATA = b"a dataset, pretend it is large\n" * 32
 DIGEST = hashlib.sha256(DATA).hexdigest()
@@ -112,6 +120,21 @@ async def test_a_write_of_one_file_takes_an_upload_in_place_of_content(
     assert "number" in written.json() or "version" in written.json()
     assert len(history.json()) == 2
     assert (await read(client, f"{TASK}/files/{PATH}"))["upload"]["size"] == len(DATA) + 13
+
+
+async def test_a_write_of_an_upload_while_the_contest_runs_asks_and_is_confirmed(
+    client: httpx.AsyncClient, sum_task: FakeForge
+) -> None:
+    await run_contest(client)
+    upload = await _uploaded(client, sum_task)
+    body: dict[str, Any] = {"upload": upload["id"], "token": None}
+
+    asked = await client.put(f"{TASK}/files/{PATH}", json=body, headers=ORIGIN)
+    assert (asked.status_code, asked.json()["code"]) == (409, "confirmation_required")
+    confirmed = {**body, "confirm": True, "asked": asked.json()["asked"]}
+    written = await client.put(f"{TASK}/files/{PATH}", json=confirmed, headers=ORIGIN)
+
+    assert (written.status_code, written.json()["number"]) == (200, 2), written.text
 
 
 async def test_a_save_naming_an_upload_that_is_not_for_it_is_refused_at_its_path(

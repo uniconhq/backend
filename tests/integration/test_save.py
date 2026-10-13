@@ -211,6 +211,40 @@ async def test_a_confirmation_asked_about_another_head_is_asked_again(
     assert (confirmed.status_code, confirmed.json()["grading_changed"]) == (200, True)
 
 
+async def _written_as_asked(
+    client: httpx.AsyncClient, method: str, url: str, body: dict[str, Any]
+) -> httpx.Response:
+    """The write sent once, asked about while the contest runs, then sent
+    again with the confirmation and what it was asked about."""
+    asked = await client.request(method, url, json=body, headers=ORIGIN)
+    assert (asked.status_code, asked.json()["code"]) == (409, "confirmation_required")
+    confirmed = {**body, "confirm": True, "asked": asked.json()["asked"]}
+    return await client.request(method, url, json=confirmed, headers=ORIGIN)
+
+
+async def test_a_file_written_or_rolled_back_while_the_contest_runs_asks_and_is_confirmed(
+    client: httpx.AsyncClient, running: FakeForge
+) -> None:
+    statement = await read(client, f"{TASK}/files/statement.md")
+    [*_, first] = (await client.get(f"{TASK}/history", params={"path": "statement.md"})).json()
+
+    written = await _written_as_asked(
+        client,
+        "PUT",
+        f"{TASK}/files/statement.md",
+        {"encoding": "utf-8", "content": "Now add.\n", "token": statement["token"]},
+    )
+    assert (written.status_code, written.json()["number"]) == (200, 2), written.text
+    current = await read(client, f"{TASK}/files/statement.md")
+    rolled = await _written_as_asked(
+        client,
+        "POST",
+        f"{TASK}/files/statement.md/rollback",
+        {"version": first["version"], "token": current["token"]},
+    )
+    assert (rolled.status_code, rolled.json()["number"]) == (200, 3), rolled.text
+
+
 async def test_a_change_to_the_statement_or_the_points_while_the_contest_runs_asks_first(
     client: httpx.AsyncClient, running: FakeForge
 ) -> None:
