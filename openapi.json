@@ -8035,7 +8035,7 @@
     },
     "/api/v1/orgs/{org}/contests/{contest}/clarifications/{asker}/{number}/announcement": {
       "post": {
-        "description": "On the task the question names, or else on the contest, pointing at\nthe question, which stays private. The question is marked answered\nunless `mark` is false, and gets a message, \"Answered publicly in the\nannouncement\" and its title, which only its readers see, with the\nannouncement's `task` and `number` as the message's `announcement`, so\nthe page links to it. Answers with the announcement and the question as\nit now stands. Sent again after a failure part way, it finishes the\nannouncement it posted rather than posting a second.",
+        "description": "On the task the question names, or else, or when that task is\nwithdrawn, on the contest, where every entrant reads it, pointing at\nthe question, which stays private. The question is marked answered\nunless `mark` is false, and gets a message, \"Answered publicly in the\nannouncement\" and its title, which only its readers see, with the\nannouncement's `task` and `number` as the message's `announcement`, so\nthe page links to it. Answers with the announcement and the question as\nit now stands. Sent again after a failure part way, it finishes the\nannouncement it posted rather than posting a second.",
         "operationId": "answerQuestionPublicly",
         "parameters": [
           {

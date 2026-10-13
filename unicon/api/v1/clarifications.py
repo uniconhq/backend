@@ -167,7 +167,8 @@ async def unmark_question_answered(
 async def answer_question_publicly(
     organiser: ContestManager, asker: str, number: int, body: PublicAnswerRequest
 ) -> clarifications.PublicAnswer:
-    """On the task the question names, or else on the contest, pointing at
+    """On the task the question names, or else, or when that task is
+    withdrawn, on the contest, where every entrant reads it, pointing at
     the question, which stays private. The question is marked answered
     unless `mark` is false, and gets a message, "Answered publicly in the
     announcement" and its title, which only its readers see, with the
