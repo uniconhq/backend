@@ -14,7 +14,7 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from forge.api.boards import Better, Over, Select, Who
+from forge.api.boards import Better, Fold, Over, Select, Who
 from pydantic import BaseModel, model_validator
 
 from unicon.schemas.exact import Exact
@@ -34,7 +34,9 @@ class BoardKey(BaseModel):
     charges nothing, so the minute submitted is all it ranks on. On a value,
     `title` and `unit` name its column, "Run time" and "ms", as the first
     covered task giving them says; both null on `points`, on `penalty` and
-    on a value no covered task names, which a page names by `by`.
+    on a value no covered task names, which a page names by `by`. `fold`
+    is how a value combines across each task's tests, the board's own
+    choice: `sum`, `mean` or `max`; null on `points` and `penalty`.
     """
 
     by: str
@@ -42,6 +44,7 @@ class BoardKey(BaseModel):
     per_attempt: int | None
     title: str | None
     unit: str | None
+    fold: Fold | None
 
 
 class BoardTask(BaseModel):
