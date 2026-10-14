@@ -661,16 +661,22 @@ so a regrade under way, a failure or a cancel leaves the result as it was,
 and while none has, the latest. It comes
 with its `id`, `attempt` and `status`, and once it is `done`, what the
 task's test groups let the contestant see now: what `stopped` the run, the
-`outcome` over the groups shown, the `values` reported once, `folded`,
-each value reported per test with a fold, folded over the tests shown, a
-test that was not accepted having no value for it, so a wrong answer has
-no time, and each of the `groups` with its `group` name, its `show`, its
+`outcome` over the groups shown, the `values` reported once, and each of
+the `groups` with its `group` name, its `show`, its
 `outcome` and its `tests`, each test's row being its `test`, `<group>/<test>`, its `outcome`
-and its `values`; and `meanings`, every value the workflow reports, in its
-order, each `{name, title, unit, fold, better}`, the title and unit being
+and its `values`; `meanings`, every value the workflow reports, in its
+order, each `{name, title, unit, better}`, the title and unit being
 the words a page names it by ("Run time", "ms"), null where the workflow
 gives none so the page falls back to `name`, a value a sealed step holds
-back left out until the reveal. On a task that gives points, the grading carries its
+back left out until the reveal; and `boards`, its line on each leaderboard
+the reader sees that covers the task, in the contest's order: the
+`board`, its `over`, its `numbers` on every key but penalty as that board
+reads them, each `{by, fold, title, unit, value}` (a value folded over the
+tests shown as the board's key says, a test that was not accepted having
+no value for it, so a wrong answer has no time), `pending`, the most the
+scope's hidden groups could still add, `shown_at`, the reveal while the
+scope shows nothing yet, and `counted`, whether the row's cell on that
+board counts this submission now. On a task that gives points, the grading carries its
 `points`, those `shown`, null while no group's verdict is shown yet,
 those `pending` on groups not shown yet and
 `pending_until`, and the late `factor` they include; each group its `max`,
@@ -740,8 +746,10 @@ every reader, cut to the rows the board's `rows` gives them.
 | `DELETE <task>/marks/{number}` | a session | the marks, with its mark taken off |
 
 A board carries its `board` name, `over`, `select` and `who`, its `keys`,
-each `{by, better, per_attempt, title, unit}`, a value's `title` and
-`unit` naming its column as the first covered task gives them, the `tasks` it covers, each `{id,
+each `{by, better, per_attempt, title, unit, fold}`, a value's `title` and
+`unit` naming its column as the first covered task gives them and its
+`fold` (`sum`, `mean` or `max`) how the board combines it across each
+task's tests, written `{by: time_ms, fold: max}` in the contest's file, the `tasks` it covers, each `{id,
 label, worth}`, `not_in_view`, what of a task is in its scope and not yet
 in its numbers, with when it joins, and its `rows` in rank order. A row
 carries its `rank`, shared by ties, whose it is as `row`, `{entrant, name}`,
@@ -995,8 +1003,8 @@ up". Each summary has its `id`, its `task` by name and `label`, its `cause`,
 took (`total`) and `graded` (finished with a result), whether any is still
 `running`, and `counts`, how many of each change: `up` and `down`, its
 points went up or down (on a task that gives no points, a larger or smaller
-share of its tests accepted, then its values with a direction, any worse
-reading as down); `stopped`, it now stops before its tests where the
+share of its tests accepted, then the values its boards rank, each folded
+as its board folds it, any worse reading as down); `stopped`, it now stops before its tests where the
 result it replaced did not, on the classic workflow "now fails to compile";
 `unchanged`; `new`, graded with nothing to compare with; `running`;
 `failed`, no result yet, a system error or cancelled; and `over_limit`.
@@ -1005,7 +1013,8 @@ submission, its latest attempt of the regrade, each with `change`: the
 `change`, `earlier`, the result that counted when the regrade began, and
 `now`, its own, each with its `attempt`, `points` (exact, null on a task
 that gives no points), `accepted` of `tests`, what `stopped` it and its
-`values` with a direction, so the earlier and new points read side by
+`values`, each `{by, fold, value}`, every value a board covering the task
+ranks as that board folds it, so the earlier and new points read side by
 side; `change=` narrows them to one kind, and `user` and `entrant` narrow
 as ever, while `task`, `status` and `latest` are not read with it. `change`
 without `regrade` gives no rows.

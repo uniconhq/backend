@@ -17,6 +17,9 @@ from forge.api.boards import Better, Points
 from forge.api.submissions import (
     Fold,
     GroupShown,
+    Key,
+    OnBoard,
+    Over,
     Result,
     Show,
     SubmissionState,
@@ -46,12 +49,12 @@ def test_a_grading_being_run_carries_its_status_alone() -> None:
         "outcome": None,
         "groups": [],
         "values": {"numbers": {}, "texts": {}},
-        "folded": {},
         "reason": None,
         "points": None,
         "factor": None,
         "limit": None,
         "meanings": [],
+        "boards": [],
     }
 
 
@@ -147,12 +150,12 @@ def test_a_grading_carries_each_group_as_forge_let_it_through() -> None:
             },
         ],
         "values": {"numbers": {"score": "1.5"}, "texts": {"log": ""}},
-        "folded": {},
         "reason": None,
         "points": None,
         "factor": None,
         "limit": None,
         "meanings": [],
+        "boards": [],
     }
 
 
@@ -185,10 +188,25 @@ def test_numbers_are_served_as_exact_decimals_and_text_stays_text() -> None:
         {"total": 10**20},
         points=Points(Fraction(85, 3), Fraction(15), REVEAL),
         factor=Fraction(9, 10),
-        folded={"time_ms": Fraction(1, 3)},
         meanings=(
-            ValueMeaning("time_ms", "Run time", "ms", Fold.MAX, Better.LOWER),
+            ValueMeaning("time_ms", "Run time", "ms", Better.LOWER),
             ValueMeaning("log", "Compile log"),
+        ),
+        boards=(
+            OnBoard(
+                "Fastest",
+                Over.LIVE,
+                (
+                    (Key("points", Better.HIGHER), Fraction(85, 3)),
+                    (
+                        Key("time_ms", Better.LOWER, title="Run time", unit="ms", fold=Fold.MAX),
+                        Fraction(1, 3),
+                    ),
+                ),
+                Fraction(15),
+                None,
+                True,
+            ),
         ),
     )
 
@@ -210,11 +228,36 @@ def test_numbers_are_served_as_exact_decimals_and_text_stays_text() -> None:
         "pending_until": "2026-09-26T15:00:00Z",
     }
     assert served["factor"] == "0.9"
-    assert served["folded"] == {"time_ms": "0." + "3" * 30}
     # Each value with the words a page names it by, in the report's order.
     assert served["meanings"] == [
-        {"name": "time_ms", "title": "Run time", "unit": "ms", "fold": "max", "better": "lower"},
-        {"name": "log", "title": "Compile log", "unit": None, "fold": None, "better": None},
+        {"name": "time_ms", "title": "Run time", "unit": "ms", "better": "lower"},
+        {"name": "log", "title": "Compile log", "unit": None, "better": None},
+    ]
+    # Its line on each board, every key but penalty, as the board folds it.
+    assert served["boards"] == [
+        {
+            "board": "Fastest",
+            "over": "live",
+            "numbers": [
+                {
+                    "by": "points",
+                    "fold": None,
+                    "title": None,
+                    "unit": None,
+                    "value": "28." + "3" * 28,
+                },
+                {
+                    "by": "time_ms",
+                    "fold": "max",
+                    "title": "Run time",
+                    "unit": "ms",
+                    "value": "0." + "3" * 30,
+                },
+            ],
+            "pending": "15",
+            "shown_at": None,
+            "counted": True,
+        }
     ]
 
 

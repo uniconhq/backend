@@ -373,7 +373,7 @@
         "type": "object"
       },
       "BoardKey": {
-        "description": "One key rows are ranked on, in turn: what it ranks by, `points`,\n`penalty` or a declared value, which way is better, null for a value no\ncovered task gives a direction, and, on `penalty`, the minutes each\nattempt before the counted submission charges; a `per_attempt` of 0\ncharges nothing, so the minute submitted is all it ranks on. On a value,\n`title` and `unit` name its column, \"Run time\" and \"ms\", as the first\ncovered task giving them says; both null on `points`, on `penalty` and\non a value no covered task names, which a page names by `by`.",
+        "description": "One key rows are ranked on, in turn: what it ranks by, `points`,\n`penalty` or a declared value, which way is better, null for a value no\ncovered task gives a direction, and, on `penalty`, the minutes each\nattempt before the counted submission charges; a `per_attempt` of 0\ncharges nothing, so the minute submitted is all it ranks on. On a value,\n`title` and `unit` name its column, \"Run time\" and \"ms\", as the first\ncovered task giving them says; both null on `points`, on `penalty` and\non a value no covered task names, which a page names by `by`. `fold`\nis how a value combines across each task's tests, the board's own\nchoice: `sum`, `mean` or `max`; null on `points` and `penalty`.",
         "properties": {
           "better": {
             "anyOf": [
@@ -388,6 +388,16 @@
           "by": {
             "title": "By",
             "type": "string"
+          },
+          "fold": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Fold"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "per_attempt": {
             "anyOf": [
@@ -428,9 +438,75 @@
           "better",
           "per_attempt",
           "title",
-          "unit"
+          "unit",
+          "fold"
         ],
         "title": "BoardKey",
+        "type": "object"
+      },
+      "BoardNumber": {
+        "description": "A submission's number on one key of a board: what the key ranks by,\n`points` or a value, how the board combines a value across the task's\ntests (`fold`, null on `points`), the `title` and `unit` the board names\na value by, null where no covered task gives them, and the number, null\nwhere it has none.",
+        "properties": {
+          "by": {
+            "title": "By",
+            "type": "string"
+          },
+          "fold": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Fold"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "examples": [
+                  "82.5"
+                ],
+                "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "by",
+          "fold",
+          "title",
+          "unit",
+          "value"
+        ],
+        "title": "BoardNumber",
         "type": "object"
       },
       "BoardPoints": {
@@ -1682,6 +1758,16 @@
         ],
         "title": "FileContent",
         "type": "object"
+      },
+      "Fold": {
+        "description": "How a board combines a value over a task's tests: the total, the\naverage, or the highest.",
+        "enum": [
+          "sum",
+          "mean",
+          "max"
+        ],
+        "title": "Fold",
+        "type": "string"
       },
       "ForgeUrl": {
         "description": "Where a browser reaches the forge's own pages: sign-in and the account\nsettings. No trailing slash.",
@@ -3057,6 +3143,66 @@
         "title": "NotReady",
         "type": "object"
       },
+      "OnBoard": {
+        "description": "A submission as one board covering its task reads it: the board's\nname and scope (`over`), its number on each of the board's keys but\n`penalty`, in the board's order, read as the rest of the result is\nshown; the most the scope's groups not shown yet could still add to its\npoints, the late factor included, null on a task that gives no points;\n`shown_at`, when the scope first shows something, while it shows nothing\nyet, null otherwise; and whether the row's cell on the board counts\nthis submission now.",
+        "properties": {
+          "board": {
+            "title": "Board",
+            "type": "string"
+          },
+          "counted": {
+            "title": "Counted",
+            "type": "boolean"
+          },
+          "numbers": {
+            "items": {
+              "$ref": "#/components/schemas/BoardNumber"
+            },
+            "title": "Numbers",
+            "type": "array"
+          },
+          "over": {
+            "$ref": "#/components/schemas/Over"
+          },
+          "pending": {
+            "anyOf": [
+              {
+                "examples": [
+                  "82.5"
+                ],
+                "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pending"
+          },
+          "shown_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shown At"
+          }
+        },
+        "required": [
+          "board",
+          "over",
+          "numbers",
+          "pending",
+          "shown_at",
+          "counted"
+        ],
+        "title": "OnBoard",
+        "type": "object"
+      },
       "OpenInviteRequest": {
         "description": "The token after the `#` of the link an invite's mail carried.",
         "properties": {
@@ -3296,6 +3442,13 @@
             "title": "Attempt",
             "type": "integer"
           },
+          "boards": {
+            "items": {
+              "$ref": "#/components/schemas/OnBoard"
+            },
+            "title": "Boards",
+            "type": "array"
+          },
           "factor": {
             "anyOf": [
               {
@@ -3310,17 +3463,6 @@
               }
             ],
             "title": "Factor"
-          },
-          "folded": {
-            "additionalProperties": {
-              "examples": [
-                "82.5"
-              ],
-              "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
-              "type": "string"
-            },
-            "title": "Folded",
-            "type": "object"
           },
           "groups": {
             "items": {
@@ -3431,12 +3573,12 @@
           "outcome",
           "groups",
           "values",
-          "folded",
           "reason",
           "points",
           "factor",
           "limit",
           "meanings",
+          "boards",
           "status"
         ],
         "title": "OrganisedResult",
@@ -4239,7 +4381,7 @@
         "type": "string"
       },
       "RegradeChange": {
-        "description": "What a regrade did to one submission: `change`, and the result it\nreplaced, `earlier`, the one that counted when the regrade began, null\nwhen there was none or it no longer reads, beside its own, `now`, null\nwhile it has none.\n\n`up` and `down`: its points went up or down; on a task that gives no\npoints, a larger or smaller share of its tests accepted, or with the\nsame share, its values with a direction, down when any got worse.\n`stopped`: it now stops before its tests where the earlier result did\nnot, which on the classic workflow is \"now fails to compile\".\n`unchanged`; `new`, graded with no earlier result to compare with;\n`running`, still being graded; `failed`, no result yet, its latest\nattempt a system error or cancelled; `over_limit`, not graded, its\nentrant at the task's most submissions.",
+        "description": "What a regrade did to one submission: `change`, and the result it\nreplaced, `earlier`, the one that counted when the regrade began, null\nwhen there was none or it no longer reads, beside its own, `now`, null\nwhile it has none.\n\n`up` and `down`: its points went up or down; on a task that gives no\npoints, a larger or smaller share of its tests accepted, or with the\nsame share, the values its boards rank, down when any got worse.\n`stopped`: it now stops before its tests where the earlier result did\nnot, which on the classic workflow is \"now fails to compile\".\n`unchanged`; `new`, graded with no earlier result to compare with;\n`running`, still being graded; `failed`, no result yet, its latest\nattempt a system error or cancelled; `over_limit`, not graded, its\nentrant at the task's most submissions.",
         "properties": {
           "change": {
             "$ref": "#/components/schemas/ChangeKind"
@@ -4323,7 +4465,7 @@
         "type": "object"
       },
       "RegradeSide": {
-        "description": "One result a regrade compares, as organisers see it, every group,\nnothing held back, the late factor applied: its attempt, its `points`,\nnull on a task that gives no points, how many of its tests were\n`accepted` of how many `tests` it has, the outcome that `stopped` its run\nbefore its tests, null when nothing did, and each value with a fold and\na declared direction, folded over every test.",
+        "description": "One result a regrade compares, as organisers see it, every group,\nnothing held back, the late factor applied: its attempt, its `points`,\nnull on a task that gives no points, how many of its tests were\n`accepted` of how many `tests` it has, the outcome that `stopped` its run\nbefore its tests, null when nothing did, and each value a board covering\nthe task ranks, folded over every test as that board folds it.",
         "properties": {
           "accepted": {
             "title": "Accepted",
@@ -4375,15 +4517,11 @@
             "type": "integer"
           },
           "values": {
-            "additionalProperties": {
-              "examples": [
-                "82.5"
-              ],
-              "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
-              "type": "string"
+            "items": {
+              "$ref": "#/components/schemas/RegradeValue"
             },
             "title": "Values",
-            "type": "object"
+            "type": "array"
           }
         },
         "required": [
@@ -4494,6 +4632,33 @@
         "title": "RegradeSummary",
         "type": "object"
       },
+      "RegradeValue": {
+        "description": "One value a board covering the task ranks, as a regrade compares it:\nthe value by name, how that board folds it across the tests, and the\nnumber it comes to.",
+        "properties": {
+          "by": {
+            "title": "By",
+            "type": "string"
+          },
+          "fold": {
+            "$ref": "#/components/schemas/Fold"
+          },
+          "value": {
+            "examples": [
+              "82.5"
+            ],
+            "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "by",
+          "fold",
+          "value"
+        ],
+        "title": "RegradeValue",
+        "type": "object"
+      },
       "RejectRequest": {
         "description": "Why, in words the entrant's members read on their own page.",
         "properties": {
@@ -4585,11 +4750,18 @@
         "type": "object"
       },
       "Result": {
-        "description": "The attempt of a submission's grading that counts, as its contestant\nsees it: the latest that finished with a result, as the boards count\nit, so a regrade under way, a failure or a cancel leaves the result as\nit was, and while none has, the latest. Its id, attempt and status, and\nonce it is done, what stopped the\nrun, the outcome over the groups shown, each test group as its `show`\nallows, the values reported once, and `folded`, each per-test value\nwith a fold, folded over the tests shown, a test that was not accepted\nor did not report it counting as its worst bound, and the value absent\nwhen it declares none, so a wrong answer has no time; each test's row\nstill carries what it reported; and `meanings`, every value the\nworkflow reports, in its order, with the title and unit a page names it\nby, falling back to its name, a value a sealed step holds back left out\nuntil the reveal. `status` is in the contestant's words: `queued` until\nits run is started, `grading` while it is graded, `graded` once it has\na result, `delayed` while it has none and its grading failed on the\nplatform's side, `over_limit` once it was to be graded again with no\nroom left under the task's most submissions, and `cancelled` once staff\nend it; organisers read the grading's own status in the gradings\nroutes. A `delayed` one carries nothing else: it is tried again once by\nitself, and then waits for staff, who grade it again or end it: then it\nis `cancelled`, with `reason`, the sentence they gave, which is null on\nevery other status. A delayed one is graded again only while its\nentrant's submissions with a result, those waiting that are not\ndelayed, and the delayed ones made before it are fewer than the task's\nmost, so the first ones to get a result count, and otherwise it is\n`over_limit`, with `limit`,\nthe most it reached (\"Not graded: you had reached the limit of 10\nsubmissions for this task.\"), and nothing else; `limit` is null on every\nother status.\nOnce done on a task that gives points, it carries\nits `points` and the late `factor` they include; both are null\notherwise. While a sealed step's stop is held to the reveal, nothing of\nthe run is shown: every group reads as hidden.",
+        "description": "The attempt of a submission's grading that counts, as its contestant\nsees it: the latest that finished with a result, as the boards count\nit, so a regrade under way, a failure or a cancel leaves the result as\nit was, and while none has, the latest. Its id, attempt and status, and\nonce it is done, what stopped the\nrun, the outcome over the groups shown, each test group as its `show`\nallows, the values reported once; `meanings`, every value the\nworkflow reports, in its order, with the title and unit a page names it\nby, falling back to its name, a value a sealed step holds back left out\nuntil the reveal; and `boards`, its line on each board its reader sees\nthat covers the task, in the contest's order, each value folded over\nthe tests shown as that board says, a test that was not accepted or did\nnot report it counting as its worst bound, and the value absent when it\ndeclares none, so a wrong answer has no time. `status` is in the\ncontestant's words: `queued` until its run is started, `grading` while\nit is graded, `graded` once it has a result, `delayed` while it has\nnone and its grading failed on the platform's side, `over_limit` once\nit was to be graded again with no room left under the task's most\nsubmissions, and `cancelled` once staff end it; organisers read the\ngrading's own status in the gradings routes. A `delayed` one carries\nnothing else: it is tried again once by itself, and then waits for\nstaff, who grade it again or end it: then it is `cancelled`, with\n`reason`, the sentence they gave, which is null on every other status.\nA delayed one is graded again only while its\nentrant's submissions with a result, those waiting that are not\ndelayed, and the delayed ones made before it are fewer than the task's\nmost, so the first ones to get a result count, and otherwise it is\n`over_limit`, with `limit`,\nthe most it reached (\"Not graded: you had reached the limit of 10\nsubmissions for this task.\"), and nothing else; `limit` is null on every\nother status.\nOnce done on a task that gives points, it carries\nits `points` and the late `factor` they include; both are null\notherwise. While a sealed step's stop is held to the reveal, nothing of\nthe run is shown: every group reads as hidden.",
         "properties": {
           "attempt": {
             "title": "Attempt",
             "type": "integer"
+          },
+          "boards": {
+            "items": {
+              "$ref": "#/components/schemas/OnBoard"
+            },
+            "title": "Boards",
+            "type": "array"
           },
           "factor": {
             "anyOf": [
@@ -4605,17 +4777,6 @@
               }
             ],
             "title": "Factor"
-          },
-          "folded": {
-            "additionalProperties": {
-              "examples": [
-                "82.5"
-              ],
-              "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
-              "type": "string"
-            },
-            "title": "Folded",
-            "type": "object"
           },
           "groups": {
             "items": {
@@ -4726,12 +4887,12 @@
           "outcome",
           "groups",
           "values",
-          "folded",
           "reason",
           "points",
           "factor",
           "limit",
           "meanings",
+          "boards",
           "status"
         ],
         "title": "Result",
@@ -6054,7 +6215,7 @@
         "type": "string"
       },
       "ValueMeaning": {
-        "description": "One value the task's workflow reports, as a page names it: its `name`\nin the report, its `title` (\"Run time\") and its `unit` (\"ms\", only on a\nnumber), each null where the workflow gives none, so the page names it\nby `name`; and, on a number reported for each test, how it `fold`s over\nthe tests and which way is `better`, both null otherwise.",
+        "description": "One value the task's workflow reports, as a page names it: its `name`\nin the report, its `title` (\"Run time\") and its `unit` (\"ms\", only on a\nnumber), each null where the workflow gives none, so the page names it\nby `name`; and, on a number reported for each test, which way is\n`better`, null otherwise. How a value combines across the tests is each\nboard's own choice, on its key.",
         "properties": {
           "better": {
             "anyOf": [
@@ -6065,22 +6226,6 @@
                 "type": "null"
               }
             ]
-          },
-          "fold": {
-            "anyOf": [
-              {
-                "enum": [
-                  "sum",
-                  "mean",
-                  "max"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Fold"
           },
           "name": {
             "title": "Name",
@@ -6113,7 +6258,6 @@
           "name",
           "title",
           "unit",
-          "fold",
           "better"
         ],
         "title": "ValueMeaning",
@@ -6533,7 +6677,7 @@
   "info": {
     "summary": "Contests on top of a git host, a CI and an object store",
     "title": "Unicon API",
-    "version": "0.10.0"
+    "version": "0.11.0"
   },
   "openapi": "3.1.0",
   "paths": {

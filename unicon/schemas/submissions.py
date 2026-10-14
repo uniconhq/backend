@@ -12,12 +12,20 @@ carries its points, each group shown its points and most points, and each
 test row its credit, every one an exact decimal string.
 """
 
+import dataclasses
 import uuid
 from datetime import datetime
 from decimal import Decimal
 from typing import Any, Literal
 
-from forge.api.submissions import GradingStatus, Show, SubmissionState, SubmittedInput
+from forge.api.submissions import (
+    Fold,
+    GradingStatus,
+    Over,
+    Show,
+    SubmissionState,
+    SubmittedInput,
+)
 from pydantic import BaseModel, field_validator, model_validator
 
 from unicon.schemas.exact import Exact, Reported, exactly
@@ -115,6 +123,67 @@ class Points(BaseModel):
     pending_until: datetime | None
 
 
+class BoardNumber(BaseModel):
+    """A submission's number on one key of a board: what the key ranks by,
+    `points` or a value, how the board combines a value across the task's
+    tests (`fold`, null on `points`), the `title` and `unit` the board names
+    a value by, null where no covered task gives them, and the number, null
+    where it has none.
+    """
+
+    by: str
+    fold: Fold | None
+    title: str | None
+    unit: str | None
+    value: Exact | None
+
+
+class OnBoard(BaseModel):
+    """A submission as one board covering its task reads it: the board's
+    name and scope (`over`), its number on each of the board's keys but
+    `penalty`, in the board's order, read as the rest of the result is
+    shown; the most the scope's groups not shown yet could still add to its
+    points, the late factor included, null on a task that gives no points;
+    `shown_at`, when the scope first shows something, while it shows nothing
+    yet, null otherwise; and whether the row's cell on the board counts
+    this submission now.
+    """
+
+    board: str
+    over: Over
+    numbers: list[BoardNumber]
+    pending: Exact | None
+    shown_at: datetime | None
+    counted: bool
+
+    @field_validator("numbers", mode="before")
+    @classmethod
+    def _by_key(cls, given: Any) -> Any:
+        if not isinstance(given, list | tuple):
+            return given
+        found: list[Any] = []
+        for each in given:
+            if isinstance(each, list | tuple) and len(each) == 2:
+                key, value = each
+                fields = (
+                    dataclasses.asdict(key)
+                    if dataclasses.is_dataclass(key) and not isinstance(key, type)
+                    else key
+                )
+                found.append(
+                    {
+                        "by": fields["by"],
+                        "fold": fields.get("fold"),
+                        "title": fields.get("title"),
+                        "unit": fields.get("unit"),
+                        "value": value,
+                    }
+                )
+            else:
+                found.append(each)
+        return found
+
+
 class Scored(BaseModel):
     """What a result holds beside where it stands, as `Result` and
     `OrganisedResult` say.
@@ -126,12 +195,12 @@ class Scored(BaseModel):
     outcome: Outcome | None
     groups: list[GroupShown]
     values: Reported
-    folded: dict[str, Exact]
     reason: str | None
     points: Points | None
     factor: Exact | None
     limit: int | None
     meanings: list[ValueMeaning]
+    boards: list[OnBoard]
 
 
 class Result(Scored):
@@ -141,23 +210,24 @@ class Result(Scored):
     it was, and while none has, the latest. Its id, attempt and status, and
     once it is done, what stopped the
     run, the outcome over the groups shown, each test group as its `show`
-    allows, the values reported once, and `folded`, each per-test value
-    with a fold, folded over the tests shown, a test that was not accepted
-    or did not report it counting as its worst bound, and the value absent
-    when it declares none, so a wrong answer has no time; each test's row
-    still carries what it reported; and `meanings`, every value the
+    allows, the values reported once; `meanings`, every value the
     workflow reports, in its order, with the title and unit a page names it
     by, falling back to its name, a value a sealed step holds back left out
-    until the reveal. `status` is in the contestant's words: `queued` until
-    its run is started, `grading` while it is graded, `graded` once it has
-    a result, `delayed` while it has none and its grading failed on the
-    platform's side, `over_limit` once it was to be graded again with no
-    room left under the task's most submissions, and `cancelled` once staff
-    end it; organisers read the grading's own status in the gradings
-    routes. A `delayed` one carries nothing else: it is tried again once by
-    itself, and then waits for staff, who grade it again or end it: then it
-    is `cancelled`, with `reason`, the sentence they gave, which is null on
-    every other status. A delayed one is graded again only while its
+    until the reveal; and `boards`, its line on each board its reader sees
+    that covers the task, in the contest's order, each value folded over
+    the tests shown as that board says, a test that was not accepted or did
+    not report it counting as its worst bound, and the value absent when it
+    declares none, so a wrong answer has no time. `status` is in the
+    contestant's words: `queued` until its run is started, `grading` while
+    it is graded, `graded` once it has a result, `delayed` while it has
+    none and its grading failed on the platform's side, `over_limit` once
+    it was to be graded again with no room left under the task's most
+    submissions, and `cancelled` once staff end it; organisers read the
+    grading's own status in the gradings routes. A `delayed` one carries
+    nothing else: it is tried again once by itself, and then waits for
+    staff, who grade it again or end it: then it is `cancelled`, with
+    `reason`, the sentence they gave, which is null on every other status.
+    A delayed one is graded again only while its
     entrant's submissions with a result, those waiting that are not
     delayed, and the delayed ones made before it are fewer than the task's
     most, so the first ones to get a result count, and otherwise it is

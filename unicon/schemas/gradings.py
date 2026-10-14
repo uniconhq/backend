@@ -12,6 +12,7 @@ from collections.abc import Mapping
 from datetime import datetime
 from typing import Any
 
+from forge.api.boards import Fold
 from forge.api.gradings import GradingStatus, Submitter
 from forge.api.regrades import ChangeKind, RegradeCause
 from pydantic import BaseModel, field_validator
@@ -55,13 +56,24 @@ class CancelRequest(BaseModel):
     reason: str
 
 
+class RegradeValue(BaseModel):
+    """One value a board covering the task ranks, as a regrade compares it:
+    the value by name, how that board folds it across the tests, and the
+    number it comes to.
+    """
+
+    by: str
+    fold: Fold
+    value: Exact
+
+
 class RegradeSide(BaseModel):
     """One result a regrade compares, as organisers see it, every group,
     nothing held back, the late factor applied: its attempt, its `points`,
     null on a task that gives no points, how many of its tests were
     `accepted` of how many `tests` it has, the outcome that `stopped` its run
-    before its tests, null when nothing did, and each value with a fold and
-    a declared direction, folded over every test.
+    before its tests, null when nothing did, and each value a board covering
+    the task ranks, folded over every test as that board folds it.
     """
 
     attempt: int
@@ -69,7 +81,14 @@ class RegradeSide(BaseModel):
     accepted: int
     tests: int
     stopped: Outcome | None
-    values: dict[str, Exact]
+    values: list[RegradeValue]
+
+    @field_validator("values", mode="before")
+    @classmethod
+    def _by_value(cls, given: Any) -> Any:
+        if isinstance(given, Mapping):
+            return [{"by": by, "fold": fold, "value": value} for (by, fold), value in given.items()]
+        return given
 
 
 class RegradeChange(BaseModel):
@@ -80,7 +99,7 @@ class RegradeChange(BaseModel):
 
     `up` and `down`: its points went up or down; on a task that gives no
     points, a larger or smaller share of its tests accepted, or with the
-    same share, its values with a direction, down when any got worse.
+    same share, the values its boards rank, down when any got worse.
     `stopped`: it now stops before its tests where the earlier result did
     not, which on the classic workflow is "now fails to compile".
     `unchanged`; `new`, graded with no earlier result to compare with;
