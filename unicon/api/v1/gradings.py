@@ -26,7 +26,10 @@ An observer of the task also reads any entrant's submission as its row
 reads it with everything filled in, beside its grading (TASK-FORMAT.md
 section 1.7): the row picked by `entrant`, as the boards pick one, and the
 submission by its number among the row's; and a text a run task's result
-names, one at a time.
+names, one at a time. A manager of the task enters a mark for one of a
+submission's values that reads an `entered` block; every mark is kept, the
+latest counts, and a regrade never touches one. Organisers read the value
+with the rest of the submission's values; no entrant reads it yet.
 
 Anyone holding a role at a contest or at any of its tasks reads the
 gradings of the tasks they observe as one feed, newest first, each with
@@ -52,7 +55,7 @@ import uuid
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Query, Response
-from forge.api import contests, gradings, names, regrades, submissions, tasks
+from forge.api import contests, entries, gradings, names, regrades, submissions, tasks
 from forge.api.access import Organiser
 from forge.api.boards import EntrantOwner
 from forge.api.errors import NotFound
@@ -73,6 +76,8 @@ from unicon.schemas.gradings import (
     USERNAME_MAX,
     USERNAME_PATTERN,
     CancelRequest,
+    EnteredMark,
+    EnterMarkRequest,
     FeedEntry,
     Grading,
     RegradeSummary,
@@ -154,6 +159,33 @@ async def read_organised_submission_text(
         organiser, tasks.task_id_of(organiser.scope), EntrantOwner(entrant), number, output, name
     )
     return Response(content=found, media_type=TEXT, headers=TEXT_HEADERS)
+
+
+@router.post(
+    "/organise/submissions/{number}/entries",
+    operation_id="enterMark",
+    summary="Enter a mark for one of a row's submission's entered values",
+    response_model=EnteredMark,
+)
+async def enter_mark(
+    organiser: TaskManager,
+    number: Number,
+    body: EnterMarkRequest,
+    entrant: Annotated[uuid.UUID, Query(description="The entrant whose row it is")],
+) -> entries.Entered:
+    """The mark as it was kept. A value the task's live version gives no
+    `entered` block, or a mark that is not a plain number within its
+    bounds, is `invalid_mark`; a row with no submission of that number is
+    `not_found`.
+    """
+    return await entries.enter(
+        organiser,
+        tasks.task_id_of(organiser.scope),
+        EntrantOwner(entrant),
+        number,
+        body.value,
+        body.mark,
+    )
 
 
 @router.get(

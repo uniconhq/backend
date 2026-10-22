@@ -20,4 +20,5 @@ async def list_blocks() -> Catalogue:
         leaves=list(blocks.LEAVES),
         facts=list(blocks.TASK_FACTS),
         skip=blocks.SKIP,
+        languages=list(blocks.LANGUAGES),
     )

@@ -1,5 +1,6 @@
 """What the grading routes take and answer with: the sentence a grading is
-cancelled with, a grading as an organiser reads it, one among a task's or a
+cancelled with, a mark entered for a submission's value and what was
+kept, a grading as an organiser reads it, one among a task's or a
 contest's with its task and who submitted it, what a rejudge did, a task's
 latest regrade of many summed up and what it did to one submission, and
 where a grading stands after its run reports. Who submitted and a contest's queue
@@ -14,7 +15,7 @@ from typing import Any, Literal
 
 from forge.api.gradings import GradingStatus, Submitter
 from forge.api.regrades import ChangeKind, RegradeCause
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 from unicon.schemas.exact import Exact, Reported
 from unicon.schemas.publications import PublicationNumber
@@ -104,6 +105,29 @@ class CancelRequest(BaseModel):
     """Why staff end the submission, a sentence its contestant reads."""
 
     reason: str
+
+
+class EnterMarkRequest(BaseModel):
+    """A mark for one of a submission's values that reads an `entered`
+    block: the value's name, and the mark written out as a plain decimal,
+    such as `7.5`, as text so it stays exact. The forge checks it against
+    the bounds the task's live version gives.
+    """
+
+    value: str = Field(max_length=64)
+    mark: str = Field(max_length=40)
+
+
+class EnteredMark(BaseModel):
+    """A mark as it was kept: the value, the mark as the plain decimal it
+    counts as, the user id of who entered it, and when. Every mark entered
+    is kept, and the latest is the value's.
+    """
+
+    value: str
+    mark: str
+    by: int
+    at: datetime
 
 
 class RegradeSide(BaseModel):

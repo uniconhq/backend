@@ -53,6 +53,7 @@ MOVE = {"to": "0192f4a4-7b7e-7000-8000-000000000002"}
 SECONDS = {"seconds": 60}
 ENTRANT = f"{CONTEST}/organise/entrants/{NO_GRADING}"
 CANCEL = {"reason": "Not counted."}
+MARK = {"value": "review", "mark": "5"}
 ASKER = "entrant." + "0" * 31 + "1"
 """An asker as a question names one: an entrant's desk."""
 TASK_FILE = {"path": "data/weights.bin", "size": 1, "sha256": "0" * 64}
@@ -137,6 +138,7 @@ ROUTES: list[tuple[str, str, dict[str, Any] | None, Role, Scope]] = [
     ("GET", f"{TASK}/gradings/{NO_GRADING}/log", None, Role.OBSERVER, SUM),
     ("GET", f"{TASK}/organise/submissions/1", None, Role.OBSERVER, SUM),
     ("GET", f"{TASK}/organise/submissions/1/texts/out/log", None, Role.OBSERVER, SUM),
+    ("POST", f"{TASK}/organise/submissions/1/entries", MARK, Role.MANAGER, SUM),
     ("POST", f"{TASK}/gradings/{NO_GRADING}/cancel", CANCEL, Role.MANAGER, SUM),
     ("POST", f"{TASK}/gradings/{NO_GRADING}/retry", None, Role.MANAGER, SUM),
     ("POST", f"{TASK}/rejudge", None, Role.MANAGER, SUM),

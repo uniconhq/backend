@@ -104,6 +104,7 @@ STATUS = {
     "marks_off": 409,
     "marks_frozen": 403,
     "mark_limit": 409,
+    "invalid_mark": 422,
 }
 INTERNAL = 500
 CLEARS_SESSION = frozenset({"unauthenticated", "session_expired"})
