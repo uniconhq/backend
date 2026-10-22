@@ -1,0 +1,70 @@
+"""The blocks a task's values are built from, as the editor reads them
+(SIMPLER-CORE.md 14 and 19): each block once, what it gives in words, and
+its forms, each with the inputs it takes and the kind each one takes.
+"""
+
+from typing import Literal, Self
+
+from forge.api import blocks
+from pydantic import BaseModel
+
+
+class BlockInput(BaseModel):
+    """One input of a form: the `kind` it takes, a number, a group's `runs`,
+    `weights` by a repeated input's values or what a `missing` report counts
+    as; a list of at least `least` and at most `most` when `least` is given
+    (`most` null for no most), one node otherwise; whether it may be left
+    out; and whether a fold reads it once for each run (`per_run`).
+    """
+
+    kind: Literal["number", "runs", "weights", "missing"]
+    least: int | None
+    most: int | None
+    optional: bool
+    per_run: bool
+
+    @classmethod
+    def of(cls, given: blocks.BlockInput) -> Self:
+        return cls(
+            kind=given.kind.value,
+            least=given.least,
+            most=given.most,
+            optional=given.optional,
+            per_run=given.per_run,
+        )
+
+
+class BlockForm(BaseModel):
+    """One way a block is given its inputs: what it is `given`, in words,
+    such as "numbers" or "a group's runs", and its inputs by name, in the
+    order a node writes them.
+    """
+
+    given: str
+    inputs: dict[str, BlockInput]
+
+    @classmethod
+    def of(cls, form: blocks.Form) -> Self:
+        return cls(
+            given=form.given,
+            inputs={name: BlockInput.of(given) for name, given in form.inputs.items()},
+        )
+
+
+class Block(BaseModel):
+    """A block a value may use: the `name` a node gives as `block`, what it
+    gives in words, and its forms. A block with more than one form, such as
+    `min`, means the one its node's inputs fit.
+    """
+
+    name: str
+    words: str
+    forms: list[BlockForm]
+
+    @classmethod
+    def of(cls, block: blocks.Block) -> Self:
+        return cls(
+            name=block.name,
+            words=block.words,
+            forms=[BlockForm.of(form) for form in block.forms],
+        )

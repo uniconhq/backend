@@ -239,6 +239,7 @@ NO_SESSION = {
     "getTaskPublicFile",
     "listPublicBoards",
     "getPublicBoard",
+    "listBlocks",
 }
 
 

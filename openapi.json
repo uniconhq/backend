@@ -238,6 +238,109 @@
         "title": "Better",
         "type": "string"
       },
+      "Block": {
+        "description": "A block a value may use: the `name` a node gives as `block`, what it\ngives in words, and its forms. A block with more than one form, such as\n`min`, means the one its node's inputs fit.",
+        "properties": {
+          "forms": {
+            "items": {
+              "$ref": "#/components/schemas/BlockForm"
+            },
+            "title": "Forms",
+            "type": "array"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "words": {
+            "title": "Words",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "words",
+          "forms"
+        ],
+        "title": "Block",
+        "type": "object"
+      },
+      "BlockForm": {
+        "description": "One way a block is given its inputs: what it is `given`, in words,\nsuch as \"numbers\" or \"a group's runs\", and its inputs by name, in the\norder a node writes them.",
+        "properties": {
+          "given": {
+            "title": "Given",
+            "type": "string"
+          },
+          "inputs": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/BlockInput"
+            },
+            "title": "Inputs",
+            "type": "object"
+          }
+        },
+        "required": [
+          "given",
+          "inputs"
+        ],
+        "title": "BlockForm",
+        "type": "object"
+      },
+      "BlockInput": {
+        "description": "One input of a form: the `kind` it takes, a number, a group's `runs`,\n`weights` by a repeated input's values or what a `missing` report counts\nas; a list of at least `least` and at most `most` when `least` is given\n(`most` null for no most), one node otherwise; whether it may be left\nout; and whether a fold reads it once for each run (`per_run`).",
+        "properties": {
+          "kind": {
+            "enum": [
+              "number",
+              "runs",
+              "weights",
+              "missing"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "least": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Least"
+          },
+          "most": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Most"
+          },
+          "optional": {
+            "title": "Optional",
+            "type": "boolean"
+          },
+          "per_run": {
+            "title": "Per Run",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "kind",
+          "least",
+          "most",
+          "optional",
+          "per_run"
+        ],
+        "title": "BlockInput",
+        "type": "object"
+      },
       "Board": {
         "description": "One board as the reader sees it now. `nothing_shown` is true, with no\nrows, while its scope shows nothing yet; `shown_at` is then the time its\nfirst group is shown, null while no task it covers is released.",
         "properties": {
@@ -7248,6 +7351,42 @@
         "summary": "Where to create a forge account, when sign-up is open",
         "tags": [
           "auth"
+        ]
+      }
+    },
+    "/api/v1/blocks": {
+      "get": {
+        "description": "Each block once, in the catalogue's order, with its forms.",
+        "operationId": "listBlocks",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Block"
+                  },
+                  "title": "Response Listblocks",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "The blocks a value may use",
+        "tags": [
+          "blocks"
         ]
       }
     },
