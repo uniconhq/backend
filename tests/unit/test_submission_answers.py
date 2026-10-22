@@ -1,9 +1,10 @@
 """What a contestant is answered with is what forge gives and nothing more: a
 grading carries exactly what the task's test groups let through, a group
-that did not run on it marked so, a run task's runs as forge shows them,
-its numbers and its points as exact decimal strings, a submission's inputs
-are read leniently from its `submission.json`, and a file's download is
-named after the file, quoted when its name is not plain.
+that did not run on it marked so, a run task's runs as forge shows them
+and when it reveals, its numbers and its points as exact decimal strings,
+a submission's inputs are read leniently from its `submission.json`, and a
+file's download is named after the file, quoted when its name is not
+plain.
 """
 
 import json
@@ -53,6 +54,7 @@ def test_a_grading_being_run_carries_its_status_alone() -> None:
         "limit": None,
         "meanings": [],
         "runs": [],
+        "reveal_at": None,
     }
 
 
@@ -155,10 +157,11 @@ def test_a_grading_carries_each_group_as_forge_let_it_through() -> None:
         "limit": None,
         "meanings": [],
         "runs": [],
+        "reveal_at": None,
     }
 
 
-def test_a_run_tasks_grading_carries_each_run_with_exact_numbers() -> None:
+def test_a_run_tasks_grading_carries_each_run_with_exact_numbers_and_its_reveal() -> None:
     run = {
         "group": "sample_tests",
         "place": 1,
@@ -167,10 +170,13 @@ def test_a_run_tasks_grading_carries_each_run_with_exact_numbers() -> None:
         "passed": 1,
         "reports": {"time_ms": 12, "memory_kb": Decimal("2048")},
     }
-    result = Result(GRADING, 1, SubmissionState.GRADED, None, None, (), {}, runs=(run,))
+    result = Result(
+        GRADING, 1, SubmissionState.GRADED, None, None, (), {}, runs=(run,), reveal_at=REVEAL
+    )
 
     answer = ResultAnswer.model_validate(result, from_attributes=True).model_dump(mode="json")
 
+    assert answer["reveal_at"] == "2026-09-26T15:00:00Z"
     assert answer["runs"] == [
         {
             "group": "sample_tests",

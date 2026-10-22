@@ -197,9 +197,14 @@ class Result(Scored):
     under `after_close` once the task reveals; a group under `on_release`
     shows none yet. After the reveal, while those are still being graded, it
     is `grading` or `delayed`. `runs` is empty on every other task.
+    `reveal_at` is when the task reveals, until then, as what its entrant
+    reads changes then with no grading's change to say so, so a page open
+    on it reads it again then, as at a group's `shown_at`; null on every
+    other task and once it has revealed.
     """
 
     status: SubmissionState
+    reveal_at: datetime | None = None
 
 
 class OrganisedResult(Scored):
