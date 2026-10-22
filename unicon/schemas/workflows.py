@@ -10,8 +10,13 @@ editor's palette shows each with its type and its marks.
 
 from typing import Literal, Self
 
+from forge.api.boards import Better
 from forge.api.workflows import (
     Draft,
+    FromInput,
+    FromMax,
+    FromSum,
+    LimitFrom,
     Port,
     PrimitiveVersion,
     Visibility,
@@ -181,14 +186,18 @@ class Reader(BaseModel):
 
 
 class PrimitivePort(BaseModel):
-    """One port: its type, the options an enum takes, whether it may be left
-    out, on an input whether the primitive runs what arrives there and
-    whether it keeps it from the program it runs, and a sentence saying what
-    it takes or gives back, none when the primitive gives none. The
-    `outcome` port may carry `outcomes`: each outcome the step can report,
-    in the declaration's order, with a line saying when (`accepted`: "the
-    source compiles"), for the step's drawer to say what it reports; none
-    when the primitive does not say, and on every other port.
+    """One port: its type, the options an enum takes, the names a
+    `named_files` port's files must have, whether it may be left out, on an
+    input whether the primitive runs what arrives there and whether it
+    keeps it from the program it runs, on a `number` output which way is
+    `better` and the bounds every value lies within, both inclusive, on a
+    `programs` port the `inputs` each program takes and the `outputs` the
+    primitive gives of each, and a sentence saying what it takes or gives
+    back, none when the primitive gives none. The `outcome` port may carry
+    `outcomes`: each outcome the step can report, in the declaration's
+    order, with a line saying when (`accepted`: "the source compiles"), for
+    the step's drawer to say what it reports; none when the primitive does
+    not say, and on every other port.
     """
 
     type: str
@@ -198,6 +207,12 @@ class PrimitivePort(BaseModel):
     secret: bool
     description: str | None = None
     outcomes: dict[str, str] | None = None
+    names: list[str] | None = None
+    better: Better | None = None
+    at_least: Exact | None = None
+    at_most: Exact | None = None
+    inputs: dict[str, PrimitivePort] | None = None
+    outputs: dict[str, PrimitivePort] | None = None
 
     @classmethod
     def of(cls, port: Port) -> Self:
@@ -209,17 +224,44 @@ class PrimitivePort(BaseModel):
             secret=port.secret,
             description=port.description,
             outcomes=dict(port.outcomes) if port.outcomes is not None else None,
+            names=list(port.names) if port.names is not None else None,
+            better=port.better,
+            at_least=port.at_least,
+            at_most=port.at_most,
+            inputs=_ports(port.inputs),
+            outputs=_ports(port.outputs),
         )
 
 
+def _ports(ports: dict[str, Port] | None) -> dict[str, PrimitivePort] | None:
+    if ports is None:
+        return None
+    return {name: PrimitivePort.of(port) for name, port in ports.items()}
+
+
 class LimitSource(BaseModel):
-    """A container limit raised to `input * scale + add` when that is more,
-    `scale` and `add` exactly as the declaration writes them.
+    """A container limit raised to `n * scale + add` when that is more,
+    `scale` and `add` exactly as the declaration writes them, `n` read
+    from exactly one of `input`, a number input; `sum`, the sum of a number
+    input over every program of a programs port, `<port>.<input>`; and
+    `max`, the largest of one. The other two are null.
     """
 
-    input: str
+    input: str | None = None
+    sum: str | None = None
+    max: str | None = None
     scale: Exact
     add: Exact
+
+    @classmethod
+    def of(cls, source: LimitFrom) -> Self:
+        match source:
+            case FromInput():
+                return cls(input=source.input, scale=source.scale, add=source.add)
+            case FromSum():
+                return cls(sum=source.sum, scale=source.scale, add=source.add)
+            case FromMax():
+                return cls(max=source.max, scale=source.scale, add=source.add)
 
 
 Limit = Literal["time_ms", "cpu_ms", "memory_mb", "pids", "output_mb", "gpus"]
@@ -261,8 +303,7 @@ class Primitive(BaseModel):
             network=declared.network,
             limits=declared.limits.as_mapping(),
             limits_from={
-                limit: LimitSource(input=source.input, scale=source.scale, add=source.add)
-                for limit, source in declared.limits_from.items()
+                limit: LimitSource.of(source) for limit, source in declared.limits_from.items()
             },
             inputs={name: PrimitivePort.of(port) for name, port in declared.inputs.items()},
             outputs={name: PrimitivePort.of(port) for name, port in declared.outputs.items()},

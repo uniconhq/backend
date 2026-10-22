@@ -10,7 +10,7 @@ the feed is narrowed by keeps the forge's rule for one.
 import uuid
 from collections.abc import Mapping
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 from forge.api.gradings import GradingStatus, Submitter
 from forge.api.regrades import ChangeKind, RegradeCause
@@ -46,6 +46,62 @@ class RunResult(BaseModel):
     stopped: Outcome | None
     tests: list[GradedTest]
     values: Reported
+    error: str | None
+
+
+class TextRef(BaseModel):
+    """A text a step wrote, named by the stored output that holds it and
+    that output's name; the text itself is read apart."""
+
+    output: str
+    name: str
+
+
+class RunVerdict(BaseModel):
+    """One run of a run task's grading: its id and key as the plan gives
+    them, its verdict, 1 `passed` when that is `accepted`, the numbers its
+    steps reported, exactly, and the texts, with the label and message
+    shown with the verdict, null when no step wrote one.
+    """
+
+    id: str
+    key: dict[str, Any]
+    verdict: Outcome
+    passed: int
+    reports: dict[str, Exact]
+    texts: dict[str, TextRef]
+    label: TextRef | None = None
+    message: TextRef | None = None
+
+
+class OnceReports(BaseModel):
+    """What the steps done once reported: numbers, exactly, and texts."""
+
+    reports: dict[str, Exact]
+    texts: dict[str, TextRef]
+
+
+class StaffNote(BaseModel):
+    """What a step wrote for staff alone, for one run or, `run` null, once:
+    its message to staff and its extras, each null when it wrote none."""
+
+    step: str
+    run: str | None
+    staff_message: TextRef | None = None
+    extras: TextRef | None = None
+
+
+class RunsResult(BaseModel):
+    """A run task's grading's result, version 6, one per pipeline: each run
+    it grades with its verdict, what the steps done once reported, what
+    staff alone see, and, when a run's verdict is `system_error`, the
+    sentence for staff saying why. Where its log went stays out.
+    """
+
+    schema_version: Literal[6]
+    runs: list[RunVerdict]
+    once: OnceReports
+    staff: list[StaffNote]
     error: str | None
 
 
@@ -171,6 +227,13 @@ class Grading(BaseModel):
     when a retry would grade it. `regrade` is the regrade of many the
     attempt belongs to, null for none; `change`, given only on the feed read
     by `regrade`, what that regrade did to the submission.
+
+    A run task's submission is graded by up to two pipelines, each with
+    attempts of its own: `early`, the runs shown during the contest, and
+    `late`, the rest, made once the early one is done, with `early` naming
+    the early attempt it follows, null on an early one. Its `result` is a
+    `RunsResult`; a task with tests has `early` attempts alone, each with a
+    `RunResult`.
     """
 
     id: uuid.UUID
@@ -183,7 +246,7 @@ class Grading(BaseModel):
     status: GradingStatus
     error: str | None
     cancel_reason: str | None
-    result: RunResult | None
+    result: RunResult | RunsResult | None
     log: bool
     progress: GradingProgress | None
     queued_at: datetime
@@ -197,6 +260,8 @@ class Grading(BaseModel):
     retry_limit: int | None
     regrade: uuid.UUID | None
     change: RegradeChange | None
+    pipeline: Literal["early", "late"]
+    early: uuid.UUID | None
 
 
 class FeedEntry(BaseModel):
