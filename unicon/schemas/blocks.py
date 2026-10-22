@@ -1,6 +1,8 @@
 """The blocks a task's values are built from, as the editor reads them
 (SIMPLER-CORE.md 14 and 19): each block once, what it gives in words, and
-its forms, each with the inputs it takes and the kind each one takes.
+its forms, each with the inputs it takes and the kind each one takes; with
+the leaves a tree may hold, the facts a value may read and the word a
+fold's `missing` takes to leave a run out.
 """
 
 from typing import Literal, Self
@@ -68,3 +70,20 @@ class Block(BaseModel):
             words=block.words,
             forms=[BlockForm.of(form) for form in block.forms],
         )
+
+
+class Catalogue(BaseModel):
+    """Everything a value's tree may be made of. `blocks` in the
+    catalogue's order. `leaves` the keys a leaf is written with, each alone
+    in its mapping: `{runs: <group>}` a group's runs, for a fold's `over`;
+    `{run: [<group>, <column>]}` that column of each run, inside a fold over
+    that group; `{value: <name>}` another of the task's values; and
+    `{fact: <name>}` one of `facts`, a fact of the submission. A number is a
+    leaf too. `skip` is what a fold's `missing` says to leave out a run whose
+    report is missing; a number there counts as that number.
+    """
+
+    blocks: list[Block]
+    leaves: list[str]
+    facts: list[str]
+    skip: str

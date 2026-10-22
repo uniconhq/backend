@@ -1,6 +1,7 @@
 """The catalogue of blocks, read with no session: each block once, with its
 words and its forms, `min` given numbers or a group's runs, and the fold
-names stage 4 gave gone.
+names stage 4 gave gone; with the leaves, the facts a value may read and
+the word that skips a run.
 """
 
 import httpx
@@ -14,8 +15,9 @@ async def test_a_visitor_reads_every_block_once_with_its_forms(
     answer = await client.get("/api/v1/blocks")
 
     assert answer.status_code == 200
-    found = {block["name"]: block for block in answer.json()}
-    assert len(found) == len(answer.json())
+    listed = answer.json()["blocks"]
+    found = {block["name"]: block for block in listed}
+    assert len(found) == len(listed)
     assert {"add", "if", "min", "max", "sum", "count"} <= set(found)
     assert not {"min_runs", "max_runs", "sum_runs", "count_runs"} & set(found)
     assert found["min"]["words"] == "the least of its inputs, or of a column over a group's runs"
@@ -35,3 +37,6 @@ async def test_a_visitor_reads_every_block_once_with_its_forms(
         "per_run": False,
     }
     assert found["count"]["forms"][0]["inputs"]["weights"]["kind"] == "weights"
+    assert answer.json()["leaves"] == ["runs", "run", "value", "fact"]
+    assert answer.json()["facts"] == ["seconds_late", "seconds", "compiled"]
+    assert answer.json()["skip"] == "skip"

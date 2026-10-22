@@ -231,6 +231,7 @@
         "type": "object"
       },
       "Better": {
+        "description": "Which way a number is better, as the program that makes it says.",
         "enum": [
           "higher",
           "lower"
@@ -707,6 +708,44 @@
           "reason"
         ],
         "title": "CancelRequest",
+        "type": "object"
+      },
+      "Catalogue": {
+        "description": "Everything a value's tree may be made of. `blocks` in the\ncatalogue's order. `leaves` the keys a leaf is written with, each alone\nin its mapping: `{runs: <group>}` a group's runs, for a fold's `over`;\n`{run: [<group>, <column>]}` that column of each run, inside a fold over\nthat group; `{value: <name>}` another of the task's values; and\n`{fact: <name>}` one of `facts`, a fact of the submission. A number is a\nleaf too. `skip` is what a fold's `missing` says to leave out a run whose\nreport is missing; a number there counts as that number.",
+        "properties": {
+          "blocks": {
+            "items": {
+              "$ref": "#/components/schemas/Block"
+            },
+            "title": "Blocks",
+            "type": "array"
+          },
+          "facts": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Facts",
+            "type": "array"
+          },
+          "leaves": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Leaves",
+            "type": "array"
+          },
+          "skip": {
+            "title": "Skip",
+            "type": "string"
+          }
+        },
+        "required": [
+          "blocks",
+          "leaves",
+          "facts",
+          "skip"
+        ],
+        "title": "Catalogue",
         "type": "object"
       },
       "Change": {
@@ -7363,11 +7402,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/Block"
-                  },
-                  "title": "Response Listblocks",
-                  "type": "array"
+                  "$ref": "#/components/schemas/Catalogue"
                 }
               }
             },
