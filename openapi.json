@@ -4116,7 +4116,7 @@
         "type": "object"
       },
       "Publication": {
-        "description": "One publication: its number among the task's publications, the version\nit froze, whether it changed how the task grades and what, and when;\nand `meanings`, every value its workflow reports, in the workflow's\norder, with the words it froze for each, which a form picking a value\nlists. A publication made before those words were kept lists its values\nreported for each test by name alone. Which workflow each of its\nworkflow names was at the forge stays out.",
+        "description": "One publication: its number among the task's publications, the version\nit froze, whether it changed how the task grades and what, and when;\nand `meanings`, every value its workflow reports, in the workflow's\norder, with the words it froze for each, which a form picking a value\nlists. A publication made before those words were kept lists its values\nreported for each test by name alone. Which workflow each of its\nworkflow names was at the forge stays out. `check` is where its save's\ncheck stands, null once it passed or on a task that is not checked.",
         "properties": {
           "at": {
             "format": "date-time",
@@ -4129,6 +4129,22 @@
             },
             "title": "Changes",
             "type": "array"
+          },
+          "check": {
+            "anyOf": [
+              {
+                "enum": [
+                  "checking",
+                  "refused",
+                  "replaced"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Check"
           },
           "grading_changed": {
             "title": "Grading Changed",
@@ -4156,13 +4172,14 @@
           "grading_changed",
           "changes",
           "at",
-          "meanings"
+          "meanings",
+          "check"
         ],
         "title": "Publication",
         "type": "object"
       },
       "Published": {
-        "description": "A save that published: the new publication's number among the task's,\nwhether it changed how the task grades, and what, the notes the save\nmakes of the task beside publishing it, such as which steps it seals\nuntil the reveal, how many submissions it `regraded`, queued to be\ngraded again against it, and what it did, `effect`, in the words the\nquestion before a save in a running contest uses.",
+        "description": "A save that published: the new publication's number among the task's,\nwhether it changed how the task grades, and what, the notes the save\nmakes of the task beside publishing it, such as which steps it seals\nuntil the reveal, how many submissions it `regraded`, queued to be\ngraded again against it, and what it did, `effect`, in the words the\nquestion before a save in a running contest uses. On a run task,\n`check` is `checking` while the new publication is checked before it\ntakes over, as is a save of the same files that checks a refused one\nagain.",
         "properties": {
           "changes": {
             "items": {
@@ -4170,6 +4187,22 @@
             },
             "title": "Changes",
             "type": "array"
+          },
+          "check": {
+            "anyOf": [
+              {
+                "enum": [
+                  "checking",
+                  "refused",
+                  "replaced"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Check"
           },
           "effect": {
             "$ref": "#/components/schemas/SaveEffect"
@@ -4200,7 +4233,8 @@
           "changes",
           "notes",
           "regraded",
-          "effect"
+          "effect",
+          "check"
         ],
         "title": "Published",
         "type": "object"

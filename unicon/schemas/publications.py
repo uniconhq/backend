@@ -37,6 +37,15 @@ def _number_of(publication: Any) -> Any:
 PublicationNumber = Annotated[int, BeforeValidator(_number_of)]
 """A publication by its number among its task's publications."""
 
+Check = Literal["checking", "refused", "replaced"]
+"""Where a run task's publication stands while its save is checked:
+`checking`, its pipeline queued or running, or ended by the system and
+to be tried again; `refused`, it did not pass, so entrants keep being
+graded on the publication before it; or `replaced`, a later save took
+its place before it ended. Null once it passed, or on a task that is
+not checked.
+"""
+
 
 class ValueMeaning(BaseModel):
     """One value the task's workflow reports, as a page names it: its `name`
@@ -60,7 +69,8 @@ class Publication(BaseModel):
     order, with the words it froze for each, which a form picking a value
     lists. A publication made before those words were kept lists its values
     reported for each test by name alone. Which workflow each of its
-    workflow names was at the forge stays out.
+    workflow names was at the forge stays out. `check` is where its save's
+    check stands, null once it passed or on a task that is not checked.
     """
 
     number: int
@@ -69,6 +79,7 @@ class Publication(BaseModel):
     changes: list[str]
     at: datetime
     meanings: list[ValueMeaning]
+    check: Check | None = None
 
 
 class FileChange(BaseModel):
@@ -148,7 +159,10 @@ class Published(BaseModel):
     makes of the task beside publishing it, such as which steps it seals
     until the reveal, how many submissions it `regraded`, queued to be
     graded again against it, and what it did, `effect`, in the words the
-    question before a save in a running contest uses.
+    question before a save in a running contest uses. On a run task,
+    `check` is `checking` while the new publication is checked before it
+    takes over, as is a save of the same files that checks a refused one
+    again.
     """
 
     number: int
@@ -157,6 +171,7 @@ class Published(BaseModel):
     notes: list[str]
     regraded: int
     effect: SaveEffect
+    check: Check | None = None
 
 
 class Draft(BaseModel):
