@@ -11,7 +11,7 @@ from decimal import Decimal
 from fractions import Fraction
 from typing import Annotated, Any
 
-from forge.api.boards import written
+from forge.api.leaderboards import written
 from pydantic import BaseModel, BeforeValidator, Field, model_validator
 
 EXACT_PATTERN = r"^-?[0-9]+(\.[0-9]+)?$"

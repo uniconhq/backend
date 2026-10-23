@@ -20,8 +20,8 @@ async def list_blocks() -> Catalogue:
         blocks=[Block.of(block) for block in blocks.CATALOGUE.values()],
         leaves=list(blocks.TASK_LEAVES),
         facts=list(blocks.TASK_FACTS),
-        board_leaves=list(blocks.BOARD_LEAVES),
-        board_facts=list(blocks.FACTS),
+        leaderboard_leaves=list(blocks.LEADERBOARD_LEAVES),
+        leaderboard_facts=list(blocks.FACTS),
         skip=blocks.SKIP,
         languages=list(blocks.LANGUAGES),
     )

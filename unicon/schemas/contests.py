@@ -148,7 +148,7 @@ class TakenOut(BaseModel):
 
 
 class PutBack(BaseModel):
-    """A withdrawn task put back: what each board reports of its tasks now,
+    """A withdrawn task put back: what each leaderboard reports of its tasks now,
     as a save of the contest's settings answers.
     """
 

@@ -16,8 +16,8 @@ from typing import Any
 import httpx
 import pytest
 from forge.api import entries
-from forge.api.boards import EntrantOwner
 from forge.api.errors import InvalidMark
+from forge.api.leaderboards import EntrantOwner
 from forge.testing import FakeForge
 
 from tests.integration.conftest import ORIGIN, TASK, publish
@@ -127,14 +127,14 @@ async def test_the_queue_hands_forge_the_task_and_answers_each_rows_counted_subm
                 {
                     "number": 1,
                     "counted_by": [
-                        {"board": "gradebook", "column": "review"},
-                        {"board": "main", "column": "review"},
+                        {"leaderboard": "gradebook", "column": "review"},
+                        {"leaderboard": "main", "column": "review"},
                     ],
                     "marks": [{"value": "review", "mark": "7.5"}, {"value": "style", "mark": None}],
                 },
                 {
                     "number": 2,
-                    "counted_by": [{"board": "main", "column": "best"}],
+                    "counted_by": [{"leaderboard": "main", "column": "best"}],
                     "marks": [{"value": "review", "mark": None}, {"value": "style", "mark": None}],
                 },
             ],

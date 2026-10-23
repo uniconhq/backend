@@ -81,8 +81,8 @@ SESSION_ONLY = {
     "listMyQuestions",
     "followUpQuestion",
     "listClarificationInbox",
-    "listBoards",
-    "getBoard",
+    "listLeaderboards",
+    "getLeaderboard",
     "getMyMarks",
     "markSubmission",
     "unmarkSubmission",
@@ -246,8 +246,8 @@ NO_SESSION = {
     "getPublicContest",
     "getPublicStatement",
     "getTaskPublicFile",
-    "listPublicBoards",
-    "getPublicBoard",
+    "listPublicLeaderboards",
+    "getPublicLeaderboard",
     "listBlocks",
 }
 

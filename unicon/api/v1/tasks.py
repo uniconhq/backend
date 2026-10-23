@@ -110,8 +110,8 @@ async def take_out_task(
     `take_out_changed`, with `submissions` and `take_out` as they are now,
     when it would now do the other, and as `take_out_refused` when a
     leaderboard's column reads a task to be removed, with the titles of
-    those `boards`, or the settings cannot be edited line by line. Withdrawing a withdrawn task
-    changes nothing.
+    those `leaderboards`, or the settings cannot be edited line by line.
+    Withdrawing a withdrawn task changes nothing.
     """
     done = await tasks.take_out(organiser, tasks.task_id_of(scope), body.confirmed)
     return TakenOut(done=done)
@@ -128,7 +128,7 @@ async def put_back_task(organiser: ContestManager, scope: TaskAtPath) -> PutBack
     task's entry, after which it scores exactly as before; checked as a
     save of the contest's settings is, so what a leaderboard or a timeline
     refuses is `invalid_definition` naming `contest.yaml`. Answers the notes
-    the boards report, as that save does. A task not withdrawn changes
+    the leaderboards report, as that save does. A task not withdrawn changes
     nothing.
     """
     returned = await tasks.put_back(organiser, tasks.task_id_of(scope))

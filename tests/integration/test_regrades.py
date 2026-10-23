@@ -14,7 +14,7 @@ from urllib.parse import urlsplit
 
 import httpx
 import pytest
-from forge.api import boards, regrades
+from forge.api import leaderboards, regrades
 from forge.api.types import PublicationId, Role, Scope, TaskId
 from forge.testing import FakeForge
 
@@ -168,30 +168,32 @@ async def test_a_run_tasks_regrade_is_read_by_each_value_and_verdict_it_changed(
     # the cell after waits on, and a board it cannot compare as unread;
     # anyone else is given null.
     entrant = uuid.UUID("0199a2c1-6b7e-7c3a-9f10-5d2e4b8a6c33")
-    gradebook = regrades.BoardDiff(
-        board="gradebook",
+    gradebook = regrades.LeaderboardDiff(
+        leaderboard="gradebook",
         title="Gradebook",
         headers=(
-            boards.Header("st2", None),
-            boards.Header("total", 2, Fraction(0), Fraction(100), (("sum", "total"),)),
+            leaderboards.Header("st2", None),
+            leaderboards.Header("total", 2, Fraction(0), Fraction(100), (("sum", "total"),)),
         ),
         sort=(("total", "desc"),),
         rows=(
             regrades.RowDiff(
-                boards.EntrantOwner(entrant),
+                leaderboards.EntrantOwner(entrant),
                 "carol",
                 1,
                 2,
                 (
                     regrades.CellDiff("st2", Fraction(1), Fraction(0)),
-                    regrades.CellDiff("total", Fraction(100), None, (boards.Counted("sum", 4),)),
+                    regrades.CellDiff(
+                        "total", Fraction(100), None, (leaderboards.Counted("sum", 4),)
+                    ),
                 ),
-                (boards.Counted("sum", 4),),
+                (leaderboards.Counted("sum", 4),),
             ),
         ),
     )
-    standings = regrades.BoardDiff("standings", "Standings", (), (), (), unread=True)
-    diffs: list[tuple[regrades.BoardDiff, ...] | None] = [None, (gradebook, standings)]
+    standings = regrades.LeaderboardDiff("standings", "Standings", (), (), (), unread=True)
+    diffs: list[tuple[regrades.LeaderboardDiff, ...] | None] = [None, (gradebook, standings)]
 
     async def run_summary(organiser: Any, task: str, asked: uuid.UUID) -> regrades.RunSummary:
         handed.append((task, asked))
@@ -227,7 +229,7 @@ async def test_a_run_tasks_regrade_is_read_by_each_value_and_verdict_it_changed(
                 ),
             ),
             more_changed=5,
-            boards=diffs[len(handed) - 1],
+            leaderboards=diffs[len(handed) - 1],
         )
 
     monkeypatch.setattr(regrades, "run_summary", run_summary)
@@ -273,11 +275,11 @@ async def test_a_run_tasks_regrade_is_read_by_each_value_and_verdict_it_changed(
             },
         ],
         "more_changed": 5,
-        "boards": None,
+        "leaderboards": None,
     }
-    assert managed.json()["boards"] == [
+    assert managed.json()["leaderboards"] == [
         {
-            "board": "gradebook",
+            "leaderboard": "gradebook",
             "title": "Gradebook",
             "headers": [
                 {
@@ -316,7 +318,7 @@ async def test_a_run_tasks_regrade_is_read_by_each_value_and_verdict_it_changed(
             "unread": False,
         },
         {
-            "board": "standings",
+            "leaderboard": "standings",
             "title": "Standings",
             "headers": [],
             "sort": [],

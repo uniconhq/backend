@@ -28,7 +28,7 @@ async def test_a_visitor_reads_every_block_once_with_its_forms(
     assert [(form["given"], form["scope"]) for form in found["min"]["forms"]] == [
         ("numbers", "both"),
         ("a group's runs", "task"),
-        ("a task's results", "board"),
+        ("a task's results", "leaderboard"),
     ]
     numbers, runs, results = found["min"]["forms"]
     assert results["inputs"]["over"]["kind"] == "results"
@@ -57,8 +57,8 @@ async def test_a_visitor_reads_every_block_once_with_its_forms(
     assert found["count"]["forms"][0]["inputs"]["weights"]["kind"] == "weights"
     assert answer.json()["leaves"] == ["runs", "run", "value", "fact"]
     assert answer.json()["facts"] == ["seconds_late", "seconds", "compiled"]
-    assert answer.json()["board_leaves"] == ["value", "results", "column", "name"]
-    assert answer.json()["board_facts"] == [
+    assert answer.json()["leaderboard_leaves"] == ["value", "results", "column", "name"]
+    assert answer.json()["leaderboard_facts"] == [
         "attempt",
         "seconds",
         "seconds_late",

@@ -10,15 +10,15 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any, Literal
 
-from forge.api import boards
+from forge.api import leaderboards
 from forge.api.contest_home import ContestVisibility, State
 from forge.api.entrants import Status
 from forge.api.release import TaskRelease
 from pydantic import BaseModel, field_validator, model_validator
 
-from unicon.schemas.boards import Board, board_of
 from unicon.schemas.entrants import MyEntry
 from unicon.schemas.exact import Exact, exactly
+from unicon.schemas.leaderboards import Leaderboard, leaderboard_of
 from unicon.schemas.submissions import Value
 
 
@@ -47,7 +47,7 @@ class TaskEntry(BaseModel):
     contest gives it, its title, whether they may submit to it now, and
     when it falls due, null when it has no due, and closes for them, their
     extension on it included. A task's standing on the contest's leaderboards is the
-    boards' own to say, the home's `standing` among them.
+    leaderboards' own to say, the home's `standing` among them.
     """
 
     name: str
@@ -64,7 +64,7 @@ class ContestHome(BaseModel):
     is their registration panel, as `entrants/mine` answers it: their
     entrant, whether and how they may register, and whether to ask them for
     a code. `standing` is their own row of each leaderboard they read, as
-    that board's route shows it to them, empty unless they are in an
+    that leaderboard's route shows it to them, empty unless they are in an
     approved entrant.
     """
 
@@ -78,12 +78,15 @@ class ContestHome(BaseModel):
     organises: bool
     now: datetime
     tasks: list[TaskEntry]
-    standing: list[Board]
+    standing: list[Leaderboard]
 
     @field_validator("standing", mode="before")
     @classmethod
     def _standing(cls, found: Any) -> Any:
-        return [board_of(each) if isinstance(each, boards.Board) else each for each in found]
+        return [
+            leaderboard_of(each) if isinstance(each, leaderboards.LeaderboardView) else each
+            for each in found
+        ]
 
 
 class Rate(BaseModel):

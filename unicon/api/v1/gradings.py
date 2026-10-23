@@ -21,18 +21,18 @@ each task's latest one they observe summed up by what it did to each
 submission against the result it replaced, and the feed narrowed to its
 gradings, each with that change; a manager of the task dismisses it from
 the contest's page, and reads a run task's regrade by each value and
-verdict it changed, old to new, with each board that reads the task
+verdict it changed, old to new, with each leaderboard that reads the task
 before and after for a manager or admin of the contest alone.
 
 An observer of the task also reads any entrant's submission as its row
 reads it with everything filled in, beside its grading (TASK-FORMAT.md
-section 1.7): the row picked by `entrant`, as the boards pick one, and the
+section 1.7): the row picked by `entrant`, as the leaderboards pick one, and the
 submission by its number among the row's; and a text a run task's result
 names, one at a time. A manager of the task enters a mark for one of a
 submission's values that reads an `entered` block; every mark is kept, the
 latest counts, and a regrade never touches one. Organisers read the value
 with the rest of the submission's values at once; its entrant reads it
-only once a board's cell shown to them counted the submission, or, when
+only once a leaderboard's cell shown to them counted the submission, or, when
 no cell did, from the task's reveal, as forge decides.
 
 An observer of the task reads its grading queue (#505), and enters
@@ -70,9 +70,9 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, Query, Response
 from forge.api import contests, entries, gradings, names, regrades, submissions, tasks
 from forge.api.access import Organiser
-from forge.api.boards import EntrantOwner
 from forge.api.errors import NotFound
 from forge.api.gradings import GradingStatus
+from forge.api.leaderboards import EntrantOwner
 from forge.api.regrades import ChangeKind
 from forge.api.types import Role, ScopeKind, TaskId
 
@@ -85,7 +85,6 @@ from unicon.api.v1.submissions import (
     Output,
     TextName,
 )
-from unicon.schemas.boards import counted_of, header_of, sort_of
 from unicon.schemas.gradings import (
     USERNAME_MAX,
     USERNAME_PATTERN,
@@ -99,6 +98,7 @@ from unicon.schemas.gradings import (
     Rejudged,
     RunRegradeSummary,
 )
+from unicon.schemas.leaderboards import counted_of, header_of, sort_of
 from unicon.schemas.submissions import OrganisedSubmission
 
 CONTEST = PREFIX[ScopeKind.CONTEST]
@@ -228,7 +228,8 @@ async def read_grading_queue(organiser: TaskObserver) -> list[dict[str, Any]]:
                 {
                     "number": each.number,
                     "counted_by": [
-                        {"board": board, "column": column} for board, column in each.counted_by
+                        {"leaderboard": leaderboard, "column": column}
+                        for leaderboard, column in each.counted_by
                     ],
                     "marks": [{"value": value, "mark": mark} for value, mark in each.marks],
                 }
@@ -448,7 +449,7 @@ async def read_run_regrade(organiser: TaskManager, regrade: uuid.UUID) -> dict[s
     """Each submission whose values or verdicts the regrade changed, old to
     new, worked out on read, a bounded few and the rest counted; how many
     are still running and how many it cannot compare; and, for a manager
-    or admin of the contest, each board that reads the task before and
+    or admin of the contest, each leaderboard that reads the task before and
     after. A regrade of another task is `not_found`, the same as none, and
     so is one of a task graded test by test, whose gradings say what it
     changed.
@@ -473,16 +474,18 @@ async def read_run_regrade(organiser: TaskManager, regrade: uuid.UUID) -> dict[s
             for each in found.changed
         ],
         "more_changed": found.more_changed,
-        "boards": None if found.boards is None else [_diff(board) for board in found.boards],
+        "leaderboards": None
+        if found.leaderboards is None
+        else [_diff(leaderboard) for leaderboard in found.leaderboards],
     }
 
 
-def _diff(board: regrades.BoardDiff) -> dict[str, Any]:
+def _diff(leaderboard: regrades.LeaderboardDiff) -> dict[str, Any]:
     return {
-        "board": board.board,
-        "title": board.title,
-        "headers": [header_of(header) for header in board.headers],
-        "sort": sort_of(board.sort),
+        "leaderboard": leaderboard.leaderboard,
+        "title": leaderboard.title,
+        "headers": [header_of(header) for header in leaderboard.headers],
+        "sort": sort_of(leaderboard.sort),
         "rows": [
             {
                 "row": {"entrant": row.owner.entrant_id, "name": row.name},
@@ -499,9 +502,9 @@ def _diff(board: regrades.BoardDiff) -> dict[str, Any]:
                 ],
                 "regrading": counted_of(row.regrading),
             }
-            for row in board.rows
+            for row in leaderboard.rows
         ],
-        "unread": board.unread,
+        "unread": leaderboard.unread,
     }
 
 

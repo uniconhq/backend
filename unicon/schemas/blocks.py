@@ -67,13 +67,13 @@ class BlockForm(BaseModel):
     """One way a block is given its inputs: what it is `given`, in words,
     such as "numbers" or "a group's runs", its inputs by name, in the order
     a node writes them, where it may be used, `scope`, a task's value, a
-    board's column or both, and what it `gives`: a number, one
+    leaderboard's column or both, and what it `gives`: a number, one
     submission's results, or, for `otherwise`, either.
     """
 
     given: str
     inputs: dict[str, BlockInput]
-    scope: Literal["task", "board", "both"]
+    scope: Literal["task", "leaderboard", "both"]
     gives: Kind
 
     @classmethod
@@ -112,12 +112,12 @@ class Catalogue(BaseModel):
     a fold's `over`; `{run: [<group>, <column>]}` that column of each run,
     inside a fold over that group; `{value: <name>}` another of the task's
     values; and `{fact: <name>}` one of `facts`, a fact of the submission.
-    `board_leaves` those a leaderboard's column writes: `{results: <task>}`
+    `leaderboard_leaves` those a leaderboard's column writes: `{results: <task>}`
     a task's results; `{value: [<task, pick column or block>, <value or
     fact>]}` a value or fact of a submission, the task's own read only
     inside `where`, `by` or a fold's `of`; `{column: <name>}` or `{column:
-    [<board>, <name>]}` another column; and `best_each`'s `{name: <value>}`.
-    `board_facts` the facts a column may read of a submission. A number is
+    [<leaderboard>, <name>]}` another column; and `best_each`'s `{name: <value>}`.
+    `leaderboard_facts` the facts a column may read of a submission. A number is
     a leaf too. `skip` is what a block's `missing` says to leave out a run
     whose report is missing, or a submission whose input is missing,
     which otherwise makes a pick, fold or `best_each` missing; a number
@@ -128,7 +128,7 @@ class Catalogue(BaseModel):
     blocks: list[Block]
     leaves: list[str]
     facts: list[str]
-    board_leaves: list[str]
-    board_facts: list[str]
+    leaderboard_leaves: list[str]
+    leaderboard_facts: list[str]
     skip: str
     languages: list[str]

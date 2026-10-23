@@ -1,11 +1,11 @@
-"""The board, hold and marks routes: each caller reads a board as its
-audience lets them, staff every board, row and cell, an entrant and a
-visitor with no cookie a board for everyone, told what a cell counted only
+"""The leaderboard, hold and marks routes: each caller reads a leaderboard as its
+audience lets them, staff every leaderboard, row and cell, an entrant and a
+visitor with no cookie a leaderboard for everyone, told what a cell counted only
 on their own row, its numbers exact decimal strings; a manager of the
 contest ends its hold early, asked first, and an observer reads where it
-stands; the contest home carries an entrant's own row of each board; and a
+stands; the contest home carries an entrant's own row of each leaderboard; and a
 row's marks on a task, up to the task's `marks`, refused on another's
-submission and frozen at the row's close, only while a board reads which
+submission and frozen at the row's close, only while a leaderboard reads which
 submissions it marks.
 """
 
@@ -28,8 +28,8 @@ from tests.integration.conftest import (
     upload,
 )
 
-PUBLIC = "/api/v1/public/contests/acme/spring/boards"
-BOARDS = f"{CONTEST}/boards"
+PUBLIC = "/api/v1/public/contests/acme/spring/leaderboards"
+LEADERBOARDS = f"{CONTEST}/leaderboards"
 ORGANISED = f"{TASK}/organise/submissions/1"
 MARKS = f"{TASK}/marks"
 SETTINGS = """\
@@ -58,15 +58,15 @@ leaderboards:
 
 
 async def _settings(
-    client: httpx.AsyncClient, forge: FakeForge, boards: str, marks: int = 0
+    client: httpx.AsyncClient, forge: FakeForge, leaderboards: str, marks: int = 0
 ) -> None:
-    """acme/spring's settings with `boards` and, given `marks`, that many
+    """acme/spring's settings with `leaderboards` and, given `marks`, that many
     marks on sum, written by ada, leaving carol signed in.
     """
     await sign_in_as(client, forge, 7)
     settings = await read(client, f"{CONTEST}/files/contest.yaml")
     content = re.sub(r"(?ms)^leaderboards:.*?(?=^\S|\Z)", "", settings["content"])
-    content = content.rstrip("\n") + "\n" + boards
+    content = content.rstrip("\n") + "\n" + leaderboards
     if marks:
         content = re.sub(r"(?m)^(\s*- id: sum)$", rf"\1\n    marks: {marks}", content)
     written = await client.put(
@@ -119,7 +119,7 @@ async def _graded(
 
 
 def _standings(carols: str, told: bool) -> dict[str, Any]:
-    """The board for everyone with carol's row alone, as staff, carol and
+    """The leaderboard for everyone with carol's row alone, as staff, carol and
     a visitor read it."""
     counted: list[Any] | None = [] if told else None
     return {
@@ -158,25 +158,25 @@ def _standings(carols: str, told: bool) -> dict[str, Any]:
     }
 
 
-async def test_each_caller_reads_the_boards_its_audience_lets_them(
+async def test_each_caller_reads_the_leaderboards_its_audience_lets_them(
     client: httpx.AsyncClient, entered: FakeForge
 ) -> None:
     carols = await entrant_of(client)
     await _settings(client, entered, SETTINGS)
     await _graded(client, entered, "key-0001-aaaa")
 
-    mine = await client.get(BOARDS)
-    one = await client.get(f"{BOARDS}/standings")
-    not_hers = await client.get(f"{BOARDS}/private")
+    mine = await client.get(LEADERBOARDS)
+    one = await client.get(f"{LEADERBOARDS}/standings")
+    not_hers = await client.get(f"{LEADERBOARDS}/private")
     client.cookies.clear()
     public = await client.get(PUBLIC)
     public_one = await client.get(f"{PUBLIC}/standings")
     public_private = await client.get(f"{PUBLIC}/private")
     await sign_in_as(client, entered, 7)
-    staff = await client.get(BOARDS)
-    staff_one = await client.get(f"{BOARDS}/standings")
-    other = await client.get(f"{BOARDS}/nothing")
-    organise = await client.get(f"{CONTEST}/organise/boards")
+    staff = await client.get(LEADERBOARDS)
+    staff_one = await client.get(f"{LEADERBOARDS}/standings")
+    other = await client.get(f"{LEADERBOARDS}/nothing")
+    organise = await client.get(f"{CONTEST}/organise/leaderboards")
 
     # sum is graded test by test, which a board does not read, so the
     # row's score is otherwise's 0. Carol is told what her own row's cells
@@ -238,7 +238,7 @@ async def test_a_manager_of_the_contest_ends_its_hold_early_asked_first(
     assert after["held_from"] is None
 
 
-async def test_the_contest_home_carries_the_entrants_own_row_of_each_board(
+async def test_the_contest_home_carries_the_entrants_own_row_of_each_leaderboard(
     client: httpx.AsyncClient, entered: FakeForge
 ) -> None:
     carols = await entrant_of(client)
@@ -285,7 +285,7 @@ async def test_a_row_marks_its_own_submissions_up_to_the_tasks_marks_until_its_c
     }
 
 
-async def test_a_task_no_board_reads_the_marks_of_takes_no_marks(
+async def test_a_task_no_leaderboard_reads_the_marks_of_takes_no_marks(
     client: httpx.AsyncClient, entered: FakeForge
 ) -> None:
     await _settings(client, entered, SETTINGS)
@@ -297,13 +297,13 @@ async def test_a_task_no_board_reads_the_marks_of_takes_no_marks(
     assert (refused.status_code, refused.json()["code"]) == (409, "marks_off")
 
 
-async def test_the_board_routes_need_a_session_but_the_public_ones(
+async def test_the_leaderboard_routes_need_a_session_but_the_public_ones(
     client: httpx.AsyncClient, entered: FakeForge
 ) -> None:
     client.cookies.clear()
 
     answers = [
-        await client.get(BOARDS),
+        await client.get(LEADERBOARDS),
         await client.get(MARKS),
         await client.put(f"{MARKS}/1", headers=ORIGIN),
     ]
@@ -313,7 +313,7 @@ async def test_the_board_routes_need_a_session_but_the_public_ones(
     ] * 3
 
 
-async def test_a_save_of_the_contests_settings_refuses_a_board_at_its_path(
+async def test_a_save_of_the_contests_settings_refuses_a_leaderboard_at_its_path(
     client: httpx.AsyncClient, entered: FakeForge
 ) -> None:
     await sign_in_as(client, entered, 7)

@@ -19,8 +19,8 @@ from forge.api.gradings import GradingStatus, Submitter
 from forge.api.regrades import ChangeKind, RegradeCause
 from pydantic import BaseModel, Field, field_validator
 
-from unicon.schemas.boards import BoardRowOwner, Counted, Header, SortKey
 from unicon.schemas.exact import Exact, Reported
+from unicon.schemas.leaderboards import Counted, Header, LeaderboardRowOwner, SortKey
 from unicon.schemas.publications import PublicationNumber
 from unicon.schemas.submissions import GradedTest, Outcome, TextRef
 
@@ -134,10 +134,10 @@ class EnteredMark(BaseModel):
 
 
 class CountedBy(BaseModel):
-    """A board's cell that counted a submission: the board's key and the
+    """A leaderboard's cell that counted a submission: the leaderboard's key and the
     column's name."""
 
-    board: str
+    leaderboard: str
     column: str
 
 
@@ -166,7 +166,7 @@ class QueueRow(BaseModel):
     cells counted, oldest first.
     """
 
-    row: BoardRowOwner
+    row: LeaderboardRowOwner
     closed_at: datetime
     submissions: list[QueuedSubmission]
 
@@ -257,7 +257,7 @@ class ValueChange(BaseModel):
     """One value of a submission a regrade changed: its `name`, its
     number `before` and `after`, exactly, null where it had none or waits,
     and whether it is `waiting` after, for a run or for staff. A value has
-    no direction: up and down are a row's place on a board."""
+    no direction: up and down are a row's place on a leaderboard."""
 
     name: str
     before: Exact | None
@@ -294,7 +294,7 @@ class SubmissionChange(BaseModel):
 class CellDiff(BaseModel):
     """One displayed cell of a row, its number before the regrade and
     after, exactly, null where it was or is missing, and the submissions
-    the cell after leaves out as still waiting, as the board does."""
+    the cell after leaves out as still waiting, as the leaderboard does."""
 
     column: str
     before: Exact | None
@@ -303,28 +303,28 @@ class CellDiff(BaseModel):
 
 
 class RowDiff(BaseModel):
-    """One row of a board before the regrade and after: whose it is, its
-    place on each side, null on a board with no `sort` or, before, for a
+    """One row of a leaderboard before the regrade and after: whose it is, its
+    place on each side, null on a leaderboard with no `sort` or, before, for a
     row that had none, its displayed cells, and its submissions of the
     task the regrade is still grading, whose earlier result the after
     side reads until it ends."""
 
-    row: BoardRowOwner
+    row: LeaderboardRowOwner
     place_before: int | None
     place_after: int | None
     cells: list[CellDiff]
     regrading: list[Counted]
 
 
-class BoardDiff(BaseModel):
-    """One board that reads the regraded task, directly or through another
-    board's column, as staff read it, every row and cell and no hold: its
+class LeaderboardDiff(BaseModel):
+    """One leaderboard that reads the regraded task, directly or through another
+    leaderboard's column, as staff read it, every row and cell and no hold: its
     key and title, its displayed columns' headers as they stand after, the
     columns it sorts by, and each row in its order after the regrade;
     `unread` with no rows when the publication the results counted under
     before no longer reads, so there is nothing to compare."""
 
-    board: str
+    leaderboard: str
     title: str
     headers: list[Header]
     sort: list[SortKey]
@@ -342,7 +342,7 @@ class RunRegradeSummary(BaseModel):
     to new, in the order they were made, at most 100, with `more_changed`
     counting the rest, an attempt compared with the one that counted when
     the regrade began, both worked out as organisers read them, the
-    extensions and marks as they stand now; and `boards`, each board that reads the
+    extensions and marks as they stand now; and `leaderboards`, each leaderboard that reads the
     task before and after, given to a manager or admin of the contest
     alone, null for anyone else.
     """
@@ -356,7 +356,7 @@ class RunRegradeSummary(BaseModel):
     unread: int
     changed: list[SubmissionChange]
     more_changed: int
-    boards: list[BoardDiff] | None
+    leaderboards: list[LeaderboardDiff] | None
 
 
 class Grading(BaseModel):
@@ -373,7 +373,7 @@ class Grading(BaseModel):
     On a latest attempt that has not finished with a result, still being
     graded, a system error or staff cancelled, `last_good` is the latest
     earlier attempt that did, the one its submission counts meanwhile on
-    the boards and to its contestant; null on any other, and when no
+    the leaderboards and to its contestant; null on any other, and when no
     attempt has a result.
 
     An attempt that is `over_limit` was made to grade a delayed submission

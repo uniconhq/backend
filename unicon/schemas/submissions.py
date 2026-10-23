@@ -185,7 +185,7 @@ class Scored(BaseModel):
 
 class Result(Scored):
     """The attempt of a submission's grading that counts, as its contestant
-    sees it: the latest that finished with a result, as the boards count
+    sees it: the latest that finished with a result, as the leaderboards count
     it, so a regrade under way, a failure or a cancel leaves the result as
     it was, and while none has, the latest. Its id, attempt and status, and
     once it is done, what stopped the
