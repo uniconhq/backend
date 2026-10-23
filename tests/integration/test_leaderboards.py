@@ -178,14 +178,14 @@ async def test_each_caller_reads_the_leaderboards_its_audience_lets_them(
     other = await client.get(f"{LEADERBOARDS}/nothing")
     organise = await client.get(f"{CONTEST}/organise/leaderboards")
 
-    # sum is graded test by test, which a board does not read, so the
+    # sum is graded test by test, which a leaderboard does not read, so the
     # row's score is otherwise's 0. Carol is told what her own row's cells
     # counted; a visitor is not.
     assert (mine.status_code, mine.json()) == (200, [_standings(carols, told=True)])
     assert one.json() == _standings(carols, told=True)
     assert (public.status_code, public.json()) == (200, [_standings(carols, told=False)])
     assert public_one.json() == _standings(carols, told=False)
-    # The board with no audience is staff's alone.
+    # The leaderboard with no audience is staff's alone.
     for refused in (not_hers, public_private):
         assert (refused.status_code, refused.json()["code"]) == (404, "not_found")
     assert staff.status_code == 200, staff.text
@@ -216,7 +216,7 @@ async def test_a_manager_of_the_contest_ends_its_hold_early_asked_first(
     after = (await client.get(f"{PUBLIC}/standings")).json()
 
     # A visitor reads every row as it stood at the hold's from until the
-    # hold ends; sum's results are no board's, so none is held.
+    # hold ends; sum's results are no leaderboard's, so none is held.
     assert held["held_from"] == "2026-09-26T12:30:00Z"
     assert before.json() == {
         "from": "2026-09-26T12:30:00Z",

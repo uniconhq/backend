@@ -163,9 +163,9 @@ async def test_a_run_tasks_regrade_is_read_by_each_value_and_verdict_it_changed(
     handed: list[tuple[str, uuid.UUID]] = []
     # The route serves no workspace, so any will do.
     workspace: Any = "acme/spring/@entrant.x"
-    # A manager of the contest is given each board reading the task, every
+    # A manager of the contest is given each leaderboard reading the task, every
     # row's place and cells before and after, what still regrades and what
-    # the cell after waits on, and a board it cannot compare as unread;
+    # the cell after waits on, and a leaderboard it cannot compare as unread;
     # anyone else is given null.
     entrant = uuid.UUID("0199a2c1-6b7e-7c3a-9f10-5d2e4b8a6c33")
     gradebook = regrades.LeaderboardDiff(
