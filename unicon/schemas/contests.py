@@ -9,7 +9,6 @@ from forge.api.contest_home import State
 from forge.api.tasks import TakeOut
 from pydantic import BaseModel
 
-from unicon.schemas.exact import Exact
 from unicon.schemas.publications import DefinitionError, Publication
 
 
@@ -97,21 +96,14 @@ class TaskState(BaseModel):
 
 class Timeline(BaseModel):
     """A task's timeline in its contest, from its entry in `contest.yaml`,
-    each at its default where the entry gives none: `worth`, the most
-    points it gives, its groups' total unless the entry says, and none on a
-    task whose latest publication gives no points or that has none;
-    `release_at`, the
+    each at its default where the entry gives none: `release_at`, the
     contest's start unless the entry says; `due`, after which a submission
-    is late, and `late_per_day`, the fraction a started late day takes off,
-    1 unless the entry says, both none on a task with no due; and `closes`,
-    the contest's end unless the entry says. `worth` and `late_per_day` are
-    exact.
+    is late, none unless the entry says; and `closes`, the contest's end
+    unless the entry says.
     """
 
-    worth: Exact | None
     release_at: datetime
     due: datetime | None
-    late_per_day: Exact | None
     closes: datetime
 
 
@@ -119,9 +111,8 @@ class TaskStanding(BaseModel):
     """One task of a contest as its organisers work from it: the task by
     name, its letter by its place in the contest's `tasks`, where its files
     stand as `GET <task>` gives it, and its timeline from its entry, each
-    time at its default where the entry gives none: `worth`, null on a task
-    that gives no points or has no publication, `release_at`, `due` and
-    `late_per_day`, both null on a task with no due, and `closes`.
+    time at its default where the entry gives none: `release_at`, `due`,
+    null on a task with no due, and `closes`.
 
     `withdrawn` says the task is withdrawn from the contest: it keeps its
     place and its letter, entrants do not see it and no leaderboard counts

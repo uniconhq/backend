@@ -1,8 +1,8 @@
 """What a regrade of many changed, over HTTP (#448). A rejudge answers with
 the regrade it is kept as; the contest's regrades read each task's latest
 one summed up by what it did to each submission, the feed read by it gives
-its gradings each with the earlier and new points side by side, narrowed to
-one change, and a manager dismisses it from the contest's page. A run
+its gradings each with the earlier and new tests accepted side by side,
+narrowed to one change, and a manager dismisses it from the contest's page. A run
 task's regrade is read by each value and verdict it changed; one of a task
 graded test by test has no such summary.
 """
@@ -109,8 +109,8 @@ async def test_a_rejudge_is_summed_up_and_its_gradings_read_with_what_it_changed
     assert (grading["attempt"], grading["regrade"], row["task"]) == (2, summary["id"], "sum")
     change = grading["change"]
     assert change["change"] == "down"
-    assert (change["earlier"]["attempt"], change["earlier"]["points"]) == (1, "100")
-    assert (change["now"]["attempt"], change["now"]["points"]) == (2, "0")
+    assert (change["earlier"]["attempt"], change["earlier"]["accepted"]) == (1, 1)
+    assert change["now"]["attempt"] == 2
     assert (change["now"]["accepted"], change["now"]["tests"]) == (0, 1)
     assert up.json() == [] and unnamed.json() == []
 

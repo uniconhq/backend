@@ -83,16 +83,13 @@ async def test_the_contests_tasks_stand_with_their_publication_and_timeline(
         [],
     )
     assert row["timeline"] == {
-        "worth": None,
         "release_at": "2026-10-03T12:00:00Z",
         "due": None,
-        "late_per_day": None,
         "closes": "2026-10-03T17:00:00Z",
     }
     (row,) = published.json()
     assert (row["state"]["latest"]["number"], row["state"]["draft"]) == (1, False)
     assert row["state"]["statement_written"] is True
-    assert row["timeline"]["worth"] == "100"
 
 
 async def test_a_tasks_entry_sets_its_timeline_and_a_failed_save_shows_its_errors(
@@ -100,7 +97,7 @@ async def test_a_tasks_entry_sets_its_timeline_and_a_failed_save_shows_its_error
 ) -> None:
     await publish(client)
     settings = await read(client, f"{CONTEST}/files/contest.yaml")
-    entry = "  - id: sum\n    due: 2026-10-03T16:00:00Z\n    late_per_day: 0.25\n    worth: 50\n"
+    entry = "  - id: sum\n    due: 2026-10-03T16:00:00Z\n"
     written = await client.put(
         f"{CONTEST}/files/contest.yaml",
         json={
@@ -121,10 +118,8 @@ async def test_a_tasks_entry_sets_its_timeline_and_a_failed_save_shows_its_error
     assert written.status_code == 200, written.text
     assert broken.json()["errors"], broken.text
     assert row["timeline"] == {
-        "worth": "50",
         "release_at": "2026-10-03T12:00:00Z",
         "due": "2026-10-03T16:00:00Z",
-        "late_per_day": "0.25",
         "closes": "2026-10-03T17:00:00Z",
     }
     assert (row["state"]["latest"]["number"], row["state"]["draft"]) == (1, True)

@@ -65,9 +65,4 @@ async def test_a_delayed_submission_retried_without_room_ends_over_the_limit(
         1,
     )
     shown = mine.json()["grading"]
-    assert (shown["status"], shown["limit"], shown["groups"], shown["points"]) == (
-        "over_limit",
-        1,
-        [],
-        None,
-    )
+    assert (shown["status"], shown["limit"], shown["groups"]) == ("over_limit", 1, [])

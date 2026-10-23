@@ -7,9 +7,7 @@ comes back with the latest attempt of its grading, carrying only what the
 task's test groups let its contestant see now: each group by its `show`,
 `always` with its outcome and its tests, `verdict` with its outcome and its
 tests once the task reveals, and `after_close` with its name and when it is
-shown. What is not shown is null. On a task that gives points, a result
-carries its points, each group shown its points and most points, and each
-test row its credit, every one an exact decimal string.
+shown. What is not shown is null.
 """
 
 import uuid
@@ -71,16 +69,12 @@ class SubmitRequest(BaseModel):
 
 class GradedTest(BaseModel):
     """One test's row of a result: its id, `<group>/<test>`, its outcome,
-    and the values its steps reported for it. Scored, it carries its credit,
-    from 0 to 1, and, on a relative credit, the best value that credit is
-    measured against; both are null otherwise.
+    and the values its steps reported for it.
     """
 
     test: str
     outcome: Outcome
     values: Reported
-    credit: Exact | None = None
-    best: Exact | None = None
 
 
 class TextRef(BaseModel):
@@ -158,8 +152,7 @@ class GroupShown(BaseModel):
     its outcome once its verdict is shown, its tests once they are, when
     what is held back is shown, null once nothing is, and whether it ran on
     this grading. A group that did not run has no outcome, no tests and
-    nothing held back. On a task that gives points, `max` is the most the
-    group gives and `points` what it gave, once its verdict is shown.
+    nothing held back.
     """
 
     group: str
@@ -168,21 +161,6 @@ class GroupShown(BaseModel):
     tests: list[GradedTest] | None
     shown_at: datetime | None
     ran: bool
-    points: Exact | None
-    max: Exact | None
-
-
-class Points(BaseModel):
-    """Points as a contestant sees them, a submission's or their entrant's on
-    a task: those shown, null while no group's verdict is shown yet, so a
-    shown 0 reads apart from nothing shown; those still pending on groups
-    whose verdict is not shown yet; and when they are shown, null when none
-    are pending.
-    """
-
-    shown: Exact | None
-    pending: Exact
-    pending_until: datetime | None
 
 
 class Scored(BaseModel):
@@ -196,10 +174,7 @@ class Scored(BaseModel):
     outcome: Outcome | None
     groups: list[GroupShown]
     values: Reported
-    folded: dict[str, Exact]
     reason: str | None
-    points: Points | None
-    factor: Exact | None
     limit: int | None
     meanings: list[ValueMeaning]
     runs: list[RunShown] = []
@@ -215,11 +190,8 @@ class Result(Scored):
     it was, and while none has, the latest. Its id, attempt and status, and
     once it is done, what stopped the
     run, the outcome over the groups shown, each test group as its `show`
-    allows, the values reported once, and `folded`, each per-test value
-    with a fold, folded over the tests shown, a test that was not accepted
-    or did not report it counting as its worst bound, and the value absent
-    when it declares none, so a wrong answer has no time; each test's row
-    still carries what it reported; and `meanings`, every value the
+    allows, the values reported once, each test's row with what it
+    reported, and `meanings`, every value the
     workflow reports, in its order, with the title and unit a page names it
     by, falling back to its name, a value a sealed step holds back left out
     until the reveal. `status` is in the contestant's words: `queued` until
@@ -238,11 +210,9 @@ class Result(Scored):
     `over_limit`, with `limit`,
     the most it reached ("Not graded: you had reached the limit of 10
     submissions for this task."), and nothing else; `limit` is null on every
-    other status.
-    Once done on a task that gives points, it carries
-    its `points` and the late `factor` they include; both are null
-    otherwise. While a sealed step's stop is held to the reveal, nothing of
-    the run is shown: every group reads as hidden.
+    other status. While a sealed step's stop is held to the reveal, nothing
+    of the run is shown: every group reads as hidden. A task graded test by
+    test gives no points (stage 5).
 
     A run task's grading has no groups and no `values`: `run_values` holds
     each value of its scoring its entrant is shown, worked out on every
@@ -271,9 +241,8 @@ class Result(Scored):
 class OrganisedResult(Scored):
     """A submission's grading as organisers read it beside the grading
     itself: the payload its contestant reads, with everything filled in as
-    once the task has revealed, so every group's outcome, tests and points
-    and every value a sealed step reported are there, its points all shown
-    and none pending. Each group's `shown_at` is kept as a note of when its
+    once the task has revealed, so every group's outcome and tests and every
+    value a sealed step reported are there. Each group's `shown_at` is kept as a note of when its
     contestant is shown it, null once they see its tests. `status` is the
     grading's own, as in the gradings routes. On a run task, every value
     and run is there at once, each value with when it shows and what it
@@ -286,19 +255,15 @@ class OrganisedResult(Scored):
 
 
 class Numbered(BaseModel):
-    """A submission's number among its row's, when it was taken, and how
-    many started days after the row's due it was.
-    """
+    """A submission's number among its row's and when it was taken."""
 
     number: int
     submitted_at: datetime
-    late_days: int
 
 
 class Submission(Numbered):
     """One of the caller's submissions of the task: its number among them,
-    when it was taken, how many started days after their due it was, and
-    its grading.
+    when it was taken, and its grading.
     """
 
     grading: Result | None
@@ -306,8 +271,8 @@ class Submission(Numbered):
 
 class OrganisedSubmission(Numbered):
     """One submission of an entrant, as organisers read it: its number
-    among the entrant's, when it was taken, how many started days late, and
-    its grading with everything filled in.
+    among the entrant's, when it was taken, and its grading with everything
+    filled in.
     """
 
     grading: OrganisedResult | None

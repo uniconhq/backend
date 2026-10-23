@@ -1,7 +1,7 @@
 """What a contestant is answered with is what forge gives and nothing more: a
 grading carries exactly what the task's test groups let through, a group
 that did not run on it marked so, a run task's runs as forge shows them
-and when it reveals, its numbers and its points as exact decimal strings,
+and when it reveals, its numbers as exact decimal strings,
 a submission's inputs are read leniently from its `submission.json`, and a
 file's download is named after the file, quoted when its name is not
 plain.
@@ -19,7 +19,6 @@ from forge.api.submissions import (
     Fold,
     GradingStatus,
     GroupShown,
-    Points,
     Result,
     Show,
     SubmissionState,
@@ -50,10 +49,7 @@ def test_a_grading_being_run_carries_its_status_alone() -> None:
         "outcome": None,
         "groups": [],
         "values": {"numbers": {}, "texts": {}},
-        "folded": {},
         "reason": None,
-        "points": None,
-        "factor": None,
         "limit": None,
         "meanings": [],
         "runs": [],
@@ -115,14 +111,10 @@ def test_a_grading_carries_each_group_as_forge_let_it_through() -> None:
                         "test": "samples/1",
                         "outcome": "accepted",
                         "values": {"numbers": {"time_ms": "12", "fraction": "0.25"}, "texts": {}},
-                        "credit": None,
-                        "best": None,
                     }
                 ],
                 "shown_at": None,
                 "ran": True,
-                "points": None,
-                "max": None,
             },
             {
                 "group": "small",
@@ -131,8 +123,6 @@ def test_a_grading_carries_each_group_as_forge_let_it_through() -> None:
                 "tests": None,
                 "shown_at": "2026-09-26T15:00:00Z",
                 "ran": True,
-                "points": None,
-                "max": None,
             },
             {
                 "group": "large",
@@ -141,8 +131,6 @@ def test_a_grading_carries_each_group_as_forge_let_it_through() -> None:
                 "tests": None,
                 "shown_at": "2026-09-26T15:00:00Z",
                 "ran": True,
-                "points": None,
-                "max": None,
             },
             {
                 "group": "extra",
@@ -151,15 +139,10 @@ def test_a_grading_carries_each_group_as_forge_let_it_through() -> None:
                 "tests": [],
                 "shown_at": None,
                 "ran": False,
-                "points": None,
-                "max": None,
             },
         ],
         "values": {"numbers": {"score": "1.5"}, "texts": {"log": ""}},
-        "folded": {},
         "reason": None,
-        "points": None,
-        "factor": None,
         "limit": None,
         "meanings": [],
         "runs": [],
@@ -271,8 +254,6 @@ def test_numbers_are_served_as_exact_decimals_and_text_stays_text() -> None:
         "test": "main/1",
         "outcome": "accepted",
         "values": {"loss": Decimal("0.1000000000000000000000000001"), "label": "12.5"},
-        "credit": Fraction(1, 3),
-        "best": Decimal("0.05"),
     }
     result = Result(
         GRADING,
@@ -281,21 +262,10 @@ def test_numbers_are_served_as_exact_decimals_and_text_stays_text() -> None:
         None,
         "accepted",
         (
-            GroupShown(
-                "main",
-                Show.ALWAYS,
-                "accepted",
-                (row,),
-                None,
-                points=Fraction(85, 3),
-                max=Fraction(85),
-            ),
-            GroupShown("large", Show.AFTER_CLOSE, None, None, REVEAL, max=Fraction(15)),
+            GroupShown("main", Show.ALWAYS, "accepted", (row,), None),
+            GroupShown("large", Show.AFTER_CLOSE, None, None, REVEAL),
         ),
         {"total": 10**20},
-        points=Points(Fraction(85, 3), Fraction(15), REVEAL),
-        factor=Fraction(9, 10),
-        folded={"time_ms": Fraction(1, 3)},
         meanings=(
             ValueMeaning("time_ms", "Run time", "ms", Fold.MAX, Better.LOWER),
             ValueMeaning("log", "Compile log"),
@@ -306,21 +276,20 @@ def test_numbers_are_served_as_exact_decimals_and_text_stays_text() -> None:
 
     [main, large] = served["groups"]
     [test] = main["tests"]
-    assert test["values"] == {
-        "numbers": {"loss": "0.1000000000000000000000000001"},
-        "texts": {"label": "12.5"},
+    assert test == {
+        "test": "main/1",
+        "outcome": "accepted",
+        "values": {
+            "numbers": {"loss": "0.1000000000000000000000000001"},
+            "texts": {"label": "12.5"},
+        },
     }
-    assert (test["credit"], test["best"]) == ("0." + "3" * 30, "0.05")
-    assert (main["points"], main["max"]) == ("28." + "3" * 28, "85")
-    assert (large["points"], large["max"]) == (None, "15")
+    assert (large["outcome"], large["tests"], large["shown_at"]) == (
+        None,
+        None,
+        "2026-09-26T15:00:00Z",
+    )
     assert served["values"] == {"numbers": {"total": "100000000000000000000"}, "texts": {}}
-    assert served["points"] == {
-        "shown": "28." + "3" * 28,
-        "pending": "15",
-        "pending_until": "2026-09-26T15:00:00Z",
-    }
-    assert served["factor"] == "0.9"
-    assert served["folded"] == {"time_ms": "0." + "3" * 30}
     # Each value with the words a page names it by, in the report's order.
     assert served["meanings"] == [
         {"name": "time_ms", "title": "Run time", "unit": "ms", "fold": "max", "better": "lower"},

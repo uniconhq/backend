@@ -186,12 +186,7 @@ async def test_a_submission_with_no_result_whose_grading_failed_reads_as_delayed
     await sign_in_as(client, entered, 7)
     (listed,) = (await client.get(f"{TASK}/gradings")).json()
 
-    assert (mine["status"], mine["reason"], mine["groups"], mine["points"]) == (
-        "delayed",
-        None,
-        [],
-        None,
-    )
+    assert (mine["status"], mine["reason"], mine["groups"]) == ("delayed", None, [])
     assert (listed["grading"]["status"], listed["grading"]["last_good"]) == ("system_error", None)
 
 

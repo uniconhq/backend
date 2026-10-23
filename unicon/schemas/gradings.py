@@ -173,19 +173,15 @@ class QueueRow(BaseModel):
 
 class RegradeSide(BaseModel):
     """One result a regrade compares, as organisers see it, every group,
-    nothing held back, the late factor applied: its attempt, its `points`,
-    null on a task that gives no points, how many of its tests were
-    `accepted` of how many `tests` it has, the outcome that `stopped` its run
-    before its tests, null when nothing did, and each value with a fold and
-    a declared direction, folded over every test.
+    nothing held back: its attempt, how many of its tests were `accepted` of
+    how many `tests` its plan has in its groups, and the outcome that
+    `stopped` its run before its tests, null when nothing did.
     """
 
     attempt: int
-    points: Exact | None
     accepted: int
     tests: int
     stopped: Outcome | None
-    values: dict[str, Exact]
 
 
 class RegradeChange(BaseModel):
@@ -194,9 +190,7 @@ class RegradeChange(BaseModel):
     when there was none or it no longer reads, beside its own, `now`, null
     while it has none.
 
-    `up` and `down`: its points went up or down; on a task that gives no
-    points, a larger or smaller share of its tests accepted, or with the
-    same share, its values with a direction, down when any got worse.
+    `up` and `down`: a larger or smaller share of its tests accepted.
     `stopped`: it now stops before its tests where the earlier result did
     not, which on the classic workflow is "now fails to compile".
     `unchanged`; `new`, graded with no earlier result to compare with;

@@ -1,7 +1,7 @@
 """What a signed-in person reads of a contest, over HTTP: the list of contests
 they see with their entrant's status, a contest's home with their
 registration panel and its released tasks, each
-with its worth and when it closes for them, and a released task's page with
+with when it closes for them, and a released task's page with
 its statement, its submission caps and the form of its inputs. A contest
 they may not see and a task that is not visible answer as not found.
 """
@@ -45,10 +45,9 @@ async def test_a_signed_in_person_reads_the_home_and_a_released_task(
     )
     assert (panel["can_register"], panel["asks_code"], panel["refused"]) == (True, False, None)
     assert body["now"] == "2026-09-26T12:00:00Z"
-    assert [
-        (task["name"], task["label"], task["worth"], task["release"]["closed"])
-        for task in body["tasks"]
-    ] == [("sum", "A", "100", "not_approved")]
+    assert [(task["name"], task["label"], task["release"]["closed"]) for task in body["tasks"]] == [
+        ("sum", "A", "not_approved")
+    ]
     assert (body["tasks"][0]["due"], body["tasks"][0]["closes"]) == (None, body["end"])
     assert page.json()["statement"] == "Add two numbers.\n"
     assert page.json()["submissions"] == {"max": 50, "rate": {"count": 1, "per": 30}}

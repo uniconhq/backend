@@ -92,7 +92,7 @@ async def test_the_organiser_path_from_an_org_to_a_publication(
     first = written.json()
     assert (first["number"], first["grading_changed"]) == (1, False)
     assert first["notes"] == []
-    assert first["effect"]["scores"] == ["Points: main is worth up to 100."]
+    assert first["effect"]["scores"] == ["No score changes."]
 
     statement = await _save(client, await _edit(client, "statement.md", "Write", "Add. Write"))
     assert (statement.json()["number"], statement.json()["grading_changed"]) == (2, False)
@@ -242,7 +242,7 @@ async def test_a_file_written_or_rolled_back_while_the_contest_runs_asks_and_is_
     assert (rolled.status_code, rolled.json()["number"]) == (200, 3), rolled.text
 
 
-async def test_a_change_to_the_statement_or_the_points_while_the_contest_runs_asks_first(
+async def test_a_change_to_the_statement_or_a_groups_show_while_the_contest_runs_asks_first(
     client: httpx.AsyncClient, running: FakeForge
 ) -> None:
     statement = await _edit(client, "statement.md", "Add", "Now add")
@@ -257,10 +257,9 @@ async def test_a_change_to_the_statement_or_the_points_while_the_contest_runs_as
     assert asked.json()["runs_again"] == [
         "No submission runs again: the tests and how they run are the same."
     ]
-    points = await _edit(client, "task.yaml", "{each: 100}", "{each: 110}")
-    assert (await _save(client, points)).json()["scores"] == [
-        "Points: main is now worth up to 110 (was 100).",
-        "Every result is scored again.",
+    shown = await _edit(client, "task.yaml", "{each: 100}", "{each: 100, show: after_close}")
+    assert (await _save(client, shown)).json()["scores"] == [
+        "Results of main shown once the task closes (was right away)."
     ]
     # Saved as the latest publication holds it, nothing new: no question.
     same = await _edit(client, "task.yaml", "{each: 100}", "{each: 100}")

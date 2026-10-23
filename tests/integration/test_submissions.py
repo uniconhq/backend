@@ -65,7 +65,7 @@ async def test_a_submit_answers_with_its_queued_grading_and_reads_back(
     body = submitted.json()
     grading = body.pop("grading")
     uuid.UUID(grading.pop("id"))
-    assert body == {"number": 1, "submitted_at": "2026-09-26T12:00:00Z", "late_days": 0}
+    assert body == {"number": 1, "submitted_at": "2026-09-26T12:00:00Z"}
     assert grading == {
         "attempt": 1,
         "status": "queued",
@@ -73,10 +73,7 @@ async def test_a_submit_answers_with_its_queued_grading_and_reads_back(
         "outcome": None,
         "groups": [],
         "values": {"numbers": {}, "texts": {}},
-        "folded": {},
         "reason": None,
-        "points": None,
-        "factor": None,
         "limit": None,
         "meanings": [],
         "runs": [],

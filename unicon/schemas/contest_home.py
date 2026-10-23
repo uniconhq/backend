@@ -44,17 +44,15 @@ class ContestSummary(BaseModel):
 
 class TaskEntry(BaseModel):
     """A task released to the caller: its name, the label its place in the
-    contest gives it, its title, the most points it gives, null on a task
-    that gives none, whether they may submit to it now, and when it falls
-    due, null when it has no due, and closes for them, their extension on it
-    included. A task's standing on the contest's leaderboards is the
+    contest gives it, its title, whether they may submit to it now, and
+    when it falls due, null when it has no due, and closes for them, their
+    extension on it included. A task's standing on the contest's leaderboards is the
     boards' own to say, the home's `standing` among them.
     """
 
     name: str
     label: str
     title: str
-    worth: Exact | None
     release: TaskRelease
     due: datetime | None
     closes: datetime | None
@@ -157,7 +155,6 @@ class TaskPage(BaseModel):
     name: str
     label: str
     title: str
-    worth: Exact | None
     statement: str
     submissions: Submissions
     inputs: list[InputField]

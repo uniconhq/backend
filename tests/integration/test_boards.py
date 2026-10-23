@@ -248,7 +248,6 @@ async def test_the_contest_home_carries_the_entrants_own_row_of_each_board(
     home = (await client.get(f"{CONTEST}/home")).json()
 
     assert home["standing"] == [_standings(carols, told=True)]
-    assert ["points" in task for task in home["tasks"]] == [False]
 
 
 async def test_a_row_marks_its_own_submissions_up_to_the_tasks_marks_until_its_close(
@@ -370,13 +369,11 @@ async def test_organisers_read_a_submission_scored_with_everything_filled_in(
     grading = seen.json()["grading"]
     [main] = grading["groups"]
     [mine] = own["groups"]
-    assert (main["outcome"], main["points"], main["max"]) == ("accepted", "100", "100")
+    assert main["outcome"] == "accepted"
     assert [test["test"] for test in main["tests"]] == ["main/1"]
     assert main["shown_at"] == mine["shown_at"] == "2026-09-26T15:00:00Z"
     assert (grading["status"], grading["outcome"]) == ("done", "accepted")
-    assert grading["points"] == {"shown": "100", "pending": "0", "pending_until": None}
-    assert (mine["outcome"], mine["tests"], mine["points"]) == (None, None, None)
-    assert (own["status"], own["points"]["pending"]) == ("graded", "100")
+    assert (mine["outcome"], mine["tests"], own["status"]) == (None, None, "graded")
 
 
 async def test_organisers_pick_one_row_with_such_a_submission(

@@ -2091,38 +2091,8 @@
         "type": "object"
       },
       "GradedTest": {
-        "description": "One test's row of a result: its id, `<group>/<test>`, its outcome,\nand the values its steps reported for it. Scored, it carries its credit,\nfrom 0 to 1, and, on a relative credit, the best value that credit is\nmeasured against; both are null otherwise.",
+        "description": "One test's row of a result: its id, `<group>/<test>`, its outcome,\nand the values its steps reported for it.",
         "properties": {
-          "best": {
-            "anyOf": [
-              {
-                "examples": [
-                  "82.5"
-                ],
-                "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Best"
-          },
-          "credit": {
-            "anyOf": [
-              {
-                "examples": [
-                  "82.5"
-                ],
-                "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Credit"
-          },
           "outcome": {
             "enum": [
               "accepted",
@@ -2149,9 +2119,7 @@
         "required": [
           "test",
           "outcome",
-          "values",
-          "credit",
-          "best"
+          "values"
         ],
         "title": "GradedTest",
         "type": "object"
@@ -2482,26 +2450,11 @@
         "type": "object"
       },
       "GroupShown": {
-        "description": "One test group as the contestant sees it now: its name, its `show`,\nits outcome once its verdict is shown, its tests once they are, when\nwhat is held back is shown, null once nothing is, and whether it ran on\nthis grading. A group that did not run has no outcome, no tests and\nnothing held back. On a task that gives points, `max` is the most the\ngroup gives and `points` what it gave, once its verdict is shown.",
+        "description": "One test group as the contestant sees it now: its name, its `show`,\nits outcome once its verdict is shown, its tests once they are, when\nwhat is held back is shown, null once nothing is, and whether it ran on\nthis grading. A group that did not run has no outcome, no tests and\nnothing held back.",
         "properties": {
           "group": {
             "title": "Group",
             "type": "string"
-          },
-          "max": {
-            "anyOf": [
-              {
-                "examples": [
-                  "82.5"
-                ],
-                "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Max"
           },
           "outcome": {
             "anyOf": [
@@ -2524,21 +2477,6 @@
               }
             ],
             "title": "Outcome"
-          },
-          "points": {
-            "anyOf": [
-              {
-                "examples": [
-                  "82.5"
-                ],
-                "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Points"
           },
           "ran": {
             "title": "Ran",
@@ -2580,9 +2518,7 @@
           "outcome",
           "tests",
           "shown_at",
-          "ran",
-          "points",
-          "max"
+          "ran"
         ],
         "title": "GroupShown",
         "type": "object"
@@ -3918,7 +3854,7 @@
         "type": "object"
       },
       "OrganisedResult": {
-        "description": "A submission's grading as organisers read it beside the grading\nitself: the payload its contestant reads, with everything filled in as\nonce the task has revealed, so every group's outcome, tests and points\nand every value a sealed step reported are there, its points all shown\nand none pending. Each group's `shown_at` is kept as a note of when its\ncontestant is shown it, null once they see its tests. `status` is the\ngrading's own, as in the gradings routes. On a run task, every value\nand run is there at once, each value with when it shows and what it\nread, and `facts` holds `seconds_late`, `seconds` and `compiled` as the\nvalues read them.",
+        "description": "A submission's grading as organisers read it beside the grading\nitself: the payload its contestant reads, with everything filled in as\nonce the task has revealed, so every group's outcome and tests and every\nvalue a sealed step reported are there. Each group's `shown_at` is kept as a note of when its\ncontestant is shown it, null once they see its tests. `status` is the\ngrading's own, as in the gradings routes. On a run task, every value\nand run is there at once, each value with when it shows and what it\nread, and `facts` holds `seconds_late`, `seconds` and `compiled` as the\nvalues read them.",
         "properties": {
           "attempt": {
             "title": "Attempt",
@@ -3935,21 +3871,6 @@
             ],
             "title": "Compiled"
           },
-          "factor": {
-            "anyOf": [
-              {
-                "examples": [
-                  "82.5"
-                ],
-                "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Factor"
-          },
           "facts": {
             "additionalProperties": {
               "examples": [
@@ -3960,17 +3881,6 @@
             },
             "default": {},
             "title": "Facts",
-            "type": "object"
-          },
-          "folded": {
-            "additionalProperties": {
-              "examples": [
-                "82.5"
-              ],
-              "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
-              "type": "string"
-            },
-            "title": "Folded",
             "type": "object"
           },
           "groups": {
@@ -4031,16 +3941,6 @@
               }
             ],
             "title": "Outcome"
-          },
-          "points": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/Points"
-              },
-              {
-                "type": "null"
-              }
-            ]
           },
           "reason": {
             "anyOf": [
@@ -4105,10 +4005,7 @@
           "outcome",
           "groups",
           "values",
-          "folded",
           "reason",
-          "points",
-          "factor",
           "limit",
           "meanings",
           "runs",
@@ -4122,7 +4019,7 @@
         "type": "object"
       },
       "OrganisedSubmission": {
-        "description": "One submission of an entrant, as organisers read it: its number\namong the entrant's, when it was taken, how many started days late, and\nits grading with everything filled in.",
+        "description": "One submission of an entrant, as organisers read it: its number\namong the entrant's, when it was taken, and its grading with everything\nfilled in.",
         "properties": {
           "grading": {
             "anyOf": [
@@ -4133,10 +4030,6 @@
                 "type": "null"
               }
             ]
-          },
-          "late_days": {
-            "title": "Late Days",
-            "type": "integer"
           },
           "number": {
             "title": "Number",
@@ -4151,7 +4044,6 @@
         "required": [
           "number",
           "submitted_at",
-          "late_days",
           "grading"
         ],
         "title": "OrganisedSubmission",
@@ -4198,53 +4090,6 @@
           "avatar_url"
         ],
         "title": "Person",
-        "type": "object"
-      },
-      "Points": {
-        "description": "Points as a contestant sees them, a submission's or their entrant's on\na task: those shown, null while no group's verdict is shown yet, so a\nshown 0 reads apart from nothing shown; those still pending on groups\nwhose verdict is not shown yet; and when they are shown, null when none\nare pending.",
-        "properties": {
-          "pending": {
-            "examples": [
-              "82.5"
-            ],
-            "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
-            "title": "Pending",
-            "type": "string"
-          },
-          "pending_until": {
-            "anyOf": [
-              {
-                "format": "date-time",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Pending Until"
-          },
-          "shown": {
-            "anyOf": [
-              {
-                "examples": [
-                  "82.5"
-                ],
-                "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Shown"
-          }
-        },
-        "required": [
-          "shown",
-          "pending",
-          "pending_until"
-        ],
-        "title": "Points",
         "type": "object"
       },
       "Primitive": {
@@ -5139,7 +4984,7 @@
         "type": "string"
       },
       "RegradeChange": {
-        "description": "What a regrade did to one submission: `change`, and the result it\nreplaced, `earlier`, the one that counted when the regrade began, null\nwhen there was none or it no longer reads, beside its own, `now`, null\nwhile it has none.\n\n`up` and `down`: its points went up or down; on a task that gives no\npoints, a larger or smaller share of its tests accepted, or with the\nsame share, its values with a direction, down when any got worse.\n`stopped`: it now stops before its tests where the earlier result did\nnot, which on the classic workflow is \"now fails to compile\".\n`unchanged`; `new`, graded with no earlier result to compare with;\n`running`, still being graded; `failed`, no result yet, its latest\nattempt a system error or cancelled; `over_limit`, not graded, its\nentrant at the task's most submissions.",
+        "description": "What a regrade did to one submission: `change`, and the result it\nreplaced, `earlier`, the one that counted when the regrade began, null\nwhen there was none or it no longer reads, beside its own, `now`, null\nwhile it has none.\n\n`up` and `down`: a larger or smaller share of its tests accepted.\n`stopped`: it now stops before its tests where the earlier result did\nnot, which on the classic workflow is \"now fails to compile\".\n`unchanged`; `new`, graded with no earlier result to compare with;\n`running`, still being graded; `failed`, no result yet, its latest\nattempt a system error or cancelled; `over_limit`, not graded, its\nentrant at the task's most submissions.",
         "properties": {
           "change": {
             "$ref": "#/components/schemas/ChangeKind"
@@ -5223,7 +5068,7 @@
         "type": "object"
       },
       "RegradeSide": {
-        "description": "One result a regrade compares, as organisers see it, every group,\nnothing held back, the late factor applied: its attempt, its `points`,\nnull on a task that gives no points, how many of its tests were\n`accepted` of how many `tests` it has, the outcome that `stopped` its run\nbefore its tests, null when nothing did, and each value with a fold and\na declared direction, folded over every test.",
+        "description": "One result a regrade compares, as organisers see it, every group,\nnothing held back: its attempt, how many of its tests were `accepted` of\nhow many `tests` its plan has in its groups, and the outcome that\n`stopped` its run before its tests, null when nothing did.",
         "properties": {
           "accepted": {
             "title": "Accepted",
@@ -5232,21 +5077,6 @@
           "attempt": {
             "title": "Attempt",
             "type": "integer"
-          },
-          "points": {
-            "anyOf": [
-              {
-                "examples": [
-                  "82.5"
-                ],
-                "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Points"
           },
           "stopped": {
             "anyOf": [
@@ -5273,26 +5103,13 @@
           "tests": {
             "title": "Tests",
             "type": "integer"
-          },
-          "values": {
-            "additionalProperties": {
-              "examples": [
-                "82.5"
-              ],
-              "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
-              "type": "string"
-            },
-            "title": "Values",
-            "type": "object"
           }
         },
         "required": [
           "attempt",
-          "points",
           "accepted",
           "tests",
-          "stopped",
-          "values"
+          "stopped"
         ],
         "title": "RegradeSide",
         "type": "object"
@@ -5485,7 +5302,7 @@
         "type": "object"
       },
       "Result": {
-        "description": "The attempt of a submission's grading that counts, as its contestant\nsees it: the latest that finished with a result, as the boards count\nit, so a regrade under way, a failure or a cancel leaves the result as\nit was, and while none has, the latest. Its id, attempt and status, and\nonce it is done, what stopped the\nrun, the outcome over the groups shown, each test group as its `show`\nallows, the values reported once, and `folded`, each per-test value\nwith a fold, folded over the tests shown, a test that was not accepted\nor did not report it counting as its worst bound, and the value absent\nwhen it declares none, so a wrong answer has no time; each test's row\nstill carries what it reported; and `meanings`, every value the\nworkflow reports, in its order, with the title and unit a page names it\nby, falling back to its name, a value a sealed step holds back left out\nuntil the reveal. `status` is in the contestant's words: `queued` until\nits run is started, `grading` while it is graded, `graded` once it has\na result, `delayed` while it has none and its grading failed on the\nplatform's side, `over_limit` once it was to be graded again with no\nroom left under the task's most submissions, and `cancelled` once staff\nend it; organisers read the grading's own status in the gradings\nroutes. A `delayed` one carries nothing else: it is tried again once by\nitself, and then waits for staff, who grade it again or end it: then it\nis `cancelled`, with `reason`, the sentence they gave, which is null on\nevery other status. A delayed one is graded again only while its\nentrant's submissions with a result, those waiting that are not\ndelayed, and the delayed ones made before it are fewer than the task's\nmost, so the first ones to get a result count, and otherwise it is\n`over_limit`, with `limit`,\nthe most it reached (\"Not graded: you had reached the limit of 10\nsubmissions for this task.\"), and nothing else; `limit` is null on every\nother status.\nOnce done on a task that gives points, it carries\nits `points` and the late `factor` they include; both are null\notherwise. While a sealed step's stop is held to the reveal, nothing of\nthe run is shown: every group reads as hidden.\n\nA run task's grading has no groups and no `values`: `run_values` holds\neach value of its scoring its entrant is shown, worked out on every\nread, and `runs` the runs, those listed under `now` from the start and\nthose under `after_close` once the task reveals; what `on_release`\nlists shows nothing yet. `once` holds what its steps done once\nreported that `show` lists, the compile log among them when listed,\nand `compiled` 1, or 0 when a compile done once stopped it, both once\na run is shown. A task with\nnothing shown during the contest is `submitted` until the reveal, which\na page words \"Submitted, results after the contest\". After the reveal,\nwhile its late runs are still being graded, it is `grading` or\n`delayed`. A run task's grading whose runs failed for the platform is\n`delayed` with the runs it gave, a value reading one of its failed early\nruns `waiting`. These are empty on every other task.\n`reveal_at` is when the task reveals, until then, as what its entrant\nreads changes then with no grading's change to say so, so a page open\non it reads it again then, as at a group's `shown_at`; null on every\nother task and once it has revealed.",
+        "description": "The attempt of a submission's grading that counts, as its contestant\nsees it: the latest that finished with a result, as the boards count\nit, so a regrade under way, a failure or a cancel leaves the result as\nit was, and while none has, the latest. Its id, attempt and status, and\nonce it is done, what stopped the\nrun, the outcome over the groups shown, each test group as its `show`\nallows, the values reported once, each test's row with what it\nreported, and `meanings`, every value the\nworkflow reports, in its order, with the title and unit a page names it\nby, falling back to its name, a value a sealed step holds back left out\nuntil the reveal. `status` is in the contestant's words: `queued` until\nits run is started, `grading` while it is graded, `graded` once it has\na result, `delayed` while it has none and its grading failed on the\nplatform's side, `over_limit` once it was to be graded again with no\nroom left under the task's most submissions, and `cancelled` once staff\nend it; organisers read the grading's own status in the gradings\nroutes. A `delayed` one carries nothing else: it is tried again once by\nitself, and then waits for staff, who grade it again or end it: then it\nis `cancelled`, with `reason`, the sentence they gave, which is null on\nevery other status. A delayed one is graded again only while its\nentrant's submissions with a result, those waiting that are not\ndelayed, and the delayed ones made before it are fewer than the task's\nmost, so the first ones to get a result count, and otherwise it is\n`over_limit`, with `limit`,\nthe most it reached (\"Not graded: you had reached the limit of 10\nsubmissions for this task.\"), and nothing else; `limit` is null on every\nother status. While a sealed step's stop is held to the reveal, nothing\nof the run is shown: every group reads as hidden. A task graded test by\ntest gives no points (stage 5).\n\nA run task's grading has no groups and no `values`: `run_values` holds\neach value of its scoring its entrant is shown, worked out on every\nread, and `runs` the runs, those listed under `now` from the start and\nthose under `after_close` once the task reveals; what `on_release`\nlists shows nothing yet. `once` holds what its steps done once\nreported that `show` lists, the compile log among them when listed,\nand `compiled` 1, or 0 when a compile done once stopped it, both once\na run is shown. A task with\nnothing shown during the contest is `submitted` until the reveal, which\na page words \"Submitted, results after the contest\". After the reveal,\nwhile its late runs are still being graded, it is `grading` or\n`delayed`. A run task's grading whose runs failed for the platform is\n`delayed` with the runs it gave, a value reading one of its failed early\nruns `waiting`. These are empty on every other task.\n`reveal_at` is when the task reveals, until then, as what its entrant\nreads changes then with no grading's change to say so, so a page open\non it reads it again then, as at a group's `shown_at`; null on every\nother task and once it has revealed.",
         "properties": {
           "attempt": {
             "title": "Attempt",
@@ -5501,32 +5318,6 @@
               }
             ],
             "title": "Compiled"
-          },
-          "factor": {
-            "anyOf": [
-              {
-                "examples": [
-                  "82.5"
-                ],
-                "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Factor"
-          },
-          "folded": {
-            "additionalProperties": {
-              "examples": [
-                "82.5"
-              ],
-              "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
-              "type": "string"
-            },
-            "title": "Folded",
-            "type": "object"
           },
           "groups": {
             "items": {
@@ -5586,16 +5377,6 @@
               }
             ],
             "title": "Outcome"
-          },
-          "points": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/Points"
-              },
-              {
-                "type": "null"
-              }
-            ]
           },
           "reason": {
             "anyOf": [
@@ -5672,10 +5453,7 @@
           "outcome",
           "groups",
           "values",
-          "folded",
           "reason",
-          "points",
-          "factor",
           "limit",
           "meanings",
           "runs",
@@ -6734,7 +6512,7 @@
         "type": "string"
       },
       "Submission": {
-        "description": "One of the caller's submissions of the task: its number among them,\nwhen it was taken, how many started days after their due it was, and\nits grading.",
+        "description": "One of the caller's submissions of the task: its number among them,\nwhen it was taken, and its grading.",
         "properties": {
           "grading": {
             "anyOf": [
@@ -6745,10 +6523,6 @@
                 "type": "null"
               }
             ]
-          },
-          "late_days": {
-            "title": "Late Days",
-            "type": "integer"
           },
           "number": {
             "title": "Number",
@@ -6763,7 +6537,6 @@
         "required": [
           "number",
           "submitted_at",
-          "late_days",
           "grading"
         ],
         "title": "Submission",
@@ -7042,7 +6815,7 @@
         "type": "object"
       },
       "TaskEntry": {
-        "description": "A task released to the caller: its name, the label its place in the\ncontest gives it, its title, the most points it gives, null on a task\nthat gives none, whether they may submit to it now, and when it falls\ndue, null when it has no due, and closes for them, their extension on it\nincluded. A task's standing on the contest's leaderboards is the\nboards' own to say, the home's `standing` among them.",
+        "description": "A task released to the caller: its name, the label its place in the\ncontest gives it, its title, whether they may submit to it now, and\nwhen it falls due, null when it has no due, and closes for them, their\nextension on it included. A task's standing on the contest's leaderboards is the\nboards' own to say, the home's `standing` among them.",
         "properties": {
           "closes": {
             "anyOf": [
@@ -7082,28 +6855,12 @@
           "title": {
             "title": "Title",
             "type": "string"
-          },
-          "worth": {
-            "anyOf": [
-              {
-                "examples": [
-                  "82.5"
-                ],
-                "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Worth"
           }
         },
         "required": [
           "name",
           "label",
           "title",
-          "worth",
           "release",
           "due",
           "closes"
@@ -7212,28 +6969,12 @@
           "title": {
             "title": "Title",
             "type": "string"
-          },
-          "worth": {
-            "anyOf": [
-              {
-                "examples": [
-                  "82.5"
-                ],
-                "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Worth"
           }
         },
         "required": [
           "name",
           "label",
           "title",
-          "worth",
           "statement",
           "submissions",
           "inputs",
@@ -7281,7 +7022,7 @@
         "type": "object"
       },
       "TaskStanding": {
-        "description": "One task of a contest as its organisers work from it: the task by\nname, its letter by its place in the contest's `tasks`, where its files\nstand as `GET <task>` gives it, and its timeline from its entry, each\ntime at its default where the entry gives none: `worth`, null on a task\nthat gives no points or has no publication, `release_at`, `due` and\n`late_per_day`, both null on a task with no due, and `closes`.\n\n`withdrawn` says the task is withdrawn from the contest: it keeps its\nplace and its letter, entrants do not see it and no leaderboard counts\nit, until it is put back. `submissions` is how many submissions it has,\nany entrant's, and `take_out` what taking it out of the contest would\ndo, for the dialog that asks first: `remove`, while it has none, which\ndeletes it, or `withdraw`, once it has; null while it is withdrawn,\nwhen it can only be put back.",
+        "description": "One task of a contest as its organisers work from it: the task by\nname, its letter by its place in the contest's `tasks`, where its files\nstand as `GET <task>` gives it, and its timeline from its entry, each\ntime at its default where the entry gives none: `release_at`, `due`,\nnull on a task with no due, and `closes`.\n\n`withdrawn` says the task is withdrawn from the contest: it keeps its\nplace and its letter, entrants do not see it and no leaderboard counts\nit, until it is put back. `submissions` is how many submissions it has,\nany entrant's, and `take_out` what taking it out of the contest would\ndo, for the dialog that asks first: `remove`, while it has none, which\ndeletes it, or `withdraw`, once it has; null while it is withdrawn,\nwhen it can only be put back.",
         "properties": {
           "label": {
             "title": "Label",
@@ -7413,7 +7154,7 @@
         "type": "object"
       },
       "Timeline": {
-        "description": "A task's timeline in its contest, from its entry in `contest.yaml`,\neach at its default where the entry gives none: `worth`, the most\npoints it gives, its groups' total unless the entry says, and none on a\ntask whose latest publication gives no points or that has none;\n`release_at`, the\ncontest's start unless the entry says; `due`, after which a submission\nis late, and `late_per_day`, the fraction a started late day takes off,\n1 unless the entry says, both none on a task with no due; and `closes`,\nthe contest's end unless the entry says. `worth` and `late_per_day` are\nexact.",
+        "description": "A task's timeline in its contest, from its entry in `contest.yaml`,\neach at its default where the entry gives none: `release_at`, the\ncontest's start unless the entry says; `due`, after which a submission\nis late, none unless the entry says; and `closes`, the contest's end\nunless the entry says.",
         "properties": {
           "closes": {
             "format": "date-time",
@@ -7432,47 +7173,15 @@
             ],
             "title": "Due"
           },
-          "late_per_day": {
-            "anyOf": [
-              {
-                "examples": [
-                  "82.5"
-                ],
-                "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Late Per Day"
-          },
           "release_at": {
             "format": "date-time",
             "title": "Release At",
             "type": "string"
-          },
-          "worth": {
-            "anyOf": [
-              {
-                "examples": [
-                  "82.5"
-                ],
-                "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Worth"
           }
         },
         "required": [
-          "worth",
           "release_at",
           "due",
-          "late_per_day",
           "closes"
         ],
         "title": "Timeline",
@@ -11026,7 +10735,7 @@
     },
     "/api/v1/orgs/{org}/contests/{contest}/gradings": {
       "get": {
-        "description": "At most `limit` gradings of the contest's tasks the caller observes,\nnewest first, every attempt a row of its own, so a submission graded\nagain shows more than once, or, with `latest`, only each submission's\nlatest attempt. One whose run is overdue or lost reads as\n`system_error` with the reason, and a filter by status takes it as it\nreads, so `status=system_error&latest=true` gives the failed gradings\nthe queue's `failed` counts. A task, username or entrant the contest does not have, or a task\nthe caller does not observe, gives no rows; a username that breaks the\nforge's rule for one is a `validation_error`.\n\nWith `regrade`, the regrade of many a summary of `/gradings/regrades`\nnames, it lists that regrade's gradings, one per submission, its latest\nattempt of the regrade, newest first, each with `change`, what it did\nto the submission beside the result it replaced, the earlier and new\npoints side by side; `change` narrows them to one kind, and `user` and\n`entrant` narrow as ever, while `task`, `status` and `latest` are not\nread with it. A regrade the caller cannot see gives no rows, and so\ndoes `change` without `regrade`.",
+        "description": "At most `limit` gradings of the contest's tasks the caller observes,\nnewest first, every attempt a row of its own, so a submission graded\nagain shows more than once, or, with `latest`, only each submission's\nlatest attempt. One whose run is overdue or lost reads as\n`system_error` with the reason, and a filter by status takes it as it\nreads, so `status=system_error&latest=true` gives the failed gradings\nthe queue's `failed` counts. A task, username or entrant the contest does not have, or a task\nthe caller does not observe, gives no rows; a username that breaks the\nforge's rule for one is a `validation_error`.\n\nWith `regrade`, the regrade of many a summary of `/gradings/regrades`\nnames, it lists that regrade's gradings, one per submission, its latest\nattempt of the regrade, newest first, each with `change`, what it did\nto the submission beside the result it replaced, the earlier and new\ntests accepted side by side; `change` narrows them to one kind, and `user` and\n`entrant` narrow as ever, while `task`, `status` and `latest` are not\nread with it. A regrade the caller cannot see gives no rows, and so\ndoes `change` without `regrade`.",
         "operationId": "listContestGradings",
         "parameters": [
           {

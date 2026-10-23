@@ -385,9 +385,8 @@ the forge itself does not check what opening needs.
 its tasks from: every task the contest's `tasks` lists, in that order, each
 with its `task` by name, its `label`, the letter of its place, its `state`
 as `GET <task>` gives it, and its `timeline` from its entry, each time at
-its default where the entry gives none: `worth`, null on a task that gives
-no points or has no publication, `release_at`, `due` and `late_per_day`,
-both null on a task with no due, and `closes`; `withdrawn`, whether it is
+its default where the entry gives none: `release_at`, `due`, null on a
+task with no due, and `closes`; `withdrawn`, whether it is
 withdrawn from the contest; `submissions`, how many it has, any entrant's;
 and `take_out`, what taking it out would do, `remove` while it has none and
 `withdraw` once it has, null while it is withdrawn. A withdrawn task keeps
@@ -534,26 +533,12 @@ carries the contest `where` it is, its title as `name`, its dates and
 `state`, the caller's panel as `registration`, whether the caller
 `organises` the contest and so may not enter it, `now`, the server's clock
 when it was read, and the `tasks` released to them, each
-with its `name`, `label`, `title`, `worth`, the most points it gives or
-null, its `release`, when it falls `due`, null when it has none, and
-`closes` for the caller, their entrant's extension on it included, and,
-for a member of an approved entrant, its `points`: one entry for each
-leaderboard the entrant sees, in the order of the home's `boards`, which
-names them as the contest's file lists them, so a page draws a column per
-board under one header row. Each entry carries its `board`, whether it
-`covers` the task (the page reads "—" where it does not), and, where it
-does, `points`, their entrant's points on the task as that board counts
-it now (its `over`, `select` and `order`, the same number as the board's
-own row): `shown` over the scope's groups whose results are shown, 0
-while the board's cell does not count, null while the board shows
-nothing of the task yet, `pending`, the most the scope's groups not shown
-yet could still add, and `pending_until`, the task's reveal, null when
-nothing is pending; and `most`, the most the board can count from the
-task. Every number is an exact decimal string; `points` and `most` are
-null on a task that gives no points. For anyone else, `boards` and each
-task's `points` are empty, and the page reads the task's `worth`. A group
-whose results are not shown yet never counts in `shown`, as on every
-board. A task's page
+with its `name`, `label`, `title`, its `release`, when it falls `due`,
+null when it has none, and `closes` for the caller, their entrant's
+extension on it included; and, for a member of an approved entrant, its
+`standing`: their own row on each leaderboard they read, as that board
+shows it to them, so the home shows no number a board holds back. Anyone
+else gets no standing. A task's page
 carries the same, its `statement` in Markdown, its `submissions`: at most
 `max` in all and `rate.count` in any `rate.per` seconds, and its `inputs`,
 the form the submit panel is built from: each input's `id`, `type`
@@ -658,28 +643,21 @@ number in its place is a `validation_error`. It comes with
 an `idempotency_key` the browser makes once per submit, 8 to 128 letters,
 digits, `-` and `_`; a value left out takes its default. The same key sent
 again answers with the submission it made and makes nothing. A submission
-carries its `number`, `submitted_at`, `late_days`, how many started days
-after the caller's due it was made, and its `grading`, the attempt that
+carries its `number`, `submitted_at` and its `grading`, the attempt that
 counts, as the boards count it: the latest that finished with a result,
 so a regrade under way, a failure or a cancel leaves the result as it was,
 and while none has, the latest. It comes
 with its `id`, `attempt` and `status`, and once it is `done`, what the
 task's test groups let the contestant see now: what `stopped` the run, the
-`outcome` over the groups shown, the `values` reported once, `folded`,
-each value reported per test with a fold, folded over the tests shown, a
-test that was not accepted having no value for it, so a wrong answer has
-no time, and each of the `groups` with its `group` name, its `show`, its
+`outcome` over the groups shown, the `values` reported once, and each of
+the `groups` with its `group` name, its `show`, its
 `outcome` and its `tests`, each test's row being its `test`, `<group>/<test>`, its `outcome`
 and its `values`; and `meanings`, every value the workflow reports, in its
 order, each `{name, title, unit, fold, better}`, the title and unit being
 the words a page names it by ("Run time", "ms"), null where the workflow
 gives none so the page falls back to `name`, a value a sealed step holds
-back left out until the reveal. On a task that gives points, the grading carries its
-`points`, those `shown`, null while no group's verdict is shown yet,
-those `pending` on groups not shown yet and
-`pending_until`, and the late `factor` they include; each group its `max`,
-and its `points` once its verdict is shown; each test row its `credit`,
-and `best` on a relative credit. Every number is served exactly, as a
+back left out until the reveal. A task graded test by test gives no
+points. Every number is served exactly, as a
 string of plain decimal digits, to 30 significant digits when it is no
 decimal, and `values` come split into `numbers` and `texts`, so text that
 looks like a number stays text. A group shown `always` carries everything; `verdict` its
@@ -729,35 +707,35 @@ each of its `errors` naming its `input`, and `invalid_idempotency_key` as
 
 ## Boards and marks
 
-A contest's boards are computed by forge on each read, the same ranking for
-every reader, cut to the rows the board's `rows` gives them.
+A contest's boards are worked out by forge on each read, for each reader:
+staff read every board, row and cell with no hold; the members of an
+approved entrant read `entrants` boards with their row as their own; and
+anyone, with no cookie too, reads `everyone` boards.
 
 | Route | Who | Answer |
 |---|---|---|
 | `GET /api/v1/public/contests/{org}/{contest}/boards` | anyone, no cookie | the boards for `everyone` |
 | `GET /api/v1/public/contests/{org}/{contest}/boards/{board}` | anyone, no cookie | one of them |
-| `GET <contest>/boards` | a session | the boards the caller's audience sees |
+| `GET <contest>/boards` | a session | the boards the caller reads, each as they read it |
 | `GET <contest>/boards/{board}` | a session | one of them |
-| `GET <contest>/organise/boards?entrant=` | observer at the contest | every board, `now` and `final`, with its `notes` |
+| `GET <contest>/hold` | observer at the contest | where the hold stands |
+| `POST <contest>/hold/end` | manager at the contest | the hold, ended early |
 | `GET <task>/marks` | a session | the marks the caller's row holds on the task |
 | `PUT <task>/marks/{number}` | a session | the marks, with the submission marked |
 | `DELETE <task>/marks/{number}` | a session | the marks, with its mark taken off |
 
-A board carries its `board` name, `over`, `select` and `who`, its `keys`,
-each `{by, better, per_attempt, title, unit}`, a value's `title` and
-`unit` naming its column as the first covered task gives them, the `tasks` it covers, each `{id,
-label, worth}`, `not_in_view`, what of a task is in its scope and not yet
-in its numbers, with when it joins, and its `rows` in rank order. A row
-carries its `rank`, shared by ties, whose it is as `row`, `{entrant, name}`,
-its number on each key in `keys`, and its `cells` by task name,
-each with `counting`, its `numbers` by key, and `attempts`; only the
-reader's own row carries `grading`, how many of its submissions are not
-graded yet, and `submissions`, the numbers it counts. Every number is an
-exact decimal string. A board whose scope shows nothing yet has no rows
-and its `shown_at`. A board the reader may not see is not found.
-Organisers read `now`, every row, or, given an entrant's id as `entrant`,
-`now` as that row sees it; `final`, as after every reveal; and `notes`,
-what the board asks of its tasks that does not hold.
+A board carries its `key` and `title`, its `audience`, `{who, rows}`,
+the `headers` of the columns listed to the caller, each with its `name`,
+`places`, bounds and the values a contestant could set it by, its `sort`
+keys and those `dropped` for the caller, `held_from`, when the hold
+holds other rows from, and its `rows` in order. A row carries its
+`place`, shared by rows equal on every sort key, whose it is as `row`,
+`{entrant, name}`, its listed `cells`, each with its `column`, `number`
+and whether it is `hidden`, `held`, how many of its submissions the hold
+keeps from the caller, and, on the caller's own row and for staff,
+`grading`, how many of its submissions still grade, and each cell's
+`counted` and `waiting` submissions. Every number is an exact decimal
+string. A board the reader may not see is not found.
 
 A row, an entrant, marks up to the task's `marks` of its own
 submissions for the `marked` boards, until its close on the task. Marks
@@ -963,9 +941,8 @@ Beside a grading, an observer of the task reads its submission as its row
 reads it, with everything filled in (`TASK-FORMAT.md` section 1.7): `GET
 <task>/organise/submissions/{number}` with the row's `entrant`, and a row
 with no such submission `not_found`. It is the contestant's own payload, scored and shown by the
-same code as once the task has revealed: every group's outcome, tests and
-points and every value a sealed step reported, its points all shown and
-none pending. Each group's `shown_at` is kept as a note of when the row is
+same code as once the task has revealed: every group's outcome and tests
+and every value a sealed step reported. Each group's `shown_at` is kept as a note of when the row is
 shown it, null once it sees the group's tests, and `status` is the
 grading's own (`OrganisedResult`).
 
@@ -1012,20 +989,16 @@ up". Each summary has its `id`, its `task` by name and `label`, its `cause`,
 `rejudge` or `save`, the `publication` its attempts grade against,
 `started_at`, `started_by` and `started_by_name`, how many submissions it
 took (`total`) and `graded` (finished with a result), whether any is still
-`running`, and `counts`, how many of each change: `up` and `down`, its
-points went up or down (on a task that gives no points, a larger or smaller
-share of its tests accepted, then its values with a direction, any worse
-reading as down); `stopped`, it now stops before its tests where the
+`running`, and `counts`, how many of each change: `up` and `down`, a
+larger or smaller share of its tests accepted; `stopped`, it now stops before its tests where the
 result it replaced did not, on the classic workflow "now fails to compile";
 `unchanged`; `new`, graded with nothing to compare with; `running`;
 `failed`, no result yet, a system error or cancelled; and `over_limit`.
 The feed with `regrade=<id>` lists that regrade's gradings, one per
 submission, its latest attempt of the regrade, each with `change`: the
 `change`, `earlier`, the result that counted when the regrade began, and
-`now`, its own, each with its `attempt`, `points` (exact, null on a task
-that gives no points), `accepted` of `tests`, what `stopped` it and its
-`values` with a direction, so the earlier and new points read side by
-side; `change=` narrows them to one kind, and `user` and `entrant` narrow
+`now`, its own, each with its `attempt`, `accepted` of `tests` and what
+`stopped` it, so the earlier and new read side by side; `change=` narrows them to one kind, and `user` and `entrant` narrow
 as ever, while `task`, `status` and `latest` are not read with it. `change`
 without `regrade` gives no rows.
 

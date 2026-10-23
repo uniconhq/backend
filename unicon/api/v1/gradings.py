@@ -355,7 +355,7 @@ async def list_contest_gradings(
     names, it lists that regrade's gradings, one per submission, its latest
     attempt of the regrade, newest first, each with `change`, what it did
     to the submission beside the result it replaced, the earlier and new
-    points side by side; `change` narrows them to one kind, and `user` and
+    tests accepted side by side; `change` narrows them to one kind, and `user` and
     `entrant` narrow as ever, while `task`, `status` and `latest` are not
     read with it. A regrade the caller cannot see gives no rows, and so
     does `change` without `regrade`.
