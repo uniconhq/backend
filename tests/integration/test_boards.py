@@ -1,8 +1,12 @@
-"""The board and marks routes: until audiences come, staff alone read a
-board, every row and cell, its numbers exact decimal strings, and an
-entrant and a visitor with no cookie read none; and a row's marks on a
-task, up to the task's `marks`, refused on another's submission and frozen
-at the row's close, only while a board reads which submissions it marks.
+"""The board, hold and marks routes: each caller reads a board as its
+audience lets them, staff every board, row and cell, an entrant and a
+visitor with no cookie a board for everyone, told what a cell counted only
+on their own row, its numbers exact decimal strings; a manager of the
+contest ends its hold early, asked first, and an observer reads where it
+stands; the contest home carries an entrant's own row of each board; and a
+row's marks on a task, up to the task's `marks`, refused on another's
+submission and frozen at the row's close, only while a board reads which
+submissions it marks.
 """
 
 import re
@@ -38,7 +42,12 @@ leaderboards:
       score: {block: otherwise, of: [{value: [{column: picked}, total]}, 0]}
     sort: [{score: desc}]
     display: [{score: {places: 1}}]
+  private:
+    columns:
+      tries: {block: count, over: {results: sum}}
+    display: [tries]
 """
+HOLD = "hold: {from: 2026-09-26T10:00:00Z, until: staff}\n"
 MARKED = """\
 leaderboards:
   final:
@@ -108,32 +117,11 @@ async def _graded(
     assert finished.json() == {"status": "done"}, finished.text
 
 
-async def test_staff_read_every_row_of_a_board_and_nobody_else_reads_one(
-    client: httpx.AsyncClient, entered: FakeForge
-) -> None:
-    carols = await entrant_of(client)
-    await _settings(client, entered, SETTINGS)
-    await _graded(client, entered, "key-0001-aaaa")
-
-    mine = await client.get(BOARDS)
-    one = await client.get(f"{BOARDS}/standings")
-    client.cookies.clear()
-    public = await client.get(PUBLIC)
-    public_one = await client.get(f"{PUBLIC}/standings")
-    await sign_in_as(client, entered, 7)
-    staff = await client.get(BOARDS)
-    staff_one = await client.get(f"{BOARDS}/standings")
-    other = await client.get(f"{BOARDS}/nothing")
-    organise = await client.get(f"{CONTEST}/organise/boards")
-
-    assert (mine.status_code, mine.json()) == (200, [])
-    assert (one.status_code, one.json()["code"]) == (404, "not_found")
-    assert (public.status_code, public.json()) == (200, [])
-    assert (public_one.status_code, public_one.json()["code"]) == (404, "not_found")
-    assert staff.status_code == 200, staff.text
-    # sum is graded test by test, which a board does not read, so the
-    # row's score is otherwise's 0.
-    standings = {
+def _standings(carols: str, told: bool) -> dict[str, Any]:
+    """The board for everyone with carol's row alone, as staff, carol and
+    a visitor read it."""
+    counted: list[Any] | None = [] if told else None
+    return {
         "key": "standings",
         "title": "Standings",
         "audience": {"who": "everyone", "rows": "all"},
@@ -147,18 +135,117 @@ async def test_staff_read_every_row_of_a_board_and_nobody_else_reads_one(
             }
         ],
         "sort": [{"column": "score", "way": "desc"}],
+        "dropped": [],
+        "held_from": None,
         "rows": [
             {
                 "place": 1,
                 "row": {"entrant": carols, "name": "carol"},
-                "cells": [{"column": "score", "number": "0", "counted": [], "waiting": []}],
+                "cells": [
+                    {
+                        "column": "score",
+                        "number": "0",
+                        "hidden": False,
+                        "counted": counted,
+                        "waiting": counted,
+                    }
+                ],
+                "held": 0,
             }
         ],
     }
-    assert staff.json() == [standings]
-    assert staff_one.json() == standings
+
+
+async def test_each_caller_reads_the_boards_its_audience_lets_them(
+    client: httpx.AsyncClient, entered: FakeForge
+) -> None:
+    carols = await entrant_of(client)
+    await _settings(client, entered, SETTINGS)
+    await _graded(client, entered, "key-0001-aaaa")
+
+    mine = await client.get(BOARDS)
+    one = await client.get(f"{BOARDS}/standings")
+    not_hers = await client.get(f"{BOARDS}/private")
+    client.cookies.clear()
+    public = await client.get(PUBLIC)
+    public_one = await client.get(f"{PUBLIC}/standings")
+    public_private = await client.get(f"{PUBLIC}/private")
+    await sign_in_as(client, entered, 7)
+    staff = await client.get(BOARDS)
+    staff_one = await client.get(f"{BOARDS}/standings")
+    other = await client.get(f"{BOARDS}/nothing")
+    organise = await client.get(f"{CONTEST}/organise/boards")
+
+    # sum is graded test by test, which a board does not read, so the
+    # row's score is otherwise's 0. Carol is told what her own row's cells
+    # counted; a visitor is not.
+    assert (mine.status_code, mine.json()) == (200, [_standings(carols, told=True)])
+    assert one.json() == _standings(carols, told=True)
+    assert (public.status_code, public.json()) == (200, [_standings(carols, told=False)])
+    assert public_one.json() == _standings(carols, told=False)
+    # The board with no audience is staff's alone.
+    for refused in (not_hers, public_private):
+        assert (refused.status_code, refused.json()["code"]) == (404, "not_found")
+    assert staff.status_code == 200, staff.text
+    standings, private = staff.json()
+    assert standings == staff_one.json() == _standings(carols, told=True)
+    assert private["rows"][0]["cells"] == [
+        {"column": "tries", "number": "0", "hidden": False, "counted": [], "waiting": []}
+    ]
     assert (other.status_code, other.json()["code"]) == (404, "not_found")
     assert organise.status_code == 404
+
+
+async def test_a_manager_of_the_contest_ends_its_hold_early_asked_first(
+    client: httpx.AsyncClient, entered: FakeForge
+) -> None:
+    await _settings(client, entered, HOLD + SETTINGS)
+    await _graded(client, entered, "key-0001-aaaa")
+    client.cookies.clear()
+    held = (await client.get(f"{PUBLIC}/standings")).json()
+    await sign_in_as(client, entered, 7)
+
+    before = await client.get(f"{CONTEST}/hold")
+    asked = await client.post(f"{CONTEST}/hold/end", json={}, headers=ORIGIN)
+    ended = await client.post(f"{CONTEST}/hold/end", json={"confirm": True}, headers=ORIGIN)
+    again = await client.post(f"{CONTEST}/hold/end", json={"confirm": True}, headers=ORIGIN)
+    client.cookies.clear()
+    after = (await client.get(f"{PUBLIC}/standings")).json()
+
+    # A visitor reads every row as it stood at the hold's from until the
+    # hold ends; sum's results are no board's, so none is held.
+    assert held["held_from"] == "2026-09-26T10:00:00Z"
+    assert before.json() == {
+        "from": "2026-09-26T10:00:00Z",
+        "until": "staff",
+        "holding": True,
+        "ended_by": None,
+        "ended_by_name": None,
+        "ended_at": None,
+    }
+    assert (asked.status_code, asked.json()["code"]) == (409, "confirmation_required")
+    assert asked.json()["action"] == "end_hold"
+    assert ended.status_code == 200, ended.text
+    assert {key: ended.json()[key] for key in ("holding", "ended_by", "ended_by_name")} == {
+        "holding": False,
+        "ended_by": 7,
+        "ended_by_name": "ada",
+    }
+    assert again.json() == ended.json()
+    assert after["held_from"] is None
+
+
+async def test_the_contest_home_carries_the_entrants_own_row_of_each_board(
+    client: httpx.AsyncClient, entered: FakeForge
+) -> None:
+    carols = await entrant_of(client)
+    await _settings(client, entered, SETTINGS)
+    await _graded(client, entered, "key-0001-aaaa")
+
+    home = (await client.get(f"{CONTEST}/home")).json()
+
+    assert home["standing"] == [_standings(carols, told=True)]
+    assert ["points" in task for task in home["tasks"]] == [False]
 
 
 async def test_a_row_marks_its_own_submissions_up_to_the_tasks_marks_until_its_close(
@@ -230,7 +317,7 @@ async def test_a_save_of_the_contests_settings_refuses_a_board_at_its_path(
     await sign_in_as(client, entered, 7)
     settings = await read(client, f"{CONTEST}/files/contest.yaml")
     content = re.sub(r"(?ms)^leaderboards:.*?(?=^\S|\Z)", "", settings["content"])
-    shown_pick = SETTINGS.replace("display: [", "display: [picked, ")
+    shown_pick = SETTINGS.replace("display: [{score", "display: [picked, {score")
 
     refused = await client.put(
         f"{CONTEST}/files/contest.yaml",
@@ -287,18 +374,6 @@ async def test_organisers_read_a_submission_scored_with_everything_filled_in(
     assert grading["points"] == {"shown": "100", "pending": "0", "pending_until": None}
     assert (mine["outcome"], mine["tests"], mine["points"]) == (None, None, None)
     assert (own["status"], own["points"]["pending"]) == ("graded", "100")
-
-
-async def test_the_contest_home_leaves_a_tasks_standing_to_the_boards(
-    client: httpx.AsyncClient, entered: FakeForge
-) -> None:
-    await _settings(client, entered, SETTINGS)
-    await _graded(client, entered, "key-0001-aaaa")
-
-    home = (await client.get(f"{CONTEST}/home")).json()
-
-    assert "boards" not in home
-    assert ["points" in task for task in home["tasks"]] == [False]
 
 
 async def test_organisers_pick_one_row_with_such_a_submission(

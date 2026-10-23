@@ -1,9 +1,11 @@
-"""What the board and marks routes answer with. A board comes back as staff
-read it until audiences come: its key and title, who it is for, its
-displayed columns' headers, the columns it sorts by, and its rows in
-order, each with its place and its displayed cells, every number an exact
-decimal string. A cell names the submissions it counted and those it left
-out as still waiting, each by task and number.
+"""What the board, hold and marks routes answer with. A board comes back as
+the caller reads it: its key and title, who it is for, its listed columns'
+headers, the columns it was sorted by for them and those dropped, when the
+hold holds other rows from, and its rows in order, each with its place,
+its listed cells and how many of its submissions the hold keeps back,
+every number an exact decimal string. A cell says whether it is hidden
+and, on the caller's own row and for staff, names the submissions it
+counted and those it left out as still waiting, each by task and number.
 """
 
 import uuid
@@ -11,7 +13,7 @@ from datetime import datetime
 from typing import Any, Literal
 
 from forge.api import boards
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from unicon.schemas.exact import Exact
 
@@ -54,13 +56,17 @@ class Counted(BaseModel):
 
 
 class BoardCell(BaseModel):
-    """One displayed column of a row: its `number`, null when missing; the
-    submissions it counted; and those it left out as still waiting."""
+    """One listed column of a row: its `number`, null when missing or
+    hidden; whether it is `hidden` from the caller, having read something
+    they are not shown; the submissions it counted; and those it left out
+    as still waiting, both null unless the row is the caller's own or they
+    are staff."""
 
     column: str
     number: Exact | None
-    counted: list[Counted]
-    waiting: list[Counted]
+    hidden: bool
+    counted: list[Counted] | None
+    waiting: list[Counted] | None
 
 
 class BoardRowOwner(BaseModel):
@@ -74,13 +80,16 @@ class BoardRowOwner(BaseModel):
 
 class BoardRow(BaseModel):
     """A row on the board: its place, shared by rows equal on every sort
-    key, null on a board with no `sort`, whose it is, and its displayed
-    cells in order.
+    key, null on a board with no `sort`, when a sort key was dropped for
+    the caller, and on a board showing them only their own row; whose it
+    is; its listed cells in order; and `held`, how many of its submissions
+    the hold keeps from the caller.
     """
 
     place: int | None
     row: BoardRowOwner
     cells: list[BoardCell]
+    held: int
 
 
 class SortKey(BaseModel):
@@ -93,13 +102,19 @@ class SortKey(BaseModel):
 
 
 class Board(BaseModel):
-    """One board as staff read it: every row, no hold."""
+    """One board as the caller reads it: the headers of the columns listed
+    to them, the keys its rows were sorted by and the sort keys `dropped`,
+    hidden on a row served or not listed, its rows cut to its audience, and
+    `held_from`, when the hold holds other rows from, null when it holds
+    nothing for the caller."""
 
     key: str
     title: str
     audience: BoardAudience
     headers: list[Header]
     sort: list[SortKey]
+    dropped: list[str]
+    held_from: datetime | None
     rows: list[BoardRow]
 
 
@@ -129,6 +144,8 @@ def board_of(board: boards.Board) -> dict[str, Any]:
         "audience": {"who": board.audience.who, "rows": board.audience.rows},
         "headers": [header_of(header) for header in board.headers],
         "sort": sort_of(board.sort),
+        "dropped": list(board.dropped),
+        "held_from": board.held_from,
         "rows": [
             {
                 "place": row.place,
@@ -137,15 +154,38 @@ def board_of(board: boards.Board) -> dict[str, Any]:
                     {
                         "column": cell.column,
                         "number": cell.number,
-                        "counted": counted_of(cell.counted),
-                        "waiting": counted_of(cell.waiting),
+                        "hidden": cell.hidden,
+                        "counted": counted_of(cell.counted) if row.told else None,
+                        "waiting": counted_of(cell.waiting) if row.told else None,
                     }
                     for cell in row.cells
                 ],
+                "held": row.held,
             }
             for row in board.rows
         ],
     }
+
+
+class HoldRequest(BaseModel):
+    """Ending the contest's hold early. Without `confirm` nothing changes,
+    and the answer is `confirmation_required` with the words to show."""
+
+    confirm: bool = False
+
+
+class HoldState(BaseModel):
+    """Where the contest's hold stands: its `from` and `until`, a time or
+    `staff`, both null with no hold; whether it holds now; and, once staff
+    ended it early, who, by user id and username, null when the forge gives
+    none, and when."""
+
+    from_: datetime | None = Field(serialization_alias="from")
+    until: datetime | Literal["staff"] | None
+    holding: bool
+    ended_by: int | None
+    ended_by_name: str | None
+    ended_at: datetime | None
 
 
 class Marks(BaseModel):

@@ -383,10 +383,17 @@
         "type": "object"
       },
       "Board": {
-        "description": "One board as staff read it: every row, no hold.",
+        "description": "One board as the caller reads it: the headers of the columns listed\nto them, the keys its rows were sorted by and the sort keys `dropped`,\nhidden on a row served or not listed, its rows cut to its audience, and\n`held_from`, when the hold holds other rows from, null when it holds\nnothing for the caller.",
         "properties": {
           "audience": {
             "$ref": "#/components/schemas/BoardAudience"
+          },
+          "dropped": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Dropped",
+            "type": "array"
           },
           "headers": {
             "items": {
@@ -394,6 +401,18 @@
             },
             "title": "Headers",
             "type": "array"
+          },
+          "held_from": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Held From"
           },
           "key": {
             "title": "Key",
@@ -424,6 +443,8 @@
           "audience",
           "headers",
           "sort",
+          "dropped",
+          "held_from",
           "rows"
         ],
         "title": "Board",
@@ -465,18 +486,29 @@
         "type": "object"
       },
       "BoardCell": {
-        "description": "One displayed column of a row: its `number`, null when missing; the\nsubmissions it counted; and those it left out as still waiting.",
+        "description": "One listed column of a row: its `number`, null when missing or\nhidden; whether it is `hidden` from the caller, having read something\nthey are not shown; the submissions it counted; and those it left out\nas still waiting, both null unless the row is the caller's own or they\nare staff.",
         "properties": {
           "column": {
             "title": "Column",
             "type": "string"
           },
           "counted": {
-            "items": {
-              "$ref": "#/components/schemas/Counted"
-            },
-            "title": "Counted",
-            "type": "array"
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/Counted"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Counted"
+          },
+          "hidden": {
+            "title": "Hidden",
+            "type": "boolean"
           },
           "number": {
             "anyOf": [
@@ -494,16 +526,24 @@
             "title": "Number"
           },
           "waiting": {
-            "items": {
-              "$ref": "#/components/schemas/Counted"
-            },
-            "title": "Waiting",
-            "type": "array"
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/Counted"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Waiting"
           }
         },
         "required": [
           "column",
           "number",
+          "hidden",
           "counted",
           "waiting"
         ],
@@ -559,7 +599,7 @@
         "type": "object"
       },
       "BoardRow": {
-        "description": "A row on the board: its place, shared by rows equal on every sort\nkey, null on a board with no `sort`, whose it is, and its displayed\ncells in order.",
+        "description": "A row on the board: its place, shared by rows equal on every sort\nkey, null on a board with no `sort`, when a sort key was dropped for\nthe caller, and on a board showing them only their own row; whose it\nis; its listed cells in order; and `held`, how many of its submissions\nthe hold keeps from the caller.",
         "properties": {
           "cells": {
             "items": {
@@ -567,6 +607,10 @@
             },
             "title": "Cells",
             "type": "array"
+          },
+          "held": {
+            "title": "Held",
+            "type": "integer"
           },
           "place": {
             "anyOf": [
@@ -586,7 +630,8 @@
         "required": [
           "place",
           "row",
-          "cells"
+          "cells",
+          "held"
         ],
         "title": "BoardRow",
         "type": "object"
@@ -1011,7 +1056,7 @@
         "type": "object"
       },
       "ContestHome": {
-        "description": "A contest's home for the caller. `organises` says the caller holds a\nrole at the contest, which keeps them from registering; `registration`\nis their registration panel, as `entrants/mine` answers it: their\nentrant, whether and how they may register, and whether to ask them for\na code.",
+        "description": "A contest's home for the caller. `organises` says the caller holds a\nrole at the contest, which keeps them from registering; `registration`\nis their registration panel, as `entrants/mine` answers it: their\nentrant, whether and how they may register, and whether to ask them for\na code. `standing` is their own row of each leaderboard they read, as\nthat board's route shows it to them, empty unless they are in an\napproved entrant.",
         "properties": {
           "description": {
             "title": "Description",
@@ -1037,6 +1082,13 @@
           },
           "registration": {
             "$ref": "#/components/schemas/MyEntry"
+          },
+          "standing": {
+            "items": {
+              "$ref": "#/components/schemas/Board"
+            },
+            "title": "Standing",
+            "type": "array"
           },
           "start": {
             "format": "date-time",
@@ -1067,7 +1119,8 @@
           "registration",
           "organises",
           "now",
-          "tasks"
+          "tasks",
+          "standing"
         ],
         "title": "ContestHome",
         "type": "object"
@@ -2598,6 +2651,99 @@
           "names"
         ],
         "title": "HeldRole",
+        "type": "object"
+      },
+      "HoldRequest": {
+        "description": "Ending the contest's hold early. Without `confirm` nothing changes,\nand the answer is `confirmation_required` with the words to show.",
+        "properties": {
+          "confirm": {
+            "default": false,
+            "title": "Confirm",
+            "type": "boolean"
+          }
+        },
+        "title": "HoldRequest",
+        "type": "object"
+      },
+      "HoldState": {
+        "description": "Where the contest's hold stands: its `from` and `until`, a time or\n`staff`, both null with no hold; whether it holds now; and, once staff\nended it early, who, by user id and username, null when the forge gives\nnone, and when.",
+        "properties": {
+          "ended_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ended At"
+          },
+          "ended_by": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ended By"
+          },
+          "ended_by_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ended By Name"
+          },
+          "from": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From"
+          },
+          "holding": {
+            "title": "Holding",
+            "type": "boolean"
+          },
+          "until": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "const": "staff",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Until"
+          }
+        },
+        "required": [
+          "from",
+          "until",
+          "holding",
+          "ended_by",
+          "ended_by_name",
+          "ended_at"
+        ],
+        "title": "HoldState",
         "type": "object"
       },
       "Holder": {
@@ -6778,7 +6924,7 @@
         "type": "object"
       },
       "TaskEntry": {
-        "description": "A task released to the caller: its name, the label its place in the\ncontest gives it, its title, the most points it gives, null on a task\nthat gives none, whether they may submit to it now, and when it falls\ndue, null when it has no due, and closes for them, their extension on it\nincluded. A task's standing on the contest's leaderboards is the\nboards' own to say.",
+        "description": "A task released to the caller: its name, the label its place in the\ncontest gives it, its title, the most points it gives, null on a task\nthat gives none, whether they may submit to it now, and when it falls\ndue, null when it has no due, and closes for them, their extension on it\nincluded. A task's standing on the contest's leaderboards is the\nboards' own to say, the home's `standing` among them.",
         "properties": {
           "closes": {
             "anyOf": [
@@ -9731,7 +9877,7 @@
     },
     "/api/v1/orgs/{org}/contests/{contest}/boards": {
       "get": {
-        "description": "In the order the contest's settings give them; none for anyone but\nstaff until audiences come.",
+        "description": "In the order the contest's settings give them.",
         "operationId": "listBoards",
         "parameters": [
           {
@@ -11130,6 +11276,120 @@
         "summary": "Every change, newest first",
         "tags": [
           "files"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/hold": {
+      "get": {
+        "description": "Its `from` and `until`, whether it holds now, and who ended it early\nand when, if anyone did.",
+        "operationId": "getHold",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HoldState"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Where the contest's hold stands",
+        "tags": [
+          "boards"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/hold/end": {
+      "post": {
+        "description": "From now on every caller reads every row as it stands. Without\n`confirm`, nothing changes and the answer is `confirmation_required`\nwith `action` `end_hold` and, as its detail, what becomes visible and\nthat this hold cannot be put back. A hold already ended, early or at\nits `until`, answers as it stands; a contest with no hold is\n`not_found`. The answer is read once the end has landed.",
+        "operationId": "endHold",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HoldRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HoldState"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "End the contest's hold early",
+        "tags": [
+          "boards"
         ]
       }
     },
@@ -16930,7 +17190,7 @@
     },
     "/api/v1/public/contests/{org}/{contest}/boards": {
       "get": {
-        "description": "None until audiences come.",
+        "description": "Those for `everyone`, each as a visitor reads it.",
         "operationId": "listPublicBoards",
         "parameters": [
           {
