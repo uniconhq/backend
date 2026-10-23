@@ -222,7 +222,7 @@ async def test_a_refused_publication_lists_each_check_that_refused_it(
     async def listed(organiser: Any, task: str) -> tuple[publications.Publication, ...]:
         return (refused,)
 
-    monkeypatch.setattr(publications, "list", listed)
+    monkeypatch.setattr(publications, "list_publications", listed)
 
     [answer] = (await client.get(f"{TASK}/publications")).json()
 

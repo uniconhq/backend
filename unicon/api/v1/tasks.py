@@ -72,7 +72,7 @@ async def create_task(organiser: ContestManager, body: CreateTask) -> NamedRecor
 )
 async def list_tasks(organiser: ContestObserver) -> tuple[NamedRecord, ...]:
     """The tasks the forge lets the caller read, by name."""
-    return await tasks.list(organiser, contests.contest_id_of(organiser.scope))
+    return await tasks.list_tasks(organiser, contests.contest_id_of(organiser.scope))
 
 
 @router.get(
@@ -210,7 +210,7 @@ async def get_task_release(session: CurrentSession, scope: TaskAtPath) -> releas
     response_model=list[Publication],
 )
 async def list_task_publications(organiser: TaskObserver) -> tuple[publications.Publication, ...]:
-    return await publications.list(organiser, tasks.task_id_of(organiser.scope))
+    return await publications.list_publications(organiser, tasks.task_id_of(organiser.scope))
 
 
 @router.get(

@@ -134,7 +134,7 @@ async def list_gradings(
     report by its deadline, or was lost by the CI reads as `system_error`
     with the reason in `error`, whatever its row still says.
     """
-    rows = await gradings.list(organiser, tasks.task_id_of(organiser.scope), limit=limit)
+    rows = await gradings.list_gradings(organiser, tasks.task_id_of(organiser.scope), limit=limit)
     return [_entry(row) for row in rows]
 
 
