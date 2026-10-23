@@ -205,6 +205,7 @@ the one the route needs at the scope in the third column.
 | `POST <task>/gradings/{grading}/retry` | manager | task | | the new attempt, `queued` |
 | `POST <task>/rejudge` | manager | task | | what the rejudge did, and the `regrade` it is kept as |
 | `POST <task>/regrades/{regrade}/dismiss` | manager | task | | 204; the regrade's summary leaves the contest's page |
+| `GET <task>/regrades/{regrade}` | manager | task | | a run task's regrade by each value and verdict it changed, old to new |
 | `GET <contest>/gradings?task=&user=&entrant=&status=&latest=&regrade=&change=&limit=` | a role at the contest or at one of its tasks | contest | | the gradings of the tasks the caller observes, newest first, each with its `task`, `label` and `by`; with `regrade`, that regrade's, each with its `change` |
 | `GET <contest>/gradings/queue` | a role at the contest or at one of its tasks | contest | | how many of theirs are `queued` and `dispatched`, and how many `failed` and wait |
 | `GET <contest>/gradings/regrades` | a role at the contest or at one of its tasks | contest | | each task's latest regrade of many the caller observes, summed up by what it changed |
@@ -1027,6 +1028,19 @@ that gives no points), `accepted` of `tests`, what `stopped` it and its
 side; `change=` narrows them to one kind, and `user` and `entrant` narrow
 as ever, while `task`, `status` and `latest` are not read with it. `change`
 without `regrade` gives no rows.
+
+A run task's regrade has no direction per value: up and down are a row's
+place on a board. `GET <task>/regrades/{regrade}`, for a manager of the
+task, reads it by what it changed, worked out on read and stored nowhere:
+`total`, how many are still `running` and how many `failed` with no
+result, and `changed`, each submission whose values or verdicts moved, in
+the order they were made, with its latest attempt of the regrade
+(`grading`), its `number`, each value `before` and `after` (exact, null
+where it had none or waits, `waiting` after) and each run's verdict
+`before` and `after`. `boards`, each board that reads the task before and
+after, is given to a manager or admin of the contest alone, null for
+anyone else, and empty until boards read a run task's values. A regrade of
+another task, or of a task graded test by test, is `not_found`.
 
 ## Operator commands
 

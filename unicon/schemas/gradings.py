@@ -2,7 +2,8 @@
 cancelled with, a mark entered for a submission's value and what was
 kept, a grading as an organiser reads it, one among a task's or a
 contest's with its task and who submitted it, what a rejudge did, a task's
-latest regrade of many summed up and what it did to one submission, and
+latest regrade of many summed up and what it did to one submission, a run
+task's regrade by the values and verdicts it changed, and
 where a grading stands after its run reports. Who submitted and a contest's queue
 depth go out as the forge's own `Submitter` and `QueueDepth`. A username
 the feed is narrowed by keeps the forge's rule for one.
@@ -216,6 +217,68 @@ class RegradeSummary(BaseModel):
         if isinstance(given, Mapping):
             return {str(change): count for change, count in given.items()}
         return given
+
+
+class ValueChange(BaseModel):
+    """One value of a submission a regrade changed: its `name`, its
+    number `before` and `after`, exactly, null where it had none or waits,
+    and whether it is `waiting` after, for a run or for staff. A value has
+    no direction: up and down are a row's place on a board."""
+
+    name: str
+    before: Exact | None
+    after: Exact | None
+    waiting: bool
+
+
+class VerdictChange(BaseModel):
+    """One run whose verdict a regrade changed, by id, its verdict
+    `before` and `after`, null where the grading did not hold the run."""
+
+    run: str
+    before: str | None
+    after: str | None
+
+
+class SubmissionChange(BaseModel):
+    """One submission a run task's regrade changed: its latest attempt of
+    the regrade, `grading`, which the task's gradings read in full, the
+    submission by `number`, and each value and verdict it changed."""
+
+    grading: uuid.UUID
+    number: int
+    values: list[ValueChange]
+    verdicts: list[VerdictChange]
+
+
+class BoardDiff(BaseModel):
+    """One board that reads the regraded task, by name. Each row's place
+    and cells before and after come with the boards that read a run task's
+    values."""
+
+    board: str
+
+
+class RunRegradeSummary(BaseModel):
+    """A run task's regrade by what it changed: its `id`, what started it,
+    the publication it grades against, how many submissions it took,
+    `total`, how many are still `running` and how many ended with no
+    result, `failed`; `changed`, each submission whose values or verdicts
+    it changed, old to new, in the order they were made, an attempt
+    compared with the one that counted when the regrade began, both worked
+    out as organisers read them; and `boards`, each board that reads the
+    task before and after, given to a manager or admin of the contest
+    alone, null for anyone else.
+    """
+
+    id: uuid.UUID
+    cause: RegradeCause
+    publication: PublicationNumber
+    total: int
+    running: int
+    failed: int
+    changed: list[SubmissionChange]
+    boards: list[BoardDiff] | None
 
 
 class Grading(BaseModel):

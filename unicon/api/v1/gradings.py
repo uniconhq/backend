@@ -20,7 +20,9 @@ is kept as one regrade of many: anyone holding a role in the contest reads
 each task's latest one they observe summed up by what it did to each
 submission against the result it replaced, and the feed narrowed to its
 gradings, each with that change; a manager of the task dismisses it from
-the contest's page.
+the contest's page, and reads a run task's regrade by each value and
+verdict it changed, old to new, with each board that reads the task
+before and after for a manager or admin of the contest alone.
 
 An observer of the task also reads any entrant's submission as its row
 reads it with everything filled in, beside its grading (TASK-FORMAT.md
@@ -82,6 +84,7 @@ from unicon.schemas.gradings import (
     Grading,
     RegradeSummary,
     Rejudged,
+    RunRegradeSummary,
 )
 from unicon.schemas.submissions import OrganisedSubmission
 
@@ -385,6 +388,41 @@ async def dismiss_regrade(organiser: TaskManager, regrade: uuid.UUID) -> Respons
     """
     await regrades.dismiss(organiser, tasks.task_id_of(organiser.scope), regrade)
     return Response(status_code=204)
+
+
+@router.get(
+    "/regrades/{regrade}",
+    operation_id="readRunRegrade",
+    summary="What a run task's regrade changed, value by value",
+    response_model=RunRegradeSummary,
+)
+async def read_run_regrade(organiser: TaskManager, regrade: uuid.UUID) -> dict[str, Any]:
+    """Each submission whose values or verdicts the regrade changed, old to
+    new, worked out on read; how many are still running; and, for a manager
+    or admin of the contest, each board that reads the task before and
+    after. A regrade of another task is `not_found`, the same as none, and
+    so is one of a task graded test by test, whose gradings say what it
+    changed.
+    """
+    found = await regrades.run_summary(organiser, tasks.task_id_of(organiser.scope), regrade)
+    return {
+        "id": found.id,
+        "cause": found.cause,
+        "publication": found.publication,
+        "total": found.total,
+        "running": found.running,
+        "failed": found.failed,
+        "changed": [
+            {
+                "grading": each.grading,
+                "number": each.number,
+                "values": each.values,
+                "verdicts": each.verdicts,
+            }
+            for each in found.changed
+        ],
+        "boards": found.boards,
+    }
 
 
 def _entry(row: gradings.FeedEntry) -> dict[str, Any]:

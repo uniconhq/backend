@@ -1,8 +1,8 @@
-"""What the save takes and answers with, and a task's publications. A save
-comes back as one of two outcomes: published, with the new publication, or a
-draft, with the version written and either the errors that kept it from
-publishing, each at its YAML path, or what it held back while the contest
-runs.
+"""What the save takes and answers with, and a task's publications, a
+refused one with the checks that refused it. A save comes back as one of
+two outcomes: published, with the new publication, or a draft, with the
+version written and either the errors that kept it from publishing, each
+at its YAML path, or what it held back while the contest runs.
 """
 
 import uuid
@@ -13,6 +13,7 @@ from forge.api.boards import Better
 from forge.api.types import Uploaded
 from pydantic import BaseModel, BeforeValidator, model_validator
 
+from unicon.schemas.exact import Exact
 from unicon.schemas.files import Encoding, written_content
 
 
@@ -62,6 +63,32 @@ class ValueMeaning(BaseModel):
     better: Better | None
 
 
+class CheckRun(BaseModel):
+    """One run of a check as its save graded it: its `id`, its `key` as
+    the plan gives it, its `verdict` and the numbers its steps reported,
+    exactly."""
+
+    id: str
+    key: dict[str, Any]
+    verdict: str
+    reports: dict[str, Exact]
+
+
+class FailedCheck(BaseModel):
+    """A check that refused its save, for the task's organisers: its
+    `index` in `checks`, from 1; why it failed, a sentence each, at most
+    20; its `runs`; the `outcomes` of its steps done once, by step; the
+    number each value's program reported, by value; and the fault of its
+    steps, null when none. Entrants never read a check."""
+
+    index: int
+    failing: list[str]
+    runs: list[CheckRun]
+    outcomes: dict[str, str]
+    values: dict[str, Exact]
+    error: str | None
+
+
 class Publication(BaseModel):
     """One publication: its number among the task's publications, the version
     it froze, whether it changed how the task grades and what, and when;
@@ -70,7 +97,9 @@ class Publication(BaseModel):
     lists. A publication made before those words were kept lists its values
     reported for each test by name alone. Which workflow each of its
     workflow names was at the forge stays out. `check` is where its save's
-    check stands, null once it passed or on a task that is not checked.
+    check stands, null once it passed or on a task that is not checked;
+    once it is `refused`, `failed_checks` lists each of the task's checks
+    that did not get what it expects, empty otherwise.
     """
 
     number: int
@@ -80,6 +109,7 @@ class Publication(BaseModel):
     at: datetime
     meanings: list[ValueMeaning]
     check: Check | None = None
+    failed_checks: list[FailedCheck] = []
 
 
 class FileChange(BaseModel):

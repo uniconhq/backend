@@ -2,13 +2,20 @@
 the regrade it is kept as; the contest's regrades read each task's latest
 one summed up by what it did to each submission, the feed read by it gives
 its gradings each with the earlier and new points side by side, narrowed to
-one change, and a manager dismisses it from the contest's page.
+one change, and a manager dismisses it from the contest's page. A run
+task's regrade is read by each value and verdict it changed; one of a task
+graded test by test has no such summary.
 """
 
+import uuid
+from fractions import Fraction
+from typing import Any
 from urllib.parse import urlsplit
 
 import httpx
-from forge.api.types import Role, Scope
+import pytest
+from forge.api import regrades
+from forge.api.types import PublicationId, Role, Scope, TaskId
 from forge.testing import FakeForge
 
 from tests.integration.conftest import CONTEST, ORIGIN, SUM, TASK, add_task, sign_in_as, upload
@@ -146,3 +153,82 @@ async def test_an_observer_reads_only_their_tasks_regrades_and_dismisses_none(
     assert (feed.status_code, feed.json()) == (200, [])
     await sign_in_as(client, entered, 7)
     assert [summary["id"] for summary in (await client.get(REGRADES)).json()] == [regrade]
+
+
+async def test_a_run_tasks_regrade_is_read_by_each_value_and_verdict_it_changed(
+    client: httpx.AsyncClient, sum_task: FakeForge, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    regrade = uuid.UUID("0199a2c1-6b7e-7c3a-9f10-5d2e4b8a6c31")
+    grading = uuid.UUID("0199a2c1-6b7e-7c3a-9f10-5d2e4b8a6c32")
+    handed: list[tuple[str, uuid.UUID]] = []
+    # The route serves no workspace, so any will do.
+    workspace: Any = "acme/spring/@entrant.x"
+
+    async def run_summary(organiser: Any, task: str, asked: uuid.UUID) -> regrades.RunSummary:
+        handed.append((task, asked))
+        return regrades.RunSummary(
+            id=asked,
+            task=TaskId(task),
+            cause=regrades.RegradeCause.SAVE,
+            publication=PublicationId("acme/spring/sum#2"),
+            total=5,
+            running=1,
+            failed=0,
+            changed=(
+                regrades.SubmissionChange(
+                    grading=grading,
+                    submission="acme/spring/@entrant.x/sum#3",
+                    number=3,
+                    workspace=workspace,
+                    values=(regrades.ValueChange("st2", Fraction(1), Fraction(1, 3)),),
+                    verdicts=(regrades.VerdictChange("r4", "accepted", "wrong_answer"),),
+                ),
+            ),
+            boards=None,
+        )
+
+    monkeypatch.setattr(regrades, "run_summary", run_summary)
+
+    answer = await client.get(f"{TASK}/regrades/{regrade}")
+
+    assert answer.status_code == 200, answer.text
+    assert answer.json() == {
+        "id": str(regrade),
+        "cause": "save",
+        "publication": 2,
+        "total": 5,
+        "running": 1,
+        "failed": 0,
+        "changed": [
+            {
+                "grading": str(grading),
+                "number": 3,
+                "values": [
+                    {
+                        "name": "st2",
+                        "before": "1",
+                        "after": "0.333333333333333333333333333333",
+                        "waiting": False,
+                    }
+                ],
+                "verdicts": [{"run": "r4", "before": "accepted", "after": "wrong_answer"}],
+            }
+        ],
+        "boards": None,
+    }
+    assert handed == [("acme/spring/sum", regrade)]
+
+
+async def test_a_regrade_of_a_task_graded_test_by_test_has_no_run_summary(
+    client: httpx.AsyncClient, entered: FakeForge
+) -> None:
+    await _submit(client, entered, "key-0001-aaaa")
+    await _report(client, entered, "accepted")
+    await sign_in_as(client, entered, 7)
+    rejudged = await client.post(f"{TASK}/rejudge", headers=ORIGIN)
+
+    answer = await client.get(f"{TASK}/regrades/{rejudged.json()['regrade']}")
+    unknown = await client.get(f"{TASK}/regrades/{uuid.uuid4()}")
+
+    assert (answer.status_code, answer.json()["code"]) == (404, "not_found")
+    assert (unknown.status_code, unknown.json()["code"]) == (404, "not_found")

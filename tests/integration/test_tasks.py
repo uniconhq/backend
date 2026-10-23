@@ -5,10 +5,17 @@ not found. An observer of the contest reads its tasks in its order, each with
 its letter, where it stands and its timeline from its entry, a failed save's
 errors included, and settings that do not read are told with their errors;
 and an observer of a task reads the form of the workflow it names, or why
-there is none, and whether the task has a graded submission.
+there is none, and whether the task has a graded submission; and a
+refused publication lists each check that refused it.
 """
 
+from datetime import UTC, datetime
+from typing import Any
+
 import httpx
+import pytest
+from forge.api import publications
+from forge.api.types import PublicationId, VersionId
 from forge.testing import FakeForge, Setup
 
 from tests.integration.conftest import CONTEST, ORG, ORIGIN, TASK, publish, read, sign_in
@@ -192,3 +199,53 @@ async def test_a_contestant_reads_neither_the_standings_nor_the_form(
 ) -> None:
     for refused in (await client.get(STANDINGS), await client.get(FORM)):
         assert (refused.status_code, refused.json()["code"]) == (403, "forbidden")
+
+
+async def test_a_refused_publication_lists_each_check_that_refused_it(
+    client: httpx.AsyncClient, sum_task: FakeForge, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run = publications.CheckRun("r4", {"input": "tests/4.in"}, "wrong_answer", {"time_ms": 12})
+    failed = publications.FailedCheck(
+        index=1,
+        failing=("The run r4 got wrong_answer, not accepted.", "total is 40, not 100."),
+        runs=(run,),
+        outcomes={"compile": "accepted"},
+        values={},
+        error=None,
+    )
+    refused = publications.Publication(
+        id=PublicationId("acme/spring/sum#2"),
+        number=2,
+        version=VersionId("c" * 40),
+        grading_changed=False,
+        changes=(),
+        at=datetime(2026, 9, 26, 12, 0, tzinfo=UTC),
+        check="refused",
+        failed_checks=(failed,),
+    )
+
+    async def listed(organiser: Any, task: str) -> tuple[publications.Publication, ...]:
+        return (refused,)
+
+    monkeypatch.setattr(publications, "list", listed)
+
+    [answer] = (await client.get(f"{TASK}/publications")).json()
+
+    assert answer["check"] == "refused"
+    assert answer["failed_checks"] == [
+        {
+            "index": 1,
+            "failing": ["The run r4 got wrong_answer, not accepted.", "total is 40, not 100."],
+            "runs": [
+                {
+                    "id": "r4",
+                    "key": {"input": "tests/4.in"},
+                    "verdict": "wrong_answer",
+                    "reports": {"time_ms": "12"},
+                }
+            ],
+            "outcomes": {"compile": "accepted"},
+            "values": {},
+            "error": None,
+        }
+    ]

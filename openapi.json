@@ -483,6 +483,20 @@
         "title": "BoardCell",
         "type": "object"
       },
+      "BoardDiff": {
+        "description": "One board that reads the regraded task, by name. Each row's place\nand cells before and after come with the boards that read a run task's\nvalues.",
+        "properties": {
+          "board": {
+            "title": "Board",
+            "type": "string"
+          }
+        },
+        "required": [
+          "board"
+        ],
+        "title": "BoardDiff",
+        "type": "object"
+      },
       "BoardKey": {
         "description": "One key rows are ranked on, in turn: what it ranks by, `points`,\n`penalty` or a declared value, which way is better, null for a value no\ncovered task gives a direction, and, on `penalty`, the minutes each\nattempt before the counted submission charges; a `per_attempt` of 0\ncharges nothing, so the minute submitted is all it ranks on. On a value,\n`title` and `unit` name its column, \"Run time\" and \"ms\", as the first\ncovered task giving them says; both null on `points`, on `penalty` and\non a value no covered task names, which a page names by `by`.",
         "properties": {
@@ -839,6 +853,43 @@
           "content"
         ],
         "title": "CheckDefinition",
+        "type": "object"
+      },
+      "CheckRun": {
+        "description": "One run of a check as its save graded it: its `id`, its `key` as\nthe plan gives it, its `verdict` and the numbers its steps reported,\nexactly.",
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "key": {
+            "additionalProperties": true,
+            "title": "Key",
+            "type": "object"
+          },
+          "reports": {
+            "additionalProperties": {
+              "examples": [
+                "82.5"
+              ],
+              "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+              "type": "string"
+            },
+            "title": "Reports",
+            "type": "object"
+          },
+          "verdict": {
+            "title": "Verdict",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "key",
+          "verdict",
+          "reports"
+        ],
+        "title": "CheckRun",
         "type": "object"
       },
       "Checked": {
@@ -1729,6 +1780,68 @@
           "seconds"
         ],
         "title": "ExtensionRequest",
+        "type": "object"
+      },
+      "FailedCheck": {
+        "description": "A check that refused its save, for the task's organisers: its\n`index` in `checks`, from 1; why it failed, a sentence each, at most\n20; its `runs`; the `outcomes` of its steps done once, by step; the\nnumber each value's program reported, by value; and the fault of its\nsteps, null when none. Entrants never read a check.",
+        "properties": {
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "failing": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Failing",
+            "type": "array"
+          },
+          "index": {
+            "title": "Index",
+            "type": "integer"
+          },
+          "outcomes": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Outcomes",
+            "type": "object"
+          },
+          "runs": {
+            "items": {
+              "$ref": "#/components/schemas/CheckRun"
+            },
+            "title": "Runs",
+            "type": "array"
+          },
+          "values": {
+            "additionalProperties": {
+              "examples": [
+                "82.5"
+              ],
+              "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+              "type": "string"
+            },
+            "title": "Values",
+            "type": "object"
+          }
+        },
+        "required": [
+          "index",
+          "failing",
+          "runs",
+          "outcomes",
+          "values",
+          "error"
+        ],
+        "title": "FailedCheck",
         "type": "object"
       },
       "FeedEntry": {
@@ -4426,7 +4539,7 @@
         "type": "object"
       },
       "Publication": {
-        "description": "One publication: its number among the task's publications, the version\nit froze, whether it changed how the task grades and what, and when;\nand `meanings`, every value its workflow reports, in the workflow's\norder, with the words it froze for each, which a form picking a value\nlists. A publication made before those words were kept lists its values\nreported for each test by name alone. Which workflow each of its\nworkflow names was at the forge stays out. `check` is where its save's\ncheck stands, null once it passed or on a task that is not checked.",
+        "description": "One publication: its number among the task's publications, the version\nit froze, whether it changed how the task grades and what, and when;\nand `meanings`, every value its workflow reports, in the workflow's\norder, with the words it froze for each, which a form picking a value\nlists. A publication made before those words were kept lists its values\nreported for each test by name alone. Which workflow each of its\nworkflow names was at the forge stays out. `check` is where its save's\ncheck stands, null once it passed or on a task that is not checked;\nonce it is `refused`, `failed_checks` lists each of the task's checks\nthat did not get what it expects, empty otherwise.",
         "properties": {
           "at": {
             "format": "date-time",
@@ -4456,6 +4569,14 @@
             ],
             "title": "Check"
           },
+          "failed_checks": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/FailedCheck"
+            },
+            "title": "Failed Checks",
+            "type": "array"
+          },
           "grading_changed": {
             "title": "Grading Changed",
             "type": "boolean"
@@ -4483,7 +4604,8 @@
           "changes",
           "at",
           "meanings",
-          "check"
+          "check",
+          "failed_checks"
         ],
         "title": "Publication",
         "type": "object"
@@ -5448,6 +5570,68 @@
         "title": "RollbackFile",
         "type": "object"
       },
+      "RunRegradeSummary": {
+        "description": "A run task's regrade by what it changed: its `id`, what started it,\nthe publication it grades against, how many submissions it took,\n`total`, how many are still `running` and how many ended with no\nresult, `failed`; `changed`, each submission whose values or verdicts\nit changed, old to new, in the order they were made, an attempt\ncompared with the one that counted when the regrade began, both worked\nout as organisers read them; and `boards`, each board that reads the\ntask before and after, given to a manager or admin of the contest\nalone, null for anyone else.",
+        "properties": {
+          "boards": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/BoardDiff"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Boards"
+          },
+          "cause": {
+            "$ref": "#/components/schemas/RegradeCause"
+          },
+          "changed": {
+            "items": {
+              "$ref": "#/components/schemas/SubmissionChange"
+            },
+            "title": "Changed",
+            "type": "array"
+          },
+          "failed": {
+            "title": "Failed",
+            "type": "integer"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "publication": {
+            "title": "Publication",
+            "type": "integer"
+          },
+          "running": {
+            "title": "Running",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "cause",
+          "publication",
+          "total",
+          "running",
+          "failed",
+          "changed",
+          "boards"
+        ],
+        "title": "RunRegradeSummary",
+        "type": "object"
+      },
       "RunResult": {
         "description": "What a run's result says of the submission: what stopped the run,\nnull when nothing did, a row for every test, the values reported once,\nand, when it stopped on `system_error`, the sentence for staff saying\nwhy. Where the run put its log stays out.",
         "properties": {
@@ -6228,6 +6412,42 @@
           "grading"
         ],
         "title": "Submission",
+        "type": "object"
+      },
+      "SubmissionChange": {
+        "description": "One submission a run task's regrade changed: its latest attempt of\nthe regrade, `grading`, which the task's gradings read in full, the\nsubmission by `number`, and each value and verdict it changed.",
+        "properties": {
+          "grading": {
+            "format": "uuid",
+            "title": "Grading",
+            "type": "string"
+          },
+          "number": {
+            "title": "Number",
+            "type": "integer"
+          },
+          "values": {
+            "items": {
+              "$ref": "#/components/schemas/ValueChange"
+            },
+            "title": "Values",
+            "type": "array"
+          },
+          "verdicts": {
+            "items": {
+              "$ref": "#/components/schemas/VerdictChange"
+            },
+            "title": "Verdicts",
+            "type": "array"
+          }
+        },
+        "required": [
+          "grading",
+          "number",
+          "values",
+          "verdicts"
+        ],
+        "title": "SubmissionChange",
         "type": "object"
       },
       "SubmissionState": {
@@ -7129,6 +7349,57 @@
         "title": "UploadStatus",
         "type": "string"
       },
+      "ValueChange": {
+        "description": "One value of a submission a regrade changed: its `name`, its\nnumber `before` and `after`, exactly, null where it had none or waits,\nand whether it is `waiting` after, for a run or for staff. A value has\nno direction: up and down are a row's place on a board.",
+        "properties": {
+          "after": {
+            "anyOf": [
+              {
+                "examples": [
+                  "82.5"
+                ],
+                "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "After"
+          },
+          "before": {
+            "anyOf": [
+              {
+                "examples": [
+                  "82.5"
+                ],
+                "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Before"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "waiting": {
+            "title": "Waiting",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "before",
+          "after",
+          "waiting"
+        ],
+        "title": "ValueChange",
+        "type": "object"
+      },
       "ValueMeaning": {
         "description": "One value the task's workflow reports, as a page names it: its `name`\nin the report, its `title` (\"Run time\") and its `unit` (\"ms\", only on a\nnumber), each null where the workflow gives none, so the page names it\nby `name`; and, on a number reported for each test, how it `fold`s over\nthe tests and which way is `better`, both null otherwise.",
         "properties": {
@@ -7193,6 +7464,44 @@
           "better"
         ],
         "title": "ValueMeaning",
+        "type": "object"
+      },
+      "VerdictChange": {
+        "description": "One run whose verdict a regrade changed, by id, its verdict\n`before` and `after`, null where the grading did not hold the run.",
+        "properties": {
+          "after": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "After"
+          },
+          "before": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Before"
+          },
+          "run": {
+            "title": "Run",
+            "type": "string"
+          }
+        },
+        "required": [
+          "run",
+          "before",
+          "after"
+        ],
+        "title": "VerdictChange",
         "type": "object"
       },
       "Version": {
@@ -14625,6 +14934,77 @@
         "summary": "Put a withdrawn task back in its contest",
         "tags": [
           "tasks"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/regrades/{regrade}": {
+      "get": {
+        "description": "Each submission whose values or verdicts the regrade changed, old to\nnew, worked out on read; how many are still running; and, for a manager\nor admin of the contest, each board that reads the task before and\nafter. A regrade of another task is `not_found`, the same as none, and\nso is one of a task graded test by test, whose gradings say what it\nchanged.",
+        "operationId": "readRunRegrade",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "regrade",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Regrade",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "task",
+            "required": true,
+            "schema": {
+              "title": "Task",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunRegradeSummary"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "What a run task's regrade changed, value by value",
+        "tags": [
+          "gradings"
         ]
       }
     },
