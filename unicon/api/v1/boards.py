@@ -124,8 +124,8 @@ async def end_hold(organiser: ContestManager, body: HoldRequest) -> boards.HoldS
     `confirm`, nothing changes and the answer is `confirmation_required`
     with `action` `end_hold` and, as its detail, what becomes visible and
     that this hold cannot be put back. A hold already ended, early or at
-    its `until`, answers as it stands; a contest with no hold is
-    `not_found`. The answer is read once the end has landed.
+    its `until`, or not started yet, answers as it stands; a contest with
+    no hold is `not_found`. The answer is read once the end has landed.
     """
     contest = contests.contest_id_of(organiser.scope)
     await boards.end_hold(organiser, contest, confirmed=body.confirm)

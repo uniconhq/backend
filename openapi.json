@@ -11333,7 +11333,7 @@
     },
     "/api/v1/orgs/{org}/contests/{contest}/hold/end": {
       "post": {
-        "description": "From now on every caller reads every row as it stands. Without\n`confirm`, nothing changes and the answer is `confirmation_required`\nwith `action` `end_hold` and, as its detail, what becomes visible and\nthat this hold cannot be put back. A hold already ended, early or at\nits `until`, answers as it stands; a contest with no hold is\n`not_found`. The answer is read once the end has landed.",
+        "description": "From now on every caller reads every row as it stands. Without\n`confirm`, nothing changes and the answer is `confirmation_required`\nwith `action` `end_hold` and, as its detail, what becomes visible and\nthat this hold cannot be put back. A hold already ended, early or at\nits `until`, or not started yet, answers as it stands; a contest with\nno hold is `not_found`. The answer is read once the end has landed.",
         "operationId": "endHold",
         "parameters": [
           {
