@@ -31,7 +31,17 @@ submission by its number among the row's; and a text a run task's result
 names, one at a time. A manager of the task enters a mark for one of a
 submission's values that reads an `entered` block; every mark is kept, the
 latest counts, and a regrade never touches one. Organisers read the value
-with the rest of the submission's values; no entrant reads it yet.
+with the rest of the submission's values at once; its entrant reads it
+only once a board's cell shown to them counted the submission, or, when
+no cell did, from the task's reveal, as forge decides.
+
+An observer of the task reads its grading queue (#505), and enters
+nothing from it: each row the task has closed for, its extension
+included, by name, with the submissions to the task that a cell of any of
+the contest's boards counted, as staff read them, each with the boards
+and columns that counted it and the mark of each `entered` value, or null
+while missing. Forge works it out from what the cells counted on each
+read.
 
 Anyone holding a role at a contest or at any of its tasks reads the
 gradings of the tasks they observe as one feed, newest first, each with
@@ -83,6 +93,7 @@ from unicon.schemas.gradings import (
     EnterMarkRequest,
     FeedEntry,
     Grading,
+    QueueRow,
     RegradeSummary,
     Rejudged,
     RunRegradeSummary,
@@ -190,6 +201,40 @@ async def enter_mark(
         body.value,
         body.mark,
     )
+
+
+@router.get(
+    "/organise/queue",
+    operation_id="readGradingQueue",
+    summary="The task's grading queue: each closed row's submissions its cells counted",
+    response_model=list[QueueRow],
+)
+async def read_grading_queue(organiser: TaskObserver) -> list[dict[str, Any]]:
+    """Each row the task has closed for, its extension included, by name,
+    with the submissions to the task a cell of any board counted, each
+    with the cells that counted it and the mark of each `entered` value,
+    null while missing. A row with nothing counted is left out. A task
+    that does not grade by runs is `not_a_run_task`, and one never
+    published `not_found`.
+    """
+    rows = await entries.queue(organiser, tasks.task_id_of(organiser.scope))
+    return [
+        {
+            "row": {"entrant": row.owner.entrant_id, "name": row.name},
+            "closed_at": row.closed_at,
+            "submissions": [
+                {
+                    "number": each.number,
+                    "counted_by": [
+                        {"board": board, "column": column} for board, column in each.counted_by
+                    ],
+                    "marks": [{"value": value, "mark": mark} for value, mark in each.marks],
+                }
+                for each in row.submissions
+            ],
+        }
+        for row in rows
+    ]
 
 
 @router.get(

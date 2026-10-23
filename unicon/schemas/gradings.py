@@ -1,12 +1,13 @@
 """What the grading routes take and answer with: the sentence a grading is
 cancelled with, a mark entered for a submission's value and what was
-kept, a grading as an organiser reads it, one among a task's or a
-contest's with its task and who submitted it, what a rejudge did, a task's
-latest regrade of many summed up and what it did to one submission, a run
-task's regrade by the values and verdicts it changed, and
-where a grading stands after its run reports. Who submitted and a contest's queue
-depth go out as the forge's own `Submitter` and `QueueDepth`. A username
-the feed is narrowed by keeps the forge's rule for one.
+kept, a task's grading queue, a grading as an organiser reads it, one
+among a task's or a contest's with its task and who submitted it, what a
+rejudge did, a task's latest regrade of many summed up and what it did to
+one submission, a run task's regrade by the values and verdicts it
+changed, and where a grading stands after its run reports. Who submitted
+and a contest's queue depth go out as the forge's own `Submitter` and
+`QueueDepth`. A username the feed is narrowed by keeps the forge's rule
+for one.
 """
 
 import uuid
@@ -130,6 +131,44 @@ class EnteredMark(BaseModel):
     mark: str
     by: int
     at: datetime
+
+
+class CountedBy(BaseModel):
+    """A board's cell that counted a submission: the board's key and the
+    column's name."""
+
+    board: str
+    column: str
+
+
+class QueuedMark(BaseModel):
+    """One of the task's `entered` values and the submission's mark for it,
+    null while none is entered."""
+
+    value: str
+    mark: Exact | None
+
+
+class QueuedSubmission(BaseModel):
+    """A submission a row's cells counted: its number, each cell that
+    counted it, and each of the task's `entered` values with its mark, in
+    the task's order.
+    """
+
+    number: int
+    counted_by: list[CountedBy]
+    marks: list[QueuedMark]
+
+
+class QueueRow(BaseModel):
+    """A row in a task's grading queue: whose it is, when the task closed
+    for it, its extension included, and the submissions to the task its
+    cells counted, oldest first.
+    """
+
+    row: BoardRowOwner
+    closed_at: datetime
+    submissions: list[QueuedSubmission]
 
 
 class RegradeSide(BaseModel):

@@ -1254,6 +1254,25 @@
         "title": "Counted",
         "type": "object"
       },
+      "CountedBy": {
+        "description": "A board's cell that counted a submission: the board's key and the\ncolumn's name.",
+        "properties": {
+          "board": {
+            "title": "Board",
+            "type": "string"
+          },
+          "column": {
+            "title": "Column",
+            "type": "string"
+          }
+        },
+        "required": [
+          "board",
+          "column"
+        ],
+        "title": "CountedBy",
+        "type": "object"
+      },
       "CreateContest": {
         "description": "A contest to make, titled `title` or, without one, its name.",
         "properties": {
@@ -4894,6 +4913,93 @@
           "failed"
         ],
         "title": "QueueDepth",
+        "type": "object"
+      },
+      "QueueRow": {
+        "description": "A row in a task's grading queue: whose it is, when the task closed\nfor it, its extension included, and the submissions to the task its\ncells counted, oldest first.",
+        "properties": {
+          "closed_at": {
+            "format": "date-time",
+            "title": "Closed At",
+            "type": "string"
+          },
+          "row": {
+            "$ref": "#/components/schemas/BoardRowOwner"
+          },
+          "submissions": {
+            "items": {
+              "$ref": "#/components/schemas/QueuedSubmission"
+            },
+            "title": "Submissions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "row",
+          "closed_at",
+          "submissions"
+        ],
+        "title": "QueueRow",
+        "type": "object"
+      },
+      "QueuedMark": {
+        "description": "One of the task's `entered` values and the submission's mark for it,\nnull while none is entered.",
+        "properties": {
+          "mark": {
+            "anyOf": [
+              {
+                "examples": [
+                  "82.5"
+                ],
+                "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mark"
+          },
+          "value": {
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "value",
+          "mark"
+        ],
+        "title": "QueuedMark",
+        "type": "object"
+      },
+      "QueuedSubmission": {
+        "description": "A submission a row's cells counted: its number, each cell that\ncounted it, and each of the task's `entered` values with its mark, in\nthe task's order.",
+        "properties": {
+          "counted_by": {
+            "items": {
+              "$ref": "#/components/schemas/CountedBy"
+            },
+            "title": "Counted By",
+            "type": "array"
+          },
+          "marks": {
+            "items": {
+              "$ref": "#/components/schemas/QueuedMark"
+            },
+            "title": "Marks",
+            "type": "array"
+          },
+          "number": {
+            "title": "Number",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "number",
+          "counted_by",
+          "marks"
+        ],
+        "title": "QueuedSubmission",
         "type": "object"
       },
       "Rate": {
@@ -14481,6 +14587,71 @@
         "summary": "Mark one of the row's own submissions to the task",
         "tags": [
           "boards"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/organise/queue": {
+      "get": {
+        "description": "Each row the task has closed for, its extension included, by name,\nwith the submissions to the task a cell of any board counted, each\nwith the cells that counted it and the mark of each `entered` value,\nnull while missing. A row with nothing counted is left out. A task\nthat does not grade by runs is `not_a_run_task`, and one never\npublished `not_found`.",
+        "operationId": "readGradingQueue",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "task",
+            "required": true,
+            "schema": {
+              "title": "Task",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/QueueRow"
+                  },
+                  "title": "Response Readgradingqueue",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "The task's grading queue: each closed row's submissions its cells counted",
+        "tags": [
+          "gradings"
         ]
       }
     },
