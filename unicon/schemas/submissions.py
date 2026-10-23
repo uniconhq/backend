@@ -146,7 +146,8 @@ class RunValue(BaseModel):
 
 class OnceShown(BaseModel):
     """What a run task's steps done once reported, as its reader is shown
-    it: numbers, exactly, and texts, the compile log among them."""
+    it: numbers, exactly, and texts, the compile log among them; for an
+    entrant, only the reports `show` lists, by name."""
 
     reports: dict[str, Exact] = {}
     texts: dict[str, TextRef] = {}
@@ -248,8 +249,9 @@ class Result(Scored):
     read, and `runs` the runs, those listed under `now` from the start and
     those under `after_close` once the task reveals; what `on_release`
     lists shows nothing yet. `once` holds what its steps done once
-    reported, the compile log among them, and `compiled` 1, or 0 when a
-    compile done once stopped it, both once a run is shown. A task with
+    reported that `show` lists, the compile log among them when listed,
+    and `compiled` 1, or 0 when a compile done once stopped it, both once
+    a run is shown. A task with
     nothing shown during the contest is `submitted` until the reveal, which
     a page words "Submitted, results after the contest". After the reveal,
     while its late runs are still being graded, it is `grading` or

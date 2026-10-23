@@ -10,8 +10,8 @@ A submission's files are downloaded through the download door
 (`unicon/api/door.py`), so their bytes never pass through here.
 
 A run task's result shows where each text a step wrote is, a run's label,
-message and texts and the steps done once's, the compile log among them,
-but never the stored output that holds it, which may be another entrant's
+message and texts and the steps done once's that `show` lists, the
+compile log among them, but never the stored output that holds it, which may be another entrant's
 and says when it was made. The caller reads one at a time by where it is
 shown, a run's group and place, or neither for the steps done once, and
 the text, and only while their result shows it to them; any other is no
