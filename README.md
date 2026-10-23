@@ -169,7 +169,7 @@ the one the route needs at the scope in the third column.
 | `GET <contest>/tasks` | observer | contest | | the tasks by name |
 | `GET <contest>/organise/tasks` | observer | contest | | the tasks the contest lists, in its order, each with its letter, state and timeline, whether it is withdrawn, its submissions and what taking it out would do |
 | `POST <task>/take-out` | manager | contest | `confirmed`, `remove` or `withdraw` | `done`, what was done |
-| `POST <task>/put-back` | manager | contest | | the boards' `notes` |
+| `POST <task>/put-back` | manager | contest | | the leaderboards' `notes` |
 | `GET <task>` | observer | task | | the task's state |
 | `GET <task>/publications` | observer | task | | the publications, oldest first, each with the `meanings` of the values its workflow reports |
 | `GET <task>/workflow-form` | observer | task | | the inputs and test fields of the workflow the task names, or the `problem`, and whether the task is `graded` |
@@ -331,9 +331,9 @@ it lists is not published or its statement is not written among them, each
 such task at `state` ("A · sum: its statement is not written yet."), and
 a manager's change to one of its
 admin-only keys is `admin_only`, naming each. A contest's file written
-answers its `version` and `notes`, what each board reports of the tasks it
+answers its `version` and `notes`, what each leaderboard reports of the tasks it
 covers at that save, such as one that counts nothing from a task: the same
-notes the organisers' reading carries beside each board, and none for any
+notes the organisers' reading carries beside each leaderboard, and none for any
 other file. A rollback writes the file as
 it was at an older version back as a new change, so the history stays
 whole. The platform alone writes a contest's and a task's files at the
@@ -408,10 +408,10 @@ it would now do the other, someone having submitted since the dialog
 opened, it is `take_out_changed`, a 409 carrying `submissions` and
 `take_out` as they are now; a leaderboard naming a task to be removed, or
 settings that cannot be edited line by line, is `take_out_refused`, a 409,
-with the `boards` that name it. `POST <task>/put-back` takes `withdrawn` out
+with the `leaderboards` that name it. `POST <task>/put-back` takes `withdrawn` out
 of the entry again, checked as a save of the contest's settings is, an
 entry that cannot be edited line by line being `take_out_refused`, and
-answers the boards' `notes` as that save does; after it the task scores
+answers the leaderboards' `notes` as that save does; after it the task scores
 exactly as before. Withdrawing a withdrawn task, or putting back one that
 is not, changes nothing.
 
@@ -536,8 +536,8 @@ when it was read, and the `tasks` released to them, each
 with its `name`, `label`, `title`, its `release`, when it falls `due`,
 null when it has none, and `closes` for the caller, their entrant's
 extension on it included; and, for a member of an approved entrant, its
-`standing`: their own row on each leaderboard they read, as that board
-shows it to them, so the home shows no number a board holds back. Anyone
+`standing`: their own row on each leaderboard they read, as that leaderboard
+shows it to them, so the home shows no number a leaderboard holds back. Anyone
 else gets no standing. A task's page
 carries the same, its `statement` in Markdown, its `submissions`: at most
 `max` in all and `rate.count` in any `rate.per` seconds, and its `inputs`,
@@ -644,7 +644,7 @@ an `idempotency_key` the browser makes once per submit, 8 to 128 letters,
 digits, `-` and `_`; a value left out takes its default. The same key sent
 again answers with the submission it made and makes nothing. A submission
 carries its `number`, `submitted_at` and its `grading`, the attempt that
-counts, as the boards count it: the latest that finished with a result,
+counts, as the leaderboards count it: the latest that finished with a result,
 so a regrade under way, a failure or a cancel leaves the result as it was,
 and while none has, the latest. It comes
 with its `id`, `attempt` and `status`, and once it is `done`, what the
@@ -680,7 +680,7 @@ are not delayed, with the delayed ones made before it, are fewer than the
 task's `max`, so the first `max` to get a result count; otherwise it is
 `over_limit`, with `limit`, the `max` it reached, and nothing else ("Not
 graded: you had reached the limit of 10 submissions for this task."),
-counted on no board and against nothing; `limit` is null on every other
+counted on no leaderboard and against nothing; `limit` is null on every other
 status. A submission that has a result keeps it, whatever its later
 attempts read as. An outcome is one of the runner's list, and a value a number
 or text. The route renders what forge gives it and nothing more. The files
@@ -705,26 +705,26 @@ with the `limit` in bytes and the `input` whose limit it is; `upload_not_yours` 
 each of its `errors` naming its `input`, and `invalid_idempotency_key` as
 422.
 
-## Boards and marks
+## Leaderboards and marks
 
-A contest's boards are worked out by forge on each read, for each reader:
-staff read every board, row and cell with no hold; the members of an
-approved entrant read `entrants` boards with their row as their own; and
-anyone, with no cookie too, reads `everyone` boards.
+A contest's leaderboards are worked out by forge on each read, for each reader:
+staff read every leaderboard, row and cell with no hold; the members of an
+approved entrant read `entrants` leaderboards with their row as their own; and
+anyone, with no cookie too, reads `everyone` leaderboards.
 
 | Route | Who | Answer |
 |---|---|---|
-| `GET /api/v1/public/contests/{org}/{contest}/boards` | anyone, no cookie | the boards for `everyone` |
-| `GET /api/v1/public/contests/{org}/{contest}/boards/{board}` | anyone, no cookie | one of them |
-| `GET <contest>/boards` | a session | the boards the caller reads, each as they read it |
-| `GET <contest>/boards/{board}` | a session | one of them |
+| `GET /api/v1/public/contests/{org}/{contest}/leaderboards` | anyone, no cookie | the leaderboards for `everyone` |
+| `GET /api/v1/public/contests/{org}/{contest}/leaderboards/{leaderboard}` | anyone, no cookie | one of them |
+| `GET <contest>/leaderboards` | a session | the leaderboards the caller reads, each as they read it |
+| `GET <contest>/leaderboards/{leaderboard}` | a session | one of them |
 | `GET <contest>/hold` | observer at the contest | where the hold stands |
 | `POST <contest>/hold/end` | manager at the contest | the hold, ended early |
 | `GET <task>/marks` | a session | the marks the caller's row holds on the task |
 | `PUT <task>/marks/{number}` | a session | the marks, with the submission marked |
 | `DELETE <task>/marks/{number}` | a session | the marks, with its mark taken off |
 
-A board carries its `key` and `title`, its `audience`, `{who, rows}`,
+A leaderboard carries its `key` and `title`, its `audience`, `{who, rows}`,
 the `headers` of the columns listed to the caller, each with its `name`,
 `places`, bounds and the values a contestant could set it by, its `sort`
 keys and those `dropped` for the caller, `held_from`, when the hold
@@ -736,11 +736,11 @@ the caller, and, on the caller's own row and for staff, `grading`, how
 many of its submissions still grade, each cell's `counted` and `waiting`
 submissions, and whether it is `hidden`: on any other row `hidden` is
 false, so a cell with no number reads the same whether it is hidden,
-waiting or missing. Every number is an exact decimal string. A board the
+waiting or missing. Every number is an exact decimal string. A leaderboard the
 reader may not see is not found.
 
 A row, an entrant, marks up to the task's `marks` of its own
-submissions for the `marked` boards, until its close on the task. Marks
+submissions for the `marked` leaderboards, until its close on the task. Marks
 carry the `numbers` marked, the `most`, `closes_at` and whether they are
 `frozen`. Marking twice or unmarking what is not marked changes nothing. A
 task with no marks is `marks_off` and one more than it takes is
@@ -916,7 +916,7 @@ CI's report or any read that finds it overdue or lost (one whose run could
 not be started waits a minute, for the first read after); that attempt is
 `automatic`, and a failure of it waits for staff, who retry as often as
 they like. Of a submission's attempts the latest that finished with a
-result counts, on the boards, to its contestant and against the task's
+result counts, on the leaderboards, to its contestant and against the task's
 `max`, until a newer attempt finishes with one: a failure or a cancel never
 takes a result away, and a cancel voids only a submission that never had
 one. A latest attempt that has not finished with a result carries
@@ -1005,16 +1005,16 @@ as ever, while `task`, `status` and `latest` are not read with it. `change`
 without `regrade` gives no rows.
 
 A run task's regrade has no direction per value: up and down are a row's
-place on a board. `GET <task>/regrades/{regrade}`, for a manager of the
+place on a leaderboard. `GET <task>/regrades/{regrade}`, for a manager of the
 task, reads it by what it changed, worked out on read and stored nowhere:
 `total`, how many are still `running` and how many `failed` with no
 result, and `changed`, each submission whose values or verdicts moved, in
 the order they were made, with its latest attempt of the regrade
 (`grading`), its `number`, each value `before` and `after` (exact, null
 where it had none or waits, `waiting` after) and each run's verdict
-`before` and `after`. `boards`, each board that reads the task before and
+`before` and `after`. `leaderboards`, each leaderboard that reads the task before and
 after, is given to a manager or admin of the contest alone, null for
-anyone else, and empty until boards read a run task's values. A regrade of
+anyone else, and empty until leaderboards read a run task's values. A regrade of
 another task, or of a task graded test by test, is `not_found`.
 
 ## Operator commands
@@ -1063,7 +1063,7 @@ nowhere else:
 `workflows`, `admin_only` carries `keys`, `reserved_path` carries `paths`,
 `confirmation_required` carries `changes`, `regrades`, `results_change`,
 `summary`, `runs_again`, `scores`, `reading` and `asked`, `take_out_changed`
-carries `submissions` and `take_out`, `take_out_refused` carries `boards`
+carries `submissions` and `take_out`, `take_out_refused` carries `leaderboards`
 when a leaderboard names the task, `already_invited` carries `invite`,
 the one held already, `invalid_definition` carries
 `errors`, each `{"path", "message"}`, `invalid_path` carries `path`,
