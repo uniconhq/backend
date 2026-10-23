@@ -312,6 +312,10 @@ async def test_a_save_that_changes_how_the_task_grades_says_how_many_it_regraded
     assert saved.status_code == 200, saved.text
     body = saved.json()
     assert (body["grading_changed"], body["regraded"]) == (True, 1)
+    # The answer names the regrade the save started, which the contest's
+    # regrades list.
+    listed = await client.get(f"{CONTEST}/gradings/regrades")
+    assert [each["id"] for each in listed.json()] == [body["regrade"]]
     assert body["notes"] == []
     assert body["effect"]["runs_again"] == [
         "1 submission is graded again: the way the task grades changed."

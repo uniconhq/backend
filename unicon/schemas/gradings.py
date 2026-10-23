@@ -233,22 +233,28 @@ class ValueChange(BaseModel):
 
 class VerdictChange(BaseModel):
     """One run whose verdict a regrade changed, by id, its verdict
-    `before` and `after`, null where the grading did not hold the run."""
+    `before` and `after`, null where the grading did not hold the run; or,
+    with `run` null, every one of the submission's `runs` runs, each of
+    which changed from the same verdict to the same other one."""
 
-    run: str
+    run: str | None
     before: str | None
     after: str | None
+    runs: int
 
 
 class SubmissionChange(BaseModel):
     """One submission a run task's regrade changed: its latest attempt of
     the regrade, `grading`, which the task's gradings read in full, the
-    submission by `number`, and each value and verdict it changed."""
+    submission by `number`, each value it changed, and the runs whose
+    verdict it changed, at most 20 listed and `more_verdicts` counting the
+    rest."""
 
     grading: uuid.UUID
     number: int
     values: list[ValueChange]
     verdicts: list[VerdictChange]
+    more_verdicts: int
 
 
 class BoardDiff(BaseModel):
@@ -262,11 +268,14 @@ class BoardDiff(BaseModel):
 class RunRegradeSummary(BaseModel):
     """A run task's regrade by what it changed: its `id`, what started it,
     the publication it grades against, how many submissions it took,
-    `total`, how many are still `running` and how many ended with no
-    result, `failed`; `changed`, each submission whose values or verdicts
-    it changed, old to new, in the order they were made, an attempt
-    compared with the one that counted when the regrade began, both worked
-    out as organisers read them; and `boards`, each board that reads the
+    `total`, how many are still `running`, how many ended with no
+    result, `failed`, and how many it cannot compare, `unread`, since
+    the publication their result counted under no longer reads;
+    `changed`, each submission whose values or verdicts it changed, old
+    to new, in the order they were made, at most 100, with `more_changed`
+    counting the rest, an attempt compared with the one that counted when
+    the regrade began, both worked out as organisers read them, the
+    extensions and marks as they stand now; and `boards`, each board that reads the
     task before and after, given to a manager or admin of the contest
     alone, null for anyone else.
     """
@@ -277,7 +286,9 @@ class RunRegradeSummary(BaseModel):
     total: int
     running: int
     failed: int
+    unread: int
     changed: list[SubmissionChange]
+    more_changed: int
     boards: list[BoardDiff] | None
 
 

@@ -163,6 +163,9 @@ async def test_a_run_tasks_regrade_is_read_by_each_value_and_verdict_it_changed(
     handed: list[tuple[str, uuid.UUID]] = []
     # The route serves no workspace, so any will do.
     workspace: Any = "acme/spring/@entrant.x"
+    # A manager of the contest is given each board, none until boards read
+    # a run task's values; anyone else is given null.
+    boards: list[tuple[regrades.BoardDiff, ...] | None] = [None, ()]
 
     async def run_summary(organiser: Any, task: str, asked: uuid.UUID) -> regrades.RunSummary:
         handed.append((task, asked))
@@ -171,9 +174,10 @@ async def test_a_run_tasks_regrade_is_read_by_each_value_and_verdict_it_changed(
             task=TaskId(task),
             cause=regrades.RegradeCause.SAVE,
             publication=PublicationId("acme/spring/sum#2"),
-            total=5,
+            total=9,
             running=1,
             failed=0,
+            unread=2,
             changed=(
                 regrades.SubmissionChange(
                     grading=grading,
@@ -181,24 +185,39 @@ async def test_a_run_tasks_regrade_is_read_by_each_value_and_verdict_it_changed(
                     number=3,
                     workspace=workspace,
                     values=(regrades.ValueChange("st2", Fraction(1), Fraction(1, 3)),),
-                    verdicts=(regrades.VerdictChange("r4", "accepted", "wrong_answer"),),
+                    verdicts=(
+                        regrades.VerdictChange("r4", "accepted", "wrong_answer"),
+                        regrades.VerdictChange("r6", "accepted", "time_limit"),
+                    ),
+                    more_verdicts=7,
+                ),
+                regrades.SubmissionChange(
+                    grading=grading,
+                    submission="acme/spring/@entrant.x/sum#4",
+                    number=4,
+                    workspace=workspace,
+                    values=(),
+                    verdicts=(regrades.VerdictChange(None, "accepted", "compile_error", 30),),
                 ),
             ),
-            boards=None,
+            more_changed=5,
+            boards=boards[len(handed) - 1],
         )
 
     monkeypatch.setattr(regrades, "run_summary", run_summary)
 
     answer = await client.get(f"{TASK}/regrades/{regrade}")
+    managed = await client.get(f"{TASK}/regrades/{regrade}")
 
     assert answer.status_code == 200, answer.text
     assert answer.json() == {
         "id": str(regrade),
         "cause": "save",
         "publication": 2,
-        "total": 5,
+        "total": 9,
         "running": 1,
         "failed": 0,
+        "unread": 2,
         "changed": [
             {
                 "grading": str(grading),
@@ -211,12 +230,27 @@ async def test_a_run_tasks_regrade_is_read_by_each_value_and_verdict_it_changed(
                         "waiting": False,
                     }
                 ],
-                "verdicts": [{"run": "r4", "before": "accepted", "after": "wrong_answer"}],
-            }
+                "verdicts": [
+                    {"run": "r4", "before": "accepted", "after": "wrong_answer", "runs": 1},
+                    {"run": "r6", "before": "accepted", "after": "time_limit", "runs": 1},
+                ],
+                "more_verdicts": 7,
+            },
+            {
+                "grading": str(grading),
+                "number": 4,
+                "values": [],
+                "verdicts": [
+                    {"run": None, "before": "accepted", "after": "compile_error", "runs": 30}
+                ],
+                "more_verdicts": 0,
+            },
         ],
+        "more_changed": 5,
         "boards": None,
     }
-    assert handed == [("acme/spring/sum", regrade)]
+    assert managed.json()["boards"] == []
+    assert handed == [("acme/spring/sum", regrade)] * 2
 
 
 async def test_a_regrade_of_a_task_graded_test_by_test_has_no_run_summary(

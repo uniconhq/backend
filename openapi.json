@@ -4611,7 +4611,7 @@
         "type": "object"
       },
       "Published": {
-        "description": "A save that published: the new publication's number among the task's,\nwhether it changed how the task grades, and what, the notes the save\nmakes of the task beside publishing it, such as which steps it seals\nuntil the reveal, how many submissions it `regraded`, queued to be\ngraded again against it, and what it did, `effect`, in the words the\nquestion before a save in a running contest uses. On a run task,\n`check` is `checking` while the new publication is checked before it\ntakes over, as is a save of the same files that checks a refused one\nagain.",
+        "description": "A save that published: the new publication's number among the task's,\nwhether it changed how the task grades, and what, the notes the save\nmakes of the task beside publishing it, such as which steps it seals\nuntil the reveal, how many submissions it `regraded`, queued to be\ngraded again against it, and what it did, `effect`, in the words the\nquestion before a save in a running contest uses. On a run task,\n`check` is `checking` while the new publication is checked before it\ntakes over, as is a save of the same files that checks a refused one\nagain. `regrade` is the regrade the save started, whose summary the\ntask's regrades read, null when it started none now: a run task\nchecked first starts its regrade once the check passes.",
         "properties": {
           "changes": {
             "items": {
@@ -4654,6 +4654,18 @@
             "title": "Number",
             "type": "integer"
           },
+          "regrade": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Regrade"
+          },
           "regraded": {
             "title": "Regraded",
             "type": "integer"
@@ -4666,7 +4678,8 @@
           "notes",
           "regraded",
           "effect",
-          "check"
+          "check",
+          "regrade"
         ],
         "title": "Published",
         "type": "object"
@@ -5571,7 +5584,7 @@
         "type": "object"
       },
       "RunRegradeSummary": {
-        "description": "A run task's regrade by what it changed: its `id`, what started it,\nthe publication it grades against, how many submissions it took,\n`total`, how many are still `running` and how many ended with no\nresult, `failed`; `changed`, each submission whose values or verdicts\nit changed, old to new, in the order they were made, an attempt\ncompared with the one that counted when the regrade began, both worked\nout as organisers read them; and `boards`, each board that reads the\ntask before and after, given to a manager or admin of the contest\nalone, null for anyone else.",
+        "description": "A run task's regrade by what it changed: its `id`, what started it,\nthe publication it grades against, how many submissions it took,\n`total`, how many are still `running`, how many ended with no\nresult, `failed`, and how many it cannot compare, `unread`, since\nthe publication their result counted under no longer reads;\n`changed`, each submission whose values or verdicts it changed, old\nto new, in the order they were made, at most 100, with `more_changed`\ncounting the rest, an attempt compared with the one that counted when\nthe regrade began, both worked out as organisers read them, the\nextensions and marks as they stand now; and `boards`, each board that reads the\ntask before and after, given to a manager or admin of the contest\nalone, null for anyone else.",
         "properties": {
           "boards": {
             "anyOf": [
@@ -5606,6 +5619,10 @@
             "title": "Id",
             "type": "string"
           },
+          "more_changed": {
+            "title": "More Changed",
+            "type": "integer"
+          },
           "publication": {
             "title": "Publication",
             "type": "integer"
@@ -5617,6 +5634,10 @@
           "total": {
             "title": "Total",
             "type": "integer"
+          },
+          "unread": {
+            "title": "Unread",
+            "type": "integer"
           }
         },
         "required": [
@@ -5626,7 +5647,9 @@
           "total",
           "running",
           "failed",
+          "unread",
           "changed",
+          "more_changed",
           "boards"
         ],
         "title": "RunRegradeSummary",
@@ -6415,12 +6438,16 @@
         "type": "object"
       },
       "SubmissionChange": {
-        "description": "One submission a run task's regrade changed: its latest attempt of\nthe regrade, `grading`, which the task's gradings read in full, the\nsubmission by `number`, and each value and verdict it changed.",
+        "description": "One submission a run task's regrade changed: its latest attempt of\nthe regrade, `grading`, which the task's gradings read in full, the\nsubmission by `number`, each value it changed, and the runs whose\nverdict it changed, at most 20 listed and `more_verdicts` counting the\nrest.",
         "properties": {
           "grading": {
             "format": "uuid",
             "title": "Grading",
             "type": "string"
+          },
+          "more_verdicts": {
+            "title": "More Verdicts",
+            "type": "integer"
           },
           "number": {
             "title": "Number",
@@ -6445,7 +6472,8 @@
           "grading",
           "number",
           "values",
-          "verdicts"
+          "verdicts",
+          "more_verdicts"
         ],
         "title": "SubmissionChange",
         "type": "object"
@@ -7467,7 +7495,7 @@
         "type": "object"
       },
       "VerdictChange": {
-        "description": "One run whose verdict a regrade changed, by id, its verdict\n`before` and `after`, null where the grading did not hold the run.",
+        "description": "One run whose verdict a regrade changed, by id, its verdict\n`before` and `after`, null where the grading did not hold the run; or,\nwith `run` null, every one of the submission's `runs` runs, each of\nwhich changed from the same verdict to the same other one.",
         "properties": {
           "after": {
             "anyOf": [
@@ -7492,14 +7520,26 @@
             "title": "Before"
           },
           "run": {
-            "title": "Run",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run"
+          },
+          "runs": {
+            "title": "Runs",
+            "type": "integer"
           }
         },
         "required": [
           "run",
           "before",
-          "after"
+          "after",
+          "runs"
         ],
         "title": "VerdictChange",
         "type": "object"
@@ -14939,7 +14979,7 @@
     },
     "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/regrades/{regrade}": {
       "get": {
-        "description": "Each submission whose values or verdicts the regrade changed, old to\nnew, worked out on read; how many are still running; and, for a manager\nor admin of the contest, each board that reads the task before and\nafter. A regrade of another task is `not_found`, the same as none, and\nso is one of a task graded test by test, whose gradings say what it\nchanged.",
+        "description": "Each submission whose values or verdicts the regrade changed, old to\nnew, worked out on read, a bounded few and the rest counted; how many\nare still running and how many it cannot compare; and, for a manager\nor admin of the contest, each board that reads the task before and\nafter. A regrade of another task is `not_found`, the same as none, and\nso is one of a task graded test by test, whose gradings say what it\nchanged.",
         "operationId": "readRunRegrade",
         "parameters": [
           {

@@ -192,7 +192,9 @@ class Published(BaseModel):
     question before a save in a running contest uses. On a run task,
     `check` is `checking` while the new publication is checked before it
     takes over, as is a save of the same files that checks a refused one
-    again.
+    again. `regrade` is the regrade the save started, whose summary the
+    task's regrades read, null when it started none now: a run task
+    checked first starts its regrade once the check passes.
     """
 
     number: int
@@ -202,6 +204,7 @@ class Published(BaseModel):
     regraded: int
     effect: SaveEffect
     check: Check | None = None
+    regrade: uuid.UUID | None = None
 
 
 class Draft(BaseModel):

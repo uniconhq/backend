@@ -398,7 +398,8 @@ async def dismiss_regrade(organiser: TaskManager, regrade: uuid.UUID) -> Respons
 )
 async def read_run_regrade(organiser: TaskManager, regrade: uuid.UUID) -> dict[str, Any]:
     """Each submission whose values or verdicts the regrade changed, old to
-    new, worked out on read; how many are still running; and, for a manager
+    new, worked out on read, a bounded few and the rest counted; how many
+    are still running and how many it cannot compare; and, for a manager
     or admin of the contest, each board that reads the task before and
     after. A regrade of another task is `not_found`, the same as none, and
     so is one of a task graded test by test, whose gradings say what it
@@ -412,15 +413,18 @@ async def read_run_regrade(organiser: TaskManager, regrade: uuid.UUID) -> dict[s
         "total": found.total,
         "running": found.running,
         "failed": found.failed,
+        "unread": found.unread,
         "changed": [
             {
                 "grading": each.grading,
                 "number": each.number,
                 "values": each.values,
                 "verdicts": each.verdicts,
+                "more_verdicts": each.more_verdicts,
             }
             for each in found.changed
         ],
+        "more_changed": found.more_changed,
         "boards": found.boards,
     }
 
