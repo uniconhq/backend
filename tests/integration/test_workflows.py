@@ -290,34 +290,24 @@ async def test_a_person_lists_what_they_may_read(
     ]
 
 
-async def test_a_copy_and_a_combination_are_new_private_workflows(
-    client: httpx.AsyncClient, acme: FakeForge
-) -> None:
+async def test_a_copy_is_a_new_private_workflow(client: httpx.AsyncClient, acme: FakeForge) -> None:
     await sign_in_as(client, acme, 8)
-    classic = "unicon/classic@v2"
 
     copied = await client.post(
         "/api/v1/workflow-copies",
-        json={"source": classic, "owner": "bob", "name": "mine"},
+        json={"source": "unicon/classic@v2", "owner": "bob", "name": "mine"},
         headers=ORIGIN,
     )
-    combined = await client.post(
+    gone = await client.post(
         "/api/v1/workflow-combinations",
-        json={"sources": [classic, classic], "owner": "bob", "name": "both"},
-        headers=ORIGIN,
-    )
-    one = await client.post(
-        "/api/v1/workflow-combinations",
-        json={"sources": [classic], "owner": "bob", "name": "one"},
+        json={"sources": ["unicon/classic@v2"], "owner": "bob", "name": "both"},
         headers=ORIGIN,
     )
 
     assert copied.status_code == 201, copied.text
     assert copied.json() == {"owner": "bob", "name": "mine"}
-    assert combined.status_code == 201, combined.text
-    assert acme.state.repos[("bob", "both.workflow")].private is True
-    assert one.status_code == 422
-    assert one.json()["code"] == "rejected"
+    assert acme.state.repos[("bob", "mine.workflow")].private is True
+    assert gone.status_code == 404
 
 
 async def test_the_primitives_are_listed_with_their_ports(
@@ -389,11 +379,7 @@ async def test_the_primitives_are_listed_with_their_ports(
         ("DELETE", "/api/v1/workflows/bob/tuned/readers/ada", None),
         ("POST", "/api/v1/workflows/check", {"content": "x"}),
         ("POST", "/api/v1/workflow-copies", {"source": "a/b@v1", "owner": "bob", "name": "c"}),
-        (
-            "POST",
-            "/api/v1/workflow-combinations",
-            {"sources": ["a/b@v1"], "owner": "bob", "name": "c"},
-        ),
+        ("GET", "/api/v1/workflows/bob/tuned/versions/v1/box", None),
         ("GET", "/api/v1/primitives", None),
     ],
 )
@@ -445,11 +431,6 @@ async def test_a_version_of_a_save_someone_has_saved_over_is_a_conflict(
             "/api/v1/workflow-copies",
             {"source": "unicon/classic@v2", "owner": "bob", "name": "c"},
         ),
-        (
-            "POST",
-            "/api/v1/workflow-combinations",
-            {"sources": ["unicon/classic@v2", "unicon/classic@v2"], "owner": "bob", "name": "c"},
-        ),
     ],
 )
 async def test_someone_else_may_not_change_a_persons_workflow(
@@ -462,3 +443,159 @@ async def test_someone_else_may_not_change_a_persons_workflow(
 
     assert refused.status_code == 403
     assert refused.json()["code"] == "forbidden"
+
+
+_NOOP = (
+    "image: ghcr.io/uniconhq/primitive-noop@sha256:" + ("0" * 64) + "\n"
+    "schema_version: 6\n"
+    "limits: {time_ms: 1, cpu_ms: 1, memory_mb: 1, pids: 1, output_mb: 1, gpus: 0}\n"
+    "inputs:\n"
+    "  note: {type: text, optional: true}\n"
+    "outputs:\n"
+    "  outcome: outcome\n"
+    "  time_ms: {type: number, better: lower, at_least: 0}\n"
+)
+_HELD = """\
+inputs:
+  cap: {type: number, title: Limit, unit: seconds}
+  note: {type: text, optional: true, title: Note}
+steps:
+  - id: run
+    use: unicon/noop@v1
+    with:
+      note: ${{ inputs.note }}
+outputs:
+  time_ms: ${{ steps.run.time_ms }}
+"""
+
+
+async def _save(client: httpx.AsyncClient, name: str, content: str, token: str | None) -> str:
+    saved = await client.put(
+        f"/api/v1/workflows/bob/{name}/draft",
+        json={"content": content, "token": token},
+        headers=ORIGIN,
+    )
+    assert saved.status_code == 200, saved.text
+    token = saved.json()["token"]
+    assert isinstance(token, str)
+    return token
+
+
+async def test_a_box_answers_a_run_workflow_a_test_workflow_and_one_unread(
+    client: httpx.AsyncClient, acme: FakeForge
+) -> None:
+    acme.primitives.add("noop", {"v1": _NOOP.encode()})
+    await sign_in_as(client, acme, 8)
+    made = await client.post(
+        "/api/v1/workflows", json={"owner": "bob", "name": "held"}, headers=ORIGIN
+    )
+    assert made.status_code == 201, made.text
+    token = (await client.get("/api/v1/workflows/bob/held")).json()["draft"]["token"]
+    token = await _save(client, "held", _HELD, token)
+    version = await client.post(
+        "/api/v1/workflows/bob/held/versions",
+        json={"version": "v1", "token": token},
+        headers=ORIGIN,
+    )
+    assert version.status_code == 201, version.text
+    token = await _save(client, "held", _HELD + "\n", token)
+    again = await client.post(
+        "/api/v1/workflows/bob/held/versions",
+        json={"version": "v2", "token": token},
+        headers=ORIGIN,
+    )
+    assert again.status_code == 201, again.text
+
+    face = await client.get("/api/v1/workflows/bob/held/versions/v1/box")
+    classic = await client.get("/api/v1/workflows/unicon/classic/versions/v2/box")
+
+    assert face.status_code == 200, face.text
+    assert face.json() == {
+        "run": True,
+        "inputs": [
+            {
+                "name": "cap",
+                "type": "number",
+                "options": None,
+                "optional": False,
+                "title": "Limit",
+                "unit": "seconds",
+            },
+            {
+                "name": "note",
+                "type": "text",
+                "options": None,
+                "optional": True,
+                "title": "Note",
+                "unit": None,
+            },
+        ],
+        "outputs": [
+            {
+                "name": "time_ms",
+                "type": "number",
+                "title": None,
+                "unit": None,
+                "better": "lower",
+                "at_least": "0",
+                "at_most": None,
+            }
+        ],
+        "newer_version": "v2",
+    }
+    assert classic.status_code == 200, classic.text
+    assert classic.json() == {
+        "run": False,
+        "inputs": [],
+        "outputs": [],
+        "newer_version": None,
+    }
+
+    await sign_in_as(client, acme, 7)
+    refused = await client.get("/api/v1/workflows/bob/held/versions/v1/box")
+    assert refused.status_code == 404
+    assert refused.json()["code"] == "not_found"
+
+
+async def test_checking_a_draft_that_holds_its_own_workflow_names_the_step(
+    client: httpx.AsyncClient, acme: FakeForge
+) -> None:
+    acme.primitives.add("noop", {"v1": _NOOP.encode()})
+    await sign_in_as(client, acme, 8)
+    await client.post("/api/v1/workflows", json={"owner": "bob", "name": "held"}, headers=ORIGIN)
+    token = (await client.get("/api/v1/workflows/bob/held")).json()["draft"]["token"]
+    token = await _save(client, "held", _HELD, token)
+    made = await client.post(
+        "/api/v1/workflows/bob/held/versions",
+        json={"version": "v1", "token": token},
+        headers=ORIGIN,
+    )
+    assert made.status_code == 201, made.text
+    closing = "steps:\n  - id: again\n    use: bob/held@v1\n"
+    token = await _save(client, "held", closing, token)
+
+    checked = await client.post(
+        "/api/v1/workflows/check",
+        json={"content": closing, "owner": "bob", "name": "held"},
+        headers=ORIGIN,
+    )
+    refused = await client.post(
+        "/api/v1/workflows/bob/held/versions",
+        json={"version": "v2", "token": token},
+        headers=ORIGIN,
+    )
+
+    assert checked.status_code == 200, checked.text
+    assert checked.json()["problems"] == [
+        {
+            "path": "steps[0].use",
+            "message": (
+                "`again` uses bob/held@v1, and bob/held is already on that path, so the "
+                "workflow would hold itself."
+            ),
+            "step": "again",
+        }
+    ]
+    assert refused.status_code == 422
+    assert refused.json()["code"] == "invalid_definition"
+    assert refused.json()["errors"][0]["step"] == "again"

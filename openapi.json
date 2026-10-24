@@ -382,6 +382,162 @@
         "title": "BlockInput",
         "type": "object"
       },
+      "BoxInput": {
+        "description": "One input of a run workflow drawn as a box.",
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "optional": {
+            "title": "Optional",
+            "type": "boolean"
+          },
+          "options": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Options"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          }
+        },
+        "required": [
+          "name",
+          "type",
+          "options",
+          "optional",
+          "title",
+          "unit"
+        ],
+        "title": "BoxInput",
+        "type": "object"
+      },
+      "BoxOutput": {
+        "description": "One output of a run workflow drawn as a box. `type` and a number's\nmeaning are null while the port is not known. A port carries no title\nand no unit.",
+        "properties": {
+          "at_least": {
+            "anyOf": [
+              {
+                "examples": [
+                  "82.5"
+                ],
+                "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At Least"
+          },
+          "at_most": {
+            "anyOf": [
+              {
+                "examples": [
+                  "82.5"
+                ],
+                "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At Most"
+          },
+          "better": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Better"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Type"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          }
+        },
+        "required": [
+          "name",
+          "type",
+          "title",
+          "unit",
+          "better",
+          "at_least",
+          "at_most"
+        ],
+        "title": "BoxOutput",
+        "type": "object"
+      },
       "CallbackAnswer": {
         "description": "Where the grading stands once its run's report is taken.",
         "properties": {
@@ -590,11 +746,33 @@
         "type": "string"
       },
       "CheckDefinition": {
-        "description": "A `workflow.yaml` to check as a version would be, writing nothing.",
+        "description": "A `workflow.yaml` to check as a version would be, writing nothing.\n`owner` and `name`, when both are given, name the workflow this text is\na draft of, so a draft that would hold that workflow is refused.",
         "properties": {
           "content": {
             "title": "Content",
             "type": "string"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "owner": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner"
           }
         },
         "required": [
@@ -737,35 +915,6 @@
         ],
         "title": "Closed",
         "type": "string"
-      },
-      "CombineWorkflows": {
-        "description": "A workflow to make as `name` under `owner` from two or more\n`sources`, each `<owner>/<name>@<version>`, inlined in their order.",
-        "properties": {
-          "name": {
-            "title": "Name",
-            "type": "string"
-          },
-          "owner": {
-            "title": "Owner",
-            "type": "string"
-          },
-          "sources": {
-            "items": {
-              "type": "string"
-            },
-            "maxItems": 20,
-            "minItems": 1,
-            "title": "Sources",
-            "type": "array"
-          }
-        },
-        "required": [
-          "sources",
-          "owner",
-          "name"
-        ],
-        "title": "CombineWorkflows",
-        "type": "object"
       },
       "CommentRequest": {
         "description": "One message under a question: a contestant's follow-up or an\norganiser's reply.",
@@ -1265,7 +1414,7 @@
         "type": "object"
       },
       "DefinitionProblem": {
-        "description": "One problem: its YAML path in `workflow.yaml`, `steps[1].with.binary`,\nand what is wrong there. The path is empty for the file as a whole.",
+        "description": "One problem: its YAML path in `workflow.yaml`, `steps[1].with.binary`,\nand what is wrong there. The path is empty for the file as a whole.\n`step` is the flat step a problem inside a box belongs to, when the path\ncan only name the box; none otherwise.",
         "properties": {
           "message": {
             "title": "Message",
@@ -1274,11 +1423,23 @@
           "path": {
             "title": "Path",
             "type": "string"
+          },
+          "step": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Step"
           }
         },
         "required": [
           "path",
-          "message"
+          "message",
+          "step"
         ],
         "title": "DefinitionProblem",
         "type": "object"
@@ -7737,6 +7898,48 @@
           "name"
         ],
         "title": "Workflow",
+        "type": "object"
+      },
+      "WorkflowBox": {
+        "description": "A workflow version as a box. `run` is false for a workflow of the\ntest format, and then both lists are empty.",
+        "properties": {
+          "inputs": {
+            "items": {
+              "$ref": "#/components/schemas/BoxInput"
+            },
+            "title": "Inputs",
+            "type": "array"
+          },
+          "newer_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Newer Version"
+          },
+          "outputs": {
+            "items": {
+              "$ref": "#/components/schemas/BoxOutput"
+            },
+            "title": "Outputs",
+            "type": "array"
+          },
+          "run": {
+            "title": "Run",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "run",
+          "inputs",
+          "outputs",
+          "newer_version"
+        ],
+        "title": "WorkflowBox",
         "type": "object"
       },
       "WorkflowForm": {
@@ -17388,48 +17591,6 @@
         ]
       }
     },
-    "/api/v1/workflow-combinations": {
-      "post": {
-        "description": "A new private workflow under `owner` inlining every source, a clash\nof names taking the first free `-2`, `-3`.",
-        "operationId": "combineWorkflows",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CombineWorkflows"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Workflow"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "default": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "An error, as an RFC 9457 problem document. `code` names it."
-          }
-        },
-        "summary": "Combine workflows into one",
-        "tags": [
-          "workflows"
-        ]
-      }
-    },
     "/api/v1/workflow-copies": {
       "post": {
         "description": "A new private workflow under `owner` holding the source's files at\nits version, with nothing written about where they came from.",
@@ -17550,7 +17711,7 @@
     },
     "/api/v1/workflows/check": {
       "post": {
-        "description": "Every problem a version of the definition would be refused for, each\nat its YAML path, against the primitives its steps use as the caller\nreads them. Nothing is written.",
+        "description": "Every problem a version of the definition would be refused for, each\nat its YAML path, against the primitives its steps use as the caller\nreads them. Nothing is written. Given `owner` and `name`, a draft that\nwould hold that workflow is refused, and the problem carries `step`.",
         "operationId": "checkWorkflow",
         "requestBody": {
           "content": {
@@ -17834,7 +17995,7 @@
     },
     "/api/v1/workflows/{owner}/{name}/versions": {
       "post": {
-        "description": "Made only when the saved draft passes every check a version must;\notherwise `invalid_definition` with every problem in `errors`, and no\nversion made. Given the token the draft was saved with, `conflict` when\nsomeone has saved since; `invalid_name` for a name that is not `v` and\na whole number from 1.",
+        "description": "Made only when the saved draft passes every check a version must;\notherwise `invalid_definition` with every problem in `errors`, and no\nversion made. Each error may carry `step`, the flat step a problem\ninside a box belongs to. Given the token the draft was saved with, `conflict` when\nsomeone has saved since; `invalid_name` for a name that is not `v` and\na whole number from 1.",
         "operationId": "createWorkflowVersion",
         "parameters": [
           {
@@ -17958,6 +18119,71 @@
           }
         },
         "summary": "The definition at a version",
+        "tags": [
+          "workflows"
+        ]
+      }
+    },
+    "/api/v1/workflows/{owner}/{name}/versions/{version}/box": {
+      "get": {
+        "description": "Read as the caller: `not_found` when there is no such version or they\nmay not read it, in the same words as the version itself. A workflow of\nthe test format answers `run` false, with both lists empty.",
+        "operationId": "getWorkflowBox",
+        "parameters": [
+          {
+            "description": "An org's name or a person's username",
+            "in": "path",
+            "name": "owner",
+            "required": true,
+            "schema": {
+              "description": "An org's name or a person's username",
+              "title": "Owner",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The workflow's name under its owner",
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "description": "The workflow's name under its owner",
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "title": "Version",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkflowBox"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "A version's inputs and outputs, for drawing it as a box",
         "tags": [
           "workflows"
         ]

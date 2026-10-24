@@ -11,6 +11,9 @@ editor's palette shows each with its type and its marks.
 from typing import Any, Literal, Self
 
 from forge.api.blocks import Better
+from forge.api.workflows import Box as ForgeBox
+from forge.api.workflows import BoxInput as ForgeBoxInput
+from forge.api.workflows import BoxOutput as ForgeBoxOutput
 from forge.api.workflows import (
     Draft,
     FromInput,
@@ -50,16 +53,6 @@ class CopyWorkflow(BaseModel):
     """
 
     source: str
-    owner: str
-    name: str
-
-
-class CombineWorkflows(BaseModel):
-    """A workflow to make as `name` under `owner` from two or more
-    `sources`, each `<owner>/<name>@<version>`, inlined in their order.
-    """
-
-    sources: list[str] = Field(min_length=1, max_length=20)
     owner: str
     name: str
 
@@ -149,18 +142,26 @@ class Version(BaseModel):
 
 
 class CheckDefinition(BaseModel):
-    """A `workflow.yaml` to check as a version would be, writing nothing."""
+    """A `workflow.yaml` to check as a version would be, writing nothing.
+    `owner` and `name`, when both are given, name the workflow this text is
+    a draft of, so a draft that would hold that workflow is refused.
+    """
 
     content: str
+    owner: str | None = None
+    name: str | None = None
 
 
 class DefinitionProblem(BaseModel):
     """One problem: its YAML path in `workflow.yaml`, `steps[1].with.binary`,
     and what is wrong there. The path is empty for the file as a whole.
+    `step` is the flat step a problem inside a box belongs to, when the path
+    can only name the box; none otherwise.
     """
 
     path: str
     message: str
+    step: str | None = None
 
 
 class Checked(BaseModel):
@@ -169,6 +170,75 @@ class Checked(BaseModel):
     """
 
     problems: list[DefinitionProblem]
+
+
+class BoxInput(BaseModel):
+    """One input of a run workflow drawn as a box."""
+
+    name: str
+    type: str
+    options: list[str] | None
+    optional: bool
+    title: str | None
+    unit: str | None
+
+    @classmethod
+    def of(cls, found: ForgeBoxInput) -> Self:
+        return cls(
+            name=found.name,
+            type=found.type,
+            options=None if found.options is None else list(found.options),
+            optional=found.optional,
+            title=found.title,
+            unit=found.unit,
+        )
+
+
+class BoxOutput(BaseModel):
+    """One output of a run workflow drawn as a box. `type` and a number's
+    meaning are null while the port is not known. A port carries no title
+    and no unit.
+    """
+
+    name: str
+    type: str | None
+    title: str | None
+    unit: str | None
+    better: Better | None
+    at_least: Exact | None
+    at_most: Exact | None
+
+    @classmethod
+    def of(cls, found: ForgeBoxOutput) -> Self:
+        return cls(
+            name=found.name,
+            type=found.type,
+            title=found.title,
+            unit=found.unit,
+            better=found.better,
+            at_least=found.at_least,
+            at_most=found.at_most,
+        )
+
+
+class WorkflowBox(BaseModel):
+    """A workflow version as a box. `run` is false for a workflow of the
+    test format, and then both lists are empty.
+    """
+
+    run: bool
+    inputs: list[BoxInput]
+    outputs: list[BoxOutput]
+    newer_version: str | None
+
+    @classmethod
+    def of(cls, found: ForgeBox) -> Self:
+        return cls(
+            run=found.run,
+            inputs=[BoxInput.of(item) for item in found.inputs],
+            outputs=[BoxOutput.of(item) for item in found.outputs],
+            newer_version=found.newer_version,
+        )
 
 
 class SetVisibility(BaseModel):

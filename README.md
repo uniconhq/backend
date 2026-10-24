@@ -780,9 +780,9 @@ is `not_found`, in the same words as one that is not there.
 | `PUT /workflows/{owner}/{name}/visibility` | `private`, `shared` or `public`, 204; private and public empty the list of readers |
 | `PUT /workflows/{owner}/{name}/readers/{username}` | share it with a person; `conflict` while it is public |
 | `DELETE /workflows/{owner}/{name}/readers/{username}` | take their read away, 204 |
-| `POST /workflows/check` | every problem a version of `content` would be refused for, each with its `path` and `message`; nothing is written |
+| `POST /workflows/check` | every problem a version of `content` would be refused for, each with its `path`, `message` and, inside a box, `step`; given `owner` and `name`, a draft that would hold that workflow is refused; nothing is written |
 | `POST /workflow-copies` | a new private workflow under `owner` from `source`, `<owner>/<name>@<version>`, 201 |
-| `POST /workflow-combinations` | a new private workflow under `owner` inlining two or more `sources`, 201; one source is `rejected` |
+| `GET /workflows/{owner}/{name}/versions/{version}/box` | the version's inputs and outputs for drawing it as a box, read as the caller; `run` false for a workflow of the test format |
 | `GET /primitives` | every primitive at every version, its `ref` what a step's `use:` names, with `batch`, `network`, `limits`, `limits_from` and its `inputs` and `outputs`, each port's `type`, `options`, `optional`, `runs`, `secret` and `description`, and on the `outcome` port `outcomes`, each outcome the step can report with a line saying when, null when the primitive does not say; a version the platform no longer reads has `problem` instead |
 
 ## The event door

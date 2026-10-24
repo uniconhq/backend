@@ -1,8 +1,8 @@
 """Workflows for anyone signed in: making one, the ones they may read, one
 as its page shows it, its definition at a version, saving its draft,
 making a version, checking a definition on its own, its visibility and who
-it is shared with, copying one and combining several; and the platform's
-primitives with their declared ports.
+it is shared with, copying one, and a version's inputs and outputs for
+drawing it as a box; and the platform's primitives with their declared ports.
 
 Every route needs a session and no role: forge decides who may act on a
 workflow, its owner or a manager or admin of the org that owns it, and
@@ -10,7 +10,8 @@ every change is made at the forge as the caller, so the forge's own check
 is underneath. A workflow someone may not read is answered `not_found`, in
 the same words as one that is not there. A draft saves with its problems; a
 version of one is refused `invalid_definition`, with every problem at its
-YAML path in `errors`, the same shape check answers with.
+YAML path in `errors`, the same shape check answers with. A problem inside
+a box may carry `step`, the flat step it belongs to.
 """
 
 from typing import Annotated
@@ -23,7 +24,6 @@ from unicon.api.deps import CurrentSession
 from unicon.schemas.workflows import (
     CheckDefinition,
     Checked,
-    CombineWorkflows,
     CopyWorkflow,
     CreateVersion,
     CreateWorkflow,
@@ -36,6 +36,7 @@ from unicon.schemas.workflows import (
     Version,
     VersionContent,
     Workflow,
+    WorkflowBox,
     WorkflowItem,
     WorkflowPage,
 )
@@ -79,9 +80,10 @@ async def list_workflows(session: CurrentSession) -> list[WorkflowItem]:
 async def check_workflow(session: CurrentSession, body: CheckDefinition) -> Checked:
     """Every problem a version of the definition would be refused for, each
     at its YAML path, against the primitives its steps use as the caller
-    reads them. Nothing is written.
+    reads them. Nothing is written. Given `owner` and `name`, a draft that
+    would hold that workflow is refused, and the problem carries `step`.
     """
-    found = await workflows.check(session, body.content)
+    found = await workflows.check(session, body.content, owner=body.owner, name=body.name)
     return Checked(problems=[DefinitionProblem(**problem) for problem in found])
 
 
@@ -97,21 +99,6 @@ async def copy_workflow(session: CurrentSession, body: CopyWorkflow) -> Workflow
     its version, with nothing written about where they came from.
     """
     made = await workflows.copy(session, body.source, body.owner, body.name)
-    return Workflow(owner=made.owner, name=made.name)
-
-
-@router.post(
-    "/workflow-combinations",
-    operation_id="combineWorkflows",
-    summary="Combine workflows into one",
-    status_code=CREATED,
-    response_model=Workflow,
-)
-async def combine_workflows(session: CurrentSession, body: CombineWorkflows) -> Workflow:
-    """A new private workflow under `owner` inlining every source, a clash
-    of names taking the first free `-2`, `-3`.
-    """
-    made = await workflows.combine(session, body.sources, body.owner, body.name)
     return Workflow(owner=made.owner, name=made.name)
 
 
@@ -145,7 +132,8 @@ async def create_workflow_version(
 ) -> Version:
     """Made only when the saved draft passes every check a version must;
     otherwise `invalid_definition` with every problem in `errors`, and no
-    version made. Given the token the draft was saved with, `conflict` when
+    version made. Each error may carry `step`, the flat step a problem
+    inside a box belongs to. Given the token the draft was saved with, `conflict` when
     someone has saved since; `invalid_name` for a name that is not `v` and
     a whole number from 1.
     """
@@ -168,6 +156,21 @@ async def get_workflow_version(
     return VersionContent(
         content=await workflows.read_version(session, f"{owner}/{name}@{version}")
     )
+
+
+@router.get(
+    f"{WORKFLOW}/versions/{{version}}/box",
+    operation_id="getWorkflowBox",
+    summary="A version's inputs and outputs, for drawing it as a box",
+)
+async def get_workflow_box(
+    session: CurrentSession, owner: Owner, name: Name, version: str
+) -> WorkflowBox:
+    """Read as the caller: `not_found` when there is no such version or they
+    may not read it, in the same words as the version itself. A workflow of
+    the test format answers `run` false, with both lists empty.
+    """
+    return WorkflowBox.of(await workflows.box(session, f"{owner}/{name}@{version}"))
 
 
 @router.put(
