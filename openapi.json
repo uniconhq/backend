@@ -2682,6 +2682,20 @@
             ],
             "title": "Options"
           },
+          "parts": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/InputPart"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parts"
+          },
           "per_test": {
             "title": "Per Test",
             "type": "boolean"
@@ -2708,9 +2722,36 @@
           "default",
           "min",
           "max",
-          "max_size"
+          "max_size",
+          "parts"
         ],
         "title": "InputField",
+        "type": "object"
+      },
+      "InputPart": {
+        "description": "One part of an input given once per tuple: the tuple's title, and the\nmost that part may hold, in bytes.",
+        "properties": {
+          "max_size": {
+            "title": "Max Size",
+            "type": "integer"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "required": [
+          "title",
+          "max_size"
+        ],
+        "title": "InputPart",
         "type": "object"
       },
       "Invitation": {
@@ -6122,6 +6163,27 @@
             "title": "Texts",
             "type": "object"
           },
+          "titles": {
+            "anyOf": [
+              {
+                "items": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Titles"
+          },
           "verdict": {
             "enum": [
               "accepted",
@@ -6149,7 +6211,8 @@
           "reports",
           "texts",
           "label",
-          "message"
+          "message",
+          "titles"
         ],
         "title": "RunShown",
         "type": "object"
@@ -7639,6 +7702,18 @@
           "input": {
             "title": "Input",
             "type": "string"
+          },
+          "part": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Part"
           },
           "sha256": {
             "title": "Sha256",

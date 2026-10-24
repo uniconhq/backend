@@ -116,6 +116,7 @@ class RunShown(BaseModel):
     texts: dict[str, TextRef] = {}
     label: TextRef | None = None
     message: TextRef | None = None
+    titles: list[str | None] | None = None
 
 
 class RunValue(BaseModel):

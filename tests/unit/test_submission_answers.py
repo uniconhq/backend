@@ -164,6 +164,7 @@ def test_a_run_tasks_grading_carries_each_run_with_exact_numbers_its_texts_and_r
         # An entrant is sent where a text is, never the output holding it.
         "texts": {"log": {}},
         "message": {},
+        "titles": ["Small grid", None],
     }
     result = Result(
         GRADING, 1, SubmissionState.GRADED, None, None, (), {}, runs=(run,), reveal_at=REVEAL
@@ -185,6 +186,7 @@ def test_a_run_tasks_grading_carries_each_run_with_exact_numbers_its_texts_and_r
             "texts": {"log": {"output": None, "name": None}},
             "label": None,
             "message": {"output": None, "name": None},
+            "titles": ["Small grid", None],
         }
     ]
 
@@ -200,6 +202,7 @@ def test_a_run_tasks_values_once_and_compiled_are_served_exactly() -> None:
         "passed": 1,
         "reports": {},
         "label": log,
+        "titles": ["Big grid"],
     }
     result = Result(
         GRADING,
@@ -244,6 +247,7 @@ def test_a_run_tasks_values_once_and_compiled_are_served_exactly() -> None:
         },
     ]
     assert answer["runs"][0]["label"] == log
+    assert answer["runs"][0]["titles"] == ["Big grid"]
     assert [each["dropped"] for each in answer["runs"]] == [False, True]
     assert answer["once"] == {"reports": {"compile_ms": "40"}, "texts": {"compile_log": log}}
     assert (answer["compiled"], answer["facts"]) == (1, {"seconds_late": "1800", "compiled": "1"})

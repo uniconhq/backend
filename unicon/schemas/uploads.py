@@ -7,7 +7,7 @@ address the slot names, and then says they are there.
 import uuid
 
 from forge.api.uploads import Slot, UploadStatus
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class UploadRequest(BaseModel):
@@ -28,6 +28,7 @@ class UploadRequest(BaseModel):
     size: int
     sha256: str
     content_type: str | None = None
+    part: int | None = Field(default=None, ge=1)
 
 
 class TaskFileUploadRequest(BaseModel):

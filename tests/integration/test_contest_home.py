@@ -6,6 +6,8 @@ its statement, its submission caps and the form of its inputs. A contest
 they may not see and a task that is not visible answer as not found.
 """
 
+from dataclasses import dataclass
+
 import httpx
 from forge.testing import FakeForge
 
@@ -19,6 +21,7 @@ from tests.integration.conftest import (
     run_contest,
     sign_in_as,
 )
+from unicon.schemas.contest_home import InputField
 
 
 async def test_a_signed_in_person_reads_the_home_and_a_released_task(
@@ -60,21 +63,23 @@ async def test_a_signed_in_person_reads_the_home_and_a_released_task(
             "options": None,
             "per_test": False,
             "default": None,
-            "min": None,
-            "max": None,
-            "max_size": 10 * 1024 * 1024,
-        },
-        {
-            "id": "language",
-            "type": "enum",
-            "label": "Language",
-            "options": ["python"],
-            "per_test": False,
-            "default": None,
-            "min": None,
-            "max": None,
-            "max_size": 10 * 1024 * 1024,
-        },
+                "min": None,
+                "max": None,
+                "max_size": 10 * 1024 * 1024,
+                "parts": None,
+            },
+            {
+                "id": "language",
+                "type": "enum",
+                "label": "Language",
+                "options": ["python"],
+                "per_test": False,
+                "default": None,
+                "min": None,
+                "max": None,
+                "max_size": 10 * 1024 * 1024,
+                "parts": None,
+            },
     ]
 
 
@@ -127,6 +132,45 @@ async def test_a_hidden_contest_and_an_unreleased_task_are_not_found(
     assert (unreleased.status_code, unreleased.json()["code"]) == (404, "not_found")
     assert (hidden.status_code, hidden.json()["code"]) == (404, "not_found")
     assert (await client.get("/api/v1/contests")).json() == []
+
+
+def test_a_task_page_keeps_each_parts_title_and_largest_size() -> None:
+    @dataclass
+    class _Part:
+        title: str | None
+        max_size: int
+
+    @dataclass
+    class _Field:
+        id: str
+        type: str
+        label: str
+        options: None = None
+        per_test: bool = False
+        default: None = None
+        min: None = None
+        max: None = None
+        max_size: int = 0
+        parts: tuple[_Part, ...] | None = None
+
+    field = _Field(
+        "route",
+        "file",
+        "Route",
+        max_size=50 * 1024 * 1024,
+        parts=(
+            _Part("Small grid", 10 * 1024 * 1024),
+            _Part("Big grid", 50 * 1024 * 1024),
+        ),
+    )
+
+    shown = InputField.model_validate(field).model_dump()
+
+    assert shown["parts"] == [
+        {"title": "Small grid", "max_size": 10 * 1024 * 1024},
+        {"title": "Big grid", "max_size": 50 * 1024 * 1024},
+    ]
+    assert shown["max_size"] == 50 * 1024 * 1024
 
 
 async def test_the_contestant_reads_need_a_session(

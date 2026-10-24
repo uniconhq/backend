@@ -109,6 +109,22 @@ InputType = Literal["text", "number", "boolean", "enum", "file", "folder"]
 """The types a contestant input has."""
 
 
+class InputPart(BaseModel):
+    """One part of an input given once per tuple: the tuple's title, and the
+    most that part may hold, in bytes.
+    """
+
+    title: str | None = None
+    max_size: int
+
+    @model_validator(mode="before")
+    @classmethod
+    def _of(cls, given: Any) -> Any:
+        if dataclasses.is_dataclass(given) and not isinstance(given, type):
+            return {each.name: getattr(given, each.name) for each in dataclasses.fields(given)}
+        return given
+
+
 class InputField(BaseModel):
     """One input the contestant gives, with what its form shows: its
     `type`, its `label`, the task's, else the workflow's title for the
@@ -129,6 +145,7 @@ class InputField(BaseModel):
     min: Exact | None
     max: Exact | None
     max_size: int
+    parts: list[InputPart] | None = None
 
     @model_validator(mode="before")
     @classmethod
