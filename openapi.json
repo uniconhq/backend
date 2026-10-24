@@ -1475,12 +1475,19 @@
         "type": "object"
       },
       "EnterMarkRequest": {
-        "description": "A mark for one of a submission's values that reads an `entered`\nblock: the value's name, and the mark written out as a plain decimal,\nsuch as `7.5`, as text so it stays exact. The forge checks it against\nthe bounds the task's live version gives.",
+        "description": "A mark for one of a submission's values that reads an `entered`\nblock: the value's name, and the mark written out as a plain decimal,\nsuch as `7.5`, as text so it stays exact. Null or \"\" clears the mark.\nThe forge checks a mark against the bounds the task's live version\ngives, and does not read them when the mark is cleared.",
         "properties": {
           "mark": {
-            "maxLength": 40,
-            "title": "Mark",
-            "type": "string"
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mark"
           },
           "value": {
             "maxLength": 64,
@@ -1489,8 +1496,7 @@
           }
         },
         "required": [
-          "value",
-          "mark"
+          "value"
         ],
         "title": "EnterMarkRequest",
         "type": "object"
@@ -1523,7 +1529,7 @@
         "type": "object"
       },
       "EnteredMark": {
-        "description": "A mark as it was kept: the value, the mark as the plain decimal it\ncounts as, the user id of who entered it, and when. Every mark entered\nis kept, and the latest is the value's.",
+        "description": "A mark as it was kept: the value, the mark as the plain decimal it\ncounts as, or null when it was cleared, the user id of who entered it,\nand when. Every mark entered is kept, a clear included, and the latest\nis the value's.",
         "properties": {
           "at": {
             "format": "date-time",
@@ -1535,8 +1541,15 @@
             "type": "integer"
           },
           "mark": {
-            "title": "Mark",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mark"
           },
           "value": {
             "title": "Value",
@@ -14827,7 +14840,7 @@
     },
     "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/organise/submissions/{number}/entries": {
       "post": {
-        "description": "The mark as it was kept. A value the task's live version gives no\n`entered` block, or a mark that is not a plain number within its\nbounds, is `invalid_mark`; a row with no submission of that number is\n`not_found`.",
+        "description": "The mark as it was kept. Null or \"\" clears it, and the answer's\n`mark` is then null. A value the task's live version gives no\n`entered` block, or a mark that is not a plain number within its\nbounds, is `invalid_mark`; a row with no submission of that number is\n`not_found`.",
         "operationId": "enterMark",
         "parameters": [
           {

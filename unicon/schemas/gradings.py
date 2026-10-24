@@ -113,22 +113,24 @@ class CancelRequest(BaseModel):
 class EnterMarkRequest(BaseModel):
     """A mark for one of a submission's values that reads an `entered`
     block: the value's name, and the mark written out as a plain decimal,
-    such as `7.5`, as text so it stays exact. The forge checks it against
-    the bounds the task's live version gives.
+    such as `7.5`, as text so it stays exact. Null or "" clears the mark.
+    The forge checks a mark against the bounds the task's live version
+    gives, and does not read them when the mark is cleared.
     """
 
     value: str = Field(max_length=64)
-    mark: str = Field(max_length=40)
+    mark: str | None = Field(default=None, max_length=40)
 
 
 class EnteredMark(BaseModel):
     """A mark as it was kept: the value, the mark as the plain decimal it
-    counts as, the user id of who entered it, and when. Every mark entered
-    is kept, and the latest is the value's.
+    counts as, or null when it was cleared, the user id of who entered it,
+    and when. Every mark entered is kept, a clear included, and the latest
+    is the value's.
     """
 
     value: str
-    mark: str
+    mark: str | None
     by: int
     at: datetime
 

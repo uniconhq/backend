@@ -74,6 +74,33 @@ async def test_a_mark_forge_refuses_is_invalid_mark_with_its_words(
     assert answer.json()["detail"] == "Enter a number from 0 to 10 for review, such as 0."
 
 
+@pytest.mark.parametrize("sent", [None, ""])
+async def test_a_null_or_empty_mark_clears_it(
+    client: httpx.AsyncClient,
+    sum_task: FakeForge,
+    monkeypatch: pytest.MonkeyPatch,
+    sent: str | None,
+) -> None:
+    handed: list[str | None] = []
+
+    async def enter(
+        organiser: Any, task: str, owner: Any, number: int, value: str, mark: str | None
+    ) -> entries.Entered:
+        handed.append(mark)
+        return entries.Entered(value, None, 7, AT)
+
+    monkeypatch.setattr(entries, "enter", enter)
+    body: dict[str, Any] = {"value": "review"}
+    if sent is not None:
+        body["mark"] = sent
+
+    answer = await client.post(ENTER, params={"entrant": str(ROW)}, json=body, headers=ORIGIN)
+
+    assert answer.status_code == 200, answer.text
+    assert answer.json()["mark"] is None
+    assert handed == [None if sent is None else ""]
+
+
 async def test_a_mark_sent_as_a_number_or_too_long_is_not_read(
     client: httpx.AsyncClient, sum_task: FakeForge
 ) -> None:

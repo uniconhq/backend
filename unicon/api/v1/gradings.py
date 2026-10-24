@@ -233,7 +233,8 @@ async def enter_mark(
     body: EnterMarkRequest,
     entrant: Annotated[uuid.UUID, Query(description="The entrant whose row it is")],
 ) -> entries.Entered:
-    """The mark as it was kept. A value the task's live version gives no
+    """The mark as it was kept. Null or "" clears it, and the answer's
+    `mark` is then null. A value the task's live version gives no
     `entered` block, or a mark that is not a plain number within its
     bounds, is `invalid_mark`; a row with no submission of that number is
     `not_found`.
