@@ -25,6 +25,7 @@ from tests.integration.conftest import (
     TASK,
     edit_task,
     enter,
+    entrant_of,
     sign_in_as,
     upload,
 )
@@ -408,3 +409,36 @@ async def test_a_json_number_as_any_inputs_value_is_refused_not_read_as_true_or_
     refused = await client.post(SUBMISSIONS, json=body, headers=ORIGIN)
 
     assert (refused.status_code, refused.json()["code"]) == (422, "validation_error")
+
+
+async def test_staff_list_and_download_an_entrants_files(
+    client: httpx.AsyncClient, entered: FakeForge
+) -> None:
+    await _submit(client, entered)
+    entrant = await entrant_of(client)
+    address = f"{DOWNLOADS}/entrants/{entrant}/1/{MAIN}"
+
+    await sign_in_as(client, entered, 7)
+    listed = await client.get(f"{TASK}/organise/submissions/1/files", params={"entrant": entrant})
+    opened = await _download(client, address)
+    missing = await _download(client, f"{DOWNLOADS}/entrants/{entrant}/1/files/submission/other.py")
+
+    assert listed.status_code == 200, listed.text
+    assert listed.json()["inputs"]["submission"]["files"] == [address]
+    assert opened.status_code == 204, opened.text
+    door = Door(opened.headers["X-Forge-Path"], opened.headers["X-Forge-Authorization"])
+    assert await entered.workspaces.fetch(door) == SOURCE
+    assert missing.status_code == 403
+
+    await sign_in_as(client, entered, 20)
+    refused = await _download(client, address)
+    assert refused.status_code == 403
+
+    for bad in (
+        f"{DOWNLOADS}/entrants/not-a-uuid/1/{MAIN}",
+        f"{DOWNLOADS}/entrants/{entrant}/0/{MAIN}",
+        f"{DOWNLOADS}/entrants/{entrant}/x/{MAIN}",
+        f"{DOWNLOADS}/entrants/{entrant}/1/submission.json",
+        f"{DOWNLOADS}/entrants/{entrant}/1/files/",
+    ):
+        assert (await _download(client, bad)).status_code == 403

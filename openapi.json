@@ -14921,6 +14921,92 @@
         ]
       }
     },
+    "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/organise/submissions/{number}/files": {
+      "get": {
+        "description": "Each input's files by the address the download door reads them at,\n`/-/downloads/<org>/<contest>/<task>/entrants/<entrant>/<number>/<path>`,\nor the value given. A row with no such submission is `not_found`.",
+        "operationId": "listOrganisedSubmissionFiles",
+        "parameters": [
+          {
+            "description": "The submission's number",
+            "in": "path",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "description": "The submission's number",
+              "maximum": 2147483647,
+              "minimum": 1,
+              "title": "Number",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "task",
+            "required": true,
+            "schema": {
+              "title": "Task",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The entrant whose row it is",
+            "in": "query",
+            "name": "entrant",
+            "required": true,
+            "schema": {
+              "description": "The entrant whose row it is",
+              "format": "uuid",
+              "title": "Entrant",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubmittedFiles"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "What one submission of an entrant was made with",
+        "tags": [
+          "gradings"
+        ]
+      }
+    },
     "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/organise/submissions/{number}/texts/{output}/{name}": {
       "get": {
         "description": "A text the submission's result names, as `output` and `name`, read\nas organisers read the submission. Any other is `not_found`.",

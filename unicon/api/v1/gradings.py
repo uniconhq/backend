@@ -74,7 +74,7 @@ from forge.api.errors import NotFound
 from forge.api.gradings import GradingStatus
 from forge.api.leaderboards import EntrantOwner
 from forge.api.regrades import ChangeKind
-from forge.api.types import Role, ScopeKind, TaskId
+from forge.api.types import Role, Scope, ScopeKind, TaskId
 
 from unicon.api.guard import PREFIX, anywhere, require
 from unicon.api.v1.submissions import (
@@ -99,7 +99,7 @@ from unicon.schemas.gradings import (
     RunRegradeSummary,
 )
 from unicon.schemas.leaderboards import counted_of, header_of, sort_of
-from unicon.schemas.submissions import OrganisedSubmission
+from unicon.schemas.submissions import OrganisedSubmission, SubmittedFiles
 
 CONTEST = PREFIX[ScopeKind.CONTEST]
 TASK = PREFIX[ScopeKind.TASK]
@@ -152,6 +152,50 @@ async def get_organised_submission(
     """A row with no submission of that number is `not_found`."""
     row = EntrantOwner(entrant)
     return await submissions.organised(organiser, tasks.task_id_of(organiser.scope), row, number)
+
+
+@router.get(
+    "/organise/submissions/{number}/files",
+    operation_id="listOrganisedSubmissionFiles",
+    summary="What one submission of an entrant was made with",
+    response_model=SubmittedFiles,
+)
+async def list_organised_submission_files(
+    organiser: TaskObserver,
+    number: Number,
+    entrant: Annotated[uuid.UUID, Query(description="The entrant whose row it is")],
+) -> submissions.SubmittedFiles:
+    """Each input's files by the address the download door reads them at,
+    `/-/downloads/<org>/<contest>/<task>/entrants/<entrant>/<number>/<path>`,
+    or the value given. A row with no such submission is `not_found`.
+    """
+    task = tasks.task_id_of(organiser.scope)
+    found = await submissions.organised_files(organiser, task, EntrantOwner(entrant), number)
+    return _addressed(found, organiser.scope, entrant)
+
+
+def _addressed(
+    found: submissions.SubmittedFiles, scope: Scope, entrant: uuid.UUID
+) -> submissions.SubmittedFiles:
+    """The submission's files, each path rewritten to the staff download
+    address. A value is left as it is.
+    """
+    inputs: dict[str, Any] = {}
+    for name, given in found.inputs.items():
+        files = given.get("files") if isinstance(given, dict) else None
+        if isinstance(files, list):
+            inputs[name] = {
+                **given,
+                "files": [
+                    f"/-/downloads/{scope.org}/{scope.contest}/{scope.task}/entrants/"
+                    f"{entrant}/{found.number}/{path}"
+                    for path in files
+                    if isinstance(path, str)
+                ],
+            }
+        else:
+            inputs[name] = given
+    return submissions.SubmittedFiles(found.task, found.number, inputs)
 
 
 @router.get(
