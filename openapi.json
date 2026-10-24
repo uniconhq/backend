@@ -276,9 +276,12 @@
           "gives": {
             "enum": [
               "number",
+              "text",
               "runs",
+              "run",
               "results",
               "submission",
+              "number_or_text",
               "either",
               "name",
               "directions",
@@ -322,9 +325,12 @@
           "kind": {
             "enum": [
               "number",
+              "text",
               "runs",
+              "run",
               "results",
               "submission",
+              "number_or_text",
               "either",
               "name",
               "directions",
@@ -628,7 +634,7 @@
         "type": "object"
       },
       "CellDiff": {
-        "description": "One displayed cell of a row, its number before the regrade and\nafter, exactly, null where it was or is missing, and the submissions\nthe cell after leaves out as still waiting, as the leaderboard does.",
+        "description": "One displayed cell of a row, its number before the regrade and\nafter, exactly, null where it was or is missing, its text before and\nafter, null where it had none, and the submissions the cell after\nleaves out as still waiting, as the leaderboard does.",
         "properties": {
           "after": {
             "anyOf": [
@@ -664,6 +670,28 @@
             "title": "Column",
             "type": "string"
           },
+          "text_after": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text After"
+          },
+          "text_before": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text Before"
+          },
           "waiting": {
             "items": {
               "$ref": "#/components/schemas/Counted"
@@ -676,7 +704,9 @@
           "column",
           "before",
           "after",
-          "waiting"
+          "waiting",
+          "text_before",
+          "text_after"
         ],
         "title": "CellDiff",
         "type": "object"
@@ -1743,7 +1773,7 @@
         "type": "object"
       },
       "FailedCheck": {
-        "description": "A check that refused its save, for the task's organisers: its\n`index` in `checks`, from 1; why it failed, a sentence each, at most\n20; its `runs`; the `outcomes` of its steps done once, by step; the\nnumber each value's program reported, by value; and the fault of its\nsteps, null when none. Entrants never read a check.",
+        "description": "A check that refused its save, for the task's organisers: its\n`index` in `checks`, from 1; why it failed, a sentence each, at most\n20; its `runs`; the `outcomes` of its steps done once, by step; the\nnumber each value's program reported, exactly, or its text, by value;\nand the fault of its steps, null when none. Entrants never read a\ncheck.",
         "properties": {
           "error": {
             "anyOf": [
@@ -1783,11 +1813,18 @@
           },
           "values": {
             "additionalProperties": {
-              "examples": [
-                "82.5"
-              ],
-              "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
-              "type": "string"
+              "anyOf": [
+                {
+                  "examples": [
+                    "82.5"
+                  ],
+                  "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+                  "type": "string"
+                },
+                {
+                  "type": "string"
+                }
+              ]
             },
             "title": "Values",
             "type": "object"
@@ -3165,7 +3202,7 @@
         "type": "object"
       },
       "LeaderboardCell": {
-        "description": "One listed column of a row: its `number`, null when missing, hidden\nor waiting; whether it is `hidden` from the caller, having read\nsomething they are not shown, told only on the caller's own row and to\nstaff and false elsewhere; the submissions it counted; and those it\nleft out as still waiting, both null unless the row is the caller's\nown or they are staff.",
+        "description": "One listed column of a row: its `number`, null when missing, hidden,\nwaiting or text; its `text`, null when it is a number or missing;\nwhether it is `hidden` from the caller, having read\nsomething they are not shown, told only on the caller's own row and to\nstaff and false elsewhere; the submissions it counted; and those it\nleft out as still waiting, both null unless the row is the caller's\nown or they are staff.",
         "properties": {
           "column": {
             "title": "Column",
@@ -3204,6 +3241,17 @@
             ],
             "title": "Number"
           },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          },
           "waiting": {
             "anyOf": [
               {
@@ -3222,6 +3270,7 @@
         "required": [
           "column",
           "number",
+          "text",
           "hidden",
           "counted",
           "waiting"
@@ -4876,7 +4925,8 @@
                 "enum": [
                   "checking",
                   "refused",
-                  "replaced"
+                  "replaced",
+                  "unchecked"
                 ],
                 "type": "string"
               },
@@ -4943,7 +4993,8 @@
                 "enum": [
                   "checking",
                   "refused",
-                  "replaced"
+                  "replaced",
+                  "unchecked"
                 ],
                 "type": "string"
               },
@@ -6231,7 +6282,7 @@
         "type": "object"
       },
       "RunValue": {
-        "description": "One value of a run task's scoring as its reader sees it: its name,\nits `number`, exact, null when it is missing or waiting; whether\nit is `waiting` for staff, which an entrant reads as \"being checked\",\ntold only once the runs it waits on are early or shown; and whether it\nis `self_reported`, reading a column the entrant could set. Organisers\nalso read the time `show` lists it under, null when never, and what it\nread: `runs` by id, `values` and `facts`; each is null for an entrant.",
+        "description": "One value of a run task's scoring as its reader sees it: its name,\nits `number`, exact, null when it is missing, waiting or text; its\n`text`, null when it is a number, missing or waiting; whether\nit is `waiting` for staff, which an entrant reads as \"being checked\",\ntold only once the runs it waits on are early or shown; and whether it\nis `self_reported`, reading a column the entrant could set. Organisers\nalso read the time `show` lists it under, null when never, and what it\nread: `runs` by id, `values` and `facts`; each is null for an entrant.",
         "properties": {
           "facts": {
             "anyOf": [
@@ -6300,6 +6351,17 @@
             ],
             "title": "Show"
           },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          },
           "values": {
             "anyOf": [
               {
@@ -6322,6 +6384,7 @@
         "required": [
           "name",
           "number",
+          "text",
           "waiting",
           "self_reported",
           "show",
@@ -7757,7 +7820,7 @@
         "type": "string"
       },
       "ValueChange": {
-        "description": "One value of a submission a regrade changed: its `name`, its\nnumber `before` and `after`, exactly, null where it had none or waits,\nand whether it is `waiting` after, for a run or for staff. A value has\nno direction: up and down are a row's place on a leaderboard.",
+        "description": "One value of a submission a regrade changed: its `name`, its\nnumber `before` and `after`, exactly, null where it had none, waits\nor is text; its text `text_before` and `text_after`, null where it\nhad no text; and whether it is `waiting` after, for a run or for\nstaff. A value has\nno direction: up and down are a row's place on a leaderboard.",
         "properties": {
           "after": {
             "anyOf": [
@@ -7793,6 +7856,28 @@
             "title": "Name",
             "type": "string"
           },
+          "text_after": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text After"
+          },
+          "text_before": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text Before"
+          },
           "waiting": {
             "title": "Waiting",
             "type": "boolean"
@@ -7802,7 +7887,9 @@
           "name",
           "before",
           "after",
-          "waiting"
+          "waiting",
+          "text_before",
+          "text_after"
         ],
         "title": "ValueChange",
         "type": "object"

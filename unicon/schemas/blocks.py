@@ -14,9 +14,12 @@ from pydantic import BaseModel
 
 Kind = Literal[
     "number",
+    "text",
     "runs",
+    "run",
     "results",
     "submission",
+    "number_or_text",
     "either",
     "name",
     "directions",

@@ -38,11 +38,12 @@ def _number_of(publication: Any) -> Any:
 PublicationNumber = Annotated[int, BeforeValidator(_number_of)]
 """A publication by its number among its task's publications."""
 
-Check = Literal["checking", "refused", "replaced"]
+Check = Literal["checking", "refused", "replaced", "unchecked"]
 """Where a run task's publication stands while its save is checked:
 `checking`, its pipeline queued or running, or ended by the system and
 to be tried again; `refused`, it did not pass, so entrants keep being
-graded on the publication before it; or `replaced`, a later save took
+graded on the publication before it; `unchecked`, it was made and its
+save failed before a row checked it; or `replaced`, a later save took
 its place before it ended. Null once it passed, or on a task that is
 not checked.
 """
@@ -78,14 +79,15 @@ class FailedCheck(BaseModel):
     """A check that refused its save, for the task's organisers: its
     `index` in `checks`, from 1; why it failed, a sentence each, at most
     20; its `runs`; the `outcomes` of its steps done once, by step; the
-    number each value's program reported, by value; and the fault of its
-    steps, null when none. Entrants never read a check."""
+    number each value's program reported, exactly, or its text, by value;
+    and the fault of its steps, null when none. Entrants never read a
+    check."""
 
     index: int
     failing: list[str]
     runs: list[CheckRun]
     outcomes: dict[str, str]
-    values: dict[str, Exact]
+    values: dict[str, Exact | str]
     error: str | None
 
 

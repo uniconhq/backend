@@ -542,6 +542,8 @@ def _diff(leaderboard: regrades.LeaderboardDiff) -> dict[str, Any]:
                         "before": cell.before,
                         "after": cell.after,
                         "waiting": counted_of(cell.waiting),
+                        "text_before": cell.text_before,
+                        "text_after": cell.text_after,
                     }
                     for cell in row.cells
                 ],

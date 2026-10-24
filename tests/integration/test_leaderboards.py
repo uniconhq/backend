@@ -146,6 +146,7 @@ def _standings(carols: str, told: bool) -> dict[str, Any]:
                     {
                         "column": "score",
                         "number": "0",
+                        "text": None,
                         "hidden": False,
                         "counted": counted,
                         "waiting": counted,
@@ -192,7 +193,14 @@ async def test_each_caller_reads_the_leaderboards_its_audience_lets_them(
     standings, private = staff.json()
     assert standings == staff_one.json() == _standings(carols, told=True)
     assert private["rows"][0]["cells"] == [
-        {"column": "tries", "number": "0", "hidden": False, "counted": [], "waiting": []}
+        {
+            "column": "tries",
+            "number": "0",
+            "text": None,
+            "hidden": False,
+            "counted": [],
+            "waiting": [],
+        }
     ]
     assert (other.status_code, other.json()["code"]) == (404, "not_found")
     assert organise.status_code == 404

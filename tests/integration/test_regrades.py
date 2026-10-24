@@ -256,6 +256,8 @@ async def test_a_run_tasks_regrade_is_read_by_each_value_and_verdict_it_changed(
                         "before": "1",
                         "after": "0.333333333333333333333333333333",
                         "waiting": False,
+                        "text_before": None,
+                        "text_after": None,
                     }
                 ],
                 "verdicts": [
@@ -304,12 +306,21 @@ async def test_a_run_tasks_regrade_is_read_by_each_value_and_verdict_it_changed(
                     "place_before": 1,
                     "place_after": 2,
                     "cells": [
-                        {"column": "st2", "before": "1", "after": "0", "waiting": []},
+                        {
+                            "column": "st2",
+                            "before": "1",
+                            "after": "0",
+                            "waiting": [],
+                            "text_before": None,
+                            "text_after": None,
+                        },
                         {
                             "column": "total",
                             "before": "100",
                             "after": None,
                             "waiting": [{"task": "sum", "number": 4}],
+                            "text_before": None,
+                            "text_after": None,
                         },
                     ],
                     "regrading": [{"task": "sum", "number": 4}],

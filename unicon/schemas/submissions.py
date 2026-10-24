@@ -121,7 +121,8 @@ class RunShown(BaseModel):
 
 class RunValue(BaseModel):
     """One value of a run task's scoring as its reader sees it: its name,
-    its `number`, exact, null when it is missing or waiting; whether
+    its `number`, exact, null when it is missing, waiting or text; its
+    `text`, null when it is a number, missing or waiting; whether
     it is `waiting` for staff, which an entrant reads as "being checked",
     told only once the runs it waits on are early or shown; and whether it
     is `self_reported`, reading a column the entrant could set. Organisers
@@ -131,6 +132,7 @@ class RunValue(BaseModel):
 
     name: str
     number: Exact | None
+    text: str | None = None
     waiting: bool
     self_reported: bool
     show: Literal["now", "after_close", "on_release"] | None = None

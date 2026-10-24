@@ -257,14 +257,18 @@ class RegradeSummary(BaseModel):
 
 class ValueChange(BaseModel):
     """One value of a submission a regrade changed: its `name`, its
-    number `before` and `after`, exactly, null where it had none or waits,
-    and whether it is `waiting` after, for a run or for staff. A value has
+    number `before` and `after`, exactly, null where it had none, waits
+    or is text; its text `text_before` and `text_after`, null where it
+    had no text; and whether it is `waiting` after, for a run or for
+    staff. A value has
     no direction: up and down are a row's place on a leaderboard."""
 
     name: str
     before: Exact | None
     after: Exact | None
     waiting: bool
+    text_before: str | None = None
+    text_after: str | None = None
 
 
 class VerdictChange(BaseModel):
@@ -295,13 +299,16 @@ class SubmissionChange(BaseModel):
 
 class CellDiff(BaseModel):
     """One displayed cell of a row, its number before the regrade and
-    after, exactly, null where it was or is missing, and the submissions
-    the cell after leaves out as still waiting, as the leaderboard does."""
+    after, exactly, null where it was or is missing, its text before and
+    after, null where it had none, and the submissions the cell after
+    leaves out as still waiting, as the leaderboard does."""
 
     column: str
     before: Exact | None
     after: Exact | None
     waiting: list[Counted]
+    text_before: str | None = None
+    text_after: str | None = None
 
 
 class RowDiff(BaseModel):

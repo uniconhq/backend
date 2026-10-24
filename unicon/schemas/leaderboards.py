@@ -59,8 +59,9 @@ class Counted(BaseModel):
 
 
 class LeaderboardCell(BaseModel):
-    """One listed column of a row: its `number`, null when missing, hidden
-    or waiting; whether it is `hidden` from the caller, having read
+    """One listed column of a row: its `number`, null when missing, hidden,
+    waiting or text; its `text`, null when it is a number or missing;
+    whether it is `hidden` from the caller, having read
     something they are not shown, told only on the caller's own row and to
     staff and false elsewhere; the submissions it counted; and those it
     left out as still waiting, both null unless the row is the caller's
@@ -68,6 +69,7 @@ class LeaderboardCell(BaseModel):
 
     column: str
     number: Exact | None
+    text: str | None = None
     hidden: bool
     counted: list[Counted] | None
     waiting: list[Counted] | None
@@ -162,6 +164,7 @@ def leaderboard_of(leaderboard: leaderboards.LeaderboardView) -> dict[str, Any]:
                     {
                         "column": cell.column,
                         "number": cell.number,
+                        "text": cell.text,
                         "hidden": cell.hidden,
                         "counted": counted_of(cell.counted) if row.told else None,
                         "waiting": counted_of(cell.waiting) if row.told else None,

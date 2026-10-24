@@ -216,6 +216,7 @@ def test_a_run_tasks_values_once_and_compiled_are_served_exactly() -> None:
         run_values=(
             ValueShown("score", Fraction(1, 3), False, True, "now", ("3",), ("tests",), ()),
             ValueShown("late", None, True, False),
+            ValueShown("first_failed", None, False, False, "now", (), (), (), "WA"),
         ),
         once={"reports": {"compile_ms": 40}, "texts": {"compile_log": log}},
         compiled=1,
@@ -228,6 +229,7 @@ def test_a_run_tasks_values_once_and_compiled_are_served_exactly() -> None:
         {
             "name": "score",
             "number": "0." + "3" * 30,
+            "text": None,
             "waiting": False,
             "self_reported": True,
             "show": "now",
@@ -238,12 +240,24 @@ def test_a_run_tasks_values_once_and_compiled_are_served_exactly() -> None:
         {
             "name": "late",
             "number": None,
+            "text": None,
             "waiting": True,
             "self_reported": False,
             "show": None,
             "runs": None,
             "values": None,
             "facts": None,
+        },
+        {
+            "name": "first_failed",
+            "number": None,
+            "text": "WA",
+            "waiting": False,
+            "self_reported": False,
+            "show": "now",
+            "runs": [],
+            "values": [],
+            "facts": [],
         },
     ]
     assert answer["runs"][0]["label"] == log
