@@ -6536,7 +6536,7 @@
         "type": "object"
       },
       "SubmittedFileInput": {
-        "description": "What one input of a submission was: the paths of its files in the\nsubmission, each a download through the download door, or the value\ngiven, a number as its exact decimal digits. It is read leniently from\nthe submission's `submission.json`: a member of the wrong type is left\nout rather than failing the answer.",
+        "description": "What one input of a submission was: the paths of its files in the\nsubmission, each a download through the download door, or the value\ngiven, a number as its exact decimal digits; or, for an input given\nonce per tuple, its `parts` by number from \"1\", only the parts given,\nits own `files` empty and `value` null, and `parts` null on any other.\nIt is read leniently from the submission's `submission.json`: a member\nof the wrong type is left out rather than failing the answer.",
         "properties": {
           "files": {
             "items": {
@@ -6544,6 +6544,20 @@
             },
             "title": "Files",
             "type": "array"
+          },
+          "parts": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/SubmittedPart"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parts"
           },
           "value": {
             "anyOf": [
@@ -6562,7 +6576,8 @@
         },
         "required": [
           "files",
-          "value"
+          "value",
+          "parts"
         ],
         "title": "SubmittedFileInput",
         "type": "object"
@@ -6624,6 +6639,38 @@
           }
         },
         "title": "SubmittedInput",
+        "type": "object"
+      },
+      "SubmittedPart": {
+        "description": "What one part of an input given in parts was: the paths of its files\nin the submission, each a download through the download door, or the\nvalue given, a number as its exact decimal digits. It is read leniently\nfrom the submission's `submission.json`: a member of the wrong type is\nleft out rather than failing the answer.",
+        "properties": {
+          "files": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Files",
+            "type": "array"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "files",
+          "value"
+        ],
+        "title": "SubmittedPart",
         "type": "object"
       },
       "Submitter": {
@@ -14263,7 +14310,7 @@
     },
     "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/organise/submissions/{number}/files": {
       "get": {
-        "description": "Each input's files by the address the download door reads them at,\n`/-/downloads/<org>/<contest>/<task>/entrants/<entrant>/<number>/<path>`,\nor the value given. A row with no such submission is `not_found`.",
+        "description": "Each input's files by the address the download door reads them at,\n`/-/downloads/<org>/<contest>/<task>/entrants/<entrant>/<number>/<path>`,\nor the value given, and each part's the same of an input given in parts.\nA row with no such submission is `not_found`.",
         "operationId": "listOrganisedSubmissionFiles",
         "parameters": [
           {
@@ -15781,7 +15828,7 @@
     },
     "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/submissions/{number}/files": {
       "get": {
-        "description": "Each input's files by their paths in the submission, or its value;\neach file downloads through the download door.",
+        "description": "Each input's files by their paths in the submission, or its value,\nand each part's the same of an input given in parts; each file\ndownloads through the download door.",
         "operationId": "listMySubmissionFiles",
         "parameters": [
           {

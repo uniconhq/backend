@@ -608,7 +608,7 @@ a session and no role; `<task>` is the task's prefix.
 
 | Route | Body | Answer |
 |---|---|---|
-| `POST <task>/uploads` | `input`, `filename`, `size`, `sha256`, `content_type` | 201, a slot |
+| `POST <task>/uploads` | `input`, `filename`, `size`, `sha256`, `content_type`, `part` | 201, a slot |
 | `POST <task>/uploads/{upload}/complete` | | the upload |
 | `POST <task>/submissions` | `idempotency_key`, `inputs` | 201, the submission |
 | `GET <task>/submissions` | | the caller's own, newest first |
@@ -631,7 +631,9 @@ else's is not found.
 
 A submit names, for each of the task's contestant inputs by id, the
 `uploads` of its files, or the `value` of a text, number, true-or-false or
-enum input, the language of a program being an enum input of its own; a
+enum input, the language of a program being an enum input of its own, or,
+for an input given once per tuple, its `parts`, each by number with its
+`uploads` or `value`, the slot of each of its files naming its `part`; a
 number is the text of its plain decimal digits, `2.5`, as every number is
 served, and forge refuses one that is not (`1e3`, `0x10`, `NaN`, empty, or
 past the input's bounds, checked exactly) as `invalid_inputs`, while a JSON
@@ -673,7 +675,9 @@ status. A submission that has a result keeps it, whatever its later
 attempts read as. A verdict is one of the runner's list, and a value a number
 or text. The route renders what forge gives it and nothing more. The files
 route answers each input's `files`, by their paths in the submission, or
-its `value`, a number as its exact digits.
+its `value`, a number as its exact digits; an input given in parts has its
+`parts` instead, by number from `"1"`, only the parts given, each with its
+own `files` or `value`, and `parts` is null on any other input.
 A file itself is downloaded through the proxy's download door,
 `/-/downloads/<org>/<contest>/<task>/<number>/<path>` (a task's own files go
 through the same door at `.../<task>/versions/<version>/<path>`), which asks this

@@ -411,9 +411,11 @@ async def upload(
     *,
     input: str = "code",
     filename: str = "main.py",
+    part: int | None = None,
 ) -> dict[str, Any]:
     """A file uploaded the way the browser does: a slot, the bytes through
-    the door, and the upload completed. Returns the upload.
+    the door, and the upload completed, for one `part` of an input given in
+    parts when one is named. Returns the upload.
     """
     slot = await client.post(
         f"{TASK}/uploads",
@@ -422,6 +424,7 @@ async def upload(
             "filename": filename,
             "size": len(content),
             "sha256": hashlib.sha256(content).hexdigest(),
+            "part": part,
         },
         headers=ORIGIN,
     )

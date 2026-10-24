@@ -158,7 +158,8 @@ async def list_organised_submission_files(
 ) -> submissions.SubmittedFiles:
     """Each input's files by the address the download door reads them at,
     `/-/downloads/<org>/<contest>/<task>/entrants/<entrant>/<number>/<path>`,
-    or the value given. A row with no such submission is `not_found`.
+    or the value given, and each part's the same of an input given in parts.
+    A row with no such submission is `not_found`.
     """
     task = tasks.task_id_of(organiser.scope)
     found = await submissions.organised_files(organiser, task, EntrantOwner(entrant), number)
@@ -169,24 +170,27 @@ def _addressed(
     found: submissions.SubmittedFiles, scope: Scope, entrant: uuid.UUID
 ) -> submissions.SubmittedFiles:
     """The submission's files, each path rewritten to the staff download
-    address. A value is left as it is.
+    address, a part's as an input's. A value is left as it is.
     """
-    inputs: dict[str, Any] = {}
-    for name, given in found.inputs.items():
-        files = given.get("files") if isinstance(given, dict) else None
-        if isinstance(files, list):
-            inputs[name] = {
-                **given,
-                "files": [
-                    f"/-/downloads/{scope.org}/{scope.contest}/{scope.task}/entrants/"
-                    f"{entrant}/{found.number}/{path}"
-                    for path in files
-                    if isinstance(path, str)
-                ],
-            }
-        else:
-            inputs[name] = given
-    return submissions.SubmittedFiles(found.task, found.number, inputs)
+    at = f"/-/downloads/{scope.org}/{scope.contest}/{scope.task}/entrants/{entrant}/{found.number}"
+    return submissions.SubmittedFiles(
+        found.task, found.number, {name: _at(at, given) for name, given in found.inputs.items()}
+    )
+
+
+def _at(at: str, given: Any) -> Any:
+    """An input or a part as `submission.json` holds it, its files' paths
+    under `at`, and each of its parts' too.
+    """
+    if not isinstance(given, dict):
+        return given
+    files, parts = given.get("files"), given.get("parts")
+    moved = dict(given)
+    if isinstance(files, list):
+        moved["files"] = [f"{at}/{path}" for path in files if isinstance(path, str)]
+    if isinstance(parts, dict):
+        moved["parts"] = {number: _at(at, part) for number, part in parts.items()}
+    return moved
 
 
 @router.get(

@@ -201,6 +201,9 @@ def test_a_submissions_inputs_are_read_leniently() -> None:
             "ratio": {"value": Decimal("0.123456789012345678901234567891")},
             "odd": ["not", "an", "object"],
             "weights": {"files": "files/weights/model.bin", "value": {"nested": True}},
+            "route": {"parts": {"1": {"files": ["files/route/1/a.txt", 3]}, "3": {"value": 7}}},
+            "tour": {"parts": {"1": "not an object", "2": {"value": True}}},
+            "broken": {"parts": ["files/broken/1/a.txt"]},
         },
     )
 
@@ -209,12 +212,22 @@ def test_a_submissions_inputs_are_read_leniently() -> None:
     assert answer == {
         "number": 3,
         "inputs": {
-            "code": {"files": ["files/code/main.py"], "value": None},
-            "language": {"files": [], "value": "python"},
-            "alpha": {"files": [], "value": "0.5"},
-            "ratio": {"files": [], "value": "0.123456789012345678901234567891"},
-            "odd": {"files": [], "value": None},
-            "weights": {"files": [], "value": None},
+            "code": {"files": ["files/code/main.py"], "value": None, "parts": None},
+            "language": {"files": [], "value": "python", "parts": None},
+            "alpha": {"files": [], "value": "0.5", "parts": None},
+            "ratio": {"files": [], "value": "0.123456789012345678901234567891", "parts": None},
+            "odd": {"files": [], "value": None, "parts": None},
+            "weights": {"files": [], "value": None, "parts": None},
+            "route": {
+                "files": [],
+                "value": None,
+                "parts": {
+                    "1": {"files": ["files/route/1/a.txt"], "value": None},
+                    "3": {"files": [], "value": "7"},
+                },
+            },
+            "tour": {"files": [], "value": None, "parts": {"2": {"files": [], "value": True}}},
+            "broken": {"files": [], "value": None, "parts": None},
         },
     }
 

@@ -112,8 +112,9 @@ async def get_my_submission(
 async def list_my_submission_files(
     session: CurrentSession, scope: TaskAtPath, number: Number
 ) -> submissions.SubmittedFiles:
-    """Each input's files by their paths in the submission, or its value;
-    each file downloads through the download door.
+    """Each input's files by their paths in the submission, or its value,
+    and each part's the same of an input given in parts; each file
+    downloads through the download door.
     """
     return await submissions.files(session, tasks.task_id_of(scope), number)
 

@@ -1,10 +1,11 @@
-"""What the submission routes take and answer with. A submit names, for each
-of the task's contestant inputs, the uploads of its files, or the value of a
-text, number, true-or-false or enum input, as the forge's own
-`SubmittedInput`: a number as the text of its plain decimal digits, `2.5`,
-the form every number is served in, never a JSON number. A submission
-comes back with the latest attempt of its grading, carrying only what the
-task's `show` lets its contestant see now. What is not shown is null.
+"""What the submission routes take and answer with. A submit names, for each of
+the task's contestant inputs, the uploads of its files, or the value of a
+text, number, true-or-false or enum input, or, for an input given once per
+tuple, its parts, each the same, as the forge's own `SubmittedInput`: a
+number as the text of its plain decimal digits, `2.5`, the form every number
+is served in, never a JSON number. A submission comes back with the latest
+attempt of its grading, carrying only what the task's `show` lets its
+contestant see now. What is not shown is null.
 """
 
 import uuid
@@ -53,13 +54,17 @@ class SubmitRequest(BaseModel):
     def _no_json_numbers(cls, given: Any) -> Any:
         """A value is text, true or false: a JSON number would otherwise be
         read as true or false (`1`, `0`, `1.0`), and a number is sent as the
-        text of its digits (#427).
+        text of its digits (#427). A part's value is held to the same.
         """
         if isinstance(given, dict):
             for name, entry in given.items():
-                value = entry.get("value") if isinstance(entry, dict) else None
-                if isinstance(value, int | float) and not isinstance(value, bool):
-                    raise ValueError(f'The value for {name} must be sent as text, such as "2.5".')
+                parts = entry.get("parts") if isinstance(entry, dict) else None
+                for part in [entry, *(parts.values() if isinstance(parts, dict) else [])]:
+                    value = part.get("value") if isinstance(part, dict) else None
+                    if isinstance(value, int | float) and not isinstance(value, bool):
+                        raise ValueError(
+                            f'The value for {name} must be sent as text, such as "2.5".'
+                        )
         return given
 
 
@@ -234,12 +239,12 @@ class OrganisedSubmission(Numbered):
     grading: OrganisedResult | None
 
 
-class SubmittedFileInput(BaseModel):
-    """What one input of a submission was: the paths of its files in the
-    submission, each a download through the download door, or the value
-    given, a number as its exact decimal digits. It is read leniently from
-    the submission's `submission.json`: a member of the wrong type is left
-    out rather than failing the answer.
+class SubmittedPart(BaseModel):
+    """What one part of an input given in parts was: the paths of its files
+    in the submission, each a download through the download door, or the
+    value given, a number as its exact decimal digits. It is read leniently
+    from the submission's `submission.json`: a member of the wrong type is
+    left out rather than failing the answer.
     """
 
     files: list[str]
@@ -248,14 +253,35 @@ class SubmittedFileInput(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def _leniently(cls, given: Any) -> dict[str, Any]:
+        return _files_and_value(given if isinstance(given, dict) else {})
+
+
+class SubmittedFileInput(SubmittedPart):
+    """What one input of a submission was: the paths of its files in the
+    submission, each a download through the download door, or the value
+    given, a number as its exact decimal digits; or, for an input given
+    once per tuple, its `parts` by number from "1", only the parts given,
+    its own `files` empty and `value` null, and `parts` null on any other.
+    It is read leniently from the submission's `submission.json`: a member
+    of the wrong type is left out rather than failing the answer.
+    """
+
+    parts: dict[str, SubmittedPart] | None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _leniently(cls, given: Any) -> dict[str, Any]:
         found = given if isinstance(given, dict) else {}
-        files = found.get("files")
-        value = found.get("value")
+        parts = found.get("parts")
         return {
-            "files": [path for path in files if isinstance(path, str)]
-            if isinstance(files, list)
-            else [],
-            "value": value if isinstance(value, Value) else _digits(value),
+            **_files_and_value(found),
+            "parts": {
+                number: part
+                for number, part in parts.items()
+                if isinstance(number, str) and isinstance(part, dict)
+            }
+            if isinstance(parts, dict)
+            else None,
         }
 
 
@@ -264,6 +290,20 @@ class SubmittedFiles(BaseModel):
 
     number: int
     inputs: dict[str, SubmittedFileInput]
+
+
+def _files_and_value(found: dict[str, Any]) -> dict[str, Any]:
+    """The `files` and `value` of an input or a part as `submission.json`
+    holds them, each member of the wrong type left out.
+    """
+    files = found.get("files")
+    value = found.get("value")
+    return {
+        "files": [path for path in files if isinstance(path, str)]
+        if isinstance(files, list)
+        else [],
+        "value": value if isinstance(value, Value) else _digits(value),
+    }
 
 
 def _digits(value: object) -> str | None:
