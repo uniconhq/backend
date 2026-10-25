@@ -5674,11 +5674,12 @@
         "type": "object"
       },
       "SubmissionState": {
-        "description": "Where a submission stands as its contestant is told, in TASK-FORMAT.md\nsection 1.7's words, which say nothing of the CI's stages: `queued`\nuntil its run is started, `grading` while the CI holds it or runs it,\n`graded` once it has a result, `delayed` while it has none and its\nlatest attempt failed for a reason of the platform's, `over_limit` once\nit was to be graded again and its entrant had no room left under the\ntask's `submissions.max`, and `cancelled` once staff ended it.",
+        "description": "Where a submission stands as its contestant is told, in TASK-FORMAT.md\nsection 1.7's words, which say nothing of the CI's stages: `queued`\nuntil its run is started, `grading` while the CI holds it or runs it,\n`graded` once it has a result, `delayed` while it has none and its\nlatest attempt failed for a reason of the platform's, `over_limit` once\nit was to be graded again and its entrant had no room left under the\ntask's `submissions.max`, and `cancelled` once staff ended it. A run\ntask's submission with no run shown during the contest is `submitted`\nonce graded and until the task reveals, which a page words \"Submitted,\nresults after the contest\", since `graded` would read as nothing run.",
         "enum": [
           "queued",
           "grading",
           "graded",
+          "submitted",
           "delayed",
           "over_limit",
           "cancelled"
@@ -6695,7 +6696,7 @@
         "type": "object"
       },
       "WorkflowForm": {
-        "description": "What the task form is built from: the workflow the task's `task.yaml`\nnames, as written, the inputs it declares and its test fields, in the\norder the workflow gives them, or `problem`, the reason there are none:\nno `task.yaml` or one that does not read as YAML, no workflow named, or\none that cannot be read or is in an old format; `graded`, whether\nthe task has a graded submission, from when on a save refuses a test\ngroup it adds without its `show` (T10); and `newer`, the workflow's\nlatest version when it comes after the one the task names, which the\ntask keeps until someone saves it naming another (Task 10.6.5).",
+        "description": "What the task form is built from: the workflow the task's `task.yaml`\nnames, as written, the inputs it declares and its test fields, in the\norder the workflow gives them, or `problem`, the reason there are none:\nno `task.yaml` or one that does not read as YAML, no workflow named, or\none that cannot be read or is in an old format; `graded`, whether\nthe task has a graded submission, from when on a save refuses a test\ngroup it adds without its `show` (T10); and `newer`, the workflow's\nlatest version when it comes after the one the task names, which the\ntask keeps until someone saves it naming another (Task 10.6.5); and\n`runs`, whether the workflow describes one run, so the task is in the\nrun format (SIMPLER-CORE.md 8), its inputs given by the task, the\nentrant or `repeat`, and no test fields.",
         "properties": {
           "graded": {
             "default": false,
@@ -6732,6 +6733,11 @@
             ],
             "title": "Problem"
           },
+          "runs": {
+            "default": false,
+            "title": "Runs",
+            "type": "boolean"
+          },
           "test": {
             "default": [],
             "items": {
@@ -6758,7 +6764,8 @@
           "test",
           "problem",
           "graded",
-          "newer"
+          "newer",
+          "runs"
         ],
         "title": "WorkflowForm",
         "type": "object"
