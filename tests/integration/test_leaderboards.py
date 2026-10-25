@@ -357,19 +357,23 @@ async def test_organisers_read_a_submission_scored_with_everything_filled_in(
     assert (refused.status_code, refused.json()["code"]) == (403, "forbidden")
     assert seen.status_code == 200, seen.text
     grading = seen.json()["grading"]
-    # Carol is shown her run with no id and no key, since the task's `show`
-    # lists neither test file, and not the compile log; organisers read
-    # every one of them, each value with when it shows and what it read.
+    # Carol is shown her run with no id and an empty tuple, since the task's
+    # `show` lists neither test file, and not the compile log; organisers
+    # read every one of them, each value with when it shows and what it read.
     [mine] = own["runs"]
     [run] = grading["runs"]
-    assert (own["status"], mine["id"], mine["key"], own["once"]["texts"]) == (
+    assert (own["status"], mine["id"], mine["tuples"], own["once"]["texts"]) == (
         "graded",
         None,
-        {},
+        [{"title": None, "key": {}}],
         {},
     )
     assert (grading["status"], run["id"], run["verdict"]) == ("done", "r1", "accepted")
-    assert run["key"] == {"answer": "tests/1.ans", "input": "tests/1.in"}
+    assert run["tuples"] == [
+        {"title": None, "key": {"input": "tests/1.in", "answer": "tests/1.ans"}}
+    ]
+    by_title = {report["title"]: report for report in run["reports"]}
+    assert by_title["Run time"] == {"title": "Run time", "unit": "ms", "number": "12"}
     assert list(grading["once"]["texts"]) == ["log"]
     [score] = grading["run_values"]
     assert (score["number"], score["show"], score["runs"]) == ("1", "now", ["r1"])

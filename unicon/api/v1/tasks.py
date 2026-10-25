@@ -226,7 +226,9 @@ async def get_task_workflow_form(organiser: TaskObserver) -> publications.Workfl
     so the form can mend it. Either way `graded` says whether the task has a
     graded submission, and `newer` names the workflow's latest version when
     it comes after the one the task names, which the task keeps until it is
-    saved naming another.
+    saved naming another. `text_values` names the values that give text, in
+    the file's order, null when the settings cannot be read; a workflow
+    output stays a number.
     """
     return await publications.workflow_form(organiser, tasks.task_id_of(organiser.scope))
 

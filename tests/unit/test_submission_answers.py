@@ -59,14 +59,19 @@ def test_a_grading_carries_each_run_with_exact_numbers_its_texts_and_reveal() ->
     run = {
         "group": "sample_tests",
         "place": 1,
-        "key": {"input": "samples/1.in"},
+        "tuples": [
+            {"title": "Small grid", "key": {"input": "samples/1.in"}},
+            {"title": None, "key": {"seed": 2}},
+        ],
         "verdict": "accepted",
         "passed": 1,
-        "reports": {"time_ms": 12, "memory_kb": Decimal("2048")},
+        "reports": [
+            {"title": "Run time", "unit": "ms", "number": 12},
+            {"title": "Memory used", "unit": "KB", "number": Decimal("2048")},
+        ],
         # An entrant is sent where a text is, never the output holding it.
         "texts": {"log": {}},
         "message": {},
-        "titles": ["Small grid", None],
     }
     result = Result(GRADING, 1, SubmissionState.GRADED, runs=(run,), reveal_at=REVEAL)
 
@@ -79,14 +84,19 @@ def test_a_grading_carries_each_run_with_exact_numbers_its_texts_and_reveal() ->
             "place": 1,
             "id": None,
             "dropped": False,
-            "key": {"input": "samples/1.in"},
+            "tuples": [
+                {"title": "Small grid", "key": {"input": "samples/1.in"}},
+                {"title": None, "key": {"seed": 2}},
+            ],
             "verdict": "accepted",
             "passed": 1,
-            "reports": {"time_ms": "12", "memory_kb": "2048"},
+            "reports": [
+                {"title": "Run time", "unit": "ms", "number": "12"},
+                {"title": "Memory used", "unit": "KB", "number": "2048"},
+            ],
             "texts": {"log": {"output": None, "name": None}},
             "label": None,
             "message": {"output": None, "name": None},
-            "titles": ["Small grid", None],
         }
     ]
 
@@ -97,12 +107,11 @@ def test_a_gradings_values_once_and_compiled_are_served_exactly() -> None:
         "group": "all",
         "place": 1,
         "id": "3",
-        "key": {},
+        "tuples": [{"title": "Big grid", "key": {}}],
         "verdict": "accepted",
         "passed": 1,
-        "reports": {},
+        "reports": [],
         "label": log,
-        "titles": ["Big grid"],
     }
     result = Result(
         GRADING,
@@ -157,7 +166,7 @@ def test_a_gradings_values_once_and_compiled_are_served_exactly() -> None:
         },
     ]
     assert answer["runs"][0]["label"] == log
-    assert answer["runs"][0]["titles"] == ["Big grid"]
+    assert answer["runs"][0]["tuples"] == [{"title": "Big grid", "key": {}}]
     assert [each["dropped"] for each in answer["runs"]] == [False, True]
     assert answer["once"] == {"reports": {"compile_ms": "40"}, "texts": {"compile_log": log}}
     assert (answer["compiled"], answer["facts"]) == (1, {"seconds_late": "1800", "compiled": "1"})
@@ -167,10 +176,13 @@ def test_numbers_are_served_as_exact_decimals_and_text_stays_text() -> None:
     run = {
         "group": "all",
         "place": 1,
-        "key": {},
+        "tuples": [{"title": None, "key": {}}],
         "verdict": "accepted",
         "passed": 1,
-        "reports": {"loss": Decimal("0.1000000000000000000000000001"), "total": 10**20},
+        "reports": [
+            {"title": "loss", "number": Decimal("0.1000000000000000000000000001")},
+            {"title": "total", "number": 10**20},
+        ],
     }
     result = Result(
         GRADING,
@@ -182,10 +194,10 @@ def test_numbers_are_served_as_exact_decimals_and_text_stays_text() -> None:
 
     served = json.loads(ResultAnswer.model_validate(result, from_attributes=True).model_dump_json())
 
-    assert served["runs"][0]["reports"] == {
-        "loss": "0.1000000000000000000000000001",
-        "total": "100000000000000000000",
-    }
+    assert served["runs"][0]["reports"] == [
+        {"title": "loss", "unit": None, "number": "0.1000000000000000000000000001"},
+        {"title": "total", "unit": None, "number": "100000000000000000000"},
+    ]
     [label] = served["run_values"]
     assert (label["number"], label["text"]) == (None, "12.5")
 

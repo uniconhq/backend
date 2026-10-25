@@ -137,7 +137,11 @@ async def test_a_pipeline_run_step_by_step_leaves_the_result_the_contestant_read
     [run] = result["runs"]
     assert (run["group"], run["place"], run["id"]) == ("all", 1, None)
     assert (run["verdict"], run["passed"]) == ("accepted", 1)
-    assert run["reports"] == {"score": "1", "time_ms": "12", "memory_kb": "2048"}
+    assert {report["title"]: report for report in run["reports"]} == {
+        "score": {"title": "score", "unit": None, "number": "1"},
+        "Run time": {"title": "Run time", "unit": "ms", "number": "12"},
+        "Memory used": {"title": "Memory used", "unit": "KB", "number": "2048"},
+    }
     [score] = result["run_values"]
     assert (score["name"], score["number"], score["waiting"]) == ("score", "1", False)
     assert listed.json() == [detail.json()]

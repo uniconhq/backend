@@ -81,33 +81,53 @@ class TextRef(BaseModel):
     name: str | None = None
 
 
+class RunTuple(BaseModel):
+    """One axis of a run: its title, null when that tuple has none, and the
+    columns of that axis the reader is shown, a file left out until `show`
+    lists it.
+    """
+
+    title: str | None = None
+    key: dict[str, Any]
+
+
+class ShownOutput(BaseModel):
+    """One number a run reported, named by the title its workflow gives it,
+    or by its own name, with its unit, null when it has none, and the
+    number exactly.
+    """
+
+    title: str
+    unit: str | None = None
+    number: Exact
+
+
 class RunShown(BaseModel):
     """One run of a grading as its entrant sees it: the group
     `show` lists that shows it, its place in that group from 1 ("Test 3"),
-    its key as the plan gives it, leaving out a file not yet shown, its
-    verdict, `passed`, 1 when that is `accepted`, the numbers its steps
-    reported, exactly, and its texts, with the `label` and `message` shown
-    with its verdict, null when no step wrote one. A run in two groups
-    shown is shown in each; a run no group shown holds is never shown, even
-    when a value shown reads it. Organisers read every run, under `all` in
-    the task's order, with its `id`, which counts every run of the task;
-    `id` is null for an entrant. A run a row holds that the task's latest
-    publication no longer has is `dropped`, listed to organisers after the
-    rest; never to an entrant.
+    one tuple per axis, its verdict, `passed`, 1 when that is `accepted`,
+    the numbers its steps reported, each by its title and unit, exactly,
+    and its texts, with the `label` and `message` shown with its verdict,
+    null when no step wrote one. A run in two groups shown is shown in
+    each; a run no group shown holds is never shown, even when a value
+    shown reads it. Organisers read every run, under `all` in the task's
+    order, with its `id`, which counts every run of the task; `id` is null
+    for an entrant. A run a row holds that the task's latest publication no
+    longer has is `dropped`, listed to organisers after the rest; never to
+    an entrant.
     """
 
     group: str
     place: int
     id: str | None = None
     dropped: bool = False
-    key: dict[str, Any]
+    tuples: list[RunTuple]
     verdict: Outcome
     passed: int
-    reports: dict[str, Exact]
+    reports: list[ShownOutput]
     texts: dict[str, TextRef] = {}
     label: TextRef | None = None
     message: TextRef | None = None
-    titles: list[str | None] | None = None
 
 
 class RunValue(BaseModel):

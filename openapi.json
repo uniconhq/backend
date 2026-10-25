@@ -5664,7 +5664,7 @@
         "type": "object"
       },
       "RunShown": {
-        "description": "One run of a grading as its entrant sees it: the group\n`show` lists that shows it, its place in that group from 1 (\"Test 3\"),\nits key as the plan gives it, leaving out a file not yet shown, its\nverdict, `passed`, 1 when that is `accepted`, the numbers its steps\nreported, exactly, and its texts, with the `label` and `message` shown\nwith its verdict, null when no step wrote one. A run in two groups\nshown is shown in each; a run no group shown holds is never shown, even\nwhen a value shown reads it. Organisers read every run, under `all` in\nthe task's order, with its `id`, which counts every run of the task;\n`id` is null for an entrant. A run a row holds that the task's latest\npublication no longer has is `dropped`, listed to organisers after the\nrest; never to an entrant.",
+        "description": "One run of a grading as its entrant sees it: the group\n`show` lists that shows it, its place in that group from 1 (\"Test 3\"),\none tuple per axis, its verdict, `passed`, 1 when that is `accepted`,\nthe numbers its steps reported, each by its title and unit, exactly,\nand its texts, with the `label` and `message` shown with its verdict,\nnull when no step wrote one. A run in two groups shown is shown in\neach; a run no group shown holds is never shown, even when a value\nshown reads it. Organisers read every run, under `all` in the task's\norder, with its `id`, which counts every run of the task; `id` is null\nfor an entrant. A run a row holds that the task's latest publication no\nlonger has is `dropped`, listed to organisers after the rest; never to\nan entrant.",
         "properties": {
           "dropped": {
             "default": false,
@@ -5685,11 +5685,6 @@
               }
             ],
             "title": "Id"
-          },
-          "key": {
-            "additionalProperties": true,
-            "title": "Key",
-            "type": "object"
           },
           "label": {
             "anyOf": [
@@ -5720,15 +5715,11 @@
             "type": "integer"
           },
           "reports": {
-            "additionalProperties": {
-              "examples": [
-                "82.5"
-              ],
-              "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
-              "type": "string"
+            "items": {
+              "$ref": "#/components/schemas/ShownOutput"
             },
             "title": "Reports",
-            "type": "object"
+            "type": "array"
           },
           "texts": {
             "additionalProperties": {
@@ -5738,26 +5729,12 @@
             "title": "Texts",
             "type": "object"
           },
-          "titles": {
-            "anyOf": [
-              {
-                "items": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "type": "null"
-                    }
-                  ]
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Titles"
+          "tuples": {
+            "items": {
+              "$ref": "#/components/schemas/RunTuple"
+            },
+            "title": "Tuples",
+            "type": "array"
           },
           "verdict": {
             "enum": [
@@ -5780,16 +5757,42 @@
           "place",
           "id",
           "dropped",
-          "key",
+          "tuples",
           "verdict",
           "passed",
           "reports",
           "texts",
           "label",
-          "message",
-          "titles"
+          "message"
         ],
         "title": "RunShown",
+        "type": "object"
+      },
+      "RunTuple": {
+        "description": "One axis of a run: its title, null when that tuple has none, and the\ncolumns of that axis the reader is shown, a file left out until `show`\nlists it.",
+        "properties": {
+          "key": {
+            "additionalProperties": true,
+            "title": "Key",
+            "type": "object"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "required": [
+          "title",
+          "key"
+        ],
+        "title": "RunTuple",
         "type": "object"
       },
       "RunValue": {
@@ -6278,6 +6281,41 @@
           "visibility"
         ],
         "title": "SetVisibility",
+        "type": "object"
+      },
+      "ShownOutput": {
+        "description": "One number a run reported, named by the title its workflow gives it,\nor by its own name, with its unit, null when it has none, and the\nnumber exactly.",
+        "properties": {
+          "number": {
+            "examples": [
+              "82.5"
+            ],
+            "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+            "title": "Number",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          }
+        },
+        "required": [
+          "title",
+          "unit",
+          "number"
+        ],
+        "title": "ShownOutput",
         "type": "object"
       },
       "Slot": {
@@ -7600,7 +7638,7 @@
         "type": "object"
       },
       "WorkflowForm": {
-        "description": "What the task form is built from: the workflow the task's `task.yaml`\nnames, as written, and the inputs it declares, in the order the\nworkflow gives them, or `problem`, the reason there are none: no\n`task.yaml` or one that does not read as YAML, no workflow named, or one\nthat cannot be read or is in an old form; `graded`, whether the task has\na graded submission; and `newer`, the workflow's latest version when it\ncomes after the one the task names, which the task keeps until someone\nsaves it naming another (Task 10.6.5).",
+        "description": "What the task form is built from: the workflow the task's `task.yaml`\nnames, as written, and the inputs it declares, in the order the\nworkflow gives them, or `problem`, the reason there are none: no\n`task.yaml` or one that does not read as YAML, no workflow named, or one\nthat cannot be read or is in an old form; `graded`, whether the task has\na graded submission; and `newer`, the workflow's latest version when it\ncomes after the one the task names, which the task keeps until someone\nsaves it naming another (Task 10.6.5). `text_values` names the values\nthat give text, in the file's order, none when the settings cannot be\nread; a workflow output stays a number.",
         "properties": {
           "graded": {
             "default": false,
@@ -7637,6 +7675,20 @@
             ],
             "title": "Problem"
           },
+          "text_values": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text Values"
+          },
           "workflow": {
             "anyOf": [
               {
@@ -7654,7 +7706,8 @@
           "inputs",
           "problem",
           "graded",
-          "newer"
+          "newer",
+          "text_values"
         ],
         "title": "WorkflowForm",
         "type": "object"
@@ -16340,7 +16393,7 @@
     },
     "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/workflow-form": {
       "get": {
-        "description": "The workflow `task.yaml` names as it is saved now, a draft included,\nwith each input it declares, in the workflow's order. A workflow\ndeclares no defaults; an entrant input's `default` is the task's own. A\n`task.yaml` that is missing or does not read, names no workflow or one\nthat cannot be read answers with `problem`, the reason, and no inputs,\nso the form can mend it. Either way `graded` says whether the task has a\ngraded submission, and `newer` names the workflow's latest version when\nit comes after the one the task names, which the task keeps until it is\nsaved naming another.",
+        "description": "The workflow `task.yaml` names as it is saved now, a draft included,\nwith each input it declares, in the workflow's order. A workflow\ndeclares no defaults; an entrant input's `default` is the task's own. A\n`task.yaml` that is missing or does not read, names no workflow or one\nthat cannot be read answers with `problem`, the reason, and no inputs,\nso the form can mend it. Either way `graded` says whether the task has a\ngraded submission, and `newer` names the workflow's latest version when\nit comes after the one the task names, which the task keeps until it is\nsaved naming another. `text_values` names the values that give text, in\nthe file's order, null when the settings cannot be read; a workflow\noutput stays a number.",
         "operationId": "getTaskWorkflowForm",
         "parameters": [
           {
