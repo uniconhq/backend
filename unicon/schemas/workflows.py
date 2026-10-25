@@ -10,7 +10,7 @@ editor's palette shows each with its type and its marks.
 
 from typing import Literal, Self
 
-from forge.api.boards import Better
+from forge.api.blocks import Better
 from forge.api.workflows import (
     Draft,
     FromInput,

@@ -92,10 +92,7 @@ async def test_the_organiser_path_from_an_org_to_a_publication(
     first = written.json()
     assert (first["number"], first["grading_changed"]) == (1, False)
     assert first["notes"] == []
-    assert first["effect"]["scores"] == [
-        "Points: main is worth up to 100.",
-        "sum now counts on the leaderboard Standings.",
-    ]
+    assert first["effect"]["scores"] == ["Points: main is worth up to 100."]
 
     statement = await _save(client, await _edit(client, "statement.md", "Write", "Add. Write"))
     assert (statement.json()["number"], statement.json()["grading_changed"]) == (2, False)
@@ -182,7 +179,7 @@ async def test_a_grading_change_while_the_contest_runs_asks_first(
             "No submission runs again: there are none yet.",
             "The way the task grades changed.",
         ],
-        "scores": ["The leaderboard Standings is counted again."],
+        "scores": ["No score changes."],
         "reading": ["Nothing entrants read changes."],
     }
     assert len((await client.get(f"{TASK}/publications")).json()) == 1
@@ -263,7 +260,7 @@ async def test_a_change_to_the_statement_or_the_points_while_the_contest_runs_as
     points = await _edit(client, "task.yaml", "{each: 100}", "{each: 110}")
     assert (await _save(client, points)).json()["scores"] == [
         "Points: main is now worth up to 110 (was 100).",
-        "Every result is scored again, and the leaderboard Standings with it.",
+        "Every result is scored again.",
     ]
     # Saved as the latest publication holds it, nothing new: no question.
     same = await _edit(client, "task.yaml", "{each: 100}", "{each: 100}")

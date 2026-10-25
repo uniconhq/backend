@@ -240,7 +240,7 @@
         "type": "string"
       },
       "Block": {
-        "description": "A block a value may use: the `name` a node gives as `block`, what it\ngives in words, and its forms. A block with more than one form, such as\n`min`, means the one its node's inputs fit.",
+        "description": "A block a value or a column may use: the `name` a node gives as `block`, what it\ngives in words, and its forms. A block with more than one form, such as\n`min`, means the one its node's inputs fit.",
         "properties": {
           "forms": {
             "items": {
@@ -267,10 +267,27 @@
         "type": "object"
       },
       "BlockForm": {
-        "description": "One way a block is given its inputs: what it is `given`, in words,\nsuch as \"numbers\" or \"a group's runs\", and its inputs by name, in the\norder a node writes them.",
+        "description": "One way a block is given its inputs: what it is `given`, in words,\nsuch as \"numbers\" or \"a group's runs\", its inputs by name, in the order\na node writes them, where it may be used, `scope`, a task's value, a\nboard's column or both, and what it `gives`: a number, one\nsubmission's results, or, for `otherwise`, either.",
         "properties": {
           "given": {
             "title": "Given",
+            "type": "string"
+          },
+          "gives": {
+            "enum": [
+              "number",
+              "runs",
+              "results",
+              "submission",
+              "either",
+              "name",
+              "directions",
+              "weights",
+              "missing",
+              "path",
+              "language"
+            ],
+            "title": "Gives",
             "type": "string"
           },
           "inputs": {
@@ -279,22 +296,38 @@
             },
             "title": "Inputs",
             "type": "object"
+          },
+          "scope": {
+            "enum": [
+              "task",
+              "board",
+              "both"
+            ],
+            "title": "Scope",
+            "type": "string"
           }
         },
         "required": [
           "given",
-          "inputs"
+          "inputs",
+          "scope",
+          "gives"
         ],
         "title": "BlockForm",
         "type": "object"
       },
       "BlockInput": {
-        "description": "One input of a form: the `kind` it takes, a number, a group's `runs`,\n`weights` by a repeated input's values, what a `missing` report counts\nas, a `path`, a folder of the task such as `programs/mean/`, or a\n`language`, one of the catalogue's `languages`; a list of at least\n`least` and at most `most` when `least` is given (`most` null for no\nmost), one node otherwise; whether it may be left out; whether a fold\nreads it once for each run (`per_run`); and whether it takes a number\nwritten out alone, never a leaf or a block (`plain`).",
+        "description": "One input of a form: the `kind` it takes, a number, a group's `runs`,\na task's `results`, one `submission`'s results, `either` a number or a\nsubmission's results, `best_each`'s value by `name` and its\n`directions`, `weights` by a repeated input's values, what a `missing`\nreport counts as, a `path`, a folder of the task such as\n`programs/mean/`, or a `language`, one of the catalogue's `languages`;\na list of at least\n`least` and at most `most` when `least` is given (`most` null for no\nmost), one node otherwise; whether it may be left out; whether its\nblock reads it once for each run or result it goes over (`per_run`),\nas a fold's `of` and `where` and a pick's `where` and `by` are; and\nwhether it takes a number written out alone, never a leaf or a block\n(`plain`).",
         "properties": {
           "kind": {
             "enum": [
               "number",
               "runs",
+              "results",
+              "submission",
+              "either",
+              "name",
+              "directions",
               "weights",
               "missing",
               "path",
@@ -350,32 +383,21 @@
         "type": "object"
       },
       "Board": {
-        "description": "One board as the reader sees it now. `nothing_shown` is true, with no\nrows, while its scope shows nothing yet; `shown_at` is then the time its\nfirst group is shown, null while no task it covers is released.",
+        "description": "One board as staff read it: every row, no hold.",
         "properties": {
-          "board": {
-            "title": "Board",
+          "audience": {
+            "$ref": "#/components/schemas/BoardAudience"
+          },
+          "headers": {
+            "items": {
+              "$ref": "#/components/schemas/Header"
+            },
+            "title": "Headers",
+            "type": "array"
+          },
+          "key": {
+            "title": "Key",
             "type": "string"
-          },
-          "keys": {
-            "items": {
-              "$ref": "#/components/schemas/BoardKey"
-            },
-            "title": "Keys",
-            "type": "array"
-          },
-          "not_in_view": {
-            "items": {
-              "$ref": "#/components/schemas/NotInView"
-            },
-            "title": "Not In View",
-            "type": "array"
-          },
-          "nothing_shown": {
-            "title": "Nothing Shown",
-            "type": "boolean"
-          },
-          "over": {
-            "$ref": "#/components/schemas/Over"
           },
           "rows": {
             "items": {
@@ -384,192 +406,79 @@
             "title": "Rows",
             "type": "array"
           },
-          "select": {
-            "$ref": "#/components/schemas/Select"
-          },
-          "shown_at": {
-            "anyOf": [
-              {
-                "format": "date-time",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Shown At"
-          },
-          "tasks": {
+          "sort": {
             "items": {
-              "$ref": "#/components/schemas/BoardTask"
+              "$ref": "#/components/schemas/SortKey"
             },
-            "title": "Tasks",
+            "title": "Sort",
             "type": "array"
           },
-          "who": {
-            "$ref": "#/components/schemas/Who"
+          "title": {
+            "title": "Title",
+            "type": "string"
           }
         },
         "required": [
-          "board",
-          "over",
-          "select",
-          "who",
-          "keys",
-          "tasks",
-          "not_in_view",
-          "rows",
-          "nothing_shown",
-          "shown_at"
+          "key",
+          "title",
+          "audience",
+          "headers",
+          "sort",
+          "rows"
         ],
         "title": "Board",
         "type": "object"
       },
+      "BoardAudience": {
+        "description": "Who a board is for: `staff`, `entrants` or `everyone`, and which\n`rows` they are given: `all`, `own`, or a number of top rows.",
+        "properties": {
+          "rows": {
+            "anyOf": [
+              {
+                "enum": [
+                  "all",
+                  "own"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "title": "Rows"
+          },
+          "who": {
+            "enum": [
+              "staff",
+              "entrants",
+              "everyone"
+            ],
+            "title": "Who",
+            "type": "string"
+          }
+        },
+        "required": [
+          "who",
+          "rows"
+        ],
+        "title": "BoardAudience",
+        "type": "object"
+      },
       "BoardCell": {
-        "description": "A row's cell on a task: whether it counts, its number on each key it\nhas one for, by the key's `by`, while it counts, and its attempts.\n`grading`, how many of the row's submissions are not graded yet, and\n`submissions`, the numbers of those it counts, several under\n`best_per_group`, come only in the reader's own row, and are null in\nevery other.",
+        "description": "One displayed column of a row: its `number`, null when missing; the\nsubmissions it counted; and those it left out as still waiting.",
         "properties": {
-          "attempts": {
-            "title": "Attempts",
-            "type": "integer"
+          "column": {
+            "title": "Column",
+            "type": "string"
           },
-          "counting": {
-            "title": "Counting",
-            "type": "boolean"
-          },
-          "grading": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Grading"
-          },
-          "numbers": {
-            "additionalProperties": {
-              "examples": [
-                "82.5"
-              ],
-              "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
-              "type": "string"
+          "counted": {
+            "items": {
+              "$ref": "#/components/schemas/Counted"
             },
-            "title": "Numbers",
-            "type": "object"
+            "title": "Counted",
+            "type": "array"
           },
-          "submissions": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "integer"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Submissions"
-          }
-        },
-        "required": [
-          "counting",
-          "numbers",
-          "attempts",
-          "grading",
-          "submissions"
-        ],
-        "title": "BoardCell",
-        "type": "object"
-      },
-      "BoardDiff": {
-        "description": "One board that reads the regraded task, by name. Each row's place\nand cells before and after come with the boards that read a run task's\nvalues.",
-        "properties": {
-          "board": {
-            "title": "Board",
-            "type": "string"
-          }
-        },
-        "required": [
-          "board"
-        ],
-        "title": "BoardDiff",
-        "type": "object"
-      },
-      "BoardKey": {
-        "description": "One key rows are ranked on, in turn: what it ranks by, `points`,\n`penalty` or a declared value, which way is better, null for a value no\ncovered task gives a direction, and, on `penalty`, the minutes each\nattempt before the counted submission charges; a `per_attempt` of 0\ncharges nothing, so the minute submitted is all it ranks on. On a value,\n`title` and `unit` name its column, \"Run time\" and \"ms\", as the first\ncovered task giving them says; both null on `points`, on `penalty` and\non a value no covered task names, which a page names by `by`.",
-        "properties": {
-          "better": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/Better"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "by": {
-            "title": "By",
-            "type": "string"
-          },
-          "per_attempt": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Per Attempt"
-          },
-          "title": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Title"
-          },
-          "unit": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Unit"
-          }
-        },
-        "required": [
-          "by",
-          "better",
-          "per_attempt",
-          "title",
-          "unit"
-        ],
-        "title": "BoardKey",
-        "type": "object"
-      },
-      "BoardPoints": {
-        "description": "The caller's entrant's points on a task as one leaderboard counts\nthem. `board` is the leaderboard's name; `covers` whether it covers the\ntask, the page reading \"\u2014\" where it does not. Where it does, `points`\nis the points now as that board counts the task, its scope (`over`) and\nthe submissions its `select` counts under its `order`, the same number\nthe board's own row counts: `shown`, over the scope's groups whose\nresults are shown, 0 while the board's cell for the task does not count,\nnull while the board shows nothing of the task yet; and `pending`, the\nmost the scope's groups not shown yet could still add, until\n`pending_until`, the task's reveal, null when nothing is pending. A\ngroup whose results are not shown yet never counts in `shown`, as on\nevery board. `most` is the most the board can count from the task, its\nscope's groups' most points. `points` and `most` are null where the\nboard does not cover the task, and on a task that gives no points.",
-        "properties": {
-          "board": {
-            "title": "Board",
-            "type": "string"
-          },
-          "covers": {
-            "title": "Covers",
-            "type": "boolean"
-          },
-          "most": {
+          "number": {
             "anyOf": [
               {
                 "examples": [
@@ -582,68 +491,101 @@
                 "type": "null"
               }
             ],
-            "title": "Most"
+            "title": "Number"
           },
-          "points": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/Points"
-              },
-              {
-                "type": "null"
-              }
-            ]
+          "waiting": {
+            "items": {
+              "$ref": "#/components/schemas/Counted"
+            },
+            "title": "Waiting",
+            "type": "array"
+          }
+        },
+        "required": [
+          "column",
+          "number",
+          "counted",
+          "waiting"
+        ],
+        "title": "BoardCell",
+        "type": "object"
+      },
+      "BoardDiff": {
+        "description": "One board that reads the regraded task, directly or through another\nboard's column, as staff read it, every row and cell and no hold: its\nkey and title, its displayed columns' headers as they stand after, the\ncolumns it sorts by, and each row in its order after the regrade;\n`unread` with no rows when the publication the results counted under\nbefore no longer reads, so there is nothing to compare.",
+        "properties": {
+          "board": {
+            "title": "Board",
+            "type": "string"
+          },
+          "headers": {
+            "items": {
+              "$ref": "#/components/schemas/Header"
+            },
+            "title": "Headers",
+            "type": "array"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/RowDiff"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "sort": {
+            "items": {
+              "$ref": "#/components/schemas/SortKey"
+            },
+            "title": "Sort",
+            "type": "array"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "unread": {
+            "title": "Unread",
+            "type": "boolean"
           }
         },
         "required": [
           "board",
-          "covers",
-          "points",
-          "most"
+          "title",
+          "headers",
+          "sort",
+          "rows",
+          "unread"
         ],
-        "title": "BoardPoints",
+        "title": "BoardDiff",
         "type": "object"
       },
       "BoardRow": {
-        "description": "A row on the board: its rank, shared by rows tied on every key, whose\nit is, its number on each of the board's keys in turn, null where it\nhas none, and its cell on each task by the task's name.",
+        "description": "A row on the board: its place, shared by rows equal on every sort\nkey, null on a board with no `sort`, whose it is, and its displayed\ncells in order.",
         "properties": {
           "cells": {
-            "additionalProperties": {
+            "items": {
               "$ref": "#/components/schemas/BoardCell"
             },
             "title": "Cells",
-            "type": "object"
-          },
-          "keys": {
-            "items": {
-              "anyOf": [
-                {
-                  "examples": [
-                    "82.5"
-                  ],
-                  "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ]
-            },
-            "title": "Keys",
             "type": "array"
           },
-          "rank": {
-            "title": "Rank",
-            "type": "integer"
+          "place": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Place"
           },
           "row": {
             "$ref": "#/components/schemas/BoardRowOwner"
           }
         },
         "required": [
-          "rank",
+          "place",
           "row",
-          "keys",
           "cells"
         ],
         "title": "BoardRow",
@@ -667,41 +609,6 @@
           "name"
         ],
         "title": "BoardRowOwner",
-        "type": "object"
-      },
-      "BoardTask": {
-        "description": "A task the board covers: its name as `id`, its `label`, the letter of\nits place in the contest, and its `worth`, null on a task that gives no\npoints.",
-        "properties": {
-          "id": {
-            "title": "Id",
-            "type": "string"
-          },
-          "label": {
-            "title": "Label",
-            "type": "string"
-          },
-          "worth": {
-            "anyOf": [
-              {
-                "examples": [
-                  "82.5"
-                ],
-                "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Worth"
-          }
-        },
-        "required": [
-          "id",
-          "label",
-          "worth"
-        ],
-        "title": "BoardTask",
         "type": "object"
       },
       "CallbackAnswer": {
@@ -732,13 +639,27 @@
         "type": "object"
       },
       "Catalogue": {
-        "description": "Everything a value's tree may be made of. `blocks` in the\ncatalogue's order. `leaves` the keys a leaf is written with, each alone\nin its mapping: `{runs: <group>}` a group's runs, for a fold's `over`;\n`{run: [<group>, <column>]}` that column of each run, inside a fold over\nthat group; `{value: <name>}` another of the task's values; and\n`{fact: <name>}` one of `facts`, a fact of the submission. A number is a\nleaf too. `skip` is what a fold's `missing` says to leave out a run whose\nreport is missing; a number there counts as that number. `languages`\nare those an `exec` block's program may be written in.",
+        "description": "Everything a value's or a column's tree may be made of. `blocks` in\nthe catalogue's order. `leaves` the keys a task's value writes a leaf\nwith, each alone in its mapping: `{runs: <group>}` a group's runs, for\na fold's `over`; `{run: [<group>, <column>]}` that column of each run,\ninside a fold over that group; `{value: <name>}` another of the task's\nvalues; and `{fact: <name>}` one of `facts`, a fact of the submission.\n`board_leaves` those a leaderboard's column writes: `{results: <task>}`\na task's results; `{value: [<task, pick column or block>, <value or\nfact>]}` a value or fact of a submission, the task's own read only\ninside `where`, `by` or a fold's `of`; `{column: <name>}` or `{column:\n[<board>, <name>]}` another column; and `best_each`'s `{name: <value>}`.\n`board_facts` the facts a column may read of a submission. A number is\na leaf too. `skip` is what a fold's `missing` says to leave out a run\nwhose report is missing; a number there counts as that number.\n`languages` are those an `exec` block's program may be written in.",
         "properties": {
           "blocks": {
             "items": {
               "$ref": "#/components/schemas/Block"
             },
             "title": "Blocks",
+            "type": "array"
+          },
+          "board_facts": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Board Facts",
+            "type": "array"
+          },
+          "board_leaves": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Board Leaves",
             "type": "array"
           },
           "facts": {
@@ -771,10 +692,66 @@
           "blocks",
           "leaves",
           "facts",
+          "board_leaves",
+          "board_facts",
           "skip",
           "languages"
         ],
         "title": "Catalogue",
+        "type": "object"
+      },
+      "CellDiff": {
+        "description": "One displayed cell of a row, its number before the regrade and\nafter, exactly, null where it was or is missing, and the submissions\nthe cell after leaves out as still waiting, as the board does.",
+        "properties": {
+          "after": {
+            "anyOf": [
+              {
+                "examples": [
+                  "82.5"
+                ],
+                "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "After"
+          },
+          "before": {
+            "anyOf": [
+              {
+                "examples": [
+                  "82.5"
+                ],
+                "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Before"
+          },
+          "column": {
+            "title": "Column",
+            "type": "string"
+          },
+          "waiting": {
+            "items": {
+              "$ref": "#/components/schemas/Counted"
+            },
+            "title": "Waiting",
+            "type": "array"
+          }
+        },
+        "required": [
+          "column",
+          "before",
+          "after",
+          "waiting"
+        ],
+        "title": "CellDiff",
         "type": "object"
       },
       "Change": {
@@ -1034,15 +1011,8 @@
         "type": "object"
       },
       "ContestHome": {
-        "description": "A contest's home for the caller. `organises` says the caller holds a\nrole at the contest, which keeps them from registering; `registration`\nis their registration panel, as `entrants/mine` answers it: their\nentrant, whether and how they may register, and whether to ask them for\na code. `boards` names the leaderboards a member of an approved entrant\nsees, in the contest's order, which each task's `points` follow; empty\nfor anyone else.",
+        "description": "A contest's home for the caller. `organises` says the caller holds a\nrole at the contest, which keeps them from registering; `registration`\nis their registration panel, as `entrants/mine` answers it: their\nentrant, whether and how they may register, and whether to ask them for\na code.",
         "properties": {
-          "boards": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Boards",
-            "type": "array"
-          },
           "description": {
             "title": "Description",
             "type": "string"
@@ -1097,8 +1067,7 @@
           "registration",
           "organises",
           "now",
-          "tasks",
-          "boards"
+          "tasks"
         ],
         "title": "ContestHome",
         "type": "object"
@@ -1199,6 +1168,25 @@
           "name"
         ],
         "title": "CopyWorkflow",
+        "type": "object"
+      },
+      "Counted": {
+        "description": "A submission a cell counted or left out, by its task and number.",
+        "properties": {
+          "number": {
+            "title": "Number",
+            "type": "integer"
+          },
+          "task": {
+            "title": "Task",
+            "type": "string"
+          }
+        },
+        "required": [
+          "task",
+          "number"
+        ],
+        "title": "Counted",
         "type": "object"
       },
       "CreateContest": {
@@ -2515,6 +2503,72 @@
         "title": "GroupShown",
         "type": "object"
       },
+      "Header": {
+        "description": "One displayed column, the same for every row: its `name`, the decimal\n`places` it is shown to, null when the board gives none, the least and\nmost it can give, both null unless both are known, and each\nself-reported value it reads, which a page marks on the column's\nheader.",
+        "properties": {
+          "at_least": {
+            "anyOf": [
+              {
+                "examples": [
+                  "82.5"
+                ],
+                "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At Least"
+          },
+          "at_most": {
+            "anyOf": [
+              {
+                "examples": [
+                  "82.5"
+                ],
+                "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At Most"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "places": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Places"
+          },
+          "self_reported": {
+            "items": {
+              "$ref": "#/components/schemas/SelfReported"
+            },
+            "title": "Self Reported",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "places",
+          "at_least",
+          "at_most",
+          "self_reported"
+        ],
+        "title": "Header",
+        "type": "object"
+      },
       "Health": {
         "properties": {
           "status": {
@@ -3100,7 +3154,7 @@
         "type": "string"
       },
       "Marks": {
-        "description": "The marks the caller's row holds on a task for its `marked` boards:\nthe numbers of the submissions marked, the most it may hold, and the\nrow's close on the task, after which they are frozen.",
+        "description": "The marks the caller's row holds on a task, for a board reading which\nof its submissions an entrant marks: the numbers of the submissions\nmarked, the most it may hold, and the row's close on the task, after\nwhich they are frozen.",
         "properties": {
           "closes_at": {
             "format": "date-time",
@@ -3384,42 +3438,6 @@
         "title": "Named",
         "type": "object"
       },
-      "NotInView": {
-        "description": "What of a task is in the board's scope and not in its numbers yet:\nthe groups whose verdict is not shown, and, on a board ranking a value,\nthe `verdict` groups whose tests are not shown, with when they join.",
-        "properties": {
-          "groups": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Groups",
-            "type": "array"
-          },
-          "shown_at": {
-            "format": "date-time",
-            "title": "Shown At",
-            "type": "string"
-          },
-          "task": {
-            "title": "Task",
-            "type": "string"
-          },
-          "tests_of": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Tests Of",
-            "type": "array"
-          }
-        },
-        "required": [
-          "task",
-          "groups",
-          "tests_of",
-          "shown_at"
-        ],
-        "title": "NotInView",
-        "type": "object"
-      },
       "NotReady": {
         "description": "Deliberately not a problem document: an orchestrator reads the status in\na fixed place. What failed underneath is in the log and not here.",
         "properties": {
@@ -3555,31 +3573,6 @@
           "description"
         ],
         "title": "OrgProfile",
-        "type": "object"
-      },
-      "OrganisedBoard": {
-        "description": "A board as organisers read it: `now`, every row given, or as the row\npicked sees it; `final`, every group of its scope counted as after the\nreveal; and what it asks of the tasks it covers that does not hold, each\na sentence, which the save reported when the tasks were published.",
-        "properties": {
-          "final": {
-            "$ref": "#/components/schemas/Board"
-          },
-          "notes": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Notes",
-            "type": "array"
-          },
-          "now": {
-            "$ref": "#/components/schemas/Board"
-          }
-        },
-        "required": [
-          "now",
-          "final",
-          "notes"
-        ],
-        "title": "OrganisedBoard",
         "type": "object"
       },
       "OrganisedEntrant": {
@@ -3986,16 +3979,6 @@
         ],
         "title": "OrganisedSubmission",
         "type": "object"
-      },
-      "Over": {
-        "description": "Which test groups a board counts, by each group's declared `show`.",
-        "enum": [
-          "all",
-          "live",
-          "after_close"
-        ],
-        "title": "Over",
-        "type": "string"
       },
       "Person": {
         "description": "Someone as another person sees them, by their forge id. Their email\nstays out.",
@@ -5583,6 +5566,59 @@
         "title": "RollbackFile",
         "type": "object"
       },
+      "RowDiff": {
+        "description": "One row of a board before the regrade and after: whose it is, its\nplace on each side, null on a board with no `sort` or, before, for a\nrow that had none, its displayed cells, and its submissions of the\ntask the regrade is still grading, whose earlier result the after\nside reads until it ends.",
+        "properties": {
+          "cells": {
+            "items": {
+              "$ref": "#/components/schemas/CellDiff"
+            },
+            "title": "Cells",
+            "type": "array"
+          },
+          "place_after": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Place After"
+          },
+          "place_before": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Place Before"
+          },
+          "regrading": {
+            "items": {
+              "$ref": "#/components/schemas/Counted"
+            },
+            "title": "Regrading",
+            "type": "array"
+          },
+          "row": {
+            "$ref": "#/components/schemas/BoardRowOwner"
+          }
+        },
+        "required": [
+          "row",
+          "place_before",
+          "place_after",
+          "cells",
+          "regrading"
+        ],
+        "title": "RowDiff",
+        "type": "object"
+      },
       "RunRegradeSummary": {
         "description": "A run task's regrade by what it changed: its `id`, what started it,\nthe publication it grades against, how many submissions it took,\n`total`, how many are still `running`, how many ended with no\nresult, `failed`, and how many it cannot compare, `unread`, since\nthe publication their result counted under no longer reads;\n`changed`, each submission whose values or verdicts it changed, old\nto new, in the order they were made, at most 100, with `more_changed`\ncounting the rest, an attempt compared with the one that counted when\nthe regrade began, both worked out as organisers read them, the\nextensions and marks as they stand now; and `boards`, each board that reads the\ntask before and after, given to a manager or admin of the contest\nalone, null for anyone else.",
         "properties": {
@@ -6204,15 +6240,24 @@
         "title": "ScopeNames",
         "type": "object"
       },
-      "Select": {
-        "description": "Which of a row's submissions to a task a board counts.",
-        "enum": [
-          "best",
-          "best_per_group",
-          "marked"
+      "SelfReported": {
+        "description": "A value a column reads that reads a column the entrant could set.",
+        "properties": {
+          "task": {
+            "title": "Task",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "task",
+          "value"
         ],
-        "title": "Select",
-        "type": "string"
+        "title": "SelfReported",
+        "type": "object"
       },
       "ServerTime": {
         "properties": {
@@ -6331,6 +6376,29 @@
           "ready"
         ],
         "title": "Slot",
+        "type": "object"
+      },
+      "SortKey": {
+        "description": "A column rows are sorted by, in turn: `desc` puts the highest first,\n`asc` the lowest, and a row with no number comes after every row with\none.",
+        "properties": {
+          "column": {
+            "title": "Column",
+            "type": "string"
+          },
+          "way": {
+            "enum": [
+              "desc",
+              "asc"
+            ],
+            "title": "Way",
+            "type": "string"
+          }
+        },
+        "required": [
+          "column",
+          "way"
+        ],
+        "title": "SortKey",
         "type": "object"
       },
       "StaffNote": {
@@ -6710,7 +6778,7 @@
         "type": "object"
       },
       "TaskEntry": {
-        "description": "A task released to the caller: its name, the label its place in the\ncontest gives it, its title, the most points it gives, null on a task\nthat gives none, whether they may submit to it now, and when it falls\ndue, null when it has no due, and closes for them, their extension on it\nincluded.\n\n`points` is, for a member of an approved entrant, their entrant's points\non it on each leaderboard of the home's `boards`, one for each, in the\nsame order, so a page draws one column per board under one header row.\nEmpty for anyone else, who reads the task's `worth`.",
+        "description": "A task released to the caller: its name, the label its place in the\ncontest gives it, its title, the most points it gives, null on a task\nthat gives none, whether they may submit to it now, and when it falls\ndue, null when it has no due, and closes for them, their extension on it\nincluded. A task's standing on the contest's leaderboards is the\nboards' own to say.",
         "properties": {
           "closes": {
             "anyOf": [
@@ -6744,13 +6812,6 @@
             "title": "Name",
             "type": "string"
           },
-          "points": {
-            "items": {
-              "$ref": "#/components/schemas/BoardPoints"
-            },
-            "title": "Points",
-            "type": "array"
-          },
           "release": {
             "$ref": "#/components/schemas/TaskRelease"
           },
@@ -6781,8 +6842,7 @@
           "worth",
           "release",
           "due",
-          "closes",
-          "points"
+          "closes"
         ],
         "title": "TaskEntry",
         "type": "object"
@@ -6823,7 +6883,7 @@
         "type": "object"
       },
       "TaskPage": {
-        "description": "A task as the caller reads it: its statement in Markdown, the caps a\nsubmit is counted against, the inputs a contestant gives, when it falls\ndue and closes for them, and `marks`, how many of their entrant's\nsubmissions they may mark for the `marked` boards, null unless such a\nboard covers the task and their entrant is approved; and nothing\nelse the task holds.",
+        "description": "A task as the caller reads it: its statement in Markdown, the caps a\nsubmit is counted against, the inputs a contestant gives, when it falls\ndue and closes for them, and `marks`, how many of their entrant's\nsubmissions they may mark, null unless a leaderboard reads which of the\ntask's submissions an entrant marks and their entrant is approved; and nothing\nelse the task holds.",
         "properties": {
           "closes": {
             "anyOf": [
@@ -7590,16 +7650,6 @@
         "title": "WayKind",
         "type": "string"
       },
-      "Who": {
-        "description": "Who sees a board, among those who may see the contest.",
-        "enum": [
-          "organisers",
-          "contestants",
-          "everyone"
-        ],
-        "title": "Who",
-        "type": "string"
-      },
       "Workflow": {
         "description": "A workflow, by its owner and its name.",
         "properties": {
@@ -8164,7 +8214,7 @@
     },
     "/api/v1/blocks": {
       "get": {
-        "description": "Each block once, in the catalogue's order, with its forms.",
+        "description": "Each block once, in the catalogue's order, with its forms and where\neach may be used.",
         "operationId": "listBlocks",
         "responses": {
           "200": {
@@ -8188,7 +8238,7 @@
             "description": "An error, as an RFC 9457 problem document. `code` names it."
           }
         },
-        "summary": "The blocks a value may use",
+        "summary": "The blocks a value or a column may use",
         "tags": [
           "blocks"
         ]
@@ -9681,7 +9731,7 @@
     },
     "/api/v1/orgs/{org}/contests/{contest}/boards": {
       "get": {
-        "description": "In the order the contest's settings give them.",
+        "description": "In the order the contest's settings give them; none for anyone but\nstaff until audiences come.",
         "operationId": "listBoards",
         "parameters": [
           {
@@ -9740,12 +9790,12 @@
         "operationId": "getBoard",
         "parameters": [
           {
-            "description": "The board's `name`",
+            "description": "The board's key in `leaderboards`",
             "in": "path",
             "name": "board",
             "required": true,
             "schema": {
-              "description": "The board's `name`",
+              "description": "The board's key in `leaderboards`",
               "title": "Board",
               "type": "string"
             }
@@ -11427,81 +11477,6 @@
         "summary": "Take a pending invite back",
         "tags": [
           "invites"
-        ]
-      }
-    },
-    "/api/v1/orgs/{org}/contests/{contest}/organise/boards": {
-      "get": {
-        "description": "Every row on both, unless a row is picked: then only the boards that\nrow sees, `now` as it sees it, its own row and the rows its `rows`\ngives. An entrant that is not a row of the contest is not found.",
-        "operationId": "listOrganisedBoards",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "org",
-            "required": true,
-            "schema": {
-              "title": "Org",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "contest",
-            "required": true,
-            "schema": {
-              "title": "Contest",
-              "type": "string"
-            }
-          },
-          {
-            "description": "Read `now` as this entrant's row does",
-            "in": "query",
-            "name": "entrant",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "format": "uuid",
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "Read `now` as this entrant's row does",
-              "title": "Entrant"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/OrganisedBoard"
-                  },
-                  "title": "Response Listorganisedboards",
-                  "type": "array"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "default": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "An error, as an RFC 9457 problem document. `code` names it."
-          }
-        },
-        "summary": "Every board of the contest, now and final, with what it asks that does not hold",
-        "tags": [
-          "boards"
         ]
       }
     },
@@ -16076,7 +16051,7 @@
     },
     "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/take-out": {
       "post": {
-        "description": "Needs the manager role at the contest. `confirmed` is what the\norganiser agreed to, as the task list's `take_out` said: `remove`, while\nnobody has submitted to the task, takes its entry out of the contest's\n`tasks`, so the letters after it move up, and deletes the task with its\nroles; `withdraw`, once anyone has, marks its entry `withdrawn`, so it\nkeeps its letter, entrants no longer see it or submit to it and no\nleaderboard counts it, and its submissions are kept. Refused as\n`take_out_changed`, with `submissions` and `take_out` as they are now,\nwhen it would now do the other, and as `take_out_refused` when a\nleaderboard names a task to be removed, with those `boards`, or the\nsettings cannot be edited line by line. Withdrawing a withdrawn task\nchanges nothing.",
+        "description": "Needs the manager role at the contest. `confirmed` is what the\norganiser agreed to, as the task list's `take_out` said: `remove`, while\nnobody has submitted to the task, takes its entry out of the contest's\n`tasks`, so the letters after it move up, and deletes the task with its\nroles; `withdraw`, once anyone has, marks its entry `withdrawn`, so it\nkeeps its letter, entrants no longer see it or submit to it and no\nleaderboard counts it, and its submissions are kept. Refused as\n`take_out_changed`, with `submissions` and `take_out` as they are now,\nwhen it would now do the other, and as `take_out_refused` when a\nleaderboard's column reads a task to be removed, with the titles of\nthose `boards`, or the settings cannot be edited line by line. Withdrawing a withdrawn task\nchanges nothing.",
         "operationId": "takeOutTask",
         "parameters": [
           {
@@ -16955,7 +16930,7 @@
     },
     "/api/v1/public/contests/{org}/{contest}/boards": {
       "get": {
-        "description": "In the order the contest's settings give them.",
+        "description": "None until audiences come.",
         "operationId": "listPublicBoards",
         "parameters": [
           {
@@ -17015,12 +16990,12 @@
         "operationId": "getPublicBoard",
         "parameters": [
           {
-            "description": "The board's `name`",
+            "description": "The board's key in `leaderboards`",
             "in": "path",
             "name": "board",
             "required": true,
             "schema": {
-              "description": "The board's `name`",
+              "description": "The board's key in `leaderboards`",
               "title": "Board",
               "type": "string"
             }

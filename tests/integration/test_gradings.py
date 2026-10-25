@@ -320,7 +320,7 @@ async def test_a_save_that_changes_how_the_task_grades_says_how_many_it_regraded
     assert body["effect"]["runs_again"] == [
         "1 submission is graded again: the way the task grades changed."
     ]
-    assert body["effect"]["scores"] == ["The leaderboard Standings is counted again."]
+    assert body["effect"]["scores"] == ["No score changes."]
 
 
 async def test_a_contestant_is_refused_every_control(

@@ -119,7 +119,6 @@ ROUTES: list[tuple[str, str, dict[str, Any] | None, Role, Scope]] = [
     ("PUT", f"{CONTEST}/files/notes.md", NEW_FILE, Role.MANAGER, SPRING),
     ("POST", f"{CONTEST}/files/notes.md/rollback", ROLLBACK, Role.MANAGER, SPRING),
     ("GET", f"{CONTEST}/organise/tasks", None, Role.OBSERVER, SPRING),
-    ("GET", f"{CONTEST}/organise/boards", None, Role.OBSERVER, SPRING),
     ("GET", TASK, None, Role.OBSERVER, SUM),
     ("GET", f"{TASK}/workflow-form", None, Role.OBSERVER, SUM),
     ("GET", f"{TASK}/publications", None, Role.OBSERVER, SUM),

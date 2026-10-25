@@ -14,7 +14,7 @@ from urllib.parse import urlsplit
 
 import httpx
 import pytest
-from forge.api import regrades
+from forge.api import boards, regrades
 from forge.api.types import PublicationId, Role, Scope, TaskId
 from forge.testing import FakeForge
 
@@ -163,9 +163,35 @@ async def test_a_run_tasks_regrade_is_read_by_each_value_and_verdict_it_changed(
     handed: list[tuple[str, uuid.UUID]] = []
     # The route serves no workspace, so any will do.
     workspace: Any = "acme/spring/@entrant.x"
-    # A manager of the contest is given each board, none until boards read
-    # a run task's values; anyone else is given null.
-    boards: list[tuple[regrades.BoardDiff, ...] | None] = [None, ()]
+    # A manager of the contest is given each board reading the task, every
+    # row's place and cells before and after, what still regrades and what
+    # the cell after waits on, and a board it cannot compare as unread;
+    # anyone else is given null.
+    entrant = uuid.UUID("0199a2c1-6b7e-7c3a-9f10-5d2e4b8a6c33")
+    gradebook = regrades.BoardDiff(
+        board="gradebook",
+        title="Gradebook",
+        headers=(
+            boards.Header("st2", None),
+            boards.Header("total", 2, Fraction(0), Fraction(100), (("sum", "total"),)),
+        ),
+        sort=(("total", "desc"),),
+        rows=(
+            regrades.RowDiff(
+                boards.EntrantOwner(entrant),
+                "carol",
+                1,
+                2,
+                (
+                    regrades.CellDiff("st2", Fraction(1), Fraction(0)),
+                    regrades.CellDiff("total", Fraction(100), None, (boards.Counted("sum", 4),)),
+                ),
+                (boards.Counted("sum", 4),),
+            ),
+        ),
+    )
+    standings = regrades.BoardDiff("standings", "Standings", (), (), (), unread=True)
+    diffs: list[tuple[regrades.BoardDiff, ...] | None] = [None, (gradebook, standings)]
 
     async def run_summary(organiser: Any, task: str, asked: uuid.UUID) -> regrades.RunSummary:
         handed.append((task, asked))
@@ -201,7 +227,7 @@ async def test_a_run_tasks_regrade_is_read_by_each_value_and_verdict_it_changed(
                 ),
             ),
             more_changed=5,
-            boards=boards[len(handed) - 1],
+            boards=diffs[len(handed) - 1],
         )
 
     monkeypatch.setattr(regrades, "run_summary", run_summary)
@@ -249,7 +275,55 @@ async def test_a_run_tasks_regrade_is_read_by_each_value_and_verdict_it_changed(
         "more_changed": 5,
         "boards": None,
     }
-    assert managed.json()["boards"] == []
+    assert managed.json()["boards"] == [
+        {
+            "board": "gradebook",
+            "title": "Gradebook",
+            "headers": [
+                {
+                    "name": "st2",
+                    "places": None,
+                    "at_least": None,
+                    "at_most": None,
+                    "self_reported": [],
+                },
+                {
+                    "name": "total",
+                    "places": 2,
+                    "at_least": "0",
+                    "at_most": "100",
+                    "self_reported": [{"task": "sum", "value": "total"}],
+                },
+            ],
+            "sort": [{"column": "total", "way": "desc"}],
+            "rows": [
+                {
+                    "row": {"entrant": str(entrant), "name": "carol"},
+                    "place_before": 1,
+                    "place_after": 2,
+                    "cells": [
+                        {"column": "st2", "before": "1", "after": "0", "waiting": []},
+                        {
+                            "column": "total",
+                            "before": "100",
+                            "after": None,
+                            "waiting": [{"task": "sum", "number": 4}],
+                        },
+                    ],
+                    "regrading": [{"task": "sum", "number": 4}],
+                }
+            ],
+            "unread": False,
+        },
+        {
+            "board": "standings",
+            "title": "Standings",
+            "headers": [],
+            "sort": [],
+            "rows": [],
+            "unread": True,
+        },
+    ]
     assert handed == [("acme/spring/sum", regrade)] * 2
 
 

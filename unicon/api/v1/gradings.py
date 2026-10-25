@@ -74,6 +74,7 @@ from unicon.api.v1.submissions import (
     Output,
     TextName,
 )
+from unicon.schemas.boards import counted_of, header_of, sort_of
 from unicon.schemas.gradings import (
     USERNAME_MAX,
     USERNAME_PATTERN,
@@ -425,7 +426,35 @@ async def read_run_regrade(organiser: TaskManager, regrade: uuid.UUID) -> dict[s
             for each in found.changed
         ],
         "more_changed": found.more_changed,
-        "boards": found.boards,
+        "boards": None if found.boards is None else [_diff(board) for board in found.boards],
+    }
+
+
+def _diff(board: regrades.BoardDiff) -> dict[str, Any]:
+    return {
+        "board": board.board,
+        "title": board.title,
+        "headers": [header_of(header) for header in board.headers],
+        "sort": sort_of(board.sort),
+        "rows": [
+            {
+                "row": {"entrant": row.owner.entrant_id, "name": row.name},
+                "place_before": row.place_before,
+                "place_after": row.place_after,
+                "cells": [
+                    {
+                        "column": cell.column,
+                        "before": cell.before,
+                        "after": cell.after,
+                        "waiting": counted_of(cell.waiting),
+                    }
+                    for cell in row.cells
+                ],
+                "regrading": counted_of(row.regrading),
+            }
+            for row in board.rows
+        ],
+        "unread": board.unread,
     }
 
 

@@ -9,7 +9,7 @@ import uuid
 from datetime import datetime
 from typing import Annotated, Any, Literal, Self
 
-from forge.api.boards import Better
+from forge.api.blocks import Better
 from forge.api.types import Uploaded
 from pydantic import BaseModel, BeforeValidator, model_validator
 

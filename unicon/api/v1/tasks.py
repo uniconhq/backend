@@ -109,8 +109,8 @@ async def take_out_task(
     leaderboard counts it, and its submissions are kept. Refused as
     `take_out_changed`, with `submissions` and `take_out` as they are now,
     when it would now do the other, and as `take_out_refused` when a
-    leaderboard names a task to be removed, with those `boards`, or the
-    settings cannot be edited line by line. Withdrawing a withdrawn task
+    leaderboard's column reads a task to be removed, with the titles of
+    those `boards`, or the settings cannot be edited line by line. Withdrawing a withdrawn task
     changes nothing.
     """
     done = await tasks.take_out(organiser, tasks.task_id_of(scope), body.confirmed)

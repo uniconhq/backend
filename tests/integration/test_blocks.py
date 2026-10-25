@@ -21,9 +21,18 @@ async def test_a_visitor_reads_every_block_once_with_its_forms(
     assert len(found) == len(listed)
     assert {"add", "if", "min", "max", "sum", "count"} <= set(found)
     assert not {"min_runs", "max_runs", "sum_runs", "count_runs"} & set(found)
-    assert found["min"]["words"] == "the least of its inputs, or of a column over a group's runs"
-    assert [form["given"] for form in found["min"]["forms"]] == ["numbers", "a group's runs"]
-    numbers, runs = found["min"]["forms"]
+    assert found["min"]["words"] == (
+        "the least of its inputs, of a column over a group's runs, or of a value over a task's "
+        "results"
+    )
+    assert [(form["given"], form["scope"]) for form in found["min"]["forms"]] == [
+        ("numbers", "both"),
+        ("a group's runs", "task"),
+        ("a task's results", "board"),
+    ]
+    numbers, runs, results = found["min"]["forms"]
+    assert results["inputs"]["over"]["kind"] == "results"
+    assert found["latest"]["forms"][0]["gives"] == "submission"
     assert numbers["inputs"] == {
         "of": {
             "kind": "number",
@@ -48,6 +57,14 @@ async def test_a_visitor_reads_every_block_once_with_its_forms(
     assert found["count"]["forms"][0]["inputs"]["weights"]["kind"] == "weights"
     assert answer.json()["leaves"] == ["runs", "run", "value", "fact"]
     assert answer.json()["facts"] == ["seconds_late", "seconds", "compiled"]
+    assert answer.json()["board_leaves"] == ["value", "results", "column", "name"]
+    assert answer.json()["board_facts"] == [
+        "attempt",
+        "seconds",
+        "seconds_late",
+        "marked",
+        "compiled",
+    ]
     assert answer.json()["skip"] == "skip"
     assert answer.json()["languages"] == ["c", "cpp", "java", "python", "ipynb"]
     exec_inputs = found["exec"]["forms"][0]["inputs"]

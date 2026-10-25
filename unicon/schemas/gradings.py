@@ -18,6 +18,7 @@ from forge.api.gradings import GradingStatus, Submitter
 from forge.api.regrades import ChangeKind, RegradeCause
 from pydantic import BaseModel, Field, field_validator
 
+from unicon.schemas.boards import BoardRowOwner, Counted, Header, SortKey
 from unicon.schemas.exact import Exact, Reported
 from unicon.schemas.publications import PublicationNumber
 from unicon.schemas.submissions import GradedTest, Outcome, TextRef
@@ -257,12 +258,45 @@ class SubmissionChange(BaseModel):
     more_verdicts: int
 
 
+class CellDiff(BaseModel):
+    """One displayed cell of a row, its number before the regrade and
+    after, exactly, null where it was or is missing, and the submissions
+    the cell after leaves out as still waiting, as the board does."""
+
+    column: str
+    before: Exact | None
+    after: Exact | None
+    waiting: list[Counted]
+
+
+class RowDiff(BaseModel):
+    """One row of a board before the regrade and after: whose it is, its
+    place on each side, null on a board with no `sort` or, before, for a
+    row that had none, its displayed cells, and its submissions of the
+    task the regrade is still grading, whose earlier result the after
+    side reads until it ends."""
+
+    row: BoardRowOwner
+    place_before: int | None
+    place_after: int | None
+    cells: list[CellDiff]
+    regrading: list[Counted]
+
+
 class BoardDiff(BaseModel):
-    """One board that reads the regraded task, by name. Each row's place
-    and cells before and after come with the boards that read a run task's
-    values."""
+    """One board that reads the regraded task, directly or through another
+    board's column, as staff read it, every row and cell and no hold: its
+    key and title, its displayed columns' headers as they stand after, the
+    columns it sorts by, and each row in its order after the regrade;
+    `unread` with no rows when the publication the results counted under
+    before no longer reads, so there is nothing to compare."""
 
     board: str
+    title: str
+    headers: list[Header]
+    sort: list[SortKey]
+    rows: list[RowDiff]
+    unread: bool
 
 
 class RunRegradeSummary(BaseModel):

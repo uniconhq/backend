@@ -1,12 +1,10 @@
-"""The contest's boards and the marks a row holds for its `marked` boards.
+"""The contest's boards and the marks a row holds for a board reading them.
 
-A board is read as the reader's audience sees it: a visitor under
-`/public`, with no cookie, sees the boards for `everyone`; a signed-in
-person sees those their audience may, each cut to the rows its `rows` gives
-them. Organisers with the observer role at the contest read every board
-`now` and `final`, every row given, and may pick a row, an entrant by
-`entrant`, to read `now` as that row does. A board the
-reader may not see is no such board, the same as one that is not there.
+Until audiences come, a board is read by staff alone: someone with the
+observer role at the contest reads every board, every row and cell, with
+no hold. Anyone else, a visitor under `/public` included, reads none, so a
+list comes back empty and one board is no such board, the same as one
+that is not there.
 
 A contestant reads, marks and unmarks their entrant's own submissions to a task
 with a session alone; forge checks the submission is the row's, the task
@@ -14,20 +12,17 @@ has marks, how many the row may hold and that its close has not passed,
 answering `marks_off`, `mark_limit` with `limit` and `marks_frozen`.
 """
 
-import uuid
-from typing import Annotated
+from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, Path, Query
+from fastapi import APIRouter, Path
 from forge.api import boards, contests, tasks
-from forge.api.access import Organiser
-from forge.api.boards import EntrantOwner
 from forge.api.errors import NotFound
-from forge.api.types import Role, ScopeKind
+from forge.api.types import ScopeKind
 
 from unicon.api.deps import CurrentSession
-from unicon.api.guard import PREFIX, ContestAtPath, TaskAtPath, require
+from unicon.api.guard import PREFIX, ContestAtPath, TaskAtPath
 from unicon.api.v1.submissions import Number
-from unicon.schemas.boards import Board, Marks, OrganisedBoard
+from unicon.schemas.boards import Board, Marks, board_of
 
 CONTEST = PREFIX[ScopeKind.CONTEST]
 TASK = PREFIX[ScopeKind.TASK]
@@ -36,14 +31,17 @@ NO_SUCH_BOARD = "There is no such leaderboard."
 
 router = APIRouter(tags=["boards"])
 
-ContestObserver = Annotated[Organiser, Depends(require(Role.OBSERVER, ScopeKind.CONTEST))]
-BoardName = Annotated[str, Path(description="The board's `name`")]
+BoardKey = Annotated[str, Path(description="The board's key in `leaderboards`")]
 
 
-def _named(found: tuple[boards.Standings, ...], board: str) -> boards.Standings:
-    for standings in found:
-        if standings.board.name == board:
-            return standings
+def _listed(found: tuple[boards.Board, ...]) -> list[dict[str, Any]]:
+    return [board_of(each) for each in found]
+
+
+def _named(found: tuple[boards.Board, ...], board: str) -> dict[str, Any]:
+    for each in found:
+        if each.key == board:
+            return board_of(each)
     raise NotFound(NO_SUCH_BOARD)
 
 
@@ -54,9 +52,9 @@ def _named(found: tuple[boards.Standings, ...], board: str) -> boards.Standings:
     response_model=list[Board],
     tags=["public"],
 )
-async def list_public_boards(scope: ContestAtPath) -> tuple[boards.Standings, ...]:
-    """In the order the contest's settings give them."""
-    return await boards.seen(None, contests.contest_id_of(scope))
+async def list_public_boards(scope: ContestAtPath) -> list[dict[str, Any]]:
+    """None until audiences come."""
+    return _listed(await boards.seen(None, contests.contest_id_of(scope)))
 
 
 @router.get(
@@ -66,7 +64,7 @@ async def list_public_boards(scope: ContestAtPath) -> tuple[boards.Standings, ..
     response_model=Board,
     tags=["public"],
 )
-async def get_public_board(scope: ContestAtPath, board: BoardName) -> boards.Standings:
+async def get_public_board(scope: ContestAtPath, board: BoardKey) -> dict[str, Any]:
     return _named(await boards.seen(None, contests.contest_id_of(scope), board), board)
 
 
@@ -76,11 +74,10 @@ async def get_public_board(scope: ContestAtPath, board: BoardName) -> boards.Sta
     summary="The contest's boards the caller sees, each as they see it",
     response_model=list[Board],
 )
-async def list_boards(
-    session: CurrentSession, scope: ContestAtPath
-) -> tuple[boards.Standings, ...]:
-    """In the order the contest's settings give them."""
-    return await boards.seen(session, contests.contest_id_of(scope))
+async def list_boards(session: CurrentSession, scope: ContestAtPath) -> list[dict[str, Any]]:
+    """In the order the contest's settings give them; none for anyone but
+    staff until audiences come."""
+    return _listed(await boards.seen(session, contests.contest_id_of(scope)))
 
 
 @router.get(
@@ -90,29 +87,9 @@ async def list_boards(
     response_model=Board,
 )
 async def get_board(
-    session: CurrentSession, scope: ContestAtPath, board: BoardName
-) -> boards.Standings:
+    session: CurrentSession, scope: ContestAtPath, board: BoardKey
+) -> dict[str, Any]:
     return _named(await boards.seen(session, contests.contest_id_of(scope), board), board)
-
-
-@router.get(
-    f"{CONTEST}/organise/boards",
-    operation_id="listOrganisedBoards",
-    summary="Every board of the contest, now and final, with what it asks that does not hold",
-    response_model=list[OrganisedBoard],
-)
-async def list_organised_boards(
-    organiser: ContestObserver,
-    entrant: Annotated[
-        uuid.UUID | None, Query(description="Read `now` as this entrant's row does")
-    ] = None,
-) -> tuple[boards.OrganisedBoard, ...]:
-    """Every row on both, unless a row is picked: then only the boards that
-    row sees, `now` as it sees it, its own row and the rows its `rows`
-    gives. An entrant that is not a row of the contest is not found.
-    """
-    row = EntrantOwner(entrant) if entrant is not None else None
-    return await boards.organised(organiser, contests.contest_id_of(organiser.scope), row)
 
 
 @router.get(

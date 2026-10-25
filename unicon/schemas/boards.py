@@ -1,94 +1,66 @@
-"""What the board and marks routes answer with. A board comes back as its
-audience sees it now: its name, which groups it counts (`over`) and which
-submission (`select`), the keys rows are ranked on, the tasks it covers,
-what of them is not in its numbers yet, and its rows in rank order, every
-number an exact decimal string. Only the reader's own row carries how many
-of its submissions are not graded yet, still grading or delayed, and which
-it counts; organisers get
-both on every row. A board whose scope shows nothing yet comes back with no
-rows and the time it is shown from.
+"""What the board and marks routes answer with. A board comes back as staff
+read it until audiences come: its key and title, who it is for, its
+displayed columns' headers, the columns it sorts by, and its rows in
+order, each with its place and its displayed cells, every number an exact
+decimal string. A cell names the submissions it counted and those it left
+out as still waiting, each by task and number.
 """
 
-import dataclasses
 import uuid
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
-from forge.api.boards import Better, Over, Select, Who
-from pydantic import BaseModel, model_validator
+from forge.api import boards
+from pydantic import BaseModel
 
 from unicon.schemas.exact import Exact
 
 
-def _fields(given: Any) -> Any:
-    if dataclasses.is_dataclass(given) and not isinstance(given, type):
-        return dataclasses.asdict(given)
-    return given
+class BoardAudience(BaseModel):
+    """Who a board is for: `staff`, `entrants` or `everyone`, and which
+    `rows` they are given: `all`, `own`, or a number of top rows."""
+
+    who: Literal["staff", "entrants", "everyone"]
+    rows: Literal["all", "own"] | int
 
 
-class BoardKey(BaseModel):
-    """One key rows are ranked on, in turn: what it ranks by, `points`,
-    `penalty` or a declared value, which way is better, null for a value no
-    covered task gives a direction, and, on `penalty`, the minutes each
-    attempt before the counted submission charges; a `per_attempt` of 0
-    charges nothing, so the minute submitted is all it ranks on. On a value,
-    `title` and `unit` name its column, "Run time" and "ms", as the first
-    covered task giving them says; both null on `points`, on `penalty` and
-    on a value no covered task names, which a page names by `by`.
-    """
-
-    by: str
-    better: Better | None
-    per_attempt: int | None
-    title: str | None
-    unit: str | None
-
-
-class BoardTask(BaseModel):
-    """A task the board covers: its name as `id`, its `label`, the letter of
-    its place in the contest, and its `worth`, null on a task that gives no
-    points.
-    """
-
-    id: str
-    label: str
-    worth: Exact | None
-
-    @model_validator(mode="before")
-    @classmethod
-    def _from_column(cls, given: Any) -> Any:
-        found = _fields(given)
-        if isinstance(found, dict) and "name" in found:
-            return {"id": found["name"], "label": found["label"], "worth": found["worth"]}
-        return found
-
-
-class NotInView(BaseModel):
-    """What of a task is in the board's scope and not in its numbers yet:
-    the groups whose verdict is not shown, and, on a board ranking a value,
-    the `verdict` groups whose tests are not shown, with when they join.
-    """
+class SelfReported(BaseModel):
+    """A value a column reads that reads a column the entrant could set."""
 
     task: str
-    groups: list[str]
-    tests_of: list[str]
-    shown_at: datetime
+    value: str
+
+
+class Header(BaseModel):
+    """One displayed column, the same for every row: its `name`, the decimal
+    `places` it is shown to, null when the board gives none, the least and
+    most it can give, both null unless both are known, and each
+    self-reported value it reads, which a page marks on the column's
+    header.
+    """
+
+    name: str
+    places: int | None
+    at_least: Exact | None
+    at_most: Exact | None
+    self_reported: list[SelfReported]
+
+
+class Counted(BaseModel):
+    """A submission a cell counted or left out, by its task and number."""
+
+    task: str
+    number: int
 
 
 class BoardCell(BaseModel):
-    """A row's cell on a task: whether it counts, its number on each key it
-    has one for, by the key's `by`, while it counts, and its attempts.
-    `grading`, how many of the row's submissions are not graded yet, and
-    `submissions`, the numbers of those it counts, several under
-    `best_per_group`, come only in the reader's own row, and are null in
-    every other.
-    """
+    """One displayed column of a row: its `number`, null when missing; the
+    submissions it counted; and those it left out as still waiting."""
 
-    counting: bool
-    numbers: dict[str, Exact]
-    attempts: int
-    grading: int | None
-    submissions: list[int] | None
+    column: str
+    number: Exact | None
+    counted: list[Counted]
+    waiting: list[Counted]
 
 
 class BoardRowOwner(BaseModel):
@@ -101,85 +73,86 @@ class BoardRowOwner(BaseModel):
 
 
 class BoardRow(BaseModel):
-    """A row on the board: its rank, shared by rows tied on every key, whose
-    it is, its number on each of the board's keys in turn, null where it
-    has none, and its cell on each task by the task's name.
+    """A row on the board: its place, shared by rows equal on every sort
+    key, null on a board with no `sort`, whose it is, and its displayed
+    cells in order.
     """
 
-    rank: int
+    place: int | None
     row: BoardRowOwner
-    keys: list[Exact | None]
-    cells: dict[str, BoardCell]
+    cells: list[BoardCell]
 
-    @model_validator(mode="before")
-    @classmethod
-    def _from_ranked(cls, given: Any) -> Any:
-        found = _fields(given)
-        if not isinstance(found, dict) or "owner" not in found:
-            return found
-        owner = _fields(found["owner"])
-        return {
-            "rank": found["rank"],
-            "row": {"entrant": owner.get("entrant_id"), "name": found["name"]},
-            "keys": found["keys"],
-            "cells": found["cells"],
-        }
+
+class SortKey(BaseModel):
+    """A column rows are sorted by, in turn: `desc` puts the highest first,
+    `asc` the lowest, and a row with no number comes after every row with
+    one."""
+
+    column: str
+    way: Literal["desc", "asc"]
 
 
 class Board(BaseModel):
-    """One board as the reader sees it now. `nothing_shown` is true, with no
-    rows, while its scope shows nothing yet; `shown_at` is then the time its
-    first group is shown, null while no task it covers is released.
-    """
+    """One board as staff read it: every row, no hold."""
 
-    board: str
-    over: Over
-    select: Select
-    who: Who
-    keys: list[BoardKey]
-    tasks: list[BoardTask]
-    not_in_view: list[NotInView]
+    key: str
+    title: str
+    audience: BoardAudience
+    headers: list[Header]
+    sort: list[SortKey]
     rows: list[BoardRow]
-    nothing_shown: bool
-    shown_at: datetime | None
-
-    @model_validator(mode="before")
-    @classmethod
-    def _from_standings(cls, given: Any) -> Any:
-        found = _fields(given)
-        if not isinstance(found, dict) or not hasattr(found.get("board"), "name"):
-            return found
-        board = found["board"]
-        return {
-            "board": board.name,
-            "over": board.over,
-            "select": board.select,
-            "who": board.who,
-            "keys": found["keys"],
-            "tasks": found["tasks"],
-            "not_in_view": found["not_in_view"],
-            "rows": found["rows"],
-            "nothing_shown": found["nothing_shown"],
-            "shown_at": found["shown_at"] if found["nothing_shown"] else None,
-        }
 
 
-class OrganisedBoard(BaseModel):
-    """A board as organisers read it: `now`, every row given, or as the row
-    picked sees it; `final`, every group of its scope counted as after the
-    reveal; and what it asks of the tasks it covers that does not hold, each
-    a sentence, which the save reported when the tasks were published.
-    """
+def header_of(header: boards.Header) -> dict[str, Any]:
+    return {
+        "name": header.name,
+        "places": header.places,
+        "at_least": header.at_least,
+        "at_most": header.at_most,
+        "self_reported": [{"task": task, "value": value} for task, value in header.self_reported],
+    }
 
-    now: Board
-    final: Board
-    notes: list[str]
+
+def sort_of(sort: tuple[tuple[str, str], ...]) -> list[dict[str, str]]:
+    return [{"column": column, "way": way} for column, way in sort]
+
+
+def counted_of(found: tuple[boards.Counted, ...]) -> list[dict[str, Any]]:
+    return [{"task": each.task, "number": each.number} for each in found]
+
+
+def board_of(board: boards.Board) -> dict[str, Any]:
+    """A board as the forge works it out, as the API writes it."""
+    return {
+        "key": board.key,
+        "title": board.title,
+        "audience": {"who": board.audience.who, "rows": board.audience.rows},
+        "headers": [header_of(header) for header in board.headers],
+        "sort": sort_of(board.sort),
+        "rows": [
+            {
+                "place": row.place,
+                "row": {"entrant": row.owner.entrant_id, "name": row.name},
+                "cells": [
+                    {
+                        "column": cell.column,
+                        "number": cell.number,
+                        "counted": counted_of(cell.counted),
+                        "waiting": counted_of(cell.waiting),
+                    }
+                    for cell in row.cells
+                ],
+            }
+            for row in board.rows
+        ],
+    }
 
 
 class Marks(BaseModel):
-    """The marks the caller's row holds on a task for its `marked` boards:
-    the numbers of the submissions marked, the most it may hold, and the
-    row's close on the task, after which they are frozen.
+    """The marks the caller's row holds on a task, for a board reading which
+    of its submissions an entrant marks: the numbers of the submissions
+    marked, the most it may hold, and the row's close on the task, after
+    which they are frozen.
     """
 
     numbers: list[int]

@@ -17,7 +17,7 @@ from pydantic import BaseModel, model_validator
 
 from unicon.schemas.entrants import MyEntry
 from unicon.schemas.exact import Exact, exactly
-from unicon.schemas.submissions import Points, Value
+from unicon.schemas.submissions import Value
 
 
 class ContestNames(BaseModel):
@@ -40,40 +40,13 @@ class ContestSummary(BaseModel):
     status: Status | None
 
 
-class BoardPoints(BaseModel):
-    """The caller's entrant's points on a task as one leaderboard counts
-    them. `board` is the leaderboard's name; `covers` whether it covers the
-    task, the page reading "—" where it does not. Where it does, `points`
-    is the points now as that board counts the task, its scope (`over`) and
-    the submissions its `select` counts under its `order`, the same number
-    the board's own row counts: `shown`, over the scope's groups whose
-    results are shown, 0 while the board's cell for the task does not count,
-    null while the board shows nothing of the task yet; and `pending`, the
-    most the scope's groups not shown yet could still add, until
-    `pending_until`, the task's reveal, null when nothing is pending. A
-    group whose results are not shown yet never counts in `shown`, as on
-    every board. `most` is the most the board can count from the task, its
-    scope's groups' most points. `points` and `most` are null where the
-    board does not cover the task, and on a task that gives no points.
-    """
-
-    board: str
-    covers: bool
-    points: Points | None
-    most: Exact | None
-
-
 class TaskEntry(BaseModel):
     """A task released to the caller: its name, the label its place in the
     contest gives it, its title, the most points it gives, null on a task
     that gives none, whether they may submit to it now, and when it falls
     due, null when it has no due, and closes for them, their extension on it
-    included.
-
-    `points` is, for a member of an approved entrant, their entrant's points
-    on it on each leaderboard of the home's `boards`, one for each, in the
-    same order, so a page draws one column per board under one header row.
-    Empty for anyone else, who reads the task's `worth`.
+    included. A task's standing on the contest's leaderboards is the
+    boards' own to say.
     """
 
     name: str
@@ -83,7 +56,6 @@ class TaskEntry(BaseModel):
     release: TaskRelease
     due: datetime | None
     closes: datetime | None
-    points: list[BoardPoints]
 
 
 class ContestHome(BaseModel):
@@ -91,9 +63,7 @@ class ContestHome(BaseModel):
     role at the contest, which keeps them from registering; `registration`
     is their registration panel, as `entrants/mine` answers it: their
     entrant, whether and how they may register, and whether to ask them for
-    a code. `boards` names the leaderboards a member of an approved entrant
-    sees, in the contest's order, which each task's `points` follow; empty
-    for anyone else.
+    a code.
     """
 
     where: ContestNames
@@ -106,7 +76,6 @@ class ContestHome(BaseModel):
     organises: bool
     now: datetime
     tasks: list[TaskEntry]
-    boards: list[str]
 
 
 class Rate(BaseModel):
@@ -170,8 +139,8 @@ class TaskPage(BaseModel):
     """A task as the caller reads it: its statement in Markdown, the caps a
     submit is counted against, the inputs a contestant gives, when it falls
     due and closes for them, and `marks`, how many of their entrant's
-    submissions they may mark for the `marked` boards, null unless such a
-    board covers the task and their entrant is approved; and nothing
+    submissions they may mark, null unless a leaderboard reads which of the
+    task's submissions an entrant marks and their entrant is approved; and nothing
     else the task holds.
     """
 

@@ -14,11 +14,12 @@ from decimal import Decimal
 from fractions import Fraction
 
 import pytest
-from forge.api.boards import Better, Points
+from forge.api.blocks import Better
 from forge.api.submissions import (
     Fold,
     GradingStatus,
     GroupShown,
+    Points,
     Result,
     Show,
     SubmissionState,

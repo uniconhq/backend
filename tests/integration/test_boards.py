@@ -1,10 +1,8 @@
-"""The board and marks routes: a board served to each audience it names, a
-visitor with no cookie among them, an ICPC board's penalty charging its
-earlier attempt, its numbers exact decimal strings and
-only the reader's own row carrying its grading count and counted
-submissions; organisers every board `now` and `final`, with a row of the contest to read
-the boards it sees `now` as, and nobody else; and a row's marks on a task, up to the task's
-`marks`, refused on another's submission and frozen at the row's close.
+"""The board and marks routes: until audiences come, staff alone read a
+board, every row and cell, its numbers exact decimal strings, and an
+entrant and a visitor with no cookie read none; and a row's marks on a
+task, up to the task's `marks`, refused on another's submission and frozen
+at the row's close, only while a board reads which submissions it marks.
 """
 
 import re
@@ -28,17 +26,24 @@ from tests.integration.conftest import (
 
 PUBLIC = "/api/v1/public/contests/acme/spring/boards"
 BOARDS = f"{CONTEST}/boards"
-ORGANISE = f"{CONTEST}/organise/boards"
 ORGANISED = f"{TASK}/organise/submissions/1"
 MARKS = f"{TASK}/marks"
 SETTINGS = """\
 leaderboards:
-  - {name: Standings, who: everyone, order: [points, {by: penalty, per_attempt: 20}]}
-  - {name: Staff, order: [points]}
+  standings:
+    title: Standings
+    audience: {who: everyone}
+    columns:
+      picked: {block: latest, from: {results: sum}}
+      score: {block: otherwise, of: [{value: [{column: picked}, total]}, 0]}
+    sort: [{score: desc}]
+    display: [{score: {places: 1}}]
 """
 MARKED = """\
 leaderboards:
-  - {name: Final, who: contestants, select: marked}
+  final:
+    columns:
+      score: {value: [{block: latest, from: {results: sum}, where: {value: [sum, marked]}}, total]}
 """
 
 
@@ -103,96 +108,57 @@ async def _graded(
     assert finished.json() == {"status": "done"}, finished.text
 
 
-async def _ranked(client: httpx.AsyncClient, forge: FakeForge, clock: FakeClock) -> None:
-    """The boards of `SETTINGS`, and carol wrong at 12:00 and right at 12:01:
-    121 minutes and one attempt of 20 on the penalty.
-    """
-    await _settings(client, forge, SETTINGS)
-    await _graded(client, forge, "key-0001-aaaa", outcome="wrong_answer")
-    clock.advance(timedelta(minutes=1))
-    await _graded(client, forge, "key-0002-bbbb")
-
-
-def _standings(cell: dict[str, Any], entrant: str) -> dict[str, Any]:
-    return {
-        "board": "Standings",
-        "over": "all",
-        "select": "best",
-        "who": "everyone",
-        "keys": [
-            {"by": "points", "better": "higher", "per_attempt": None, "title": None, "unit": None},
-            {"by": "penalty", "better": "lower", "per_attempt": 20, "title": None, "unit": None},
-        ],
-        "tasks": [{"id": "sum", "label": "A", "worth": "100"}],
-        "not_in_view": [],
-        "rows": [
-            {
-                "rank": 1,
-                "row": {"entrant": entrant, "name": "carol"},
-                "keys": ["100", "141"],
-                "cells": {"sum": cell},
-            }
-        ],
-        "nothing_shown": False,
-        "shown_at": None,
-    }
-
-
-OWN_CELL = {
-    "counting": True,
-    "numbers": {"points": "100", "penalty": "141"},
-    "attempts": 1,
-    "grading": 0,
-    "submissions": [2],
-}
-OTHER_CELL = {**OWN_CELL, "grading": None, "submissions": None}
-
-
-async def test_a_board_is_served_to_each_audience_it_names(
-    client: httpx.AsyncClient, entered: FakeForge, clock: FakeClock
+async def test_staff_read_every_row_of_a_board_and_nobody_else_reads_one(
+    client: httpx.AsyncClient, entered: FakeForge
 ) -> None:
     carols = await entrant_of(client)
-    await _ranked(client, entered, clock)
+    await _settings(client, entered, SETTINGS)
+    await _graded(client, entered, "key-0001-aaaa")
 
     mine = await client.get(BOARDS)
-    one = await client.get(f"{BOARDS}/Standings")
-    staff = await client.get(f"{BOARDS}/Staff")
+    one = await client.get(f"{BOARDS}/standings")
     client.cookies.clear()
     public = await client.get(PUBLIC)
-    public_one = await client.get(f"{PUBLIC}/Standings")
-
-    assert mine.status_code == 200, mine.text
-    assert mine.json() == [_standings(OWN_CELL, carols)]
-    assert one.json() == _standings(OWN_CELL, carols)
-    assert (staff.status_code, staff.json()["code"]) == (404, "not_found")
-    assert public.json() == [_standings(OTHER_CELL, carols)]
-    assert public_one.json() == _standings(OTHER_CELL, carols)
-
-
-async def test_organisers_read_every_board_now_and_final_and_nobody_else_does(
-    client: httpx.AsyncClient, entered: FakeForge, clock: FakeClock
-) -> None:
-    carols = await entrant_of(client)
-    await _ranked(client, entered, clock)
-    refused = await client.get(ORGANISE)
+    public_one = await client.get(f"{PUBLIC}/standings")
     await sign_in_as(client, entered, 7)
+    staff = await client.get(BOARDS)
+    staff_one = await client.get(f"{BOARDS}/standings")
+    other = await client.get(f"{BOARDS}/nothing")
+    organise = await client.get(f"{CONTEST}/organise/boards")
 
-    organised = await client.get(ORGANISE)
-    as_carol = await client.get(ORGANISE, params={"entrant": carols})
-    nobody = await client.get(ORGANISE, params={"entrant": "0192f4a4-7b7e-7000-8000-000000000001"})
-    malformed = await client.get(ORGANISE, params={"entrant": "carol"})
-
-    assert (refused.status_code, refused.json()["code"]) == (403, "forbidden")
-    assert organised.status_code == 200, organised.text
-    standings, staff = organised.json()
-    assert standings["now"] == standings["final"] == _standings(OWN_CELL, carols)
-    assert standings["notes"] == []
-    assert (staff["now"]["board"], staff["now"]["who"]) == ("Staff", "organisers")
-    assert staff["now"]["rows"][0]["keys"] == ["100"]
-    assert len(as_carol.json()) == 1
-    assert as_carol.json()[0]["now"] == _standings(OWN_CELL, carols)
-    assert (nobody.status_code, nobody.json()["code"]) == (404, "not_found")
-    assert (malformed.status_code, malformed.json()["code"]) == (422, "validation_error")
+    assert (mine.status_code, mine.json()) == (200, [])
+    assert (one.status_code, one.json()["code"]) == (404, "not_found")
+    assert (public.status_code, public.json()) == (200, [])
+    assert (public_one.status_code, public_one.json()["code"]) == (404, "not_found")
+    assert staff.status_code == 200, staff.text
+    # sum is graded test by test, which a board does not read, so the
+    # row's score is otherwise's 0.
+    standings = {
+        "key": "standings",
+        "title": "Standings",
+        "audience": {"who": "everyone", "rows": "all"},
+        "headers": [
+            {
+                "name": "score",
+                "places": 1,
+                "at_least": None,
+                "at_most": None,
+                "self_reported": [],
+            }
+        ],
+        "sort": [{"column": "score", "way": "desc"}],
+        "rows": [
+            {
+                "place": 1,
+                "row": {"entrant": carols, "name": "carol"},
+                "cells": [{"column": "score", "number": "0", "counted": [], "waiting": []}],
+            }
+        ],
+    }
+    assert staff.json() == [standings]
+    assert staff_one.json() == standings
+    assert (other.status_code, other.json()["code"]) == (404, "not_found")
+    assert organise.status_code == 404
 
 
 async def test_a_row_marks_its_own_submissions_up_to_the_tasks_marks_until_its_close(
@@ -209,10 +175,8 @@ async def test_a_row_marks_its_own_submissions_up_to_the_tasks_marks_until_its_c
     again = await client.put(f"{MARKS}/1", headers=ORIGIN)
     over = await client.put(f"{MARKS}/2", headers=ORIGIN)
     missing = await client.put(f"{MARKS}/3", headers=ORIGIN)
-    counted = (await client.get(f"{BOARDS}/Final")).json()
     unmarked = await client.delete(f"{MARKS}/1", headers=ORIGIN)
     await client.put(f"{MARKS}/2", headers=ORIGIN)
-    overridden = (await client.get(f"{BOARDS}/Final")).json()
     clock.advance(timedelta(hours=3))
     frozen = await client.put(f"{MARKS}/1", headers=ORIGIN)
 
@@ -223,10 +187,6 @@ async def test_a_row_marks_its_own_submissions_up_to_the_tasks_marks_until_its_c
     assert (over.status_code, over.json()["code"], over.json()["limit"]) == (409, "mark_limit", 1)
     assert (missing.status_code, missing.json()["code"]) == (404, "not_found")
     assert unmarked.json() == held.json()
-    [row] = counted["rows"]
-    assert (row["keys"], row["cells"]["sum"]["submissions"]) == (["100"], [1])
-    [row] = overridden["rows"]
-    assert (row["keys"], row["cells"]["sum"]["counting"]) == (["0"], False)
     assert (frozen.status_code, frozen.json()["code"]) == (403, "marks_frozen")
     assert (await client.get(MARKS)).json() == {
         "numbers": [2],
@@ -236,7 +196,7 @@ async def test_a_row_marks_its_own_submissions_up_to_the_tasks_marks_until_its_c
     }
 
 
-async def test_a_task_no_marked_board_covers_takes_no_marks(
+async def test_a_task_no_board_reads_the_marks_of_takes_no_marks(
     client: httpx.AsyncClient, entered: FakeForge
 ) -> None:
     await _settings(client, entered, SETTINGS)
@@ -255,35 +215,32 @@ async def test_the_board_routes_need_a_session_but_the_public_ones(
 
     answers = [
         await client.get(BOARDS),
-        await client.get(ORGANISE),
         await client.get(MARKS),
         await client.put(f"{MARKS}/1", headers=ORIGIN),
     ]
 
     assert [(answer.status_code, answer.json()["code"]) for answer in answers] == [
         (401, "unauthenticated")
-    ] * 4
+    ] * 3
 
 
-async def test_a_save_of_the_contests_settings_answers_the_notes_its_boards_report(
+async def test_a_save_of_the_contests_settings_refuses_a_board_at_its_path(
     client: httpx.AsyncClient, entered: FakeForge
 ) -> None:
     await sign_in_as(client, entered, 7)
     settings = await read(client, f"{CONTEST}/files/contest.yaml")
     content = re.sub(r"(?ms)^leaderboards:.*?(?=^\S|\Z)", "", settings["content"])
-    late = "leaderboards:\n  - {name: Late, over: after_close, order: [points]}\n"
+    shown_pick = SETTINGS.replace("display: [", "display: [picked, ")
 
-    written = await client.put(
+    refused = await client.put(
         f"{CONTEST}/files/contest.yaml",
-        json={"content": content.rstrip("\n") + "\n" + late, "token": settings["token"]},
+        json={"content": content.rstrip("\n") + "\n" + shown_pick, "token": settings["token"]},
         headers=ORIGIN,
     )
-    organised = await client.get(ORGANISE)
 
-    assert written.status_code == 200, written.text
-    assert written.json()["notes"] == ["The leaderboard Late counts nothing from sum."]
-    assert [board["notes"] for board in organised.json()] == [
-        ["The leaderboard Late counts nothing from sum."]
+    assert (refused.status_code, refused.json()["code"]) == (422, "invalid_definition")
+    assert [error["path"] for error in refused.json()["errors"]] == [
+        "leaderboards.standings.display[0]"
     ]
 
 
@@ -332,61 +289,16 @@ async def test_organisers_read_a_submission_scored_with_everything_filled_in(
     assert (own["status"], own["points"]["pending"]) == ("graded", "100")
 
 
-async def test_the_contest_home_gives_a_task_its_points_on_each_board_the_entrant_sees(
-    client: httpx.AsyncClient, entered: FakeForge, clock: FakeClock
-) -> None:
-    await _ranked(client, entered, clock)
-
-    home = (await client.get(f"{CONTEST}/home")).json()
-    [task] = home["tasks"]
-    standings = (await client.get(f"{BOARDS}/Standings")).json()
-
-    # Staff is the organisers' alone, so the entrant's one column is Standings.
-    assert home["boards"] == ["Standings"]
-    assert task["points"] == [
-        {
-            "board": "Standings",
-            "covers": True,
-            "points": {"shown": "100", "pending": "0", "pending_until": None},
-            "most": "100",
-        }
-    ]
-    assert standings["rows"][0]["keys"][0] == task["points"][0]["points"]["shown"]
-
-
-async def test_a_hidden_groups_points_stay_out_of_the_contest_home_until_shown(
-    client: httpx.AsyncClient, entered: FakeForge, clock: FakeClock
+async def test_the_contest_home_leaves_a_tasks_standing_to_the_boards(
+    client: httpx.AsyncClient, entered: FakeForge
 ) -> None:
     await _settings(client, entered, SETTINGS)
-    await sign_in_as(client, entered, 7)
-    await edit_task(client, "main: {each: 100}", "main: {each: 100, show: after_close}")
-    await sign_in_as(client, entered, 20)
     await _graded(client, entered, "key-0001-aaaa")
-
-    [before] = (await client.get(f"{CONTEST}/home")).json()["tasks"]
-    clock.advance(timedelta(hours=3))
-    await sign_in_as(client, entered, 20)
-    [after] = (await client.get(f"{CONTEST}/home")).json()["tasks"]
-
-    # Nothing of the task is shown yet, which reads apart from a shown 0.
-    assert [each["points"] for each in before["points"]] == [
-        {"shown": None, "pending": "100", "pending_until": "2026-09-26T15:00:00Z"}
-    ]
-    assert [each["points"] for each in after["points"]] == [
-        {"shown": "100", "pending": "0", "pending_until": None}
-    ]
-
-
-async def test_the_contest_home_gives_no_boards_and_no_points_to_anyone_not_entered(
-    client: httpx.AsyncClient, entered: FakeForge, clock: FakeClock
-) -> None:
-    await _ranked(client, entered, clock)
-    await sign_in_as(client, entered, 7)
 
     home = (await client.get(f"{CONTEST}/home")).json()
 
-    assert home["boards"] == []
-    assert [task["points"] for task in home["tasks"]] == [[]]
+    assert "boards" not in home
+    assert ["points" in task for task in home["tasks"]] == [False]
 
 
 async def test_organisers_pick_one_row_with_such_a_submission(
