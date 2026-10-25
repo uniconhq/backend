@@ -3,10 +3,12 @@ the caller reads it: its key and title, who it is for, its listed columns'
 headers, the columns it was sorted by for them and those dropped, when the
 hold holds other rows from, and its rows in order, each with its place,
 its listed cells and how many of its submissions the hold keeps back,
-every number an exact decimal string. A cell says whether it is hidden
-and, on the caller's own row and for staff, names the submissions it
+every number an exact decimal string. On the caller's own row and for
+staff, a cell says whether it is hidden and names the submissions it
 counted and those it left out as still waiting, each by task and number,
-and the row says how many of its submissions still grade.
+and the row says how many of its submissions still grade; on any other
+row a cell with no number says no more, whether it is hidden, waiting or
+missing.
 """
 
 import uuid
@@ -57,11 +59,12 @@ class Counted(BaseModel):
 
 
 class BoardCell(BaseModel):
-    """One listed column of a row: its `number`, null when missing or
-    hidden; whether it is `hidden` from the caller, having read something
-    they are not shown; the submissions it counted; and those it left out
-    as still waiting, both null unless the row is the caller's own or they
-    are staff."""
+    """One listed column of a row: its `number`, null when missing, hidden
+    or waiting; whether it is `hidden` from the caller, having read
+    something they are not shown, told only on the caller's own row and to
+    staff and false elsewhere; the submissions it counted; and those it
+    left out as still waiting, both null unless the row is the caller's
+    own or they are staff."""
 
     column: str
     number: Exact | None

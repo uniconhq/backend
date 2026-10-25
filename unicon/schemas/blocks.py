@@ -3,8 +3,8 @@ as the editor reads them (SIMPLER-CORE.md 10.1, 14 and 19): each block
 once, what it gives in words, and its forms, each with the inputs it takes,
 the kind each one takes, where the form may be used and what it gives;
 with the leaves a value and a column may hold, the facts each may read,
-the word a fold's `missing` takes to leave a run out and the languages a
-program may be written in.
+the word a block's `missing` takes to leave out a run or a submission and
+the languages a program may be written in.
 """
 
 from typing import Literal, Self
@@ -32,8 +32,8 @@ class BlockInput(BaseModel):
     """One input of a form: the `kind` it takes, a number, a group's `runs`,
     a task's `results`, one `submission`'s results, `either` a number or a
     submission's results, `best_each`'s value by `name` and its
-    `directions`, `weights` by a repeated input's values, what a `missing`
-    report counts as, a `path`, a folder of the task such as
+    `directions`, `weights` by a repeated input's values, what a missing
+    report or input counts as, a `path`, a folder of the task such as
     `programs/mean/`, or a `language`, one of the catalogue's `languages`;
     a list of at least
     `least` and at most `most` when `least` is given (`most` null for no
@@ -118,8 +118,10 @@ class Catalogue(BaseModel):
     inside `where`, `by` or a fold's `of`; `{column: <name>}` or `{column:
     [<board>, <name>]}` another column; and `best_each`'s `{name: <value>}`.
     `board_facts` the facts a column may read of a submission. A number is
-    a leaf too. `skip` is what a fold's `missing` says to leave out a run
-    whose report is missing; a number there counts as that number.
+    a leaf too. `skip` is what a block's `missing` says to leave out a run
+    whose report is missing, or a submission whose input is missing,
+    which otherwise makes a pick, fold or `best_each` missing; a number
+    there counts as that number.
     `languages` are those an `exec` block's program may be written in.
     """
 

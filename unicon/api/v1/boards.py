@@ -9,7 +9,8 @@ they may not read is left out of the list, and as one board is no such
 board, the same as one that is not there. They read each row's values as
 that row's entrant is shown them, a cell that read anything else hidden,
 the rows cut to the board's `rows`, and, while the contest's hold holds,
-every row but their own as it stood at the hold's `from`, with how many of
+every row but their own counting only its submissions made before the
+hold's `from`, each with its values as they stand now, with how many of
 its submissions are held. Someone with the observer role at the contest
 reads where the hold stands, and the manager role ends it early.
 

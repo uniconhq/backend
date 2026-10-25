@@ -216,12 +216,14 @@ class Result(Scored):
 
     A run task's grading has no groups and no `values`: `run_values` holds
     each value of its scoring its entrant is shown, worked out on every
-    read, and `runs` the runs, those listed under `now` from the start and
-    those under `after_close` once the task reveals; what `on_release`
-    lists shows nothing yet. `once` holds what its steps done once
-    reported that `show` lists, the compile log among them when listed,
-    and `compiled` 1, or 0 when a compile done once stopped it, both once
-    a run is shown. A task with
+    read, and `runs` the runs, those listed under `now` from the start,
+    those under `after_close` once the task reveals, and those under
+    `on_release` while staff have released the task's results, hidden
+    again when they take the release back. `once` holds what its steps
+    done once reported that `show` lists, the compile log among them when
+    listed, once a run is shown; and `compiled` 1, or 0 when a compile
+    done once stopped it, from the time `show` lists it or once a run is
+    shown, null while its compile is still to run. A task with
     nothing shown during the contest is `submitted` until the reveal, which
     a page words "Submitted, results after the contest". After the reveal,
     while its late runs are still being graded, it is `grading` or

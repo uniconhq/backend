@@ -38,10 +38,11 @@ no cell did, from the task's reveal, as forge decides.
 An observer of the task reads its grading queue (#505), and enters
 nothing from it: each row the task has closed for, its extension
 included, by name, with the submissions to the task that a cell of any of
-the contest's boards counted, as staff read them, each with the boards
-and columns that counted it and the mark of each `entered` value, or null
-while missing. Forge works it out from what the cells counted on each
-read.
+the contest's leaderboards counted, as staff read them, each with the
+leaderboards and columns that counted it and the mark of each `entered`
+value, or null while missing; an observer with a role at the task alone,
+none at its contest, is listed only the cells that read this task alone.
+Forge works it out from what the cells counted on each read.
 
 Anyone holding a role at a contest or at any of its tasks reads the
 gradings of the tasks they observe as one feed, newest first, each with
@@ -211,11 +212,12 @@ async def enter_mark(
 )
 async def read_grading_queue(organiser: TaskObserver) -> list[dict[str, Any]]:
     """Each row the task has closed for, its extension included, by name,
-    with the submissions to the task a cell of any board counted, each
-    with the cells that counted it and the mark of each `entered` value,
-    null while missing. A row with nothing counted is left out. A task
-    that does not grade by runs is `not_a_run_task`, and one never
-    published `not_found`.
+    with the submissions to the task a cell of any leaderboard counted,
+    each with the cells that counted it and the mark of each `entered`
+    value, null while missing; a caller with a role at the task alone is
+    listed only the cells that read this task alone. A row with nothing
+    counted is left out. A task that does not grade by runs is
+    `not_a_run_task`, and one never published `not_found`.
     """
     rows = await entries.queue(organiser, tasks.task_id_of(organiser.scope))
     return [

@@ -147,9 +147,10 @@ class TaskPage(BaseModel):
     """A task as the caller reads it: its statement in Markdown, the caps a
     submit is counted against, the inputs a contestant gives, when it falls
     due and closes for them, and `marks`, how many of their entrant's
-    submissions they may mark, null unless a leaderboard reads which of the
-    task's submissions an entrant marks and their entrant is approved; and nothing
-    else the task holds.
+    submissions they may mark, null unless the contest's entry for the
+    task gives `marks` or a leaderboard reads which of the task's
+    submissions an entrant marks, and their entrant is approved; and
+    nothing else the task holds.
     """
 
     name: str

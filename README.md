@@ -731,11 +731,13 @@ keys and those `dropped` for the caller, `held_from`, when the hold
 holds other rows from, and its `rows` in order. A row carries its
 `place`, shared by rows equal on every sort key, whose it is as `row`,
 `{entrant, name}`, its listed `cells`, each with its `column`, `number`
-and whether it is `hidden`, `held`, how many of its submissions the hold
-keeps from the caller, and, on the caller's own row and for staff,
-`grading`, how many of its submissions still grade, and each cell's
-`counted` and `waiting` submissions. Every number is an exact decimal
-string. A board the reader may not see is not found.
+and `hidden`, `held`, how many of its submissions the hold keeps from
+the caller, and, on the caller's own row and for staff, `grading`, how
+many of its submissions still grade, each cell's `counted` and `waiting`
+submissions, and whether it is `hidden`: on any other row `hidden` is
+false, so a cell with no number reads the same whether it is hidden,
+waiting or missing. Every number is an exact decimal string. A board the
+reader may not see is not found.
 
 A row, an entrant, marks up to the task's `marks` of its own
 submissions for the `marked` boards, until its close on the task. Marks
