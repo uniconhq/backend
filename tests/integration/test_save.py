@@ -6,9 +6,9 @@ shows; the refusals, a path inside `plans/`, a manager's change to an
 admin-only file and a grading change while the contest runs, which the same
 save confirmed publishes; a change kept as a draft and published by an
 empty confirmed save; a stale token answered as a conflict; and a removal,
-a path with its token and `remove`, which takes a test out or replaces it
-by one with other entry names, is checked as any other state, and is
-refused as an edit is.
+a path with its token and `remove`, which takes a test's files out with its
+run or replaces them by files of other names, is checked as any other
+state, and is refused as an edit is.
 """
 
 import uuid
@@ -34,17 +34,14 @@ from tests.integration.conftest import (
 
 MISSING = [
     {
-        "path": "tests/main/",
-        "message": "main holds tests but is not one of the task's test groups. Add a test group "
-        "called main, or move its tests.",
-    },
-    {
-        "path": "test_groups.hidden",
-        "message": "The test group hidden has no tests. Add a test to it.",
-    },
+        "path": "repeat[0].tuples[0][1]",
+        "message": "The task has no file tests/2.ans. Add it, or give another file.",
+    }
 ]
 
 
+SOLUTION = "The inputs of the step solution changed."
+"""What a save changing the task's time limit changes in how it grades."""
 EFFECT = ("results_change", "summary", "runs_again", "scores", "reading")
 """What a save does, as the question before it and the answer after give it."""
 
@@ -91,18 +88,14 @@ async def test_the_organiser_path_from_an_org_to_a_publication(
     assert written.status_code == 200, written.text
     first = written.json()
     assert (first["number"], first["grading_changed"]) == (1, False)
-    assert first["notes"] == []
-    assert first["effect"]["scores"] == [
-        "Points: main is worth up to 100.",
-        "sum now counts on the leaderboard Standings.",
-    ]
+    assert first["effect"]["scores"] == ["No score changes."]
 
     statement = await _save(client, await _edit(client, "statement.md", "Write", "Add. Write"))
     assert (statement.json()["number"], statement.json()["grading_changed"]) == (2, False)
 
     broken = await _save(
         client,
-        await _edit(client, "task.yaml", "main: {each: 100}", "hidden: {each: 100}"),
+        await _edit(client, "task.yaml", "[tests/1.in, tests/1.ans]", "[tests/1.in, tests/2.ans]"),
     )
     assert broken.status_code == 200
     draft = broken.json()
@@ -118,13 +111,6 @@ async def test_the_organiser_path_from_an_org_to_a_publication(
     ]
     # The forge's id for a publication is built from keys, which stay home.
     assert all("id" not in entry for entry in published)
-    # Each value its workflow reports, with the words a page names it by.
-    assert published[0]["meanings"] == [
-        {"name": "time_ms", "title": "Run time", "unit": "ms", "better": "lower"},
-        {"name": "memory_kb", "title": "Memory used", "unit": "KB", "better": "lower"},
-        {"name": "log", "title": "Compile log", "unit": None, "better": None},
-    ]
-    assert state["latest"]["meanings"] == published[1]["meanings"]
 
 
 async def test_a_save_inside_plans_is_refused_naming_the_path(
@@ -167,16 +153,16 @@ async def test_a_grading_change_while_the_contest_runs_asks_first(
 
     assert asked.status_code == 409
     assert asked.json()["code"] == "confirmation_required"
-    assert asked.json()["changes"] == ["The way the task grades changed."]
+    assert asked.json()["changes"] == [SOLUTION]
     assert asked.json()["regrades"] == 0
     assert {key: asked.json()[key] for key in EFFECT} == {
         "results_change": False,
         "summary": "Nobody's result changes.",
         "runs_again": [
             "No submission runs again: there are none yet.",
-            "The way the task grades changed.",
+            SOLUTION,
         ],
-        "scores": ["The leaderboard Standings is counted again."],
+        "scores": ["No score changes."],
         "reading": ["Nothing entrants read changes."],
     }
     assert len((await client.get(f"{TASK}/publications")).json()) == 1
@@ -185,7 +171,7 @@ async def test_a_grading_change_while_the_contest_runs_asks_first(
 
     assert confirmed.status_code == 200
     assert (confirmed.json()["number"], confirmed.json()["grading_changed"]) == (2, True)
-    assert confirmed.json()["changes"] == ["The way the task grades changed."]
+    assert confirmed.json()["changes"] == [SOLUTION]
     assert confirmed.json()["effect"] == {key: asked.json()[key] for key in EFFECT}
 
 
@@ -200,7 +186,7 @@ async def test_a_confirmation_asked_about_another_head_is_asked_again(
     again = await _save(client, statement, confirm=True, asked=asked.json()["asked"])
 
     assert again.status_code == 409
-    assert again.json()["changes"] == ["The way the task grades changed."]
+    assert again.json()["changes"] == [SOLUTION]
     confirmed = await _save(client, statement, confirm=True, asked=again.json()["asked"])
     assert (confirmed.status_code, confirmed.json()["grading_changed"]) == (200, True)
 
@@ -239,7 +225,7 @@ async def test_a_file_written_or_rolled_back_while_the_contest_runs_asks_and_is_
     assert (rolled.status_code, rolled.json()["number"]) == (200, 3), rolled.text
 
 
-async def test_a_change_to_the_statement_or_the_points_while_the_contest_runs_asks_first(
+async def test_a_change_to_the_statement_or_what_is_shown_while_the_contest_runs_asks_first(
     client: httpx.AsyncClient, running: FakeForge
 ) -> None:
     statement = await _edit(client, "statement.md", "Add", "Now add")
@@ -254,13 +240,14 @@ async def test_a_change_to_the_statement_or_the_points_while_the_contest_runs_as
     assert asked.json()["runs_again"] == [
         "No submission runs again: the tests and how they run are the same."
     ]
-    points = await _edit(client, "task.yaml", "{each: 100}", "{each: 110}")
-    assert (await _save(client, points)).json()["scores"] == [
-        "Points: main is now worth up to 110 (was 100).",
-        "Every result is scored again, and the leaderboard Standings with it.",
+    shown = await _edit(client, "task.yaml", "now: [score, all, public/]\n", SHOWN)
+    assert (await _save(client, shown)).json()["reading"] == [
+        "Entrants can read tests/ from the reveal."
     ]
     # Saved as the latest publication holds it, nothing new: no question.
-    same = await _edit(client, "task.yaml", "{each: 100}", "{each: 100}")
+    same = await _edit(
+        client, "task.yaml", "now: [score, all, public/]", "now: [score, all, public/]"
+    )
     assert (await _save(client, same)).status_code == 200
 
 
@@ -274,7 +261,7 @@ async def test_a_change_kept_as_a_draft_is_published_by_an_empty_confirmed_save(
     assert kept.json() == {
         "version": kept.json()["version"],
         "errors": [],
-        "held_back": ["The way the task grades changed."],
+        "held_back": [SOLUTION],
     }
     assert (await client.get(TASK)).json()["draft"] is True
 
@@ -305,45 +292,54 @@ async def _token(client: httpx.AsyncClient, path: str) -> str:
     return token
 
 
+SHOWN = "now: [score, all, public/]\n    after_close: [tests/]\n"
+"""The starter's `show` with its tests shown once the task closes."""
+TUPLES = "      - [tests/1.in, tests/1.ans]\n"
+"""The starter's one test, as its `repeat` lists it."""
+
+
 async def test_a_save_removes_a_test_and_its_publication_names_the_removal(
     client: httpx.AsyncClient, sum_task: FakeForge
 ) -> None:
     await publish(client)
     added = await _save(
         client,
-        _change("tests/main/2/input", "1 1\n", None),
-        _change("tests/main/2/answer", "2\n", None),
+        await _edit(client, "task.yaml", TUPLES, f"{TUPLES}      - [tests/2.in, tests/2.ans]\n"),
+        _change("tests/2.in", "1 1\n", None),
+        _change("tests/2.ans", "2\n", None),
     )
     assert added.json()["number"] == 2, added.text
 
     removed = await _save(
         client,
-        _removal("tests/main/2/input", await _token(client, "tests/main/2/input")),
-        _removal("tests/main/2/answer", await _token(client, "tests/main/2/answer")),
+        await _edit(client, "task.yaml", "      - [tests/2.in, tests/2.ans]\n", ""),
+        _removal("tests/2.in", await _token(client, "tests/2.in")),
+        _removal("tests/2.ans", await _token(client, "tests/2.ans")),
     )
 
     assert removed.status_code == 200, removed.text
     assert (removed.json()["number"], removed.json()["grading_changed"]) == (3, True)
     assert removed.json()["changes"] == [
-        "The way the task grades changed.",
-        "The answer of test 2 in the group main was removed.",
-        "The input of test 2 in the group main was removed.",
+        "The run r2 was removed.",
+        "The file tests/2.ans was removed.",
+        "The file tests/2.in was removed.",
     ]
-    gone = await client.get(f"{TASK}/files/tests/main/2/input")
+    gone = await client.get(f"{TASK}/files/tests/2.in")
     assert gone.status_code == 404
 
 
-async def test_a_test_is_replaced_by_one_with_other_entry_names(
+async def test_a_test_is_replaced_by_one_with_other_file_names(
     client: httpx.AsyncClient, sum_task: FakeForge
 ) -> None:
     await publish(client)
 
     replaced = await _save(
         client,
-        _removal("tests/main/1/input", await _token(client, "tests/main/1/input")),
-        _removal("tests/main/1/answer", await _token(client, "tests/main/1/answer")),
-        _change("tests/main/1/input.txt", "4 5\n", None),
-        _change("tests/main/1/answer.txt", "9\n", None),
+        await _edit(client, "task.yaml", TUPLES, "      - [tests/1.txt, tests/1.out]\n"),
+        _removal("tests/1.in", await _token(client, "tests/1.in")),
+        _removal("tests/1.ans", await _token(client, "tests/1.ans")),
+        _change("tests/1.txt", "4 5\n", None),
+        _change("tests/1.out", "9\n", None),
     )
 
     assert replaced.status_code == 200, replaced.text
@@ -357,17 +353,13 @@ async def test_removing_every_test_keeps_the_save_as_a_draft(
 
     kept = await _save(
         client,
-        _removal("tests/main/1/input", await _token(client, "tests/main/1/input")),
-        _removal("tests/main/1/answer", await _token(client, "tests/main/1/answer")),
+        await _edit(client, "task.yaml", f"    tuples:\n{TUPLES}", "    tuples: []\n"),
+        _removal("tests/1.in", await _token(client, "tests/1.in")),
+        _removal("tests/1.ans", await _token(client, "tests/1.ans")),
     )
 
     assert kept.status_code == 200, kept.text
-    assert kept.json()["errors"] == [
-        {
-            "path": "test_groups",
-            "message": "The task has no tests yet. Add a test to each test group.",
-        }
-    ]
+    assert kept.json()["errors"] == [{"path": "repeat[0].tuples", "message": "Give at least one."}]
     assert len((await client.get(f"{TASK}/publications")).json()) == 1
 
 

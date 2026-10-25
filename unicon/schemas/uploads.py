@@ -7,16 +7,14 @@ address the slot names, and then says they are there.
 import uuid
 
 from forge.api.uploads import Slot, UploadStatus
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class UploadRequest(BaseModel):
     """One file to upload for the task's contestant input `input`: where it
-    goes under the input, one name for a file input, a path of names for a
-    folder input, and `<group>/<test>` with or without an ending for an
-    input that takes one file per test; its size in bytes, the SHA-256 of
-    its content in lowercase hex and, when the browser knows it, its
-    content type.
+    goes under the input, one name for a file input and a path of names for
+    a folder input; its size in bytes, the SHA-256 of its content in
+    lowercase hex and, when the browser knows it, its content type.
 
     The digest is what the forge checks the bytes against as they arrive, so
     a file that changed between being read and being sent is refused there
@@ -28,6 +26,7 @@ class UploadRequest(BaseModel):
     size: int
     sha256: str
     content_type: str | None = None
+    part: int | None = Field(default=None, ge=1)
 
 
 class TaskFileUploadRequest(BaseModel):

@@ -4,9 +4,10 @@ forge applies the contest's visibility and the release rules, and a contest
 or task the caller may not see answers as not found, the same as one that is
 not there.
 
-A task's public files, the ones under its `public/` such as a statement's
-images, are served one by one by their path under `public/`, as the task's
-latest publication holds them, to whoever may read its statement: a visitor
+A task's public files, the ones under its `public/` that its `show` lists
+now, such as a statement's images, are served one by one by their path
+under `public/`, as the task's latest publication holds them, to whoever
+may read its statement: a visitor
 with no session, or one whose session has ended, as `/public` serves the
 statement; a signed-in person who reads the task's page; and whoever holds
 a role reaching the task, released or not. The answer is the file's bytes,
@@ -104,7 +105,7 @@ async def get_task_page(session: CurrentSession, scope: TaskAtPath) -> contest_h
 @router.get(
     f"{TASK}/public/{{path:path}}",
     operation_id="getTaskPublicFile",
-    summary="A file under a task's public/, such as a statement's image",
+    summary="A file under a task's public/ that it shows, such as a statement's image",
     response_class=Response,
     responses={
         200: {
@@ -119,16 +120,18 @@ async def get_task_page(session: CurrentSession, scope: TaskAtPath) -> contest_h
 async def get_task_public_file(
     session: OptionalSession, scope: TaskAtPath, path: str, request: Request
 ) -> Response:
-    """`path` is the file's path under `public/`. Read with exactly the rights
-    the statement is read with, as the task's latest publication holds it,
-    and, for a signed-in caller holding a role reaching the task, whether or
-    not it is released, as the task's head holds it, the draft the
-    statement's preview draws. Each answer carries an `ETag` of its bytes
-    and is asked again each time; `If-None-Match` with that tag is answered
-    304 while the bytes are the same. A path with an empty,
-    `.` or `..` segment, or a file that is not there, is `not_found`, the
-    same as a task the caller may not read; one larger than a page is served
-    is `public_file_too_large`, with the `limit` in bytes.
+    """`path` is the file's path under `public/`, which the task's `show`
+    lists, or a folder it is in, from its time on. Read with exactly the
+    rights the statement is read with, as the task's latest publication
+    holds it, and, for a signed-in caller holding a role reaching the task,
+    whether or not it is released, as the task's head holds it, the draft
+    the statement's preview draws, any file its `show` lists at any time.
+    Each answer carries an `ETag` of its bytes and is asked again each time;
+    `If-None-Match` with that tag is answered 304 while the bytes are the
+    same. A path with an empty, `.` or `..` segment, a file that is not
+    there, or one the task does not show the caller, is `not_found`, the
+    same as a task the caller may not read; one larger than a page is
+    served is `public_file_too_large`, with the `limit` in bytes.
     """
     task = tasks.task_id_of(scope)
     named = f"{PUBLIC}{path}"

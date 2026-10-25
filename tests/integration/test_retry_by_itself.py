@@ -36,7 +36,7 @@ async def test_a_read_that_finds_a_failure_retries_it_and_the_list_says_the_plat
         json={
             "idempotency_key": "key-0001-aaaa",
             "inputs": {
-                "submission": {"uploads": [made["id"]]},
+                "code": {"uploads": [made["id"]]},
                 "language": {"value": "python"},
             },
         },

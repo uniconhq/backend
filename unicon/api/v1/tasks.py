@@ -1,11 +1,13 @@
 """Making a task in a contest, listing the contest's tasks, by name or each
 with where it stands and its timeline, where a task's files stand against
 its publications, its publications, the form of the workflow it names, and
-the save, which is how a task is published. Creating needs the manager role
+the save, which is how a task is published, and releasing a task's
+results or taking a release back. Creating needs the manager role
 at the contest and makes the task before it answers, and the lists the
 observer role there; taking a task out of the contest and putting a
 withdrawn one back need the manager role at the contest. The task's own
-routes need the observer role at the task, and the save the manager role.
+routes need the observer role at the task, and the save, a release and a
+take-back the manager role.
 Whether a task is released to the
 caller needs only a session: it is what a contestant is told, and a contest
 hidden from the caller answers as no such task.
@@ -14,7 +16,7 @@ hidden from the caller answers as no such task.
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, status
-from forge.api import contests, publications, release, tasks
+from forge.api import contests, publications, release, results, tasks
 from forge.api.access import Organiser
 from forge.api.publications import Draft, Published
 from forge.api.types import Edit, Role, ScopeKind
@@ -26,6 +28,8 @@ from unicon.schemas.contests import (
     CreateTask,
     Named,
     PutBack,
+    Results,
+    ResultsRequest,
     TakenOut,
     TakeOutRequest,
     TaskStanding,
@@ -68,7 +72,7 @@ async def create_task(organiser: ContestManager, body: CreateTask) -> NamedRecor
 )
 async def list_tasks(organiser: ContestObserver) -> tuple[NamedRecord, ...]:
     """The tasks the forge lets the caller read, by name."""
-    return await tasks.list(organiser, contests.contest_id_of(organiser.scope))
+    return await tasks.list_tasks(organiser, contests.contest_id_of(organiser.scope))
 
 
 @router.get(
@@ -105,9 +109,9 @@ async def take_out_task(
     leaderboard counts it, and its submissions are kept. Refused as
     `take_out_changed`, with `submissions` and `take_out` as they are now,
     when it would now do the other, and as `take_out_refused` when a
-    leaderboard names a task to be removed, with those `boards`, or the
-    settings cannot be edited line by line. Withdrawing a withdrawn task
-    changes nothing.
+    leaderboard's column reads a task to be removed, with the titles of
+    those `leaderboards`, or the settings cannot be edited line by line.
+    Withdrawing a withdrawn task changes nothing.
     """
     done = await tasks.take_out(organiser, tasks.task_id_of(scope), body.confirmed)
     return TakenOut(done=done)
@@ -124,7 +128,7 @@ async def put_back_task(organiser: ContestManager, scope: TaskAtPath) -> PutBack
     task's entry, after which it scores exactly as before; checked as a
     save of the contest's settings is, so what a leaderboard or a timeline
     refuses is `invalid_definition` naming `contest.yaml`. Answers the notes
-    the boards report, as that save does. A task not withdrawn changes
+    the leaderboards report, as that save does. A task not withdrawn changes
     nothing.
     """
     returned = await tasks.put_back(organiser, tasks.task_id_of(scope))
@@ -139,9 +143,54 @@ async def put_back_task(organiser: ContestManager, scope: TaskAtPath) -> PutBack
 )
 async def get_task(organiser: TaskObserver) -> tasks.TaskState:
     """The head, the latest publication, and when the head is a draft, the
-    errors that keep it from publishing, worked out again on every read.
+    errors that keep it from publishing, worked out again on every read;
+    and whether the task's results are released, with every release and
+    take-back, who and when.
     """
     return await tasks.state(organiser, tasks.task_id_of(organiser.scope))
+
+
+@router.post(
+    f"{TASK}/results/release",
+    operation_id="releaseTaskResults",
+    summary="Release a task's results",
+    response_model=Results,
+)
+async def release_task_results(
+    organiser: TaskManager, body: ResultsRequest
+) -> results.ResultsState:
+    """From now on every entrant is shown what the task's `show` lists under
+    `on_release`, and gradings made from now on run those runs early. Without
+    `confirm`, nothing changes and the answer is `confirmation_required`
+    with `action` `release` and, as its detail, what becomes visible, to
+    whom, and that it can be taken back. A task already released answers as
+    it stands. A task with no publication is `not_found`. The answer is
+    read once the release has landed.
+    """
+    task = tasks.task_id_of(organiser.scope)
+    await results.release(organiser, task, confirmed=body.confirm)
+    return await results.state(organiser, task)
+
+
+@router.post(
+    f"{TASK}/results/hide",
+    operation_id="hideTaskResults",
+    summary="Take a release of a task's results back",
+    response_model=Results,
+)
+async def hide_task_results(organiser: TaskManager, body: ResultsRequest) -> results.ResultsState:
+    """From now on the task works as if it had never been released: what
+    `on_release` lists is hidden again, gradings made from now on keep its
+    runs late, and an extension is allowed again. Without `confirm`, nothing
+    changes and the answer is `confirmation_required` with `action`
+    `hide_again` and the warning as its detail: "Entrants may already have
+    seen these results; hiding them again won't undo that." A task not
+    released answers as it stands. The answer is read once the take-back
+    has landed.
+    """
+    task = tasks.task_id_of(organiser.scope)
+    await results.hide_again(organiser, task, confirmed=body.confirm)
+    return await results.state(organiser, task)
 
 
 @router.get(
@@ -160,25 +209,26 @@ async def get_task_release(session: CurrentSession, scope: TaskAtPath) -> releas
     response_model=list[Publication],
 )
 async def list_task_publications(organiser: TaskObserver) -> tuple[publications.Publication, ...]:
-    return await publications.list(organiser, tasks.task_id_of(organiser.scope))
+    return await publications.list_publications(organiser, tasks.task_id_of(organiser.scope))
 
 
 @router.get(
     f"{TASK}/workflow-form",
     operation_id="getTaskWorkflowForm",
-    summary="The inputs and test fields of the workflow the task names",
+    summary="The inputs of the workflow the task names",
 )
 async def get_task_workflow_form(organiser: TaskObserver) -> publications.WorkflowForm:
     """The workflow `task.yaml` names as it is saved now, a draft included,
-    with each input it declares and each field every test has, in the
-    workflow's order. A workflow declares no defaults; a contestant input's
-    `default` is the task's own. A `task.yaml` that is missing or does not
-    read, names no workflow or one that cannot be read answers with
-    `problem`, the reason, and no inputs, so the form can mend it. Either
-    way `graded` says whether the task has a graded submission, from when
-    on a save refuses a test group it adds without its `show`, and `newer`
-    names the workflow's latest version when it comes after the one the
-    task names, which the task keeps until it is saved naming another.
+    with each input it declares, in the workflow's order. A workflow
+    declares no defaults; an entrant input's `default` is the task's own. A
+    `task.yaml` that is missing or does not read, names no workflow or one
+    that cannot be read answers with `problem`, the reason, and no inputs,
+    so the form can mend it. Either way `graded` says whether the task has a
+    graded submission, and `newer` names the workflow's latest version when
+    it comes after the one the task names, which the task keeps until it is
+    saved naming another. `text_values` names the values that give text, in
+    the file's order, null when the settings cannot be read; a workflow
+    output stays a number.
     """
     return await publications.workflow_form(organiser, tasks.task_id_of(organiser.scope))
 

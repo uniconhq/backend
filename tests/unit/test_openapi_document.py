@@ -77,8 +77,7 @@ def test_a_field_the_frontend_switches_on_lists_its_values(document: dict[str, A
     ]
 
 
-def test_a_tasks_timeline_says_one_default_worth(document: dict[str, Any]) -> None:
-    said = " ".join(document["components"]["schemas"]["Timeline"]["description"].split())
+def test_a_tasks_timeline_gives_no_worth_or_late_share(document: dict[str, Any]) -> None:
+    timeline = document["components"]["schemas"]["Timeline"]
 
-    assert "`worth`, the most points it gives, its groups' total unless the entry says" in said
-    assert "100" not in said
+    assert set(timeline["properties"]) == {"release_at", "due", "closes"}

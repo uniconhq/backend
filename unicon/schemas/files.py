@@ -172,9 +172,9 @@ class RollbackFile(BaseModel):
 
 class Written(BaseModel):
     """A contest's file written: the version the change made, and, for
-    `contest.yaml`, each board's `notes` on the tasks it covers, such as one
+    `contest.yaml`, each leaderboard's `notes` on the tasks it covers, such as one
     that counts nothing from a task, the notes the organisers' reading of
-    the boards carries beside each.
+    the leaderboards carries beside each.
     """
 
     version: str

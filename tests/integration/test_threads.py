@@ -233,6 +233,7 @@ async def test_the_stream_writes_each_nudge_as_an_event_named_by_its_kind() -> N
     async def nudges() -> AsyncIterator[Nudge | None]:
         yield None
         yield Nudge(NudgeKind.GRADING, "0192f4a4-7b7e-7000-8000-000000000001")
+        yield Nudge(NudgeKind.CHECKS, "acme/spring/sum#2")
 
     written = [chunk async for chunk in _events(nudges())]
 
@@ -240,6 +241,7 @@ async def test_the_stream_writes_each_nudge_as_an_event_named_by_its_kind() -> N
         "retry: 5000\n\n",
         ": still here\n\n",
         "event: grading\ndata: 0192f4a4-7b7e-7000-8000-000000000001\n\n",
+        "event: checks\ndata: acme/spring/sum#2\n\n",
     ]
 
 

@@ -25,7 +25,7 @@ async def _submit(client: httpx.AsyncClient, forge: FakeForge, key: str) -> str:
         json={
             "idempotency_key": key,
             "inputs": {
-                "submission": {"uploads": [made["id"]]},
+                "code": {"uploads": [made["id"]]},
                 "language": {"value": "python"},
             },
         },
@@ -40,7 +40,7 @@ async def test_a_delayed_submission_retried_without_room_ends_over_the_limit(
     client: httpx.AsyncClient, entered: FakeForge, clock: FakeClock
 ) -> None:
     await sign_in_as(client, entered, 7)
-    await edit_task(client, "test_groups:", "submissions: {max: 1}\ntest_groups:")
+    await edit_task(client, "scoring:", "submissions: {max: 1}\nscoring:")
     await sign_in_as(client, entered, 20)
     first = await _submit(client, entered, "key-0001-aaaa")
     clock.advance(STUCK)
@@ -65,9 +65,4 @@ async def test_a_delayed_submission_retried_without_room_ends_over_the_limit(
         1,
     )
     shown = mine.json()["grading"]
-    assert (shown["status"], shown["limit"], shown["groups"], shown["points"]) == (
-        "over_limit",
-        1,
-        [],
-        None,
-    )
+    assert (shown["status"], shown["limit"], shown["runs"]) == ("over_limit", 1, [])
