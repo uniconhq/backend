@@ -26,9 +26,10 @@ from forge.api.workflows import (
     WorkflowSummary,
     WorkflowView,
 )
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from unicon.schemas.exact import Exact
+from unicon.schemas.publications import FileChange
 
 
 class CreateWorkflow(BaseModel):
@@ -81,15 +82,17 @@ class WorkflowItem(BaseModel):
 
 class Definition(BaseModel):
     """A `workflow.yaml` as text, and the token a save of it carries back:
-    none for one that is not there yet.
+    none for one that is not there yet. `revision` names the saved repository,
+    including its files, for publishing exactly that save.
     """
 
     content: str
     token: str | None
+    revision: str | None = None
 
     @classmethod
     def of(cls, draft: Draft) -> Self:
-        return cls(content=draft.text, token=draft.token)
+        return cls(content=draft.text, token=draft.token, revision=draft.revision)
 
 
 class WorkflowPage(WorkflowItem):
@@ -113,11 +116,21 @@ class WorkflowPage(WorkflowItem):
 
 class SaveDefinition(BaseModel):
     """A draft to write over the one read with `token`, or to create when
-    the token is none. Whatever it holds saves, problems and all.
+    the token is none. `changes` writes its own files in the same commit.
+    Whatever it holds saves, problems and all.
     """
 
     content: str
     token: str | None
+
+    changes: list[FileChange] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _one_change_per_path(self) -> Self:
+        paths = [change.path for change in self.changes]
+        if len(set(paths)) != len(paths):
+            raise ValueError("Each file can appear only once in a save.")
+        return self
 
 
 class VersionContent(BaseModel):
@@ -130,11 +143,12 @@ class CreateVersion(BaseModel):
     """A name to freeze the saved draft under, `v` and a whole number from
     1 with no leading zero, such as `v1` or `v10`, and the token
     the caller saved it with, so the version is of that save; with none, of
-    whatever is saved now.
+    whatever is saved now. `revision` also checks that the files have not moved.
     """
 
     version: str
     token: str | None = None
+    revision: str | None = None
 
 
 class Version(BaseModel):

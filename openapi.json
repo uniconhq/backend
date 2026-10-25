@@ -1233,8 +1233,19 @@
         "type": "object"
       },
       "CreateVersion": {
-        "description": "A name to freeze the saved draft under, `v` and a whole number from\n1 with no leading zero, such as `v1` or `v10`, and the token\nthe caller saved it with, so the version is of that save; with none, of\nwhatever is saved now.",
+        "description": "A name to freeze the saved draft under, `v` and a whole number from\n1 with no leading zero, such as `v1` or `v10`, and the token\nthe caller saved it with, so the version is of that save; with none, of\nwhatever is saved now. `revision` also checks that the files have not moved.",
         "properties": {
+          "revision": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revision"
+          },
           "token": {
             "anyOf": [
               {
@@ -1352,11 +1363,22 @@
         "type": "object"
       },
       "Definition": {
-        "description": "A `workflow.yaml` as text, and the token a save of it carries back:\nnone for one that is not there yet.",
+        "description": "A `workflow.yaml` as text, and the token a save of it carries back:\nnone for one that is not there yet. `revision` names the saved repository,\nincluding its files, for publishing exactly that save.",
         "properties": {
           "content": {
             "title": "Content",
             "type": "string"
+          },
+          "revision": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revision"
           },
           "token": {
             "anyOf": [
@@ -1372,7 +1394,8 @@
         },
         "required": [
           "content",
-          "token"
+          "token",
+          "revision"
         ],
         "title": "Definition",
         "type": "object"
@@ -6040,8 +6063,15 @@
         "type": "object"
       },
       "SaveDefinition": {
-        "description": "A draft to write over the one read with `token`, or to create when\nthe token is none. Whatever it holds saves, problems and all.",
+        "description": "A draft to write over the one read with `token`, or to create when\nthe token is none. `changes` writes its own files in the same commit.\nWhatever it holds saves, problems and all.",
         "properties": {
+          "changes": {
+            "items": {
+              "$ref": "#/components/schemas/FileChange"
+            },
+            "title": "Changes",
+            "type": "array"
+          },
           "content": {
             "title": "Content",
             "type": "string"
@@ -17410,7 +17440,7 @@
     },
     "/api/v1/workflows/{owner}/{name}/draft": {
       "put": {
-        "description": "Write `workflow.yaml` as the caller over the one read with `token`,\nproblems and all. `conflict` when it has changed since.",
+        "description": "Write `workflow.yaml` and the file changes together, problems and all.\nEach file carries its token; a conflict writes nothing.",
         "operationId": "saveWorkflow",
         "parameters": [
           {
@@ -17469,6 +17499,70 @@
           }
         },
         "summary": "Save the draft",
+        "tags": [
+          "workflows"
+        ]
+      }
+    },
+    "/api/v1/workflows/{owner}/{name}/files/{path}": {
+      "get": {
+        "operationId": "getWorkflowFile",
+        "parameters": [
+          {
+            "description": "An org's name or a person's username",
+            "in": "path",
+            "name": "owner",
+            "required": true,
+            "schema": {
+              "description": "An org's name or a person's username",
+              "title": "Owner",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The workflow's name under its owner",
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "description": "The workflow's name under its owner",
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "path",
+            "required": true,
+            "schema": {
+              "title": "Path",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileContent"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "One saved file of the draft",
         "tags": [
           "workflows"
         ]
@@ -17589,6 +17683,207 @@
           }
         },
         "summary": "Share it with a person",
+        "tags": [
+          "workflows"
+        ]
+      }
+    },
+    "/api/v1/workflows/{owner}/{name}/tree": {
+      "get": {
+        "description": "Read as the owner or an org manager; uploads carry their size and digest.",
+        "operationId": "listWorkflowFiles",
+        "parameters": [
+          {
+            "description": "An org's name or a person's username",
+            "in": "path",
+            "name": "owner",
+            "required": true,
+            "schema": {
+              "description": "An org's name or a person's username",
+              "title": "Owner",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The workflow's name under its owner",
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "description": "The workflow's name under its owner",
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "path",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Path",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TreeEntry"
+                  },
+                  "title": "Response Listworkflowfiles",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "The draft's files and folders",
+        "tags": [
+          "workflows"
+        ]
+      }
+    },
+    "/api/v1/workflows/{owner}/{name}/uploads": {
+      "post": {
+        "description": "The same upload door as a task's files. The draft save puts the upload at its path.",
+        "operationId": "requestWorkflowFileUploadSlot",
+        "parameters": [
+          {
+            "description": "An org's name or a person's username",
+            "in": "path",
+            "name": "owner",
+            "required": true,
+            "schema": {
+              "description": "An org's name or a person's username",
+              "title": "Owner",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The workflow's name under its owner",
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "description": "The workflow's name under its owner",
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TaskFileUploadRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Slot"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Upload a file into the workflow",
+        "tags": [
+          "workflows"
+        ]
+      }
+    },
+    "/api/v1/workflows/{owner}/{name}/uploads/{upload}/complete": {
+      "post": {
+        "operationId": "completeWorkflowFileUpload",
+        "parameters": [
+          {
+            "description": "An org's name or a person's username",
+            "in": "path",
+            "name": "owner",
+            "required": true,
+            "schema": {
+              "description": "An org's name or a person's username",
+              "title": "Owner",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The workflow's name under its owner",
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "description": "The workflow's name under its owner",
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "upload",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Upload",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Upload"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Say a workflow file has arrived",
         "tags": [
           "workflows"
         ]

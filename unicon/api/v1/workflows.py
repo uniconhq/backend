@@ -14,13 +14,17 @@ YAML path in `errors`, the same shape check answers with. A problem inside
 a box may carry `step`, the flat step it belongs to.
 """
 
+import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Path, status
-from forge.api import workflows
-from forge.api.types import ConflictToken
+from forge.api import uploads, workflows
+from forge.api.files import TreeEntry
+from forge.api.types import ConflictToken, Edit, VersionId
 
 from unicon.api.deps import CurrentSession
+from unicon.schemas.files import FileContent, token_of
+from unicon.schemas.uploads import TaskFileUploadRequest, Upload, UploadSlot
 from unicon.schemas.workflows import (
     CheckDefinition,
     Checked,
@@ -114,11 +118,78 @@ async def get_workflow(session: CurrentSession, owner: Owner, name: Name) -> Wor
 async def save_workflow(
     session: CurrentSession, owner: Owner, name: Name, body: SaveDefinition
 ) -> Definition:
-    """Write `workflow.yaml` as the caller over the one read with `token`,
-    problems and all. `conflict` when it has changed since.
+    """Write `workflow.yaml` and the file changes together, problems and all.
+    Each file carries its token; a conflict writes nothing.
     """
     token = ConflictToken(body.token) if body.token is not None else None
-    return Definition.of(await workflows.save(session, owner, name, body.content, token))
+    return Definition.of(
+        await workflows.save(
+            session,
+            owner,
+            name,
+            body.content,
+            token,
+            changes={
+                change.path: Edit(change.edit_content(), token_of(change.token))
+                for change in body.changes
+            },
+        )
+    )
+
+
+@router.get(
+    f"{WORKFLOW}/tree", operation_id="listWorkflowFiles", summary="The draft's files and folders"
+)
+async def list_workflow_files(
+    session: CurrentSession, owner: Owner, name: Name, path: str = ""
+) -> tuple[TreeEntry, ...]:
+    """Read as the owner or an org manager; uploads carry their size and digest."""
+    return await workflows.files(session, owner, name, path)
+
+
+@router.get(
+    f"{WORKFLOW}/files/{{path:path}}",
+    operation_id="getWorkflowFile",
+    summary="One saved file of the draft",
+)
+async def get_workflow_file(
+    session: CurrentSession, owner: Owner, name: Name, path: str
+) -> FileContent:
+    return FileContent.of(await workflows.read_file(session, owner, name, path))
+
+
+@router.post(
+    f"{WORKFLOW}/uploads",
+    operation_id="requestWorkflowFileUploadSlot",
+    summary="Upload a file into the workflow",
+    status_code=CREATED,
+    response_model=UploadSlot,
+)
+async def request_workflow_file_upload_slot(
+    session: CurrentSession, owner: Owner, name: Name, body: TaskFileUploadRequest
+) -> uploads.Slot:
+    """The same upload door as a task's files. The draft save puts the upload at its path."""
+    return await workflows.file_slot(
+        session,
+        owner,
+        name,
+        path=body.path,
+        size=body.size,
+        sha256=body.sha256,
+        content_type=body.content_type,
+    )
+
+
+@router.post(
+    f"{WORKFLOW}/uploads/{{upload}}/complete",
+    operation_id="completeWorkflowFileUpload",
+    summary="Say a workflow file has arrived",
+    response_model=Upload,
+)
+async def complete_workflow_file_upload(
+    session: CurrentSession, owner: Owner, name: Name, upload: uuid.UUID
+) -> uploads.Upload:
+    return await workflows.complete_file(session, owner, name, upload)
 
 
 @router.post(
@@ -138,7 +209,10 @@ async def create_workflow_version(
     a whole number from 1.
     """
     token = ConflictToken(body.token) if body.token is not None else None
-    made = await workflows.create_version(session, owner, name, body.version, token)
+    revision = VersionId(body.revision) if body.revision is not None else None
+    made = await workflows.create_version(
+        session, owner, name, body.version, token, revision=revision
+    )
     return Version(version=made)
 
 
