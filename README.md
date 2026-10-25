@@ -80,13 +80,14 @@ the cookie is first-party.
 
 `OriginCheck` refuses any state-changing request whose `Origin`, or the
 origin of its `Referer`, is not the public URL, whether or not it carries a
-session. That and `SameSite=Lax` are the whole CSRF story. Three doors a
-machine calls with no browser behind it are let through, each admitted by
-what it carries rather than where it came from: forge's `EVENTS_PATH`
-followed by an org's key, where the forge pushes events under a signature;
-the CI's configuration extension at forge's `CI_CONFIG_PATH`, under the
-CI's signature; and a grading run's callback at `CALLBACK_PATH` with one
-grading's id, under the run's token.
+session. That and `SameSite=Lax` are the whole CSRF story. Three kinds of
+door a machine calls with no browser behind it are let through, each
+admitted by what it carries rather than where it came from: forge's
+`EVENTS_PATH` followed by an org's key, where the forge pushes events
+under a signature; the CI's configuration extension at forge's
+`CI_CONFIG_PATH`, under the CI's signature; and a step's report, upload
+list and done, at `STEP_PATH`, `UPLOADS_PATH` and `DONE_PATH` with one
+grading's id and one step's name, under the step's token.
 
 `GET /api/v1/me` returns the caller's identity as `user` and their `roles`
 at every scope, each with the `names` of where it is held.
@@ -166,10 +167,10 @@ the one the route needs at the scope in the third column.
 | `GET <contest>/tasks` | observer | contest | | the tasks by name |
 | `GET <contest>/organise/tasks` | observer | contest | | the tasks the contest lists, in its order, each with its letter, state and timeline, whether it is withdrawn, its submissions and what taking it out would do |
 | `POST <task>/take-out` | manager | contest | `confirmed`, `remove` or `withdraw` | `done`, what was done |
-| `POST <task>/put-back` | manager | contest | | the boards' `notes` |
+| `POST <task>/put-back` | manager | contest | | the leaderboards' `notes` |
 | `GET <task>` | observer | task | | the task's state |
-| `GET <task>/publications` | observer | task | | the publications, oldest first, each with the `meanings` of the values its workflow reports |
-| `GET <task>/workflow-form` | observer | task | | the inputs and test fields of the workflow the task names, or the `problem`, and whether the task is `graded` |
+| `GET <task>/publications` | observer | task | | the publications, oldest first, each with where its save's `check` stands |
+| `GET <task>/workflow-form` | observer | task | | the inputs of the workflow the task names, or the `problem`, and whether the task is `graded` |
 | `GET <task>/release` | a session | | | whether the caller sees the task and may submit to it now, or 404 when the contest is hidden from them |
 | `GET <contest>/organise/entrants` | observer | contest | | every entrant, the earliest registered first, with its members and the invites into it |
 | `POST <contest>/organise/entrants/{entrant_id}/approve` | manager | contest | | the entrant |
@@ -196,12 +197,12 @@ the one the route needs at the scope in the third column.
 | `PUT <place>/files/{path}` | manager | place | `encoding`, `content` or, at a task, `upload`, `token`, `message`, `confirm`, `asked`, `keep_as_draft` | `version` and `notes` at a contest, the save's result at a task |
 | `POST <place>/files/{path}/rollback` | manager | place | `version`, `token`, `message`, `confirm`, `asked`, `keep_as_draft` | as a write |
 | `GET <task>/gradings?limit=` | observer | task | | the task's gradings, newest first, each as the feed gives it |
-| `GET <task>/gradings/{grading}/log` | observer | task | | the grading's run log, as plain text |
 | `GET <task>/organise/submissions/{number}?entrant=` | observer | task | | a row's submission as the row reads it, with everything filled in |
 | `POST <task>/gradings/{grading}/cancel` | manager | task | `reason` | the grading, `cancelled` with its `cancel_reason` |
 | `POST <task>/gradings/{grading}/retry` | manager | task | | the new attempt, `queued` |
 | `POST <task>/rejudge` | manager | task | | what the rejudge did, and the `regrade` it is kept as |
 | `POST <task>/regrades/{regrade}/dismiss` | manager | task | | 204; the regrade's summary leaves the contest's page |
+| `GET <task>/regrades/{regrade}` | manager | task | | a regrade by each value and verdict it changed, old to new |
 | `GET <contest>/gradings?task=&user=&entrant=&status=&latest=&regrade=&change=&limit=` | a role at the contest or at one of its tasks | contest | | the gradings of the tasks the caller observes, newest first, each with its `task`, `label` and `by`; with `regrade`, that regrade's, each with its `change` |
 | `GET <contest>/gradings/queue` | a role at the contest or at one of its tasks | contest | | how many of theirs are `queued` and `dispatched`, and how many `failed` and wait |
 | `GET <contest>/gradings/regrades` | a role at the contest or at one of its tasks | contest | | each task's latest regrade of many the caller observes, summed up by what it changed |
@@ -327,9 +328,9 @@ it lists is not published or its statement is not written among them, each
 such task at `state` ("A · sum: its statement is not written yet."), and
 a manager's change to one of its
 admin-only keys is `admin_only`, naming each. A contest's file written
-answers its `version` and `notes`, what each board reports of the tasks it
+answers its `version` and `notes`, what each leaderboard reports of the tasks it
 covers at that save, such as one that counts nothing from a task: the same
-notes the organisers' reading carries beside each board, and none for any
+notes the organisers' reading carries beside each leaderboard, and none for any
 other file. A rollback writes the file as
 it was at an older version back as a new change, so the history stays
 whole. The platform alone writes a contest's and a task's files at the
@@ -381,9 +382,8 @@ the forge itself does not check what opening needs.
 its tasks from: every task the contest's `tasks` lists, in that order, each
 with its `task` by name, its `label`, the letter of its place, its `state`
 as `GET <task>` gives it, and its `timeline` from its entry, each time at
-its default where the entry gives none: `worth`, null on a task that gives
-no points or has no publication, `release_at`, `due` and `late_per_day`,
-both null on a task with no due, and `closes`; `withdrawn`, whether it is
+its default where the entry gives none: `release_at`, `due`, null on a
+task with no due, and `closes`; `withdrawn`, whether it is
 withdrawn from the contest; `submissions`, how many it has, any entrant's;
 and `take_out`, what taking it out would do, `remove` while it has none and
 `withdraw` once it has, null while it is withdrawn. A withdrawn task keeps
@@ -405,24 +405,24 @@ it would now do the other, someone having submitted since the dialog
 opened, it is `take_out_changed`, a 409 carrying `submissions` and
 `take_out` as they are now; a leaderboard naming a task to be removed, or
 settings that cannot be edited line by line, is `take_out_refused`, a 409,
-with the `boards` that name it. `POST <task>/put-back` takes `withdrawn` out
+with the `leaderboards` that name it. `POST <task>/put-back` takes `withdrawn` out
 of the entry again, checked as a save of the contest's settings is, an
 entry that cannot be edited line by line being `take_out_refused`, and
-answers the boards' `notes` as that save does; after it the task scores
+answers the leaderboards' `notes` as that save does; after it the task scores
 exactly as before. Withdrawing a withdrawn task, or putting back one that
 is not, changes nothing.
 
 `GET <task>/workflow-form` is what the form over `task.yaml` is built from,
 for an observer of the task: the `workflow` the task names as it is saved
-now, a draft included, its `inputs`, each with its `id`, `type`, whether
-the `contestant` gives it, its `options`, `per_test` and `optional`, and its
-`test` fields, each with its `name`, `type` and `options`, in the
-workflow's order. A workflow declares no defaults; a contestant input's
+now, a draft included, its `inputs`, each with its `id`, `type`, its
+`options` and `optional`, and the `title`, `help` and `unit` the workflow
+gives it, in the workflow's order. Who gives an input, and whether it
+repeats, are the task's, so the form reads each as given once by the task
+until it says. A workflow declares no defaults; an entrant input's
 `default` is the task's own. A `task.yaml` that is missing or does not
 read, names no workflow, or names one that cannot be read answers with
 `problem`, the reason, and no inputs, so the form can still mend it.
-Either way `graded` says whether the task has a graded submission, from
-when on a save refuses a test group it adds without its `show`, and
+Either way `graded` says whether the task has a graded submission, and
 `newer` names the workflow's version with the largest number when it is
 larger than the one the task names, a tag under any other name never; the
 task keeps grading with its own until it is saved
@@ -442,12 +442,12 @@ or neither, and a contest's file takes no upload (`validation_error`). A
 change of `POST <task>/save` may instead remove its file: `{"path", "token",
 "remove": true}`, with the token the file was read with and no content or
 upload (`validation_error` otherwise), a moved token being `conflict` as an
-edit's is. Removing a folder, such as a test `tests/<group>/<test>/`, is
-removing each file under it, named one by one, in the same save as any
-files it is replaced by; the state left is checked as any other, so a
-group left with no test or a file an input names removed keeps the save as
-a draft with its errors, and the publication names each removed test file
-among its `changes`. An upload that is not the caller's for that task and
+edit's is. Removing a folder, such as `tests/` with the cases a `repeat`
+reads, is removing each file under it, named one by one, in the same save
+as any files it is replaced by; the state left is checked as any other, so
+a file the task still names removed keeps the save as a draft with its
+errors, and the publication's `changes` say which runs and which files a
+step was given are gone. An upload that is not the caller's for that task and
 path is
 `invalid_inputs`, naming the path, and one whose bytes have not arrived
 `upload_not_ready`. A file that is an upload is listed by the tree and read
@@ -461,8 +461,7 @@ tree gives each file of at most 1 KB that is text (valid UTF-8, no NUL)
 its `start`, its first 80 characters, the whole file when its UTF-8
 length is the `size`, and an empty start for an empty file; a larger
 file, one that is not text, and an upload, whose pointer is never shown,
-have a null `start`. A task's `public/` lists empty until its first
-file. A task's file, typed or uploaded,
+have a null `start`. A task's file, typed or uploaded,
 is downloaded at that version through the proxy's download door,
 `/-/downloads/<org>/<contest>/<task>/versions/<version>/<path>`, each
 segment of the path quoted on its own, by whoever holds a role reaching the
@@ -501,7 +500,7 @@ in the contest they enter:
 | `GET <task>/page` | | a released task's statement, its submission caps and the form of its inputs |
 | `GET <contest>/home/announcements` | | the open announcements of the contest and of each task released to the caller |
 | `GET <task>/page/announcements` | | the open announcements of a released task |
-| `GET <task>/public/{path}` | | a file under the task's `public/`, as its bytes; no session needed, below |
+| `GET <task>/public/{path}` | | a file under the task's `public/` that its `show` lists, as its bytes; no session needed, below |
 | `POST <contest>/questions` | `title`, `body`, `task` | 201, the question, asked privately |
 | `GET <contest>/questions` | | the caller's own questions, with every message |
 | `POST <contest>/questions/{number}/comments` | `body` | the question, opened again when it was answered |
@@ -530,34 +529,20 @@ carries the contest `where` it is, its title as `name`, its dates and
 `state`, the caller's panel as `registration`, whether the caller
 `organises` the contest and so may not enter it, `now`, the server's clock
 when it was read, and the `tasks` released to them, each
-with its `name`, `label`, `title`, `worth`, the most points it gives or
-null, its `release`, when it falls `due`, null when it has none, and
-`closes` for the caller, their entrant's extension on it included, and,
-for a member of an approved entrant, its `points`: one entry for each
-leaderboard the entrant sees, in the order of the home's `boards`, which
-names them as the contest's file lists them, so a page draws a column per
-board under one header row. Each entry carries its `board`, whether it
-`covers` the task (the page reads "—" where it does not), and, where it
-does, `points`, their entrant's points on the task as that board counts
-it now (its `over`, `select` and `order`, the same number as the board's
-own row): `shown` over the scope's groups whose results are shown, 0
-while the board's cell does not count, null while the board shows
-nothing of the task yet, `pending`, the most the scope's groups not shown
-yet could still add, and `pending_until`, the task's reveal, null when
-nothing is pending; and `most`, the most the board can count from the
-task. Every number is an exact decimal string; `points` and `most` are
-null on a task that gives no points. For anyone else, `boards` and each
-task's `points` are empty, and the page reads the task's `worth`. A group
-whose results are not shown yet never counts in `shown`, as on every
-board. A task's page
+with its `name`, `label`, `title`, its `release`, when it falls `due`,
+null when it has none, and `closes` for the caller, their entrant's
+extension on it included; and, for a member of an approved entrant, its
+`standing`: their own row on each leaderboard they read, as that leaderboard
+shows it to them, so the home shows no number a leaderboard holds back. Anyone
+else gets no standing. A task's page
 carries the same, its `statement` in Markdown, its `submissions`: at most
 `max` in all and `rate.count` in any `rate.per` seconds, and its `inputs`,
 the form the submit panel is built from: each input's `id`, `type`
 (`text`, `number`, `boolean`, `enum`, `file` or `folder`), `label` (the
-task's, else the workflow's title for the input, else its key), the
-`options` of an enum, whether it takes one file `per_test`, the `default` a
-value takes when it is left out, `min` and `max` of a number, and
-`max_size`, the most its files may total in bytes.
+task's, else its key), the `options` of an enum, the `default` a value
+takes when it is left out, `min` and `max` of a number, `max_size`, the
+most its files may total in bytes, and, on an input given once per tuple,
+its `parts`.
 For a contest the caller may not see, the home answers 404, the same as for
 one that is not there, and so does the page of a task that is not visible to
 them; the panel's `entrant` reads null wherever they are in none.
@@ -593,10 +578,11 @@ the few others that need none are the sign-in's own, the server's clock, the
 health checks, the machines' doors and a task's public files, and a test
 lists them all.
 
-A task's public files, the ones under its `public/` such as a statement's
-images, are read at `GET <task>/public/{path}`, `path` being the file's path
-under `public/`, as the task's latest publication holds it, never a draft
-saved after it. It reads the session when there is one and answers without:
+A task's public files, the ones under its `public/` that its `show` lists,
+such as a statement's images, are read at `GET <task>/public/{path}`,
+`path` being the file's path under `public/`, each from the time `show`
+lists it under, as the task's latest publication holds it, never a draft
+saved after it; a file `show` does not list is `not_found`. It reads the session when there is one and answers without:
 a visitor, or a caller whose session has ended, reads it where the
 statement is public; a signed-in caller where they read the task's page;
 and a caller holding a role at the task, its contest or its org, whether or
@@ -622,7 +608,7 @@ a session and no role; `<task>` is the task's prefix.
 
 | Route | Body | Answer |
 |---|---|---|
-| `POST <task>/uploads` | `input`, `filename`, `size`, `sha256`, `content_type` | 201, a slot |
+| `POST <task>/uploads` | `input`, `filename`, `size`, `sha256`, `content_type`, `part` | 201, a slot |
 | `POST <task>/uploads/{upload}/complete` | | the upload |
 | `POST <task>/submissions` | `idempotency_key`, `inputs` | 201, the submission |
 | `GET <task>/submissions` | | the caller's own, newest first |
@@ -631,9 +617,8 @@ a session and no role; `<task>` is the task's prefix.
 
 A file never passes through this process. The browser asks for a slot for
 one file of a contestant `file` or `folder` input, declaring where it goes
-under the input as its `filename`, one name for a file input, a path for a
-folder input and `<group>/<test>` with or without an ending for an input
-that takes a file per test, and its `size` and `sha256`, and the
+under the input as its `filename`, one name for a file input and a path for
+a folder input, and its `size` and `sha256`, and the
 slot's `url` is the proxy's upload door, `/-/uploads/<id>`, good until
 `expires_at`; a slot that is `ready` is for a file the forge holds already,
 and nothing is sent. The browser PUTs the file there, and the proxy, having
@@ -646,7 +631,9 @@ else's is not found.
 
 A submit names, for each of the task's contestant inputs by id, the
 `uploads` of its files, or the `value` of a text, number, true-or-false or
-enum input, the language of a program being an enum input of its own; a
+enum input, the language of a program being an enum input of its own, or,
+for an input given once per tuple, its `parts`, each by number with its
+`uploads` or `value`, the slot of each of its files naming its `part`; a
 number is the text of its plain decimal digits, `2.5`, as every number is
 served, and forge refuses one that is not (`1e3`, `0x10`, `NaN`, empty, or
 past the input's bounds, checked exactly) as `invalid_inputs`, while a JSON
@@ -654,41 +641,20 @@ number in its place is a `validation_error`. It comes with
 an `idempotency_key` the browser makes once per submit, 8 to 128 letters,
 digits, `-` and `_`; a value left out takes its default. The same key sent
 again answers with the submission it made and makes nothing. A submission
-carries its `number`, `submitted_at`, `late_days`, how many started days
-after the caller's due it was made, and its `grading`, the attempt that
-counts, as the boards count it: the latest that finished with a result,
+carries its `number`, `submitted_at` and its `grading`, the attempt that
+counts, as the leaderboards count it: the latest that finished with a result,
 so a regrade under way, a failure or a cancel leaves the result as it was,
 and while none has, the latest. It comes
-with its `id`, `attempt` and `status`, and once it is `done`, what the
-task's test groups let the contestant see now: what `stopped` the run, the
-`outcome` over the groups shown, the `values` reported once, and each of
-the `groups` with its `group` name, its `show`, its
-`outcome` and its `tests`, each test's row being its `test`, `<group>/<test>`, its `outcome`
-and its `values`; `meanings`, every value the workflow reports, in its
-order, each `{name, title, unit, better}`, the title and unit being
-the words a page names it by ("Run time", "ms"), null where the workflow
-gives none so the page falls back to `name`, a value a sealed step holds
-back left out until the reveal; and `boards`, its line on each leaderboard
-the reader sees that covers the task, in the contest's order: the
-`board`, its `over`, its `numbers` on every key but penalty as that board
-reads them, each `{by, fold, title, unit, value}` (a value folded over the
-tests shown as the board's key says, a test that was not accepted having
-no value for it, so a wrong answer has no time), `pending`, the most the
-scope's hidden groups could still add, `shown_at`, the reveal while the
-scope shows nothing yet, and `counted`, whether the row's cell on that
-board counts this submission now. On a task that gives points, the grading carries its
-`points`, those `shown`, null while no group's verdict is shown yet,
-those `pending` on groups not shown yet and
-`pending_until`, and the late `factor` they include; each group its `max`,
-and its `points` once its verdict is shown; each test row its `credit`,
-and `best` on a relative credit. Every number is served exactly, as a
+with its `id`, `attempt` and `status`, and what the task's `show` lets the
+contestant see now: `run_values`, each value of its scoring shown, worked
+out on every read; `runs`, each run shown, by the group `show` lists it in
+and its place there, with its `verdict`, `passed`, the numbers its steps
+reported and its texts; `once`, what its steps done once reported that
+`show` lists, the compile log among them; `compiled`; and `reveal_at`,
+when the task reveals, until then. Every number is served exactly, as a
 string of plain decimal digits, to 30 significant digits when it is no
-decimal, and `values` come split into `numbers` and `texts`, so text that
-looks like a number stays text. A group shown `always` carries everything; `verdict` its
-outcome, and its tests from the task's reveal; `after_close` its name and,
-as `shown_at`, when the rest is shown. A group with `ran` false did not
-run on this grading: it has no outcome, no tests and nothing held back,
-and the outcome over the groups leaves it out. What is not shown is null. A
+decimal, and a value that gives text gives it as `text`, so text that
+looks like a number stays text. What is not shown is null. A
 grading's `status` is in the contestant's words, `queued`, `grading`,
 `graded`, `delayed`, `over_limit` or `cancelled`, as `TASK-FORMAT.md`
 section 1.7 has them; the gradings routes give organisers the grading's own
@@ -704,12 +670,14 @@ are not delayed, with the delayed ones made before it, are fewer than the
 task's `max`, so the first `max` to get a result count; otherwise it is
 `over_limit`, with `limit`, the `max` it reached, and nothing else ("Not
 graded: you had reached the limit of 10 submissions for this task."),
-counted on no board and against nothing; `limit` is null on every other
+counted on no leaderboard and against nothing; `limit` is null on every other
 status. A submission that has a result keeps it, whatever its later
-attempts read as. An outcome is one of the runner's list, and a value a number
+attempts read as. A verdict is one of the runner's list, and a value a number
 or text. The route renders what forge gives it and nothing more. The files
 route answers each input's `files`, by their paths in the submission, or
-its `value`, a number as its exact digits.
+its `value`, a number as its exact digits; an input given in parts has its
+`parts` instead, by number from `"1"`, only the parts given, each with its
+own `files` or `value`, and `parts` is null on any other input.
 A file itself is downloaded through the proxy's download door,
 `/-/downloads/<org>/<contest>/<task>/<number>/<path>` (a task's own files go
 through the same door at `.../<task>/versions/<version>/<path>`), which asks this
@@ -729,42 +697,42 @@ with the `limit` in bytes and the `input` whose limit it is; `upload_not_yours` 
 each of its `errors` naming its `input`, and `invalid_idempotency_key` as
 422.
 
-## Boards and marks
+## Leaderboards and marks
 
-A contest's boards are computed by forge on each read, the same ranking for
-every reader, cut to the rows the board's `rows` gives them.
+A contest's leaderboards are worked out by forge on each read, for each reader:
+staff read every leaderboard, row and cell with no hold; the members of an
+approved entrant read `entrants` leaderboards with their row as their own; and
+anyone, with no cookie too, reads `everyone` leaderboards.
 
 | Route | Who | Answer |
 |---|---|---|
-| `GET /api/v1/public/contests/{org}/{contest}/boards` | anyone, no cookie | the boards for `everyone` |
-| `GET /api/v1/public/contests/{org}/{contest}/boards/{board}` | anyone, no cookie | one of them |
-| `GET <contest>/boards` | a session | the boards the caller's audience sees |
-| `GET <contest>/boards/{board}` | a session | one of them |
-| `GET <contest>/organise/boards?entrant=` | observer at the contest | every board, `now` and `final`, with its `notes` |
+| `GET /api/v1/public/contests/{org}/{contest}/leaderboards` | anyone, no cookie | the leaderboards for `everyone` |
+| `GET /api/v1/public/contests/{org}/{contest}/leaderboards/{leaderboard}` | anyone, no cookie | one of them |
+| `GET <contest>/leaderboards` | a session | the leaderboards the caller reads, each as they read it |
+| `GET <contest>/leaderboards/{leaderboard}` | a session | one of them |
+| `GET <contest>/hold` | observer at the contest | where the hold stands |
+| `POST <contest>/hold/end` | manager at the contest | the hold, ended early |
 | `GET <task>/marks` | a session | the marks the caller's row holds on the task |
 | `PUT <task>/marks/{number}` | a session | the marks, with the submission marked |
 | `DELETE <task>/marks/{number}` | a session | the marks, with its mark taken off |
 
-A board carries its `board` name, `over`, `select` and `who`, its `keys`,
-each `{by, better, per_attempt, title, unit, fold}`, a value's `title` and
-`unit` naming its column as the first covered task gives them and its
-`fold` (`sum`, `mean` or `max`) how the board combines it across each
-task's tests, written `{by: time_ms, fold: max}` in the contest's file, the `tasks` it covers, each `{id,
-label, worth}`, `not_in_view`, what of a task is in its scope and not yet
-in its numbers, with when it joins, and its `rows` in rank order. A row
-carries its `rank`, shared by ties, whose it is as `row`, `{entrant, name}`,
-its number on each key in `keys`, and its `cells` by task name,
-each with `counting`, its `numbers` by key, and `attempts`; only the
-reader's own row carries `grading`, how many of its submissions are not
-graded yet, and `submissions`, the numbers it counts. Every number is an
-exact decimal string. A board whose scope shows nothing yet has no rows
-and its `shown_at`. A board the reader may not see is not found.
-Organisers read `now`, every row, or, given an entrant's id as `entrant`,
-`now` as that row sees it; `final`, as after every reveal; and `notes`,
-what the board asks of its tasks that does not hold.
+A leaderboard carries its `key` and `title`, its `audience`, `{who, rows}`,
+the `headers` of the columns listed to the caller, each with its `name`,
+`places`, bounds and the values a contestant could set it by, its `sort`
+keys and those `dropped` for the caller, `held_from`, when the hold
+holds other rows from, and its `rows` in order. A row carries its
+`place`, shared by rows equal on every sort key, whose it is as `row`,
+`{entrant, name}`, its listed `cells`, each with its `column`, `number`
+and `hidden`, `held`, how many of its submissions the hold keeps from
+the caller, and, on the caller's own row and for staff, `grading`, how
+many of its submissions still grade, each cell's `counted` and `waiting`
+submissions, and whether it is `hidden`: on any other row `hidden` is
+false, so a cell with no number reads the same whether it is hidden,
+waiting or missing. Every number is an exact decimal string. A leaderboard the
+reader may not see is not found.
 
 A row, an entrant, marks up to the task's `marks` of its own
-submissions for the `marked` boards, until its close on the task. Marks
+submissions for the `marked` leaderboards, until its close on the task. Marks
 carry the `numbers` marked, the `most`, `closes_at` and whether they are
 `frozen`. Marking twice or unmarking what is not marked changes nothing. A
 task with no marks is `marks_off` and one more than it takes is
@@ -780,8 +748,8 @@ username, or the name of an org where they hold the manager role or above,
 and forge decides which. The answer is 201 with the workflow's `owner` and
 `name`, never its id at the forge, which is built from an org's key. The
 workflow is private, and its first commit, a `workflow.yaml` named
-`<owner>/<name>` with the inputs, test fields, steps and report of
-`unicon/classic@v2`, is the caller's. An
+`<owner>/<name>` holding `unicon/classic@v3`'s files but its README, is
+the caller's. An
 observer of the org, a person with no role there, an org that is not there
 and another person's username are all `forbidden`, in the same words, so the
 answer tells nobody which orgs exist. A name that breaks the rules, or a
@@ -804,9 +772,9 @@ is `not_found`, in the same words as one that is not there.
 | `PUT /workflows/{owner}/{name}/visibility` | `private`, `shared` or `public`, 204; private and public empty the list of readers |
 | `PUT /workflows/{owner}/{name}/readers/{username}` | share it with a person; `conflict` while it is public |
 | `DELETE /workflows/{owner}/{name}/readers/{username}` | take their read away, 204 |
-| `POST /workflows/check` | every problem a version of `content` would be refused for, each with its `path` and `message`; nothing is written |
+| `POST /workflows/check` | every problem a version of `content` would be refused for, each with its `path`, `message` and, inside a box, `step`; given `owner` and `name`, a draft that would hold that workflow is refused; nothing is written |
 | `POST /workflow-copies` | a new private workflow under `owner` from `source`, `<owner>/<name>@<version>`, 201 |
-| `POST /workflow-combinations` | a new private workflow under `owner` inlining two or more `sources`, 201; one source is `rejected` |
+| `GET /workflows/{owner}/{name}/versions/{version}/box` | the version's inputs and outputs for drawing it as a box, read as the caller; `run` false for a workflow of the test format |
 | `GET /primitives` | every primitive at every version, its `ref` what a step's `use:` names, with `batch`, `network`, `limits`, `limits_from` and its `inputs` and `outputs`, each port's `type`, `options`, `optional`, `runs`, `secret` and `description`, and on the `outcome` port `outcomes`, each outcome the step can report with a line saying when, null when the primitive does not say; a version the platform no longer reads has `problem` instead |
 
 ## The event door
@@ -856,7 +824,7 @@ buffering off.
 
 ## The grading run's doors
 
-A grading run calls three routes with no session, and each hands forge the
+A grading run calls these routes with no session, and each hands forge the
 request as it arrived, since what admits it is over its exact bytes; a body
 is read raw and only up to a bound, refused past it as `payload_too_large`
 the way the event door refuses one.
@@ -871,28 +839,21 @@ gives. A request that does not verify, names no grading, or names one not
 being started with its variables is `ci_request_refused`, never an empty
 answer, and a CI that never asks is answered `not_found`.
 
-`GET /api/v1/gradings/{grading}/envelope?key=` serves the envelope the
-harness fetches as the run begins, for the envelope key the URL carries,
-once, while the grading is dispatched; a wrong key is `not_found`, and a
-second fetch, a grading the CI holds no run of, or one whose deadline has
-passed, `grading_closed`. It carries the run's callback token,
-so it is answered `Cache-Control: no-store`.
-
-`POST /api/v1/gradings/{grading}/callback` takes a run's report, `started`,
-`progress` or `finished` with the result, at most 4 MiB, handing the
-`Authorization` header and the raw body to `runs.callback`, and answers the
-grading's `status` after it. A missing or wrong bearer token is
-`invalid_token`, a body that is no report `invalid_callback`, and a grading
-that takes no reports now `grading_closed`. The same result sent again is
-answered the same. Forge reads the body itself, every number exactly as the
-run wrote it. `grading_closed` is a 410: a grading that has finished,
-or whose run has ended, never takes an envelope or a report again.
-`invalid_callback` is a 422
-like every other body that does not fit. The harness stops reporting at a
-401, 403, 404, 409 or 410 and sends a result again only after a 5xx or a
-429, so each of these refusals ends a run's reporting and none is retried.
-The request log never records the query or a header, so neither the key nor
-the token reaches it.
+Each Woodpecker step of a pipeline calls its own door, forge's `STEP_PATH`, with
+`Authorization: Bearer <token>`, the step's own token, which each route
+hands forge as it arrived with the raw body. `GET` on the door is the
+step's job, answered as forge writes it, or 204 when nothing is left for
+the step to do, which the step's wrapper ends on with success. `POST` on
+the door, from the pipeline's report step only, at most 64 KiB, builds the
+result and finishes the grading, answering its `status`. `POST
+.../uploads`, at most 16 MiB, ten thousand paths, answers a presigned PUT
+per file listed; `POST .../done`, at most 64 KiB, answers 204; and `GET
+.../files/{sha256}` serves a file the step's job names as its bytes. The
+job, the links and the files are answered `Cache-Control: no-store`. A
+missing or wrong token, or one no longer working, is `invalid_token`, a
+grading that has finished `grading_closed`, and a body that does not fit
+`invalid_callback`. The request log never records a header, so the token
+never reaches it.
 
 An organiser managing a task ends a submission whose grading is a system
 error by cancelling it, when a regrade would only repeat the fault, retries
@@ -905,11 +866,10 @@ checks the role again at the grading's own task. A grading carries its
 `id`, the `submission_number` and `submitted_at`, the `publication`,
 `attempt`, `latest`, whether that is its submission's latest attempt, the
 one staff cancel or retry, worked out over every attempt of it, `status`, `error`, the line for staff, `cancel_reason`, the
-sentence staff cancelled it with, the `result` (what `stopped` the run, every
-test's row in `tests`, the `values` reported once and the `error` it stopped
-on), whether there is a `log`,
-`progress` (the `step` last reported and how many of its containers are
-`done` of the `total`) and its times. A cancel takes a body, `reason`, the
+sentence staff cancelled it with, the `result` (its pipeline's `runs`, each
+with its verdict and reports, what the steps done once reported, what staff
+alone see and the `error` for staff), its `pipeline`, `early` or `late`,
+and its times. A cancel takes a body, `reason`, the
 sentence the contestant reads, trimmed, of 1 to 500 characters
 (`invalid_reason` otherwise), and cancels the latest attempt of a
 submission that reads as `system_error`, stored or because its run is
@@ -924,8 +884,9 @@ retried once by the platform itself, started by whatever finds it so, the
 CI's report or any read that finds it overdue or lost (one whose run could
 not be started waits a minute, for the first read after); that attempt is
 `automatic`, and a failure of it waits for staff, who retry as often as
-they like. Of a submission's attempts the latest that finished with a
-result counts, on the boards, to its contestant and against the task's
+they like. A retry or a rejudge against the same publication reuses what
+the steps of the attempt before it did, so it may end at once. Of a submission's attempts the latest that finished with a
+result counts, on the leaderboards, to its contestant and against the task's
 `max`, until a newer attempt finishes with one: a failure or a cancel never
 takes a result away, and a cancel voids only a submission that never had
 one. A latest attempt that has not finished with a result carries
@@ -940,23 +901,16 @@ it, so the retry's confirmation can say so before it runs. `GET <task>/gradings`
 the feed below does, with its task's name and label and who submitted it. A rejudge answers the
 `publication` it grades against and how many attempts it `queued`,
 `cancelled` first and `left_running`, and how many delayed submissions it
-ended `over_limit`. A run's log names every test, hidden
-ones too, so no contestant reads it. An observer of the task reads a
-grading's log as `text/plain; charset=utf-8`, with `X-Content-Type-Options:
-nosniff` and `Content-Security-Policy: default-src 'none'; sandbox`, so the
-browser neither guesses its type nor runs anything in it. A grading with no
-log is `not_found`, and a log larger than the 9 MiB read back is
-`log_too_large`, a 409 with the `limit` in bytes.
+ended `over_limit`.
 
 Beside a grading, an observer of the task reads its submission as its row
 reads it, with everything filled in (`TASK-FORMAT.md` section 1.7): `GET
 <task>/organise/submissions/{number}` with the row's `entrant`, and a row
 with no such submission `not_found`. It is the contestant's own payload, scored and shown by the
-same code as once the task has revealed: every group's outcome, tests and
-points and every value a sealed step reported, its points all shown and
-none pending. Each group's `shown_at` is kept as a note of when the row is
-shown it, null once it sees the group's tests, and `status` is the
-grading's own (`OrganisedResult`).
+same code as once the task has revealed: every value and run at once, each
+value with when it shows and what it read, each run with its `id`, and
+`facts`, `seconds_late`, `seconds` and `compiled` as the values read them;
+`status` is the grading's own (`OrganisedResult`).
 
 Anyone holding a role at a contest or at any of its tasks reads the
 gradings of the tasks they observe as one feed, `GET <contest>/gradings`,
@@ -996,28 +950,34 @@ reads, each task's latest regrade, newest first, until a newer one of the
 task replaces it or a manager of the task dismisses it for everyone with
 `POST <task>/regrades/{regrade}/dismiss` (204; a regrade of another task
 is `not_found`), so the contest's page and the gradings page can say
-"Regrade of A: 120 graded · 4 went down · 2 now fail to compile · 1 went
-up". Each summary has its `id`, its `task` by name and `label`, its `cause`,
+"Regrade of A: 120 graded". Each summary has its `id`, its `task` by name and `label`, its `cause`,
 `rejudge` or `save`, the `publication` its attempts grade against,
 `started_at`, `started_by` and `started_by_name`, how many submissions it
 took (`total`) and `graded` (finished with a result), whether any is still
-`running`, and `counts`, how many of each change: `up` and `down`, its
-points went up or down (on a task that gives no points, a larger or smaller
-share of its tests accepted, then the values its boards rank, each folded
-as its board folds it, any worse reading as down); `stopped`, it now stops before its tests where the
-result it replaced did not, on the classic workflow "now fails to compile";
-`unchanged`; `new`, graded with nothing to compare with; `running`;
-`failed`, no result yet, a system error or cancelled; and `over_limit`.
+`running`, and `counts`, how many of each change: `regraded`, graded with
+a result to set beside it; `new`, graded with nothing to set beside it;
+`running`; `failed`, no result yet, a system error or cancelled; and
+`over_limit`.
 The feed with `regrade=<id>` lists that regrade's gradings, one per
 submission, its latest attempt of the regrade, each with `change`: the
-`change`, `earlier`, the result that counted when the regrade began, and
-`now`, its own, each with its `attempt`, `points` (exact, null on a task
-that gives no points), `accepted` of `tests`, what `stopped` it and its
-`values`, each `{by, fold, value}`, every value a board covering the task
-ranks as that board folds it, so the earlier and new points read side by
-side; `change=` narrows them to one kind, and `user` and `entrant` narrow
+`change`, `earlier`, the attempt whose result counted when the regrade
+began, null when none had, and `now`, its own attempt, null while it has no
+result, so the earlier and new read side by side; `change=` narrows them to one kind, and `user` and `entrant` narrow
 as ever, while `task`, `status` and `latest` are not read with it. `change`
 without `regrade` gives no rows.
+
+A regrade has no direction per value: up and down are a row's
+place on a leaderboard. `GET <task>/regrades/{regrade}`, for a manager of the
+task, reads it by what it changed, worked out on read and stored nowhere:
+`total`, how many are still `running` and how many `failed` with no
+result, and `changed`, each submission whose values or verdicts moved, in
+the order they were made, with its latest attempt of the regrade
+(`grading`), its `number`, each value `before` and `after` (exact, null
+where it had none or waits, `waiting` after) and each run's verdict
+`before` and `after`. `leaderboards`, each leaderboard that reads the task before and
+after, is given to a manager or admin of the contest alone, null for
+anyone else, and empty until leaderboards read the task's values. A
+regrade of another task is `not_found`.
 
 ## Operator commands
 
@@ -1049,7 +1009,7 @@ nowhere else:
 |---|---|
 | `not_found`, `upload_not_yours` | 404 |
 | `forbidden`, `ci_request_refused`, `fresh_sign_in_required`, `origin_mismatch`, `admin_only`, `reserved_path`, `registration_closed`, `is_staff`, `invite_required`, `wrong_invite_code`, `domain_not_allowed`, `roster_locked`, `task_closed`, `task_withdrawn`, `archived`, `not_approved`, `marks_frozen` | 403 |
-| `conflict`, `sole_admin`, `contestant_conflict`, `shared_workflow_owner`, `confirmation_required`, `already_registered`, `contest_full`, `already_invited`, `no_invite_way`, `entrants_alone`, `entrant_name_taken`, `entrant_full`, `in_entrant`, `entrant_incomplete`, `entrant_has_submissions`, `entrant_changed`, `wrong_status`, `submission_limit`, `upload_not_ready`, `upload_limit`, `marks_off`, `mark_limit`, `log_too_large`, `public_file_too_large`, `take_out_changed`, `take_out_refused` | 409 |
+| `conflict`, `sole_admin`, `contestant_conflict`, `shared_workflow_owner`, `confirmation_required`, `already_registered`, `contest_full`, `already_invited`, `no_invite_way`, `entrants_alone`, `entrant_name_taken`, `entrant_full`, `in_entrant`, `entrant_incomplete`, `entrant_has_submissions`, `entrant_changed`, `wrong_status`, `submission_limit`, `upload_not_ready`, `upload_limit`, `marks_off`, `mark_limit`, `public_file_too_large`, `take_out_changed`, `take_out_refused` | 409 |
 | `grading_closed`, `invite_expired` | 410 |
 | `payload_too_large`, `too_large` | 413 |
 | `rate_limited`, `invite_limit` | 429, with `Retry-After` |
@@ -1065,7 +1025,7 @@ nowhere else:
 `workflows`, `admin_only` carries `keys`, `reserved_path` carries `paths`,
 `confirmation_required` carries `changes`, `regrades`, `results_change`,
 `summary`, `runs_again`, `scores`, `reading` and `asked`, `take_out_changed`
-carries `submissions` and `take_out`, `take_out_refused` carries `boards`
+carries `submissions` and `take_out`, `take_out_refused` carries `leaderboards`
 when a leaderboard names the task, `already_invited` carries `invite`,
 the one held already, `invalid_definition` carries
 `errors`, each `{"path", "message"}`, `invalid_path` carries `path`,
@@ -1115,8 +1075,11 @@ the fake with, and run the app over the same migrated Postgres, in-memory
 forge and setup the package tests itself with, held by `held_setup`; they
 create and drop a database of their own on the server the URL names and are
 skipped without it. A contestant is made with the kit's
-`register_contestant`. The openapi diff fails when a response changed and nobody
-regenerated the document.
+`register_contestant`. A grading is run the way the CI's machines run it:
+the fake CI asks the platform what each pipeline it starts is, and the
+tests run each step through its door, its job, what it wrote put by the
+links the door gives, its done, and the pipeline's report. The openapi diff
+fails when a response changed and nobody regenerated the document.
 
 The `forge` package comes from one release, named in `[tool.uv.sources]`
 and locked to the wheel's hash in `uv.lock`, so a change in that repository

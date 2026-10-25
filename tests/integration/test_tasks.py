@@ -5,10 +5,17 @@ not found. An observer of the contest reads its tasks in its order, each with
 its letter, where it stands and its timeline from its entry, a failed save's
 errors included, and settings that do not read are told with their errors;
 and an observer of a task reads the form of the workflow it names, or why
-there is none, and whether the task has a graded submission.
+there is none, and whether the task has a graded submission; and a
+refused publication lists each check that refused it.
 """
 
+from datetime import UTC, datetime
+from typing import Any
+
 import httpx
+import pytest
+from forge.api import publications
+from forge.api.types import PublicationId, VersionId
 from forge.testing import FakeForge, Setup
 
 from tests.integration.conftest import CONTEST, ORG, ORIGIN, TASK, publish, read, sign_in
@@ -76,16 +83,13 @@ async def test_the_contests_tasks_stand_with_their_publication_and_timeline(
         [],
     )
     assert row["timeline"] == {
-        "worth": None,
         "release_at": "2026-10-03T12:00:00Z",
         "due": None,
-        "late_per_day": None,
         "closes": "2026-10-03T17:00:00Z",
     }
     (row,) = published.json()
     assert (row["state"]["latest"]["number"], row["state"]["draft"]) == (1, False)
     assert row["state"]["statement_written"] is True
-    assert row["timeline"]["worth"] == "100"
 
 
 async def test_a_tasks_entry_sets_its_timeline_and_a_failed_save_shows_its_errors(
@@ -93,7 +97,7 @@ async def test_a_tasks_entry_sets_its_timeline_and_a_failed_save_shows_its_error
 ) -> None:
     await publish(client)
     settings = await read(client, f"{CONTEST}/files/contest.yaml")
-    entry = "  - id: sum\n    due: 2026-10-03T16:00:00Z\n    late_per_day: 0.25\n    worth: 50\n"
+    entry = "  - id: sum\n    due: 2026-10-03T16:00:00Z\n"
     written = await client.put(
         f"{CONTEST}/files/contest.yaml",
         json={
@@ -114,10 +118,8 @@ async def test_a_tasks_entry_sets_its_timeline_and_a_failed_save_shows_its_error
     assert written.status_code == 200, written.text
     assert broken.json()["errors"], broken.text
     assert row["timeline"] == {
-        "worth": "50",
         "release_at": "2026-10-03T12:00:00Z",
         "due": "2026-10-03T16:00:00Z",
-        "late_per_day": "0.25",
         "closes": "2026-10-03T17:00:00Z",
     }
     assert (row["state"]["latest"]["number"], row["state"]["draft"]) == (1, True)
@@ -137,7 +139,7 @@ async def test_settings_that_do_not_read_are_told_with_their_errors(
     assert "start" in {error["path"] for error in refused.json()["errors"]}
 
 
-async def test_the_workflow_form_gives_the_inputs_and_test_fields_the_task_names(
+async def test_the_workflow_form_gives_the_inputs_of_the_workflow_the_task_names(
     client: httpx.AsyncClient, sum_task: FakeForge
 ) -> None:
     form = await client.get(FORM)
@@ -145,26 +147,24 @@ async def test_the_workflow_form_gives_the_inputs_and_test_fields_the_task_names
     assert form.status_code == 200, form.text
     body = form.json()
     assert (body["workflow"], body["problem"], body["graded"]) == (
-        "unicon/classic@v2",
+        "unicon/classic@v3",
         None,
         False,
     )
-    assert [(found["id"], found["contestant"]) for found in body["inputs"]] == [
-        ("submission", True),
-        ("language", True),
-        ("time_limit", False),
-        ("memory_limit", False),
+    assert [(found["id"], found["type"]) for found in body["inputs"]] == [
+        ("code", "folder"),
+        ("language", "enum"),
+        ("input", "file"),
+        ("answer", "file"),
+        ("time_limit", "number"),
+        ("memory_limit", "number"),
     ]
     language = body["inputs"][1]
-    assert (language["type"], language["options"]) == ("enum", ["c", "cpp", "java", "python"])
-    assert (language["per_test"], language["optional"]) == (False, False)
-    time_limit = body["inputs"][2]
+    assert (language["options"], language["optional"]) == (["c", "cpp", "java", "python"], False)
+    time_limit = body["inputs"][4]
     assert (time_limit["title"], time_limit["unit"]) == ("Time limit", "seconds")
-    assert time_limit["help"] == "The CPU time the program may use on each test."
-    assert body["test"] == [
-        {"name": "input", "type": "file", "options": None},
-        {"name": "answer", "type": "file", "options": None},
-    ]
+    assert sorted(body) == ["graded", "inputs", "newer", "problem", "text_values", "workflow"]
+    assert body["text_values"] == []
 
 
 async def test_a_task_naming_no_workflow_gets_a_form_saying_why(
@@ -174,7 +174,7 @@ async def test_a_task_naming_no_workflow_gets_a_form_saying_why(
     await client.put(
         f"{TASK}/files/task.yaml",
         json={
-            "content": task["content"].replace("workflow: unicon/classic@v2\n", ""),
+            "content": task["content"].replace("workflow: unicon/classic@v3\n", ""),
             "token": task["token"],
         },
         headers=ORIGIN,
@@ -183,7 +183,7 @@ async def test_a_task_naming_no_workflow_gets_a_form_saying_why(
     form = await client.get(FORM)
 
     assert form.status_code == 200, form.text
-    assert (form.json()["workflow"], form.json()["inputs"], form.json()["test"]) == (None, [], [])
+    assert (form.json()["workflow"], form.json()["inputs"]) == (None, [])
     assert form.json()["problem"]
 
 
@@ -192,3 +192,53 @@ async def test_a_contestant_reads_neither_the_standings_nor_the_form(
 ) -> None:
     for refused in (await client.get(STANDINGS), await client.get(FORM)):
         assert (refused.status_code, refused.json()["code"]) == (403, "forbidden")
+
+
+async def test_a_refused_publication_lists_each_check_that_refused_it(
+    client: httpx.AsyncClient, sum_task: FakeForge, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run = publications.CheckRun("r4", {"input": "tests/4.in"}, "wrong_answer", {"time_ms": 12})
+    failed = publications.FailedCheck(
+        index=1,
+        failing=("The run r4 got wrong_answer, not accepted.", "total is 40, not 100."),
+        runs=(run,),
+        outcomes={"compile": "accepted"},
+        values={},
+        error=None,
+    )
+    refused = publications.Publication(
+        id=PublicationId("acme/spring/sum#2"),
+        number=2,
+        version=VersionId("c" * 40),
+        grading_changed=False,
+        changes=(),
+        at=datetime(2026, 9, 26, 12, 0, tzinfo=UTC),
+        check="refused",
+        failed_checks=(failed,),
+    )
+
+    async def listed(organiser: Any, task: str) -> tuple[publications.Publication, ...]:
+        return (refused,)
+
+    monkeypatch.setattr(publications, "list_publications", listed)
+
+    [answer] = (await client.get(f"{TASK}/publications")).json()
+
+    assert answer["check"] == "refused"
+    assert answer["failed_checks"] == [
+        {
+            "index": 1,
+            "failing": ["The run r4 got wrong_answer, not accepted.", "total is 40, not 100."],
+            "runs": [
+                {
+                    "id": "r4",
+                    "key": {"input": "tests/4.in"},
+                    "verdict": "wrong_answer",
+                    "reports": {"time_ms": "12"},
+                }
+            ],
+            "outcomes": {"compile": "accepted"},
+            "values": {},
+            "error": None,
+        }
+    ]

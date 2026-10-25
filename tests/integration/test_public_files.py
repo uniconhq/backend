@@ -1,12 +1,13 @@
-"""A task's public files over HTTP, the files under its `public/` a statement
-shows, such as its images. Each is answered as its bytes, typed by its
-ending, never sniffed, kept by the reader's browser alone and asked again
-each time by its tag, so a picture replaced shows at once, and an SVG
-under a policy that runs no script. A visitor reads them where the
+"""A task's public files over HTTP, the files under its `public/` that its
+`show` lists, such as a statement's images. Each is answered as its bytes,
+typed by its ending, never sniffed, kept by the reader's browser alone and
+asked again each time by its tag, so a picture replaced shows at once, and
+an SVG under a policy that runs no script. A visitor reads them where the
 statement is public, a signed-in person where they read the task's page,
 and an organiser of the task before it is released; anyone else, a path
-outside `public/` and a file that is not there are all not found, and a
-file larger than a page is served is refused with its limit.
+outside `public/`, a file `show` does not list and a file that is not
+there are all not found, and a file larger than a page is served is
+refused with its limit.
 """
 
 import base64
@@ -16,13 +17,16 @@ import httpx
 import pytest
 from forge.testing import FakeForge
 
-from tests.integration.conftest import ORIGIN, TASK, run_contest, sign_in_as
+from tests.integration.conftest import ORIGIN, TASK, read, run_contest, run_pipelines, sign_in_as
 from unicon.api.cookies import SESSION_COOKIE
 
 PNG = b"\x89PNG\r\n\x1a\n not really a picture"
 SVG = '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>\n'
 PUBLIC = f"{TASK}/public"
 MOST = 10 * 1024 * 1024
+SHOWN = ("    now: [score, all, public/]\n", "    now: [score, all]\n")
+"""The starter's `show`, `public/` shown from the start, and the same without
+it."""
 
 
 def _typed(path: str, content: str) -> dict[str, Any]:
@@ -34,14 +38,19 @@ def _binary(path: str, content: bytes) -> dict[str, Any]:
     return {"path": path, "encoding": "base64", "content": encoded, "token": None}
 
 
-async def _publish_public(client: httpx.AsyncClient) -> None:
-    """acme/spring/sum published with its public files, saved by ada and
-    confirmed, since a save asks first once the contest has started.
+async def _publish_public(client: httpx.AsyncClient, *, shown: bool = True) -> None:
+    """acme/spring/sum published with its public files, its `show` listing
+    `public/` unless not `shown`, saved by ada and confirmed, since a save
+    asks first once the contest has started, and its check run.
     """
+    task = await read(client, f"{TASK}/files/task.yaml")
+    assert SHOWN[0] in task["content"]
+    settings = task["content"] if shown else task["content"].replace(*SHOWN)
     saved = await client.post(
         f"{TASK}/save",
         json={
             "changes": [
+                {**_typed("task.yaml", settings), "token": task["token"]},
                 _binary("public/figure.png", PNG),
                 _binary("public/Photo.JPG", PNG),
                 _typed("public/diagram.svg", SVG),
@@ -52,6 +61,7 @@ async def _publish_public(client: httpx.AsyncClient) -> None:
         headers=ORIGIN,
     )
     assert saved.status_code == 200 and "number" in saved.json(), saved.text
+    await run_pipelines(client, pipelines=("save",))
 
 
 @pytest.fixture
@@ -124,7 +134,7 @@ async def test_an_svg_opened_on_its_own_runs_no_script(
 
 @pytest.mark.parametrize(
     "path",
-    ["missing.png", "data", "%2E%2E/task.yaml", "%2E%2E/tests/main/1/input", "a//b.png", ""],
+    ["missing.png", "data", "%2E%2E/task.yaml", "%2E%2E/tests/1.in", "a//b.png", ""],
 )
 async def test_a_path_outside_public_or_not_there_is_not_found_and_says_nothing_more(
     client: httpx.AsyncClient, public: FakeForge, path: str
@@ -136,6 +146,18 @@ async def test_a_path_outside_public_or_not_there_is_not_found_and_says_nothing_
     assert body["code"] == "not_found"
     assert body["detail"] == "There is no such file."
     assert "acme" not in found.text and "forge" not in found.text.lower()
+
+
+async def test_a_file_under_public_the_task_does_not_show_is_not_found(
+    client: httpx.AsyncClient, world: FakeForge
+) -> None:
+    await run_contest(client, visibility="everyone")
+    await _publish_public(client, shown=False)
+    client.cookies.clear()
+
+    found = await client.get(f"{PUBLIC}/figure.png")
+
+    assert (found.status_code, found.json()["code"]) == (404, "not_found")
 
 
 async def test_a_contest_for_the_signed_in_shows_its_files_to_them_and_not_to_a_visitor(

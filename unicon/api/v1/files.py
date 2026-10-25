@@ -11,7 +11,7 @@ without a route that names users.
 A write carries the token the file was read with, and one that has moved
 since is answered `conflict` with nothing written. A write to a contest's
 file answers with the version it made and, for `contest.yaml`, the notes its
-boards report, as a task's save answers its own. A write to a task's file is a save
+leaderboards report, as a task's save answers its own. A write to a task's file is a save
 of the task and answers as the save does, with a publication or a draft,
 and may name, in place of content, a file the organiser uploaded for that
 path, whose pointer it writes. A rollback writes the file as it was at an

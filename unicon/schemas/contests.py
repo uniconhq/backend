@@ -3,12 +3,12 @@ goes out as the forge's own `Timeline` says it, its numbers exactly.
 """
 
 from datetime import datetime
+from typing import Literal
 
 from forge.api.contest_home import State
 from forge.api.tasks import TakeOut
 from pydantic import BaseModel
 
-from unicon.schemas.exact import Exact
 from unicon.schemas.publications import DefinitionError, Publication
 
 
@@ -43,6 +43,37 @@ class CreateTask(BaseModel):
     title: str | None = None
 
 
+class ResultsAction(BaseModel):
+    """One staff action on a task's results: `released` or `hidden_again`,
+    by whom, by user id and `by_name`, their username, null when the forge
+    does not say, and when.
+    """
+
+    action: Literal["released", "hidden_again"]
+    by: int
+    by_name: str | None
+    at: datetime
+
+
+class Results(BaseModel):
+    """Where a task's results stand: whether they are released now, showing
+    every entrant what the task's `show` lists under `on_release`, and every
+    release and take-back, oldest first.
+    """
+
+    released: bool
+    history: list[ResultsAction]
+
+
+class ResultsRequest(BaseModel):
+    """A release of a task's results or a take-back. Without `confirm`
+    nothing changes, and the answer is `confirmation_required` with the
+    words to show.
+    """
+
+    confirm: bool = False
+
+
 class TaskState(BaseModel):
     """Where a task's files stand: the version at their head, the latest
     publication or none, and whether the head is a draft, a state no
@@ -51,7 +82,7 @@ class TaskState(BaseModel):
     it was made. `statement_written` says whether the latest publication
     holds a statement, there, not blank and not the starter's placeholder,
     false when nothing is published, and `head_statement_written` the same
-    of the head.
+    of the head. `results` says where the task's results stand.
     """
 
     head: str
@@ -60,25 +91,19 @@ class TaskState(BaseModel):
     errors: list[DefinitionError]
     statement_written: bool
     head_statement_written: bool
+    results: Results
 
 
 class Timeline(BaseModel):
     """A task's timeline in its contest, from its entry in `contest.yaml`,
-    each at its default where the entry gives none: `worth`, the most
-    points it gives, its groups' total unless the entry says, and none on a
-    task whose latest publication gives no points or that has none;
-    `release_at`, the
+    each at its default where the entry gives none: `release_at`, the
     contest's start unless the entry says; `due`, after which a submission
-    is late, and `late_per_day`, the fraction a started late day takes off,
-    1 unless the entry says, both none on a task with no due; and `closes`,
-    the contest's end unless the entry says. `worth` and `late_per_day` are
-    exact.
+    is late, none unless the entry says; and `closes`, the contest's end
+    unless the entry says.
     """
 
-    worth: Exact | None
     release_at: datetime
     due: datetime | None
-    late_per_day: Exact | None
     closes: datetime
 
 
@@ -86,9 +111,8 @@ class TaskStanding(BaseModel):
     """One task of a contest as its organisers work from it: the task by
     name, its letter by its place in the contest's `tasks`, where its files
     stand as `GET <task>` gives it, and its timeline from its entry, each
-    time at its default where the entry gives none: `worth`, null on a task
-    that gives no points or has no publication, `release_at`, `due` and
-    `late_per_day`, both null on a task with no due, and `closes`.
+    time at its default where the entry gives none: `release_at`, `due`,
+    null on a task with no due, and `closes`.
 
     `withdrawn` says the task is withdrawn from the contest: it keeps its
     place and its letter, entrants do not see it and no leaderboard counts
@@ -124,7 +148,7 @@ class TakenOut(BaseModel):
 
 
 class PutBack(BaseModel):
-    """A withdrawn task put back: what each board reports of its tasks now,
+    """A withdrawn task put back: what each leaderboard reports of its tasks now,
     as a save of the contest's settings answers.
     """
 

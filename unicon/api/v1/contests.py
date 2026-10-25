@@ -45,4 +45,4 @@ async def list_contests(organiser: OrgObserver) -> tuple[Listed, ...]:
     """The contests the forge lets the caller read, by name, each with its
     state and dates.
     """
-    return await contests.list(organiser, OrgId(organiser.scope.org))
+    return await contests.list_contests(organiser, OrgId(organiser.scope.org))

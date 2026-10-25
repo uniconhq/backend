@@ -158,7 +158,7 @@ async def list_entrants(organiser: ContestObserver) -> tuple[entrants.Entrant, .
     """The earliest registered first, each with its members and the way
     each came in by.
     """
-    return await entrants.list(organiser, _contest(organiser))
+    return await entrants.list_entrants(organiser, _contest(organiser))
 
 
 @router.post(

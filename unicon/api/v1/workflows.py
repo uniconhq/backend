@@ -1,8 +1,8 @@
 """Workflows for anyone signed in: making one, the ones they may read, one
 as its page shows it, its definition at a version, saving its draft,
 making a version, checking a definition on its own, its visibility and who
-it is shared with, copying one and combining several; and the platform's
-primitives with their declared ports.
+it is shared with, copying one, and a version's inputs and outputs for
+drawing it as a box; and the platform's primitives with their declared ports.
 
 Every route needs a session and no role: forge decides who may act on a
 workflow, its owner or a manager or admin of the org that owns it, and
@@ -10,20 +10,24 @@ every change is made at the forge as the caller, so the forge's own check
 is underneath. A workflow someone may not read is answered `not_found`, in
 the same words as one that is not there. A draft saves with its problems; a
 version of one is refused `invalid_definition`, with every problem at its
-YAML path in `errors`, the same shape check answers with.
+YAML path in `errors`, the same shape check answers with. A problem inside
+a box may carry `step`, the flat step it belongs to.
 """
 
+import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Path, status
-from forge.api import workflows
-from forge.api.types import ConflictToken
+from forge.api import uploads, workflows
+from forge.api.files import TreeEntry
+from forge.api.types import ConflictToken, Edit, VersionId
 
 from unicon.api.deps import CurrentSession
+from unicon.schemas.files import FileContent, token_of
+from unicon.schemas.uploads import TaskFileUploadRequest, Upload, UploadSlot
 from unicon.schemas.workflows import (
     CheckDefinition,
     Checked,
-    CombineWorkflows,
     CopyWorkflow,
     CreateVersion,
     CreateWorkflow,
@@ -36,6 +40,7 @@ from unicon.schemas.workflows import (
     Version,
     VersionContent,
     Workflow,
+    WorkflowBox,
     WorkflowItem,
     WorkflowPage,
 )
@@ -79,9 +84,10 @@ async def list_workflows(session: CurrentSession) -> list[WorkflowItem]:
 async def check_workflow(session: CurrentSession, body: CheckDefinition) -> Checked:
     """Every problem a version of the definition would be refused for, each
     at its YAML path, against the primitives its steps use as the caller
-    reads them. Nothing is written.
+    reads them. Nothing is written. Given `owner` and `name`, a draft that
+    would hold that workflow is refused, and the problem carries `step`.
     """
-    found = await workflows.check(session, body.content)
+    found = await workflows.check(session, body.content, owner=body.owner, name=body.name)
     return Checked(problems=[DefinitionProblem(**problem) for problem in found])
 
 
@@ -100,21 +106,6 @@ async def copy_workflow(session: CurrentSession, body: CopyWorkflow) -> Workflow
     return Workflow(owner=made.owner, name=made.name)
 
 
-@router.post(
-    "/workflow-combinations",
-    operation_id="combineWorkflows",
-    summary="Combine workflows into one",
-    status_code=CREATED,
-    response_model=Workflow,
-)
-async def combine_workflows(session: CurrentSession, body: CombineWorkflows) -> Workflow:
-    """A new private workflow under `owner` inlining every source, a clash
-    of names taking the first free `-2`, `-3`.
-    """
-    made = await workflows.combine(session, body.sources, body.owner, body.name)
-    return Workflow(owner=made.owner, name=made.name)
-
-
 @router.get(WORKFLOW, operation_id="getWorkflow", summary="A workflow as its page shows it")
 async def get_workflow(session: CurrentSession, owner: Owner, name: Name) -> WorkflowPage:
     """Its visibility, versions and whether the caller may edit it; for one
@@ -127,11 +118,78 @@ async def get_workflow(session: CurrentSession, owner: Owner, name: Name) -> Wor
 async def save_workflow(
     session: CurrentSession, owner: Owner, name: Name, body: SaveDefinition
 ) -> Definition:
-    """Write `workflow.yaml` as the caller over the one read with `token`,
-    problems and all. `conflict` when it has changed since.
+    """Write `workflow.yaml` and the file changes together, problems and all.
+    Each file carries its token; a conflict writes nothing.
     """
     token = ConflictToken(body.token) if body.token is not None else None
-    return Definition.of(await workflows.save(session, owner, name, body.content, token))
+    return Definition.of(
+        await workflows.save(
+            session,
+            owner,
+            name,
+            body.content,
+            token,
+            changes={
+                change.path: Edit(change.edit_content(), token_of(change.token))
+                for change in body.changes
+            },
+        )
+    )
+
+
+@router.get(
+    f"{WORKFLOW}/tree", operation_id="listWorkflowFiles", summary="The draft's files and folders"
+)
+async def list_workflow_files(
+    session: CurrentSession, owner: Owner, name: Name, path: str = ""
+) -> tuple[TreeEntry, ...]:
+    """Read as the owner or an org manager; uploads carry their size and digest."""
+    return await workflows.files(session, owner, name, path)
+
+
+@router.get(
+    f"{WORKFLOW}/files/{{path:path}}",
+    operation_id="getWorkflowFile",
+    summary="One saved file of the draft",
+)
+async def get_workflow_file(
+    session: CurrentSession, owner: Owner, name: Name, path: str
+) -> FileContent:
+    return FileContent.of(await workflows.read_file(session, owner, name, path))
+
+
+@router.post(
+    f"{WORKFLOW}/uploads",
+    operation_id="requestWorkflowFileUploadSlot",
+    summary="Upload a file into the workflow",
+    status_code=CREATED,
+    response_model=UploadSlot,
+)
+async def request_workflow_file_upload_slot(
+    session: CurrentSession, owner: Owner, name: Name, body: TaskFileUploadRequest
+) -> uploads.Slot:
+    """The same upload door as a task's files. The draft save puts the upload at its path."""
+    return await workflows.file_slot(
+        session,
+        owner,
+        name,
+        path=body.path,
+        size=body.size,
+        sha256=body.sha256,
+        content_type=body.content_type,
+    )
+
+
+@router.post(
+    f"{WORKFLOW}/uploads/{{upload}}/complete",
+    operation_id="completeWorkflowFileUpload",
+    summary="Say a workflow file has arrived",
+    response_model=Upload,
+)
+async def complete_workflow_file_upload(
+    session: CurrentSession, owner: Owner, name: Name, upload: uuid.UUID
+) -> uploads.Upload:
+    return await workflows.complete_file(session, owner, name, upload)
 
 
 @router.post(
@@ -145,12 +203,16 @@ async def create_workflow_version(
 ) -> Version:
     """Made only when the saved draft passes every check a version must;
     otherwise `invalid_definition` with every problem in `errors`, and no
-    version made. Given the token the draft was saved with, `conflict` when
+    version made. Each error may carry `step`, the flat step a problem
+    inside a box belongs to. Given the token the draft was saved with, `conflict` when
     someone has saved since; `invalid_name` for a name that is not `v` and
     a whole number from 1.
     """
     token = ConflictToken(body.token) if body.token is not None else None
-    made = await workflows.create_version(session, owner, name, body.version, token)
+    revision = VersionId(body.revision) if body.revision is not None else None
+    made = await workflows.create_version(
+        session, owner, name, body.version, token, revision=revision
+    )
     return Version(version=made)
 
 
@@ -168,6 +230,21 @@ async def get_workflow_version(
     return VersionContent(
         content=await workflows.read_version(session, f"{owner}/{name}@{version}")
     )
+
+
+@router.get(
+    f"{WORKFLOW}/versions/{{version}}/box",
+    operation_id="getWorkflowBox",
+    summary="A version's inputs and outputs, for drawing it as a box",
+)
+async def get_workflow_box(
+    session: CurrentSession, owner: Owner, name: Name, version: str
+) -> WorkflowBox:
+    """Read as the caller: `not_found` when there is no such version or they
+    may not read it, in the same words as the version itself. A workflow of
+    the test format answers `run` false, with both lists empty.
+    """
+    return WorkflowBox.of(await workflows.box(session, f"{owner}/{name}@{version}"))
 
 
 @router.put(

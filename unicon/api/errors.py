@@ -92,7 +92,6 @@ STATUS = {
     "upload_not_yours": 404,
     "upload_not_ready": 409,
     "upload_limit": 409,
-    "log_too_large": 409,
     "public_file_too_large": 409,
     "invalid_inputs": 422,
     "invalid_idempotency_key": 422,
@@ -103,6 +102,7 @@ STATUS = {
     "marks_off": 409,
     "marks_frozen": 403,
     "mark_limit": 409,
+    "invalid_mark": 422,
 }
 INTERNAL = 500
 CLEARS_SESSION = frozenset({"unauthenticated", "session_expired"})

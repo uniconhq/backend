@@ -40,7 +40,7 @@ DIGEST = hashlib.sha256(SOURCE).hexdigest()
 
 def _ask(size: int, digest: str = DIGEST, **fields: object) -> dict[str, object]:
     return {
-        "input": "submission",
+        "input": "code",
         "filename": "main.py",
         "size": size,
         "sha256": digest,
@@ -75,7 +75,7 @@ async def test_a_file_goes_through_the_door_and_is_verified_by_the_forge(
     assert completed.status_code == 200, completed.text
     assert completed.json() == {
         "id": body["id"],
-        "input": "submission",
+        "input": "code",
         "filename": "main.py",
         "content_type": None,
         "size": len(SOURCE),
@@ -218,7 +218,7 @@ async def test_a_slot_the_task_does_not_take_is_refused_with_its_code(
 
     assert (refused.status_code, refused.json()["code"]) == (status, code)
     if code == "too_large":
-        assert (refused.json()["limit"], refused.json()["input"]) == (10 * MIB, "submission")
+        assert (refused.json()["limit"], refused.json()["input"]) == (10 * MIB, "code")
 
 
 async def test_a_person_who_may_not_submit_is_refused_a_slot(
