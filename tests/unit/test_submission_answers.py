@@ -1,9 +1,9 @@
 """What a contestant is answered with is what forge gives and nothing more: a
 grading carries exactly what the task's test groups let through, a group
-that did not run on it marked so, its numbers and its points as exact
-decimal strings, a submission's inputs are read leniently from its
-`submission.json`, and a file's download is named after the file, quoted
-when its name is not plain.
+that did not run on it marked so, a run task's runs as forge shows them,
+its numbers and its points as exact decimal strings, a submission's inputs
+are read leniently from its `submission.json`, and a file's download is
+named after the file, quoted when its name is not plain.
 """
 
 import json
@@ -52,6 +52,7 @@ def test_a_grading_being_run_carries_its_status_alone() -> None:
         "factor": None,
         "limit": None,
         "meanings": [],
+        "runs": [],
     }
 
 
@@ -153,7 +154,34 @@ def test_a_grading_carries_each_group_as_forge_let_it_through() -> None:
         "factor": None,
         "limit": None,
         "meanings": [],
+        "runs": [],
     }
+
+
+def test_a_run_tasks_grading_carries_each_run_with_exact_numbers() -> None:
+    run = {
+        "group": "sample_tests",
+        "place": 1,
+        "key": {"input": "samples/1.in"},
+        "verdict": "accepted",
+        "passed": 1,
+        "reports": {"time_ms": 12, "memory_kb": Decimal("2048")},
+    }
+    result = Result(GRADING, 1, SubmissionState.GRADED, None, None, (), {}, runs=(run,))
+
+    answer = ResultAnswer.model_validate(result, from_attributes=True).model_dump(mode="json")
+
+    assert answer["runs"] == [
+        {
+            "group": "sample_tests",
+            "place": 1,
+            "id": None,
+            "key": {"input": "samples/1.in"},
+            "verdict": "accepted",
+            "passed": 1,
+            "reports": {"time_ms": "12", "memory_kb": "2048"},
+        }
+    ]
 
 
 def test_numbers_are_served_as_exact_decimals_and_text_stays_text() -> None:

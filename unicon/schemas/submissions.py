@@ -83,6 +83,26 @@ class GradedTest(BaseModel):
     best: Exact | None = None
 
 
+class RunShown(BaseModel):
+    """One run of a run task's grading as its entrant sees it: the group
+    `show` lists that shows it, its place in that group from 1 ("Test 3"),
+    its key as the plan gives it, leaving out a file not yet shown, its
+    verdict, `passed`, 1 when that is `accepted`, and the numbers its steps
+    reported, exactly. A run in two groups shown is shown in each. Its
+    texts stay out until an entrant's route reads them. Organisers read
+    every run, under `all` in the task's order, with its `id`, which
+    counts every run of the task; `id` is null for an entrant.
+    """
+
+    group: str
+    place: int
+    id: str | None = None
+    key: dict[str, Any]
+    verdict: Outcome
+    passed: int
+    reports: dict[str, Exact]
+
+
 class GroupShown(BaseModel):
     """One test group as the contestant sees it now: its name, its `show`,
     its outcome once its verdict is shown, its tests once they are, when
@@ -132,6 +152,7 @@ class Scored(BaseModel):
     factor: Exact | None
     limit: int | None
     meanings: list[ValueMeaning]
+    runs: list[RunShown] = []
 
 
 class Result(Scored):
@@ -169,6 +190,13 @@ class Result(Scored):
     its `points` and the late `factor` they include; both are null
     otherwise. While a sealed step's stop is held to the reveal, nothing of
     the run is shown: every group reads as hidden.
+
+    A run task's grading has no groups or values yet, which its scoring
+    makes in a later stage: `runs` holds the runs its entrant is shown,
+    those of the groups `show` lists under `now` from the start, and those
+    under `after_close` once the task reveals; a group under `on_release`
+    shows none yet. After the reveal, while those are still being graded, it
+    is `grading` or `delayed`. `runs` is empty on every other task.
     """
 
     status: SubmissionState
