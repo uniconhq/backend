@@ -5240,6 +5240,81 @@
         "title": "Result",
         "type": "object"
       },
+      "Results": {
+        "description": "Where a task's results stand: whether they are released now, showing\nevery entrant what the task's `show` lists under `on_release`, and every\nrelease and take-back, oldest first.",
+        "properties": {
+          "history": {
+            "items": {
+              "$ref": "#/components/schemas/ResultsAction"
+            },
+            "title": "History",
+            "type": "array"
+          },
+          "released": {
+            "title": "Released",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "released",
+          "history"
+        ],
+        "title": "Results",
+        "type": "object"
+      },
+      "ResultsAction": {
+        "description": "One staff action on a task's results: `released` or `hidden_again`,\nby whom, by user id and `by_name`, their username, null when the forge\ndoes not say, and when.",
+        "properties": {
+          "action": {
+            "enum": [
+              "released",
+              "hidden_again"
+            ],
+            "title": "Action",
+            "type": "string"
+          },
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "by": {
+            "title": "By",
+            "type": "integer"
+          },
+          "by_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "By Name"
+          }
+        },
+        "required": [
+          "action",
+          "by",
+          "by_name",
+          "at"
+        ],
+        "title": "ResultsAction",
+        "type": "object"
+      },
+      "ResultsRequest": {
+        "description": "A release of a task's results or a take-back. Without `confirm`\nnothing changes, and the answer is `confirmation_required` with the\nwords to show.",
+        "properties": {
+          "confirm": {
+            "default": false,
+            "title": "Confirm",
+            "type": "boolean"
+          }
+        },
+        "title": "ResultsRequest",
+        "type": "object"
+      },
       "Role": {
         "enum": [
           "admin",
@@ -6615,7 +6690,7 @@
         "type": "object"
       },
       "TaskState": {
-        "description": "Where a task's files stand: the version at their head, the latest\npublication or none, and whether the head is a draft, a state no\npublication froze. A draft carries the errors that keep it from\npublishing; a draft with none was held back, or has not been saved since\nit was made. `statement_written` says whether the latest publication\nholds a statement, there, not blank and not the starter's placeholder,\nfalse when nothing is published, and `head_statement_written` the same\nof the head.",
+        "description": "Where a task's files stand: the version at their head, the latest\npublication or none, and whether the head is a draft, a state no\npublication froze. A draft carries the errors that keep it from\npublishing; a draft with none was held back, or has not been saved since\nit was made. `statement_written` says whether the latest publication\nholds a statement, there, not blank and not the starter's placeholder,\nfalse when nothing is published, and `head_statement_written` the same\nof the head. `results` says where the task's results stand.",
         "properties": {
           "draft": {
             "title": "Draft",
@@ -6646,6 +6721,9 @@
               }
             ]
           },
+          "results": {
+            "$ref": "#/components/schemas/Results"
+          },
           "statement_written": {
             "title": "Statement Written",
             "type": "boolean"
@@ -6657,7 +6735,8 @@
           "draft",
           "errors",
           "statement_written",
-          "head_statement_written"
+          "head_statement_written",
+          "results"
         ],
         "title": "TaskState",
         "type": "object"
@@ -12207,7 +12286,7 @@
     },
     "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}": {
       "get": {
-        "description": "The head, the latest publication, and when the head is a draft, the\nerrors that keep it from publishing, worked out again on every read.",
+        "description": "The head, the latest publication, and when the head is a draft, the\nerrors that keep it from publishing, worked out again on every read;\nand whether the task's results are released, with every release and\ntake-back, who and when.",
         "operationId": "getTask",
         "parameters": [
           {
@@ -14567,6 +14646,148 @@
           }
         },
         "summary": "Whether the caller sees the task and may submit to it now",
+        "tags": [
+          "tasks"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/results/hide": {
+      "post": {
+        "description": "From now on the task works as if it had never been released: what\n`on_release` lists is hidden again, gradings made from now on keep its\nruns late, and an extension is allowed again. Without `confirm`, nothing\nchanges and the answer is `confirmation_required` with `action`\n`hide_again` and the warning as its detail: \"Entrants may already have\nseen these results; hiding them again won't undo that.\" A task not\nreleased answers as it stands. The answer is read once the take-back\nhas landed.",
+        "operationId": "hideTaskResults",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "task",
+            "required": true,
+            "schema": {
+              "title": "Task",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResultsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Results"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Take a release of a run task's results back",
+        "tags": [
+          "tasks"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/results/release": {
+      "post": {
+        "description": "From now on every entrant is shown what the task's `show` lists under\n`on_release`, and gradings made from now on run those runs early. Without\n`confirm`, nothing changes and the answer is `confirmation_required`\nwith `action` `release` and, as its detail, what becomes visible, to\nwhom, and that it can be taken back. A task already released answers as\nit stands. A task with no publication is `not_found`, and one that does\nnot grade by runs `not_a_run_task`. The answer is read once the release\nhas landed.",
+        "operationId": "releaseTaskResults",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "task",
+            "required": true,
+            "schema": {
+              "title": "Task",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResultsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Results"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Release a run task's results",
         "tags": [
           "tasks"
         ]

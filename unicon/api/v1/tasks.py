@@ -1,11 +1,13 @@
 """Making a task in a contest, listing the contest's tasks, by name or each
 with where it stands and its timeline, where a task's files stand against
 its publications, its publications, the form of the workflow it names, and
-the save, which is how a task is published. Creating needs the manager role
+the save, which is how a task is published, and releasing a run task's
+results or taking a release back. Creating needs the manager role
 at the contest and makes the task before it answers, and the lists the
 observer role there; taking a task out of the contest and putting a
 withdrawn one back need the manager role at the contest. The task's own
-routes need the observer role at the task, and the save the manager role.
+routes need the observer role at the task, and the save, a release and a
+take-back the manager role.
 Whether a task is released to the
 caller needs only a session: it is what a contestant is told, and a contest
 hidden from the caller answers as no such task.
@@ -14,7 +16,7 @@ hidden from the caller answers as no such task.
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, status
-from forge.api import contests, publications, release, tasks
+from forge.api import contests, publications, release, results, tasks
 from forge.api.access import Organiser
 from forge.api.publications import Draft, Published
 from forge.api.types import Edit, Role, ScopeKind
@@ -26,6 +28,8 @@ from unicon.schemas.contests import (
     CreateTask,
     Named,
     PutBack,
+    Results,
+    ResultsRequest,
     TakenOut,
     TakeOutRequest,
     TaskStanding,
@@ -139,9 +143,55 @@ async def put_back_task(organiser: ContestManager, scope: TaskAtPath) -> PutBack
 )
 async def get_task(organiser: TaskObserver) -> tasks.TaskState:
     """The head, the latest publication, and when the head is a draft, the
-    errors that keep it from publishing, worked out again on every read.
+    errors that keep it from publishing, worked out again on every read;
+    and whether the task's results are released, with every release and
+    take-back, who and when.
     """
     return await tasks.state(organiser, tasks.task_id_of(organiser.scope))
+
+
+@router.post(
+    f"{TASK}/results/release",
+    operation_id="releaseTaskResults",
+    summary="Release a run task's results",
+    response_model=Results,
+)
+async def release_task_results(
+    organiser: TaskManager, body: ResultsRequest
+) -> results.ResultsState:
+    """From now on every entrant is shown what the task's `show` lists under
+    `on_release`, and gradings made from now on run those runs early. Without
+    `confirm`, nothing changes and the answer is `confirmation_required`
+    with `action` `release` and, as its detail, what becomes visible, to
+    whom, and that it can be taken back. A task already released answers as
+    it stands. A task with no publication is `not_found`, and one that does
+    not grade by runs `not_a_run_task`. The answer is read once the release
+    has landed.
+    """
+    task = tasks.task_id_of(organiser.scope)
+    await results.release(organiser, task, confirmed=body.confirm)
+    return await results.state(organiser, task)
+
+
+@router.post(
+    f"{TASK}/results/hide",
+    operation_id="hideTaskResults",
+    summary="Take a release of a run task's results back",
+    response_model=Results,
+)
+async def hide_task_results(organiser: TaskManager, body: ResultsRequest) -> results.ResultsState:
+    """From now on the task works as if it had never been released: what
+    `on_release` lists is hidden again, gradings made from now on keep its
+    runs late, and an extension is allowed again. Without `confirm`, nothing
+    changes and the answer is `confirmation_required` with `action`
+    `hide_again` and the warning as its detail: "Entrants may already have
+    seen these results; hiding them again won't undo that." A task not
+    released answers as it stands. The answer is read once the take-back
+    has landed.
+    """
+    task = tasks.task_id_of(organiser.scope)
+    await results.hide_again(organiser, task, confirmed=body.confirm)
+    return await results.state(organiser, task)
 
 
 @router.get(

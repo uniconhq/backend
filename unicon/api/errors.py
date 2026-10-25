@@ -52,6 +52,7 @@ STATUS = {
     "admin_only": 403,
     "reserved_path": 403,
     "confirmation_required": 409,
+    "not_a_run_task": 409,
     "invalid_definition": 422,
     "invalid_path": 422,
     "registration_closed": 403,

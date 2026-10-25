@@ -1,7 +1,8 @@
 """One Server-Sent Events stream per open tab of a signed-in session, carrying the nudges
 forge says the session may hear and nothing else: each is an event named
-by its kind, `grading`, `announcement`, `clarification` or `resync`, whose
-data is one id. A page that hears one asks for the thing again through the
+by its kind, `grading`, `announcement`, `clarification`, `results` (a
+task whose results staff released or took back, by the task's id) or
+`resync`, whose data is one id. A page that hears one asks for the thing again through the
 ordinary routes, which check the caller as for any other request, so a
 stream left open in a tab is never a second way to read anything.
 

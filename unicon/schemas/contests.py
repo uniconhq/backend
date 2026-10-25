@@ -3,6 +3,7 @@ goes out as the forge's own `Timeline` says it, its numbers exactly.
 """
 
 from datetime import datetime
+from typing import Literal
 
 from forge.api.contest_home import State
 from forge.api.tasks import TakeOut
@@ -43,6 +44,37 @@ class CreateTask(BaseModel):
     title: str | None = None
 
 
+class ResultsAction(BaseModel):
+    """One staff action on a task's results: `released` or `hidden_again`,
+    by whom, by user id and `by_name`, their username, null when the forge
+    does not say, and when.
+    """
+
+    action: Literal["released", "hidden_again"]
+    by: int
+    by_name: str | None
+    at: datetime
+
+
+class Results(BaseModel):
+    """Where a task's results stand: whether they are released now, showing
+    every entrant what the task's `show` lists under `on_release`, and every
+    release and take-back, oldest first.
+    """
+
+    released: bool
+    history: list[ResultsAction]
+
+
+class ResultsRequest(BaseModel):
+    """A release of a task's results or a take-back. Without `confirm`
+    nothing changes, and the answer is `confirmation_required` with the
+    words to show.
+    """
+
+    confirm: bool = False
+
+
 class TaskState(BaseModel):
     """Where a task's files stand: the version at their head, the latest
     publication or none, and whether the head is a draft, a state no
@@ -51,7 +83,7 @@ class TaskState(BaseModel):
     it was made. `statement_written` says whether the latest publication
     holds a statement, there, not blank and not the starter's placeholder,
     false when nothing is published, and `head_statement_written` the same
-    of the head.
+    of the head. `results` says where the task's results stand.
     """
 
     head: str
@@ -60,6 +92,7 @@ class TaskState(BaseModel):
     errors: list[DefinitionError]
     statement_written: bool
     head_statement_written: bool
+    results: Results
 
 
 class Timeline(BaseModel):
