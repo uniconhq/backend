@@ -6955,6 +6955,307 @@
         ]
       }
     },
+    "/api/v1/gradings/{grading}/steps/{step}": {
+      "get": {
+        "description": "Under `Authorization: Bearer <token>`, the step's own token: the\nstep's job, or 204 when every run of it is left out, which its wrapper\nends on with success. A missing or wrong token, or one that no longer\nworks, is `invalid_token`, and a grading that has finished\n`grading_closed`. The job carries presigned links, so it is never\nstored on the way.",
+        "operationId": "getStepJob",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "grading",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Grading",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "step",
+            "required": true,
+            "schema": {
+              "title": "Step",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            },
+            "description": "The runner's `job.schema.json`."
+          },
+          "204": {
+            "description": "Nothing is left for the step to do."
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "A run task's step asks for its job",
+        "tags": [
+          "runs"
+        ]
+      },
+      "post": {
+        "description": "Under the report step's token: the result built from what the steps\nkept and the grading finished, every token of it ended; answered the\nsame when said again. A step other than the report is `not_found`.",
+        "operationId": "reportStepPipeline",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "grading",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Grading",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "step",
+            "required": true,
+            "schema": {
+              "title": "Step",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          },
+          "description": "`{}`, from the pipeline's report step.",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CallbackAnswer"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "A run task's pipeline reports that it has ended",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/api/v1/gradings/{grading}/steps/{step}/done": {
+      "post": {
+        "description": "Under the step's token: what it uploaded read and kept, or its fault\nnoted, and its token ended. Said again, it is answered the same.",
+        "operationId": "sayStepDone",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "grading",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Grading",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "step",
+            "required": true,
+            "schema": {
+              "title": "Step",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          },
+          "description": "`{}`.",
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "A run task's step says its uploads are in",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/api/v1/gradings/{grading}/steps/{step}/files/{sha256}": {
+      "get": {
+        "description": "Under the step's token: a file its job names that the forge serves\nitself, by its SHA-256; one its job does not name is `not_found`.",
+        "operationId": "getStepFile",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "grading",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Grading",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "step",
+            "required": true,
+            "schema": {
+              "title": "Step",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "sha256",
+            "required": true,
+            "schema": {
+              "title": "Sha256",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "The file, by its SHA-256."
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "A file the forge serves a run task's step",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/api/v1/gradings/{grading}/steps/{step}/uploads": {
+      "post": {
+        "description": "Under the step's token: `{\"files\": {<path>: <link>}}`, each link\nsigned for the SHA-256 listed. A list naming a path the step may not\nwrite, over what it may write, or sent before its job is\n`invalid_callback`. The token is checked before the list is read,\nsince the list can be large and the token is not over it.",
+        "operationId": "listStepUploads",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "grading",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Grading",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "step",
+            "required": true,
+            "schema": {
+              "title": "Step",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          },
+          "description": "`{\"files\": [{\"path\", \"sha256\", \"size\"}]}`.",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            },
+            "description": "A presigned PUT for each file listed."
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "A run task's step lists what it will upload",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
     "/api/v1/live": {
       "get": {
         "description": "Each event is named by its kind and carries one id.",

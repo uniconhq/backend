@@ -9,10 +9,15 @@ saying it has a graded submission; and the run's log, read
 by an observer of the task as plain text that runs nothing, and never by
 its contestant. A wrong or missing token, a body that is no report, a
 body past the bound, and a report or an envelope fetch for a grading that
-is over are each refused with their code.
+is over are each refused with their code. A run task's step's door takes
+the step's token at each of its five routes with no Origin, handing forge
+the header and the body as they arrived, answers a step left with nothing
+to do 204, keeps each body to its bound, and never logs the token.
 """
 
 import json
+import logging
+import uuid
 from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
@@ -20,8 +25,8 @@ from urllib.parse import urlsplit
 
 import httpx
 import pytest
-from forge.api import tasks
-from forge.api.runs import CI_CONFIG_PATH, InboundRequest
+from forge.api import runs, tasks
+from forge.api.runs import CI_CONFIG_PATH, GradingStatus, InboundRequest
 from forge.testing import FakeClock, FakeForge, Setup
 
 from tests.integration.conftest import ORIGIN, SUM, TASK, edit_task, sign_in_as, upload
@@ -461,3 +466,162 @@ async def test_a_report_past_the_bound_is_refused_before_it_is_read(
     )
 
     assert (refused.status_code, refused.json()["code"]) == (413, "payload_too_large")
+
+
+# A run task's step's door
+
+
+STEP_TOKEN = "step-token-81c4d2"
+SHA256 = "0" * 64
+
+
+def _step_door(grading: str, step: str = "compile") -> str:
+    return runs.STEP_PATH.format(grading=grading, step=step)
+
+
+async def test_a_steps_door_takes_only_a_steps_token_and_never_logs_it(
+    client: httpx.AsyncClient,
+    entered: FakeForge,
+    held_setup: Setup,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    caplog.set_level(logging.DEBUG)
+    started = await _started(client, entered, held_setup)
+    door = _step_door(started.grading)
+    headers = {"Authorization": f"Bearer {STEP_TOKEN}"}
+
+    answers = [
+        await client.get(door, headers=headers),
+        await client.post(_step_door(started.grading, "report"), content=b"{}", headers=headers),
+        await client.post(f"{door}/uploads", content=b'{"files": []}', headers=headers),
+        await client.post(f"{door}/done", content=b"{}", headers=headers),
+        await client.get(f"{door}/files/{SHA256}", headers=headers),
+    ]
+
+    assert [(a.status_code, a.json()["code"]) for a in answers] == [(401, "invalid_token")] * 5
+    assert STEP_TOKEN not in caplog.text
+
+
+async def test_a_steps_door_hands_forge_what_arrived_and_answers_in_kind(
+    client: httpx.AsyncClient, held_setup: Setup, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    grading = uuid.uuid4()
+    door = _step_door(str(grading))
+    headers = {"Authorization": f"Bearer {STEP_TOKEN}"}
+    handed: list[tuple[Any, ...]] = []
+    job: list[bytes | None] = [b'{"schema_version": 1}']
+
+    async def step_job(*given: Any) -> bytes | None:
+        handed.append(("job", *given))
+        return job[0]
+
+    async def step_report(*given: Any) -> GradingStatus:
+        handed.append(("report", *given))
+        return GradingStatus.DONE
+
+    async def step_admits(*given: Any) -> None:
+        handed.append(("admits", *given))
+
+    async def step_uploads(*given: Any) -> dict[str, Any]:
+        handed.append(("uploads", *given))
+        return {"files": {"outputs.json": "http://store.test/put"}}
+
+    async def step_done(*given: Any) -> None:
+        handed.append(("done", *given))
+
+    async def step_file(*given: Any) -> bytes:
+        handed.append(("file", *given))
+        return b"\x00\x01"
+
+    for action in (step_job, step_report, step_admits, step_uploads, step_done, step_file):
+        monkeypatch.setattr(runs, action.__name__, action)
+
+    served = await client.get(door, headers=headers)
+    job[0] = None
+    nothing = await client.get(door, headers=headers)
+    reported = await client.post(door, content=b"{}", headers=headers)
+    links = await client.post(f"{door}/uploads", content=b'{"files": []}', headers=headers)
+    done = await client.post(f"{door}/done", content=b"{}", headers=headers)
+    file = await client.get(f"{door}/files/{SHA256}", headers=headers)
+
+    assert (served.status_code, served.content) == (200, b'{"schema_version": 1}')
+    assert served.headers["content-type"] == "application/json"
+    assert (nothing.status_code, nothing.content) == (204, b"")
+    assert (reported.status_code, reported.json()) == (200, {"status": "done"})
+    assert links.json() == {"files": {"outputs.json": "http://store.test/put"}}
+    assert (done.status_code, done.content) == (204, b"")
+    assert (file.content, file.headers["content-type"]) == (b"\x00\x01", "application/octet-stream")
+    for answer in (served, nothing, links, file):
+        assert answer.headers["cache-control"] == "no-store"
+    bearer = headers["Authorization"]
+    assert handed == [
+        ("job", grading, "compile", bearer),
+        ("job", grading, "compile", bearer),
+        ("report", grading, "compile", bearer, b"{}"),
+        ("admits", grading, "compile", bearer),
+        ("uploads", grading, "compile", bearer, b'{"files": []}'),
+        ("done", grading, "compile", bearer, b"{}"),
+        ("file", grading, "compile", SHA256, bearer),
+    ]
+
+
+@pytest.mark.parametrize(
+    ("route", "bound"),
+    [("", 64 * 1024), ("/uploads", 16 * MIB), ("/done", 64 * 1024)],
+)
+async def test_a_steps_body_past_its_bound_is_refused_before_it_is_read(
+    client: httpx.AsyncClient,
+    held_setup: Setup,
+    monkeypatch: pytest.MonkeyPatch,
+    route: str,
+    bound: int,
+) -> None:
+    async def step_admits(*given: Any) -> None:
+        pass
+
+    monkeypatch.setattr(runs, "step_admits", step_admits)
+    refused = await client.post(
+        f"{_step_door(str(uuid.uuid4()))}{route}",
+        content=b"x" * (bound + 1),
+        headers={"Authorization": f"Bearer {STEP_TOKEN}"},
+    )
+
+    assert (refused.status_code, refused.json()["code"]) == (413, "payload_too_large")
+
+
+async def test_an_upload_list_is_read_only_under_the_steps_token(
+    client: httpx.AsyncClient, entered: FakeForge, held_setup: Setup
+) -> None:
+    started = await _started(client, entered, held_setup)
+
+    refused = await client.post(
+        f"{_step_door(started.grading)}/uploads",
+        content=b"x" * (16 * MIB + 1),
+        headers={"Authorization": f"Bearer {STEP_TOKEN}"},
+    )
+
+    assert (refused.status_code, refused.json()["code"]) == (401, "invalid_token")
+
+
+async def test_a_step_name_no_plan_gives_is_refused_on_every_door(
+    client: httpx.AsyncClient, entered: FakeForge, held_setup: Setup
+) -> None:
+    started = await _started(client, entered, held_setup)
+    door = f"/api/v1/gradings/{started.grading}/steps/a%00b"
+    headers = {"Authorization": f"Bearer {STEP_TOKEN}"}
+
+    answers = [
+        await client.get(door, headers=headers),
+        await client.post(door, content=b"{}", headers=headers),
+        await client.post(f"{door}/uploads", content=b'{"files": []}', headers=headers),
+        await client.post(f"{door}/done", content=b"{}", headers=headers),
+        await client.get(f"{door}/files/{SHA256}", headers=headers),
+    ]
+
+    assert [(a.status_code, a.json()["code"]) for a in answers] == [
+        (401, "invalid_token"),
+        (404, "not_found"),
+        (401, "invalid_token"),
+        (401, "invalid_token"),
+        (401, "invalid_token"),
+    ]

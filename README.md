@@ -80,13 +80,16 @@ the cookie is first-party.
 
 `OriginCheck` refuses any state-changing request whose `Origin`, or the
 origin of its `Referer`, is not the public URL, whether or not it carries a
-session. That and `SameSite=Lax` are the whole CSRF story. Three doors a
-machine calls with no browser behind it are let through, each admitted by
-what it carries rather than where it came from: forge's `EVENTS_PATH`
-followed by an org's key, where the forge pushes events under a signature;
-the CI's configuration extension at forge's `CI_CONFIG_PATH`, under the
-CI's signature; and a grading run's callback at `CALLBACK_PATH` with one
-grading's id, under the run's token.
+session. That and `SameSite=Lax` are the whole CSRF story. Four kinds of
+door a machine calls with no browser behind it are let through, each
+admitted by what it carries rather than where it came from: forge's
+`EVENTS_PATH` followed by an org's key, where the forge pushes events
+under a signature; the CI's configuration extension at forge's
+`CI_CONFIG_PATH`, under the CI's signature; a grading run's callback at
+`CALLBACK_PATH` with one grading's id, under the run's token; and a run
+task's step's report, upload list and done, at `STEP_PATH`,
+`UPLOADS_PATH` and `DONE_PATH` with one grading's id and one step's name,
+under the step's token.
 
 `GET /api/v1/me` returns the caller's identity as `user` and their `roles`
 at every scope, each with the `names` of where it is held.
@@ -848,7 +851,7 @@ buffering off.
 
 ## The grading run's doors
 
-A grading run calls three routes with no session, and each hands forge the
+A grading run calls these routes with no session, and each hands forge the
 request as it arrived, since what admits it is over its exact bytes; a body
 is read raw and only up to a bound, refused past it as `payload_too_large`
 the way the event door refuses one.
@@ -885,6 +888,21 @@ like every other body that does not fit. The harness stops reporting at a
 429, so each of these refusals ends a run's reporting and none is retried.
 The request log never records the query or a header, so neither the key nor
 the token reaches it.
+
+A run task's Woodpecker step calls its own door, forge's `STEP_PATH`, with
+`Authorization: Bearer <token>`, the step's own token, which each route
+hands forge as it arrived with the raw body. `GET` on the door is the
+step's job, answered as forge writes it, or 204 when nothing is left for
+the step to do, which the step's wrapper ends on with success. `POST` on
+the door, from the pipeline's report step only, at most 64 KiB, builds the
+result and finishes the grading, answering its `status`. `POST
+.../uploads`, at most 16 MiB, ten thousand paths, answers a presigned PUT
+per file listed; `POST .../done`, at most 64 KiB, answers 204; and `GET
+.../files/{sha256}` serves a file the step's job names as its bytes. The
+job, the links and the files are answered `Cache-Control: no-store`. A
+missing or wrong token, or one no longer working, is `invalid_token`, a
+grading that has finished `grading_closed`, and a body that does not fit
+`invalid_callback`.
 
 An organiser managing a task ends a submission whose grading is a system
 error by cancelling it, when a regrade would only repeat the fault, retries
