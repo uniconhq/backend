@@ -4093,7 +4093,7 @@
         "type": "object"
       },
       "Primitive": {
-        "description": "One version of a primitive, `ref` being what a step's `use:` names.\nIts declaration is in `title` and `description`, what the editor shows\nof it, and in `batch`, `network`, `limits`, `limits_from`, `inputs` and\n`outputs`; a version in a format the platform no longer reads has none\nof them and `problem` instead, so no step uses it.",
+        "description": "One version of a primitive, `ref` being what a step's `use:` names.\nIts declaration is in `title` and `description`, what the editor shows\nof it, and in `batch`, `network`, `limits`, `limits_from`, `inputs` and\n`outputs`, or in `forms` when the primitive declares several and those\nfour stay empty; a version in a format the platform no longer reads has\nnone of them and `problem` instead, so no step uses it.",
         "properties": {
           "batch": {
             "default": false,
@@ -4110,6 +4110,13 @@
               }
             ],
             "title": "Description"
+          },
+          "forms": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/PrimitiveForm"
+            },
+            "title": "Forms",
+            "type": "object"
           },
           "inputs": {
             "additionalProperties": {
@@ -4211,9 +4218,99 @@
           "limits_from",
           "inputs",
           "outputs",
+          "forms",
           "problem"
         ],
         "title": "Primitive",
+        "type": "object"
+      },
+      "PrimitiveForm": {
+        "description": "One way to use a primitive that declares several. The editor shows\n`description`; the ports and limits are what a step of this form gives\nand takes. Nothing here is the step's choice of form: the save picks it.",
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "inputs": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/PrimitivePort"
+            },
+            "title": "Inputs",
+            "type": "object"
+          },
+          "limits": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "propertyNames": {
+              "enum": [
+                "time_ms",
+                "cpu_ms",
+                "memory_mb",
+                "pids",
+                "output_mb",
+                "gpus"
+              ]
+            },
+            "title": "Limits",
+            "type": "object"
+          },
+          "limits_from": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/LimitSource"
+            },
+            "propertyNames": {
+              "enum": [
+                "time_ms",
+                "cpu_ms",
+                "memory_mb",
+                "pids",
+                "output_mb",
+                "gpus"
+              ]
+            },
+            "title": "Limits From",
+            "type": "object"
+          },
+          "outputs": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/PrimitivePort"
+            },
+            "title": "Outputs",
+            "type": "object"
+          },
+          "outputs_from": {
+            "anyOf": [
+              {
+                "enum": [
+                  "manifest",
+                  "programs"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outputs From"
+          }
+        },
+        "required": [
+          "description",
+          "outputs_from",
+          "limits",
+          "limits_from",
+          "inputs",
+          "outputs"
+        ],
+        "title": "PrimitiveForm",
         "type": "object"
       },
       "PrimitivePort": {

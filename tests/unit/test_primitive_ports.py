@@ -8,9 +8,9 @@ from forge.api.workflows import PrimitiveDeclaration, PrimitiveVersion
 
 from unicon.schemas.workflows import Primitive
 
-INTERACT = {
+PROGRAMS = {
     "schema_version": 6,
-    "image": "ghcr.io/uniconhq/primitive-interact@sha256:" + "0" * 64,
+    "image": "ghcr.io/uniconhq/primitive-exec@sha256:" + "0" * 64,
     "batch": True,
     "outputs_from": "programs",
     "limits": {
@@ -44,7 +44,7 @@ INTERACT = {
 
 
 def test_a_programs_port_and_its_limits_are_listed_whole() -> None:
-    found = PrimitiveVersion("interact", "v2", PrimitiveDeclaration.model_validate(INTERACT))
+    found = PrimitiveVersion("exec", "v1", PrimitiveDeclaration.model_validate(PROGRAMS))
 
     listed = Primitive.of(found).model_dump(mode="json")
 
@@ -72,3 +72,40 @@ def test_a_programs_port_and_its_limits_are_listed_whole() -> None:
         programs["outputs"]["score"]["at_least"],
         programs["outputs"]["score"]["at_most"],
     ) == ("higher", "0", "1")
+
+
+def test_a_primitive_with_two_forms_lists_each_and_leaves_the_top_empty() -> None:
+    limits = {
+        "time_ms": 1,
+        "cpu_ms": 1,
+        "memory_mb": 1,
+        "pids": 1,
+        "output_mb": 1,
+        "gpus": 0,
+    }
+    declared = PrimitiveDeclaration.model_validate(
+        {
+            "schema_version": 6,
+            "image": "ghcr.io/uniconhq/primitive-two@sha256:" + "0" * 64,
+            "forms": {
+                "one": {
+                    "limits": limits,
+                    "inputs": {"program": "text"},
+                    "outputs": {"outcome": "outcome"},
+                },
+                "several": {
+                    "description": "Runs several.",
+                    "limits": {**limits, "time_ms": 2},
+                    "inputs": {"bundle": "text"},
+                    "outputs": {"outcome": "outcome"},
+                },
+            },
+        }
+    )
+
+    listed = Primitive.of(PrimitiveVersion("two", "v1", declared)).model_dump(mode="json")
+
+    assert listed["limits"] == listed["limits_from"] == listed["inputs"] == listed["outputs"] == {}
+    assert listed["forms"]["several"]["description"] == "Runs several."
+    assert listed["forms"]["one"]["inputs"]["program"]["type"] == "text"
+    assert listed["forms"]["several"]["limits"]["time_ms"] == 2

@@ -8,7 +8,7 @@ is not there yet. A primitive goes out with its declared ports, so the
 editor's palette shows each with its type and its marks.
 """
 
-from typing import Literal, Self
+from typing import Any, Literal, Self
 
 from forge.api.blocks import Better
 from forge.api.workflows import (
@@ -267,12 +267,40 @@ class LimitSource(BaseModel):
 Limit = Literal["time_ms", "cpu_ms", "memory_mb", "pids", "output_mb", "gpus"]
 
 
+class PrimitiveForm(BaseModel):
+    """One way to use a primitive that declares several. The editor shows
+    `description`; the ports and limits are what a step of this form gives
+    and takes. Nothing here is the step's choice of form: the save picks it.
+    """
+
+    description: str | None = None
+    outputs_from: Literal["manifest", "programs"] | None = None
+    limits: dict[Limit, int] = Field(default_factory=dict)
+    limits_from: dict[Limit, LimitSource] = Field(default_factory=dict)
+    inputs: dict[str, PrimitivePort] = Field(default_factory=dict)
+    outputs: dict[str, PrimitivePort] = Field(default_factory=dict)
+
+    @classmethod
+    def of(cls, form: Any) -> Self:
+        return cls(
+            description=form.description,
+            outputs_from=form.outputs_from,
+            limits=form.limits.as_mapping(),
+            limits_from={
+                limit: LimitSource.of(source) for limit, source in form.limits_from.items()
+            },
+            inputs={name: PrimitivePort.of(port) for name, port in form.inputs.items()},
+            outputs={name: PrimitivePort.of(port) for name, port in form.outputs.items()},
+        )
+
+
 class Primitive(BaseModel):
     """One version of a primitive, `ref` being what a step's `use:` names.
     Its declaration is in `title` and `description`, what the editor shows
     of it, and in `batch`, `network`, `limits`, `limits_from`, `inputs` and
-    `outputs`; a version in a format the platform no longer reads has none
-    of them and `problem` instead, so no step uses it.
+    `outputs`, or in `forms` when the primitive declares several and those
+    four stay empty; a version in a format the platform no longer reads has
+    none of them and `problem` instead, so no step uses it.
     """
 
     ref: str
@@ -286,6 +314,7 @@ class Primitive(BaseModel):
     limits_from: dict[Limit, LimitSource] = Field(default_factory=dict)
     inputs: dict[str, PrimitivePort] = Field(default_factory=dict)
     outputs: dict[str, PrimitivePort] = Field(default_factory=dict)
+    forms: dict[str, PrimitiveForm] = Field(default_factory=dict)
     problem: str | None = None
 
     @classmethod
@@ -293,6 +322,19 @@ class Primitive(BaseModel):
         declared = found.declaration
         if declared is None:
             return cls(ref=found.ref, name=found.name, version=found.version, problem=found.problem)
+        if declared.forms:
+            limits = {}
+            limits_from = {}
+            inputs = {}
+            outputs = {}
+        else:
+            assert declared.limits is not None
+            limits = declared.limits.as_mapping()
+            limits_from = {
+                limit: LimitSource.of(source) for limit, source in declared.limits_from.items()
+            }
+            inputs = {name: PrimitivePort.of(port) for name, port in declared.inputs.items()}
+            outputs = {name: PrimitivePort.of(port) for name, port in declared.outputs.items()}
         return cls(
             ref=found.ref,
             name=found.name,
@@ -301,10 +343,9 @@ class Primitive(BaseModel):
             description=declared.description,
             batch=declared.batch,
             network=declared.network,
-            limits=declared.limits.as_mapping(),
-            limits_from={
-                limit: LimitSource.of(source) for limit, source in declared.limits_from.items()
-            },
-            inputs={name: PrimitivePort.of(port) for name, port in declared.inputs.items()},
-            outputs={name: PrimitivePort.of(port) for name, port in declared.outputs.items()},
+            limits=limits,
+            limits_from=limits_from,
+            inputs=inputs,
+            outputs=outputs,
+            forms={name: PrimitiveForm.of(form) for name, form in declared.forms.items()},
         )
