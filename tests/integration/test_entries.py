@@ -1,11 +1,11 @@
 """Entering a mark for a submission's value, over HTTP: the route hands
 forge the task, the entrant's row, the submission's number, the value and
 the mark as text, and answers the mark as it was kept; a mark forge
-refuses is `invalid_mark` with its words; and a task that does not grade
-by runs has no values to enter a mark for. The grading queue hands forge
-the task and answers each row with its submissions, the cells that
-counted each and each mark, null while missing; a task not graded by runs
-has none.
+refuses is `invalid_mark` with its words, as is a mark for a value the
+task gives no `entered` block. The grading queue hands forge the task and
+answers each row with its submissions, the cells that counted each and each
+mark, null while missing; a task no leaderboard has counted has an empty
+one.
 """
 
 import uuid
@@ -109,7 +109,7 @@ async def test_a_mark_sent_as_a_number_or_too_long_is_not_read(
         assert answer.status_code == 422
 
 
-async def test_a_task_not_graded_by_runs_takes_no_mark(
+async def test_a_value_with_no_entered_block_takes_no_mark(
     client: httpx.AsyncClient, sum_task: FakeForge
 ) -> None:
     await publish(client)
@@ -118,7 +118,10 @@ async def test_a_task_not_graded_by_runs_takes_no_mark(
         ENTER, params={"entrant": str(ROW)}, json={"value": "review", "mark": "5"}, headers=ORIGIN
     )
 
-    assert (answer.status_code, answer.json()["code"]) == (409, "not_a_run_task")
+    assert (answer.status_code, answer.json()["code"]) == (422, "invalid_mark")
+    assert answer.json()["detail"] == (
+        "review takes no entered mark: the task's live version gives it no entered block."
+    )
 
 
 async def test_the_queue_hands_forge_the_task_and_answers_each_rows_counted_submissions(
@@ -170,11 +173,11 @@ async def test_the_queue_hands_forge_the_task_and_answers_each_rows_counted_subm
     assert handed == ["acme/spring/sum"]
 
 
-async def test_a_task_not_graded_by_runs_has_no_queue(
+async def test_a_task_nothing_has_counted_has_an_empty_queue(
     client: httpx.AsyncClient, sum_task: FakeForge
 ) -> None:
     await publish(client)
 
     answer = await client.get(QUEUE, headers=ORIGIN)
 
-    assert (answer.status_code, answer.json()["code"]) == (409, "not_a_run_task")
+    assert (answer.status_code, answer.json()) == (200, [])

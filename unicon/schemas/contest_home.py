@@ -127,20 +127,18 @@ class InputPart(BaseModel):
 
 class InputField(BaseModel):
     """One input the contestant gives, with what its form shows: its
-    `type`, its `label`, the task's, else the workflow's title for the
-    input, else its key, the `options` of an enum, whether it takes one file
-    per test, `per_test`, named for the test as `<group>/<test>`, the
-    `default` a value takes when it is left out, `min` and `max` of a
-    number, exactly, and `max_size`, the most its files may total in bytes. A
-    number input's default is served as its exact digits, as its bounds are.
-    The submit panel shows one field or drop zone per input.
+    `type`, its `label`, the task's, else its key, the `options` of an enum,
+    the `default` a value takes when it is left out, `min` and `max` of a
+    number, exactly, `max_size`, the most its files may total in bytes, and
+    `parts`, on an input given once per tuple. A number input's default is
+    served as its exact digits, as its bounds are. The submit panel shows
+    one field or drop zone per input.
     """
 
     id: str
     type: InputType
     label: str
     options: list[str] | None
-    per_test: bool
     default: Value | None
     min: Exact | None
     max: Exact | None

@@ -763,10 +763,7 @@
       "ChangeKind": {
         "description": "What a regrade did to one submission, as the module says.",
         "enum": [
-          "up",
-          "down",
-          "stopped",
-          "unchanged",
+          "regraded",
           "new",
           "running",
           "failed",
@@ -1279,47 +1276,9 @@
         "title": "CreateWorkflow",
         "type": "object"
       },
-      "DeclaredField": {
-        "description": "One field every test of the workflow has: its name, its type and its\noptions on an enum.",
-        "properties": {
-          "name": {
-            "title": "Name",
-            "type": "string"
-          },
-          "options": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "string"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Options"
-          },
-          "type": {
-            "title": "Type",
-            "type": "string"
-          }
-        },
-        "required": [
-          "name",
-          "type",
-          "options"
-        ],
-        "title": "DeclaredField",
-        "type": "object"
-      },
       "DeclaredInput": {
-        "description": "One input a workflow declares, as the task form shows it: its id, its\ntype, whether the contestant gives it, its options on an enum, whether\nit is given once per test, whether a task may leave it out, and the\ntitle, line of help and unit the workflow gives the organiser for it,\neach none when it gives none. A workflow gives no defaults: a\ncontestant input's `default` is the task's, in `task.yaml`.",
+        "description": "One input a workflow declares, as the task form shows it: its id, its\ntype, its options on an enum, whether a task may leave it out, and the\ntitle, line of help and unit the workflow gives the organiser for it,\neach none when it gives none. Who gives it, and whether it repeats, are\nthe task's (SIMPLER-CORE.md 8), so the form reads each as given once by\nthe task until it says. A workflow gives no defaults: an entrant input's\n`default` is the task's, in `task.yaml`.",
         "properties": {
-          "contestant": {
-            "title": "Contestant",
-            "type": "boolean"
-          },
           "help": {
             "anyOf": [
               {
@@ -1353,10 +1312,6 @@
             ],
             "title": "Options"
           },
-          "per_test": {
-            "title": "Per Test",
-            "type": "boolean"
-          },
           "title": {
             "anyOf": [
               {
@@ -1387,9 +1342,7 @@
         "required": [
           "id",
           "type",
-          "contestant",
           "options",
-          "per_test",
           "optional",
           "title",
           "help",
@@ -2015,42 +1968,8 @@
         "title": "ForgeUrl",
         "type": "object"
       },
-      "GradedTest": {
-        "description": "One test's row of a result: its id, `<group>/<test>`, its outcome,\nand the values its steps reported for it.",
-        "properties": {
-          "outcome": {
-            "enum": [
-              "accepted",
-              "wrong_answer",
-              "time_limit",
-              "memory_limit",
-              "output_limit",
-              "runtime_error",
-              "compile_error",
-              "skipped",
-              "system_error"
-            ],
-            "title": "Outcome",
-            "type": "string"
-          },
-          "test": {
-            "title": "Test",
-            "type": "string"
-          },
-          "values": {
-            "$ref": "#/components/schemas/Reported"
-          }
-        },
-        "required": [
-          "test",
-          "outcome",
-          "values"
-        ],
-        "title": "GradedTest",
-        "type": "object"
-      },
       "Grading": {
-        "description": "One grading as an organiser managing its task reads it: the\nsubmission by its number, the publication it grades against, its\nattempt and whether that is the submission's `latest`, the one staff\ncancel or retry, the member who submitted it, `submitted_by`, null when\na reconcile found it at the forge, where it stands, the reason it failed, the sentence\nstaff cancelled it with, its result, whether its log was written, the\nlast progress its run reported, its times, and whether the platform made\nit by itself, `automatic`, retrying the attempt before it once that\nfailed.\n\nOn a latest attempt that has not finished with a result, still being\ngraded, a system error or staff cancelled, `last_good` is the latest\nearlier attempt that did, the one its submission counts meanwhile on\nthe leaderboards and to its contestant; null on any other, and when no\nattempt has a result.\n\nAn attempt that is `over_limit` was made to grade a delayed submission\nagain and ended at once, run by nothing, since its entrant had no room\nleft under the task's most submissions: `limit` is that most, null on\nevery other status. On a latest attempt of a submission with no result\nthat reads as `system_error` or `over_limit`, `retry_limit` is the\ntask's most when a retry now would end over the limit, so the retry's\nconfirmation says so before it runs (\"Not graded: the entrant has\nreached the limit of 10 submissions for this task.\"); null otherwise,\nwhen a retry would grade it. `regrade` is the regrade of many the\nattempt belongs to, null for none; `change`, given only on the feed read\nby `regrade`, what that regrade did to the submission.\n\nA run task's submission is graded by up to two pipelines, each with\nattempts of its own: `early`, the runs shown during the contest, and\n`late`, the rest, made once the early one is done, with `early` naming\nthe early attempt it follows, null on an early one. Its `result` is a\n`RunsResult`; a task with tests has `early` attempts alone, each with a\n`RunResult`.",
+        "description": "One grading as an organiser managing its task reads it: the submission\nby its number, the publication it grades against, its attempt and\nwhether that is the submission's `latest`, the one staff cancel or\nretry, the member who submitted it, `submitted_by`, null when a\nreconcile found it at the forge, where it stands, the reason it failed,\nthe sentence staff cancelled it with, its result, its times, and whether\nthe platform made it by itself, `automatic`, retrying the attempt before\nit once that failed.\n\nOn a latest attempt that has not finished with a result, still being\ngraded, a system error or staff cancelled, `last_good` is the latest\nearlier attempt that did, the one its submission counts meanwhile on\nthe leaderboards and to its contestant; null on any other, and when no\nattempt has a result.\n\nAn attempt that is `over_limit` was made to grade a delayed submission\nagain and ended at once, run by nothing, since its entrant had no room\nleft under the task's most submissions: `limit` is that most, null on\nevery other status. On a latest attempt of a submission with no result\nthat reads as `system_error` or `over_limit`, `retry_limit` is the\ntask's most when a retry now would end over the limit, so the retry's\nconfirmation says so before it runs (\"Not graded: the entrant has\nreached the limit of 10 submissions for this task.\"); null otherwise,\nwhen a retry would grade it. `regrade` is the regrade of many the\nattempt belongs to, null for none; `change`, given only on the feed read\nby `regrade`, what that regrade did to the submission.\n\nA submission is graded by up to two pipelines, each with attempts of\nits own: `early`, the runs shown during the contest, and `late`, the\nrest, made once the early one is done, with `early` naming the early\nattempt it follows, null on an early one. Its `result` is a\n`RunsResult`.",
         "properties": {
           "attempt": {
             "title": "Attempt",
@@ -2171,10 +2090,6 @@
             ],
             "title": "Limit"
           },
-          "log": {
-            "title": "Log",
-            "type": "boolean"
-          },
           "pipeline": {
             "enum": [
               "early",
@@ -2182,16 +2097,6 @@
             ],
             "title": "Pipeline",
             "type": "string"
-          },
-          "progress": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/GradingProgress"
-              },
-              {
-                "type": "null"
-              }
-            ]
           },
           "publication": {
             "title": "Publication",
@@ -2217,16 +2122,12 @@
           "result": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/RunResult"
-              },
-              {
                 "$ref": "#/components/schemas/RunsResult"
               },
               {
                 "type": "null"
               }
-            ],
-            "title": "Result"
+            ]
           },
           "retry_limit": {
             "anyOf": [
@@ -2287,8 +2188,6 @@
           "error",
           "cancel_reason",
           "result",
-          "log",
-          "progress",
           "queued_at",
           "dispatched_at",
           "started_at",
@@ -2306,32 +2205,8 @@
         "title": "Grading",
         "type": "object"
       },
-      "GradingProgress": {
-        "description": "The last progress a grading's run reported: the step it was at and how\nmany of that step's containers were done of how many.",
-        "properties": {
-          "done": {
-            "title": "Done",
-            "type": "integer"
-          },
-          "step": {
-            "title": "Step",
-            "type": "string"
-          },
-          "total": {
-            "title": "Total",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "step",
-          "done",
-          "total"
-        ],
-        "title": "GradingProgress",
-        "type": "object"
-      },
       "GradingStatus": {
-        "description": "Where one grading stands. `queued` waits for its run to be started,\nwhich happens as soon as the request that made it commits; `dispatched`\nis held by the CI, waiting for a machine or checking out; `running` has\nhad its envelope fetched by the harness. It ends `done` with a result,\n`system_error`, a grading that failed for a reason of the platform's,\nnever a grade: its run could not be started, or did not report before\nits deadline; `cancelled`, by staff ending one in `system_error`, or\nby a rejudge replacing one still being graded; or `over_limit`, made to\ngrade a delayed submission again and ended at once, run by nothing,\nsince its entrant had no room left under the task's `submissions.max`.",
+        "description": "Where one grading stands. `queued` waits for its run to be started,\nwhich happens as soon as the request that made it commits; `dispatched`\nis held by the CI, waiting for a machine or checking out; `running` has\nhad a step ask for its job. It ends `done` with a result,\n`system_error`, a grading that failed for a reason of the platform's,\nnever a grade: its run could not be started, or did not report before\nits deadline; `cancelled`, by staff ending one in `system_error`, or\nby a rejudge replacing one still being graded; or `over_limit`, made to\ngrade a delayed submission again and ended at once, run by nothing,\nsince its entrant had no room left under the task's `submissions.max`.",
         "enum": [
           "queued",
           "dispatched",
@@ -2372,80 +2247,6 @@
           "role"
         ],
         "title": "GrantRequest",
-        "type": "object"
-      },
-      "GroupShown": {
-        "description": "One test group as the contestant sees it now: its name, its `show`,\nits outcome once its verdict is shown, its tests once they are, when\nwhat is held back is shown, null once nothing is, and whether it ran on\nthis grading. A group that did not run has no outcome, no tests and\nnothing held back.",
-        "properties": {
-          "group": {
-            "title": "Group",
-            "type": "string"
-          },
-          "outcome": {
-            "anyOf": [
-              {
-                "enum": [
-                  "accepted",
-                  "wrong_answer",
-                  "time_limit",
-                  "memory_limit",
-                  "output_limit",
-                  "runtime_error",
-                  "compile_error",
-                  "skipped",
-                  "system_error"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Outcome"
-          },
-          "ran": {
-            "title": "Ran",
-            "type": "boolean"
-          },
-          "show": {
-            "$ref": "#/components/schemas/Show"
-          },
-          "shown_at": {
-            "anyOf": [
-              {
-                "format": "date-time",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Shown At"
-          },
-          "tests": {
-            "anyOf": [
-              {
-                "items": {
-                  "$ref": "#/components/schemas/GradedTest"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Tests"
-          }
-        },
-        "required": [
-          "group",
-          "show",
-          "outcome",
-          "tests",
-          "shown_at",
-          "ran"
-        ],
-        "title": "GroupShown",
         "type": "object"
       },
       "Header": {
@@ -2660,7 +2461,7 @@
         "type": "object"
       },
       "InputField": {
-        "description": "One input the contestant gives, with what its form shows: its\n`type`, its `label`, the task's, else the workflow's title for the\ninput, else its key, the `options` of an enum, whether it takes one file\nper test, `per_test`, named for the test as `<group>/<test>`, the\n`default` a value takes when it is left out, `min` and `max` of a\nnumber, exactly, and `max_size`, the most its files may total in bytes. A\nnumber input's default is served as its exact digits, as its bounds are.\nThe submit panel shows one field or drop zone per input.",
+        "description": "One input the contestant gives, with what its form shows: its\n`type`, its `label`, the task's, else its key, the `options` of an enum,\nthe `default` a value takes when it is left out, `min` and `max` of a\nnumber, exactly, `max_size`, the most its files may total in bytes, and\n`parts`, on an input given once per tuple. A number input's default is\nserved as its exact digits, as its bounds are. The submit panel shows\none field or drop zone per input.",
         "properties": {
           "default": {
             "anyOf": [
@@ -2746,10 +2547,6 @@
             ],
             "title": "Parts"
           },
-          "per_test": {
-            "title": "Per Test",
-            "type": "boolean"
-          },
           "type": {
             "enum": [
               "text",
@@ -2768,7 +2565,6 @@
           "type",
           "label",
           "options",
-          "per_test",
           "default",
           "min",
           "max",
@@ -3880,7 +3676,7 @@
         "type": "object"
       },
       "OnceShown": {
-        "description": "What a run task's steps done once reported, as its reader is shown\nit: numbers, exactly, and texts, the compile log among them; for an\nentrant, only the reports `show` lists, by name.",
+        "description": "What a grading's steps done once reported, as its reader is shown\nit: numbers, exactly, and texts, the compile log among them; for an\nentrant, only the reports `show` lists, by name.",
         "properties": {
           "reports": {
             "additionalProperties": {
@@ -4118,7 +3914,7 @@
         "type": "object"
       },
       "OrganisedResult": {
-        "description": "A submission's grading as organisers read it beside the grading\nitself: the payload its contestant reads, with everything filled in as\nonce the task has revealed, so every group's outcome and tests and every\nvalue a sealed step reported are there. Each group's `shown_at` is kept as a note of when its\ncontestant is shown it, null once they see its tests. `status` is the\ngrading's own, as in the gradings routes. On a run task, every value\nand run is there at once, each value with when it shows and what it\nread, and `facts` holds `seconds_late`, `seconds` and `compiled` as the\nvalues read them.",
+        "description": "A submission's grading as organisers read it beside the grading\nitself: the payload its contestant reads, with everything filled in as\nonce the task has revealed. `status` is the grading's own, as in the\ngradings routes. Every value and run is there at once, each value with\nwhen it shows and what it read, and `facts` holds `seconds_late`,\n`seconds` and `compiled` as the values read them.",
         "properties": {
           "attempt": {
             "title": "Attempt",
@@ -4147,13 +3943,6 @@
             "title": "Facts",
             "type": "object"
           },
-          "groups": {
-            "items": {
-              "$ref": "#/components/schemas/GroupShown"
-            },
-            "title": "Groups",
-            "type": "array"
-          },
           "id": {
             "format": "uuid",
             "title": "Id",
@@ -4170,41 +3959,12 @@
             ],
             "title": "Limit"
           },
-          "meanings": {
-            "items": {
-              "$ref": "#/components/schemas/ValueMeaning"
-            },
-            "title": "Meanings",
-            "type": "array"
-          },
           "once": {
             "$ref": "#/components/schemas/OnceShown",
             "default": {
               "reports": {},
               "texts": {}
             }
-          },
-          "outcome": {
-            "anyOf": [
-              {
-                "enum": [
-                  "accepted",
-                  "wrong_answer",
-                  "time_limit",
-                  "memory_limit",
-                  "output_limit",
-                  "runtime_error",
-                  "compile_error",
-                  "skipped",
-                  "system_error"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Outcome"
           },
           "reason": {
             "anyOf": [
@@ -4235,43 +3995,13 @@
           },
           "status": {
             "$ref": "#/components/schemas/GradingStatus"
-          },
-          "stopped": {
-            "anyOf": [
-              {
-                "enum": [
-                  "accepted",
-                  "wrong_answer",
-                  "time_limit",
-                  "memory_limit",
-                  "output_limit",
-                  "runtime_error",
-                  "compile_error",
-                  "skipped",
-                  "system_error"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Stopped"
-          },
-          "values": {
-            "$ref": "#/components/schemas/Reported"
           }
         },
         "required": [
           "id",
           "attempt",
-          "stopped",
-          "outcome",
-          "groups",
-          "values",
           "reason",
           "limit",
-          "meanings",
           "runs",
           "run_values",
           "once",
@@ -4905,7 +4635,7 @@
         "type": "object"
       },
       "Publication": {
-        "description": "One publication: its number among the task's publications, the version\nit froze, whether it changed how the task grades and what, and when;\nand `meanings`, every value its workflow reports, in the workflow's\norder, with the words it froze for each, which a form picking a value\nlists. A publication made before those words were kept lists its values\nreported for each test by name alone. Which workflow each of its\nworkflow names was at the forge stays out. `check` is where its save's\ncheck stands, null once it passed or on a task that is not checked;\nonce it is `refused`, `failed_checks` lists each of the task's checks\nthat did not get what it expects, empty otherwise.",
+        "description": "One publication: its number among the task's publications, the version\nit froze, whether it changed how the task grades and what, and when.\nWhich workflow each of its\nworkflow names was at the forge stays out. `check` is where its save's\ncheck stands, null once it passed or on a task that is not checked;\nonce it is `refused`, `failed_checks` lists each of the task's checks\nthat did not get what it expects, empty otherwise.",
         "properties": {
           "at": {
             "format": "date-time",
@@ -4948,13 +4678,6 @@
             "title": "Grading Changed",
             "type": "boolean"
           },
-          "meanings": {
-            "items": {
-              "$ref": "#/components/schemas/ValueMeaning"
-            },
-            "title": "Meanings",
-            "type": "array"
-          },
           "number": {
             "title": "Number",
             "type": "integer"
@@ -4970,7 +4693,6 @@
           "grading_changed",
           "changes",
           "at",
-          "meanings",
           "check",
           "failed_checks"
         ],
@@ -4978,7 +4700,7 @@
         "type": "object"
       },
       "Published": {
-        "description": "A save that published: the new publication's number among the task's,\nwhether it changed how the task grades, and what, the notes the save\nmakes of the task beside publishing it, such as which steps it seals\nuntil the reveal, how many submissions it `regraded`, queued to be\ngraded again against it, and what it did, `effect`, in the words the\nquestion before a save in a running contest uses. On a run task,\n`check` is `checking` while the new publication is checked before it\ntakes over, as is a save of the same files that checks a refused one\nagain. `regrade` is the regrade the save started, whose summary the\ntask's regrades read, null when it started none now: a run task\nchecked first starts its regrade once the check passes.",
+        "description": "A save that published: the new publication's number among the task's,\nwhether it changed how the task grades, and what, the notes the save\nmakes of the task beside publishing it, how many submissions it\n`regraded`, queued to be graded again against it, and what it did,\n`effect`, in the words the question before a save in a running contest\nuses. `check` is `checking` while the new publication is checked before\nit takes over, as is a save of the same files that checks a refused one\nagain. `regrade` is the regrade the save started, whose summary the\ntask's regrades read, null when it started none now: a task checked\nfirst starts its regrade once the check passes.",
         "properties": {
           "changes": {
             "items": {
@@ -5347,7 +5069,7 @@
         "type": "string"
       },
       "RegradeChange": {
-        "description": "What a regrade did to one submission: `change`, and the result it\nreplaced, `earlier`, the one that counted when the regrade began, null\nwhen there was none or it no longer reads, beside its own, `now`, null\nwhile it has none.\n\n`up` and `down`: a larger or smaller share of its tests accepted.\n`stopped`: it now stops before its tests where the earlier result did\nnot, which on the classic workflow is \"now fails to compile\".\n`unchanged`; `new`, graded with no earlier result to compare with;\n`running`, still being graded; `failed`, no result yet, its latest\nattempt a system error or cancelled; `over_limit`, not graded, its\nentrant at the task's most submissions.",
+        "description": "What a regrade did to one submission: `change`, and the attempt\nwhose result it replaced, `earlier`, the one that counted when the\nregrade began, null when there was none, beside its own attempt, `now`,\nnull while it has no result.\n\n`regraded`, graded with an earlier result; `new`, graded with no earlier\nresult; `running`, still being graded; `failed`, no result yet, its\nlatest attempt a system error or cancelled; `over_limit`, not graded,\nits entrant at the task's most submissions.",
         "properties": {
           "change": {
             "$ref": "#/components/schemas/ChangeKind"
@@ -5355,22 +5077,24 @@
           "earlier": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/RegradeSide"
+                "type": "integer"
               },
               {
                 "type": "null"
               }
-            ]
+            ],
+            "title": "Earlier"
           },
           "now": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/RegradeSide"
+                "type": "integer"
               },
               {
                 "type": "null"
               }
-            ]
+            ],
+            "title": "Now"
           }
         },
         "required": [
@@ -5384,10 +5108,6 @@
       "RegradeCounts": {
         "description": "How many of a regrade's submissions each change counts.",
         "properties": {
-          "down": {
-            "title": "Down",
-            "type": "integer"
-          },
           "failed": {
             "title": "Failed",
             "type": "integer"
@@ -5400,28 +5120,17 @@
             "title": "Over Limit",
             "type": "integer"
           },
+          "regraded": {
+            "title": "Regraded",
+            "type": "integer"
+          },
           "running": {
             "title": "Running",
-            "type": "integer"
-          },
-          "stopped": {
-            "title": "Stopped",
-            "type": "integer"
-          },
-          "unchanged": {
-            "title": "Unchanged",
-            "type": "integer"
-          },
-          "up": {
-            "title": "Up",
             "type": "integer"
           }
         },
         "required": [
-          "up",
-          "down",
-          "stopped",
-          "unchanged",
+          "regraded",
           "new",
           "running",
           "failed",
@@ -5430,55 +5139,8 @@
         "title": "RegradeCounts",
         "type": "object"
       },
-      "RegradeSide": {
-        "description": "One result a regrade compares, as organisers see it, every group,\nnothing held back: its attempt, how many of its tests were `accepted` of\nhow many `tests` its plan has in its groups, and the outcome that\n`stopped` its run before its tests, null when nothing did.",
-        "properties": {
-          "accepted": {
-            "title": "Accepted",
-            "type": "integer"
-          },
-          "attempt": {
-            "title": "Attempt",
-            "type": "integer"
-          },
-          "stopped": {
-            "anyOf": [
-              {
-                "enum": [
-                  "accepted",
-                  "wrong_answer",
-                  "time_limit",
-                  "memory_limit",
-                  "output_limit",
-                  "runtime_error",
-                  "compile_error",
-                  "skipped",
-                  "system_error"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Stopped"
-          },
-          "tests": {
-            "title": "Tests",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "attempt",
-          "accepted",
-          "tests",
-          "stopped"
-        ],
-        "title": "RegradeSide",
-        "type": "object"
-      },
       "RegradeSummary": {
-        "description": "A task's latest regrade of many as the contest's page shows it, \"Regrade\nof A: 120 graded \u00b7 4 went down \u00b7 2 now fail to compile \u00b7 1 went up\": its\nid, the one the feed is read by; its task by name and `label`, the letter\nof its place in the contest's `tasks`, null once the contest no longer\nlists it; what started it, `cause`, a staff `rejudge` or the `save` that\npublished `publication`, the publication its attempts grade against;\nwhen and by whom, by user id and `started_by_name`, their username, null\nwhen the forge does not say; how many submissions it took, `total`; how\nmany it `graded`, finishing with a result (`up`, `down`, `stopped`,\n`unchanged` and `new` together); whether any is still `running`; and\n`counts`, by change. It stays until a newer regrade of the task replaces\nit or a manager of the task dismisses it.",
+        "description": "A task's latest regrade of many as the contest's page shows it, \"Regrade\nof A: 120 graded\": its id, the one the feed is read by; its task by name\nand `label`, the letter of its place in the contest's `tasks`, null once\nthe contest no longer lists it; what started it, `cause`, a staff\n`rejudge` or the `save` that published `publication`, the publication\nits attempts grade against; when and by whom, by user id and\n`started_by_name`, their username, null when the forge does not say; how\nmany submissions it took, `total`; how many it `graded`, finishing with\na result (`regraded` and `new` together); whether any is still\n`running`; and `counts`, by change. It stays until a newer regrade of\nthe task replaces it or a manager of the task dismisses it.",
         "properties": {
           "cause": {
             "$ref": "#/components/schemas/RegradeCause"
@@ -5635,37 +5297,8 @@
         "title": "Rejudged",
         "type": "object"
       },
-      "Reported": {
-        "description": "The values a run reported, by name: its numbers, exactly, and its\ntexts, each of at most 10,000 characters.",
-        "properties": {
-          "numbers": {
-            "additionalProperties": {
-              "examples": [
-                "82.5"
-              ],
-              "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
-              "type": "string"
-            },
-            "title": "Numbers",
-            "type": "object"
-          },
-          "texts": {
-            "additionalProperties": {
-              "type": "string"
-            },
-            "title": "Texts",
-            "type": "object"
-          }
-        },
-        "required": [
-          "numbers",
-          "texts"
-        ],
-        "title": "Reported",
-        "type": "object"
-      },
       "Result": {
-        "description": "The attempt of a submission's grading that counts, as its contestant\nsees it: the latest that finished with a result, as the leaderboards count\nit, so a regrade under way, a failure or a cancel leaves the result as\nit was, and while none has, the latest. Its id, attempt and status, and\nonce it is done, what stopped the\nrun, the outcome over the groups shown, each test group as its `show`\nallows, the values reported once, each test's row with what it\nreported, and `meanings`, every value the\nworkflow reports, in its order, with the title and unit a page names it\nby, falling back to its name, a value a sealed step holds back left out\nuntil the reveal. `status` is in the contestant's words: `queued` until\nits run is started, `grading` while it is graded, `graded` once it has\na result, `delayed` while it has none and its grading failed on the\nplatform's side, `over_limit` once it was to be graded again with no\nroom left under the task's most submissions, and `cancelled` once staff\nend it; organisers read the grading's own status in the gradings\nroutes. A `delayed` one carries nothing else: it is tried again once by\nitself, and then waits for staff, who grade it again or end it: then it\nis `cancelled`, with `reason`, the sentence they gave, which is null on\nevery other status. A delayed one is graded again only while its\nentrant's submissions with a result, those waiting that are not\ndelayed, and the delayed ones made before it are fewer than the task's\nmost, so the first ones to get a result count, and otherwise it is\n`over_limit`, with `limit`,\nthe most it reached (\"Not graded: you had reached the limit of 10\nsubmissions for this task.\"), and nothing else; `limit` is null on every\nother status. While a sealed step's stop is held to the reveal, nothing\nof the run is shown: every group reads as hidden. A task graded test by\ntest gives no points (stage 5).\n\nA run task's grading has no groups and no `values`: `run_values` holds\neach value of its scoring its entrant is shown, worked out on every\nread, and `runs` the runs, those listed under `now` from the start,\nthose under `after_close` once the task reveals, and those under\n`on_release` while staff have released the task's results, hidden\nagain when they take the release back. `once` holds what its steps\ndone once reported that `show` lists, the compile log among them when\nlisted, once a run is shown; and `compiled` 1, or 0 when a compile\ndone once stopped it, from the time `show` lists it or once a run is\nshown, null while its compile is still to run. A task with\nnothing shown during the contest is `submitted` until the reveal, which\na page words \"Submitted, results after the contest\". After the reveal,\nwhile its late runs are still being graded, it is `grading` or\n`delayed`. A run task's grading whose runs failed for the platform is\n`delayed` with the runs it gave, a value reading one of its failed early\nruns `waiting`. These are empty on every other task.\n`reveal_at` is when the task reveals, until then, as what its entrant\nreads changes then with no grading's change to say so, so a page open\non it reads it again then, as at a group's `shown_at`; null on every\nother task and once it has revealed.",
+        "description": "The attempt of a submission's grading that counts, as its contestant\nsees it: the latest that finished with a result, as the leaderboards\ncount it, so a regrade under way, a failure or a cancel leaves the\nresult as it was, and while none has, the latest. Its id, attempt and\nstatus, in the contestant's words: `queued` until its run is started,\n`grading` while it is graded, `graded` once it has a result, `delayed`\nwhile it has none and its grading failed on the platform's side,\n`over_limit` once it was to be graded again with no room left under the\ntask's most submissions, and `cancelled` once staff end it; organisers\nread the grading's own status in the gradings routes. A `delayed` one\ncarries nothing else: it is tried again once by itself, and then waits\nfor staff, who grade it again or end it: then it is `cancelled`, with\n`reason`, the sentence they gave, which is null on every other status. A\ndelayed one is graded again only while its\nentrant's submissions with a result, those waiting that are not\ndelayed, and the delayed ones made before it are fewer than the task's\nmost, so the first ones to get a result count, and otherwise it is\n`over_limit`, with `limit`,\nthe most it reached (\"Not graded: you had reached the limit of 10\nsubmissions for this task.\"), and nothing else; `limit` is null on every\nother status.\n\n`run_values` holds each value of its scoring its entrant is shown,\nworked out on every read, and `runs` the runs, those listed under `now` from the start,\nthose under `after_close` once the task reveals, and those under\n`on_release` while staff have released the task's results, hidden\nagain when they take the release back. `once` holds what its steps\ndone once reported that `show` lists, the compile log among them when\nlisted, once a run is shown; and `compiled` 1, or 0 when a compile\ndone once stopped it, from the time `show` lists it or once a run is\nshown, null while its compile is still to run. A task with\nnothing shown during the contest is `submitted` until the reveal, which\na page words \"Submitted, results after the contest\". After the reveal,\nwhile its late runs are still being graded, it is `grading` or\n`delayed`. A grading whose runs failed for the platform is `delayed`\nwith the runs it gave, a value reading one of its failed early runs\n`waiting`. `reveal_at` is when the task reveals, until then, as what its\nentrant reads changes then with no grading's change to say so, so a page\nopen on it reads it again then; null once it has revealed.",
         "properties": {
           "attempt": {
             "title": "Attempt",
@@ -5681,13 +5314,6 @@
               }
             ],
             "title": "Compiled"
-          },
-          "groups": {
-            "items": {
-              "$ref": "#/components/schemas/GroupShown"
-            },
-            "title": "Groups",
-            "type": "array"
           },
           "id": {
             "format": "uuid",
@@ -5705,41 +5331,12 @@
             ],
             "title": "Limit"
           },
-          "meanings": {
-            "items": {
-              "$ref": "#/components/schemas/ValueMeaning"
-            },
-            "title": "Meanings",
-            "type": "array"
-          },
           "once": {
             "$ref": "#/components/schemas/OnceShown",
             "default": {
               "reports": {},
               "texts": {}
             }
-          },
-          "outcome": {
-            "anyOf": [
-              {
-                "enum": [
-                  "accepted",
-                  "wrong_answer",
-                  "time_limit",
-                  "memory_limit",
-                  "output_limit",
-                  "runtime_error",
-                  "compile_error",
-                  "skipped",
-                  "system_error"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Outcome"
           },
           "reason": {
             "anyOf": [
@@ -5782,43 +5379,13 @@
           },
           "status": {
             "$ref": "#/components/schemas/SubmissionState"
-          },
-          "stopped": {
-            "anyOf": [
-              {
-                "enum": [
-                  "accepted",
-                  "wrong_answer",
-                  "time_limit",
-                  "memory_limit",
-                  "output_limit",
-                  "runtime_error",
-                  "compile_error",
-                  "skipped",
-                  "system_error"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Stopped"
-          },
-          "values": {
-            "$ref": "#/components/schemas/Reported"
           }
         },
         "required": [
           "id",
           "attempt",
-          "stopped",
-          "outcome",
-          "groups",
-          "values",
           "reason",
           "limit",
-          "meanings",
           "runs",
           "run_values",
           "once",
@@ -6025,7 +5592,7 @@
         "type": "object"
       },
       "RunRegradeSummary": {
-        "description": "A run task's regrade by what it changed: its `id`, what started it,\nthe publication it grades against, how many submissions it took,\n`total`, how many are still `running`, how many ended with no\nresult, `failed`, and how many it cannot compare, `unread`, since\nthe publication their result counted under no longer reads;\n`changed`, each submission whose values or verdicts it changed, old\nto new, in the order they were made, at most 100, with `more_changed`\ncounting the rest, an attempt compared with the one that counted when\nthe regrade began, both worked out as organisers read them, the\nextensions and marks as they stand now; and `leaderboards`, each leaderboard that reads the\ntask before and after, given to a manager or admin of the contest\nalone, null for anyone else.",
+        "description": "A regrade by what it changed: its `id`, what started it,\nthe publication it grades against, how many submissions it took,\n`total`, how many are still `running`, how many ended with no\nresult, `failed`, and how many it cannot compare, `unread`, since\nthe publication their result counted under no longer reads;\n`changed`, each submission whose values or verdicts it changed, old\nto new, in the order they were made, at most 100, with `more_changed`\ncounting the rest, an attempt compared with the one that counted when\nthe regrade began, both worked out as organisers read them, the\nextensions and marks as they stand now; and `leaderboards`, each leaderboard that reads the\ntask before and after, given to a manager or admin of the contest\nalone, null for anyone else.",
         "properties": {
           "cause": {
             "$ref": "#/components/schemas/RegradeCause"
@@ -6096,64 +5663,8 @@
         "title": "RunRegradeSummary",
         "type": "object"
       },
-      "RunResult": {
-        "description": "What a run's result says of the submission: what stopped the run,\nnull when nothing did, a row for every test, the values reported once,\nand, when it stopped on `system_error`, the sentence for staff saying\nwhy. Where the run put its log stays out.",
-        "properties": {
-          "error": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Error"
-          },
-          "stopped": {
-            "anyOf": [
-              {
-                "enum": [
-                  "accepted",
-                  "wrong_answer",
-                  "time_limit",
-                  "memory_limit",
-                  "output_limit",
-                  "runtime_error",
-                  "compile_error",
-                  "skipped",
-                  "system_error"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Stopped"
-          },
-          "tests": {
-            "items": {
-              "$ref": "#/components/schemas/GradedTest"
-            },
-            "title": "Tests",
-            "type": "array"
-          },
-          "values": {
-            "$ref": "#/components/schemas/Reported"
-          }
-        },
-        "required": [
-          "stopped",
-          "tests",
-          "values",
-          "error"
-        ],
-        "title": "RunResult",
-        "type": "object"
-      },
       "RunShown": {
-        "description": "One run of a run task's grading as its entrant sees it: the group\n`show` lists that shows it, its place in that group from 1 (\"Test 3\"),\nits key as the plan gives it, leaving out a file not yet shown, its\nverdict, `passed`, 1 when that is `accepted`, the numbers its steps\nreported, exactly, and its texts, with the `label` and `message` shown\nwith its verdict, null when no step wrote one. A run in two groups\nshown is shown in each; a run no group shown holds is never shown, even\nwhen a value shown reads it. Organisers read every run, under `all` in\nthe task's order, with its `id`, which counts every run of the task;\n`id` is null for an entrant. A run a row holds that the task's latest\npublication no longer has is `dropped`, listed to organisers after the\nrest; never to an entrant.",
+        "description": "One run of a grading as its entrant sees it: the group\n`show` lists that shows it, its place in that group from 1 (\"Test 3\"),\nits key as the plan gives it, leaving out a file not yet shown, its\nverdict, `passed`, 1 when that is `accepted`, the numbers its steps\nreported, exactly, and its texts, with the `label` and `message` shown\nwith its verdict, null when no step wrote one. A run in two groups\nshown is shown in each; a run no group shown holds is never shown, even\nwhen a value shown reads it. Organisers read every run, under `all` in\nthe task's order, with its `id`, which counts every run of the task;\n`id` is null for an entrant. A run a row holds that the task's latest\npublication no longer has is `dropped`, listed to organisers after the\nrest; never to an entrant.",
         "properties": {
           "dropped": {
             "default": false,
@@ -6282,7 +5793,7 @@
         "type": "object"
       },
       "RunValue": {
-        "description": "One value of a run task's scoring as its reader sees it: its name,\nits `number`, exact, null when it is missing, waiting or text; its\n`text`, null when it is a number, missing or waiting; whether\nit is `waiting` for staff, which an entrant reads as \"being checked\",\ntold only once the runs it waits on are early or shown; and whether it\nis `self_reported`, reading a column the entrant could set. Organisers\nalso read the time `show` lists it under, null when never, and what it\nread: `runs` by id, `values` and `facts`; each is null for an entrant.",
+        "description": "One value of a task's scoring as its reader sees it: its name,\nits `number`, exact, null when it is missing, waiting or text; its\n`text`, null when it is a number, missing or waiting; whether\nit is `waiting` for staff, which an entrant reads as \"being checked\",\ntold only once the runs it waits on are early or shown; and whether it\nis `self_reported`, reading a column the entrant could set. Organisers\nalso read the time `show` lists it under, null when never, and what it\nread: `runs` by id, `values` and `facts`; each is null for an entrant.",
         "properties": {
           "facts": {
             "anyOf": [
@@ -6396,7 +5907,7 @@
         "type": "object"
       },
       "RunVerdict": {
-        "description": "One run of a run task's grading: its id and key as the plan gives\nthem, its verdict, 1 `passed` when that is `accepted`, the numbers its\nsteps reported, exactly, and the texts, with the label and message\nshown with the verdict, null when no step wrote one.",
+        "description": "One run of a grading: its id and key as the plan gives\nthem, its verdict, 1 `passed` when that is `accepted`, the numbers its\nsteps reported, exactly, and the texts, with the label and message\nshown with the verdict, null when no step wrote one.",
         "properties": {
           "id": {
             "title": "Id",
@@ -6479,7 +5990,7 @@
         "type": "object"
       },
       "RunsResult": {
-        "description": "A run task's grading's result, version 6, one per pipeline: each run\nit grades with its verdict, what the steps done once reported, what\nstaff alone see, and, when a run's verdict is `system_error`, the\nsentence for staff saying why. Where its log went stays out.",
+        "description": "A grading's result, version 6, one per pipeline: each run\nit grades with its verdict, what the steps done once reported, what\nstaff alone see, and, when a run's verdict is `system_error`, the\nsentence for staff saying why. Where its log went stays out.",
         "properties": {
           "error": {
             "anyOf": [
@@ -6769,16 +6280,6 @@
         "title": "SetVisibility",
         "type": "object"
       },
-      "Show": {
-        "description": "When contestants see a test group's results: as soon as a grading\nends; its outcome now and its tests at the task's reveal; or, but for\nits name, everything at the reveal.",
-        "enum": [
-          "always",
-          "verdict",
-          "after_close"
-        ],
-        "title": "Show",
-        "type": "string"
-      },
       "Slot": {
         "description": "A slot for one file: where to send it, and when the slot stops being\ngood. `ready` is true for a file the forge already holds, which is sent\nagain by sending nothing.",
         "properties": {
@@ -6940,7 +6441,7 @@
         "type": "object"
       },
       "SubmissionChange": {
-        "description": "One submission a run task's regrade changed: its latest attempt of\nthe regrade, `grading`, which the task's gradings read in full, the\nsubmission by `number`, each value it changed, and the runs whose\nverdict it changed, at most 20 listed and `more_verdicts` counting the\nrest.",
+        "description": "One submission a regrade changed: its latest attempt of the regrade,\n`grading`, which the task's gradings read in full, the submission by\n`number`, each value it changed, and the runs whose verdict it changed,\nat most 20 listed and `more_verdicts` counting the rest.",
         "properties": {
           "grading": {
             "format": "uuid",
@@ -7758,7 +7259,7 @@
         "type": "object"
       },
       "UploadRequest": {
-        "description": "One file to upload for the task's contestant input `input`: where it\ngoes under the input, one name for a file input, a path of names for a\nfolder input, and `<group>/<test>` with or without an ending for an\ninput that takes one file per test; its size in bytes, the SHA-256 of\nits content in lowercase hex and, when the browser knows it, its\ncontent type.\n\nThe digest is what the forge checks the bytes against as they arrive, so\na file that changed between being read and being sent is refused there\nrather than committed.",
+        "description": "One file to upload for the task's contestant input `input`: where it\ngoes under the input, one name for a file input and a path of names for\na folder input; its size in bytes, the SHA-256 of its content in\nlowercase hex and, when the browser knows it, its content type.\n\nThe digest is what the forge checks the bytes against as they arrive, so\na file that changed between being read and being sent is refused there\nrather than committed.",
         "properties": {
           "content_type": {
             "anyOf": [
@@ -7892,72 +7393,6 @@
           "text_after"
         ],
         "title": "ValueChange",
-        "type": "object"
-      },
-      "ValueMeaning": {
-        "description": "One value the task's workflow reports, as a page names it: its `name`\nin the report, its `title` (\"Run time\") and its `unit` (\"ms\", only on a\nnumber), each null where the workflow gives none, so the page names it\nby `name`; and, on a number reported for each test, how it `fold`s over\nthe tests and which way is `better`, both null otherwise.",
-        "properties": {
-          "better": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/Better"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "fold": {
-            "anyOf": [
-              {
-                "enum": [
-                  "sum",
-                  "mean",
-                  "max"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Fold"
-          },
-          "name": {
-            "title": "Name",
-            "type": "string"
-          },
-          "title": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Title"
-          },
-          "unit": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Unit"
-          }
-        },
-        "required": [
-          "name",
-          "title",
-          "unit",
-          "fold",
-          "better"
-        ],
-        "title": "ValueMeaning",
         "type": "object"
       },
       "VerdictChange": {
@@ -8118,7 +7553,7 @@
         "type": "object"
       },
       "WorkflowForm": {
-        "description": "What the task form is built from: the workflow the task's `task.yaml`\nnames, as written, the inputs it declares and its test fields, in the\norder the workflow gives them, or `problem`, the reason there are none:\nno `task.yaml` or one that does not read as YAML, no workflow named, or\none that cannot be read or is in an old format; `graded`, whether\nthe task has a graded submission, from when on a save refuses a test\ngroup it adds without its `show` (T10); and `newer`, the workflow's\nlatest version when it comes after the one the task names, which the\ntask keeps until someone saves it naming another (Task 10.6.5); and\n`runs`, whether the workflow describes one run, so the task is in the\nrun format (SIMPLER-CORE.md 8), its inputs given by the task, the\nentrant or `repeat`, and no test fields.",
+        "description": "What the task form is built from: the workflow the task's `task.yaml`\nnames, as written, and the inputs it declares, in the order the\nworkflow gives them, or `problem`, the reason there are none: no\n`task.yaml` or one that does not read as YAML, no workflow named, or one\nthat cannot be read or is in an old form; `graded`, whether the task has\na graded submission; and `newer`, the workflow's latest version when it\ncomes after the one the task names, which the task keeps until someone\nsaves it naming another (Task 10.6.5).",
         "properties": {
           "graded": {
             "default": false,
@@ -8155,19 +7590,6 @@
             ],
             "title": "Problem"
           },
-          "runs": {
-            "default": false,
-            "title": "Runs",
-            "type": "boolean"
-          },
-          "test": {
-            "default": [],
-            "items": {
-              "$ref": "#/components/schemas/DeclaredField"
-            },
-            "title": "Test",
-            "type": "array"
-          },
           "workflow": {
             "anyOf": [
               {
@@ -8183,11 +7605,9 @@
         "required": [
           "workflow",
           "inputs",
-          "test",
           "problem",
           "graded",
-          "newer",
-          "runs"
+          "newer"
         ],
         "title": "WorkflowForm",
         "type": "object"
@@ -8807,115 +8227,6 @@
         ]
       }
     },
-    "/api/v1/gradings/{grading}/callback": {
-      "post": {
-        "description": "Under `Authorization: Bearer <token>`, the run's own token: `started`,\n`progress` with the step and its counts, or `finished` with the result.\nA missing or wrong token is `invalid_token`, a body that is no report\n`invalid_callback`, and a grading that takes no reports now\n`grading_closed`. The same result sent again is answered the same.",
-        "operationId": "reportGradingRun",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "grading",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Grading",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object"
-              }
-            }
-          },
-          "description": "`started`, `progress` with `step`, `done` and `total`, or `finished` with `result`.",
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CallbackAnswer"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "default": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "An error, as an RFC 9457 problem document. `code` names it."
-          }
-        },
-        "summary": "A grading run reports how it stands",
-        "tags": [
-          "runs"
-        ]
-      }
-    },
-    "/api/v1/gradings/{grading}/envelope": {
-      "get": {
-        "description": "The runner's `envelope.schema.json`, for the envelope key the URL\ncarries. It is served once, while the grading is dispatched, and that\nfetch is the run beginning. A wrong key is `not_found`, and a second\nfetch, a grading the CI holds no run of, or one whose deadline has\npassed, `grading_closed`. It carries the run's callback token, so it is\nnever stored on the way.",
-        "operationId": "getGradingEnvelope",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "grading",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Grading",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "key",
-            "required": false,
-            "schema": {
-              "default": "",
-              "title": "Key",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            },
-            "description": "The runner's `envelope.schema.json`."
-          },
-          "default": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "An error, as an RFC 9457 problem document. `code` names it."
-          }
-        },
-        "summary": "The envelope a grading run fetches as it begins",
-        "tags": [
-          "runs"
-        ]
-      }
-    },
     "/api/v1/gradings/{grading}/steps/{step}": {
       "get": {
         "description": "Under `Authorization: Bearer <token>`, the step's own token: the\nstep's job, or 204 when every run of it is left out, which its wrapper\nends on with success. A missing or wrong token, or one that no longer\nworks, is `invalid_token`, and a grading that has finished\n`grading_closed`. The job carries presigned links, so it is never\nstored on the way.",
@@ -8966,7 +8277,7 @@
             "description": "An error, as an RFC 9457 problem document. `code` names it."
           }
         },
-        "summary": "A run task's step asks for its job",
+        "summary": "A step asks for its job",
         "tags": [
           "runs"
         ]
@@ -9028,7 +8339,7 @@
             "description": "An error, as an RFC 9457 problem document. `code` names it."
           }
         },
-        "summary": "A run task's pipeline reports that it has ended",
+        "summary": "A pipeline reports that it has ended",
         "tags": [
           "runs"
         ]
@@ -9085,7 +8396,7 @@
             "description": "An error, as an RFC 9457 problem document. `code` names it."
           }
         },
-        "summary": "A run task's step says its uploads are in",
+        "summary": "A step says its uploads are in",
         "tags": [
           "runs"
         ]
@@ -9147,7 +8458,7 @@
             "description": "An error, as an RFC 9457 problem document. `code` names it."
           }
         },
-        "summary": "A file the forge serves a run task's step",
+        "summary": "A file the forge serves a step",
         "tags": [
           "runs"
         ]
@@ -9211,7 +8522,7 @@
             "description": "An error, as an RFC 9457 problem document. `code` names it."
           }
         },
-        "summary": "A run task's step lists what it will upload",
+        "summary": "A step lists what it will upload",
         "tags": [
           "runs"
         ]
@@ -11092,7 +10403,7 @@
     },
     "/api/v1/orgs/{org}/contests/{contest}/gradings": {
       "get": {
-        "description": "At most `limit` gradings of the contest's tasks the caller observes,\nnewest first, every attempt a row of its own, so a submission graded\nagain shows more than once, or, with `latest`, only each submission's\nlatest attempt. One whose run is overdue or lost reads as\n`system_error` with the reason, and a filter by status takes it as it\nreads, so `status=system_error&latest=true` gives the failed gradings\nthe queue's `failed` counts. A task, username or entrant the contest does not have, or a task\nthe caller does not observe, gives no rows; a username that breaks the\nforge's rule for one is a `validation_error`.\n\nWith `regrade`, the regrade of many a summary of `/gradings/regrades`\nnames, it lists that regrade's gradings, one per submission, its latest\nattempt of the regrade, newest first, each with `change`, what it did\nto the submission beside the result it replaced, the earlier and new\ntests accepted side by side; `change` narrows them to one kind, and `user` and\n`entrant` narrow as ever, while `task`, `status` and `latest` are not\nread with it. A regrade the caller cannot see gives no rows, and so\ndoes `change` without `regrade`.",
+        "description": "At most `limit` gradings of the contest's tasks the caller observes,\nnewest first, every attempt a row of its own, so a submission graded\nagain shows more than once, or, with `latest`, only each submission's\nlatest attempt. One whose run is overdue or lost reads as\n`system_error` with the reason, and a filter by status takes it as it\nreads, so `status=system_error&latest=true` gives the failed gradings\nthe queue's `failed` counts. A task, username or entrant the contest does not have, or a task\nthe caller does not observe, gives no rows; a username that breaks the\nforge's rule for one is a `validation_error`.\n\nWith `regrade`, the regrade of many a summary of `/gradings/regrades`\nnames, it lists that regrade's gradings, one per submission, its latest\nattempt of the regrade, newest first, each with `change`, what it did\nto the submission beside the result it replaced, the earlier attempt\nand its own by number; `change` narrows them to one kind, and `user` and\n`entrant` narrow as ever, while `task`, `status` and `latest` are not\nread with it. A regrade the caller cannot see gives no rows, and so\ndoes `change` without `regrade`.",
         "operationId": "listContestGradings",
         "parameters": [
           {
@@ -14069,77 +13380,6 @@
         ]
       }
     },
-    "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/gradings/{grading}/log": {
-      "get": {
-        "description": "The log of the grading's run. A grading with no log is `not_found`,\nthe same as one that is not there, and a log larger than the platform\nreads back is `log_too_large` with the `limit` in bytes.",
-        "operationId": "readGradingLog",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "grading",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Grading",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "org",
-            "required": true,
-            "schema": {
-              "title": "Org",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "contest",
-            "required": true,
-            "schema": {
-              "title": "Contest",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "task",
-            "required": true,
-            "schema": {
-              "title": "Task",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "text/plain; charset=utf-8": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "description": "The log, as the run wrote it."
-          },
-          "default": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "An error, as an RFC 9457 problem document. `code` names it."
-          }
-        },
-        "summary": "The run log of one of the task's gradings",
-        "tags": [
-          "gradings"
-        ]
-      }
-    },
     "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/gradings/{grading}/retry": {
       "post": {
         "description": "The new attempt, queued. The old one is kept as it was, unless it reads\nas a system error only because its run is overdue or lost: then it is\nended with that reason, and its run cancelled at the CI. One that is not\nfinished is `wrong_status` with its status as `current`, and so is a\nsubmission staff cancelled, which that ended, as `cancelled`; an earlier\nattempt of a submission graded again is `conflict`, since the latest is\nthe one to retry, and so is one while another attempt of it is being\ngraded.",
@@ -14776,7 +14016,7 @@
     },
     "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/organise/queue": {
       "get": {
-        "description": "Each row the task has closed for, its extension included, by name,\nwith the submissions to the task a cell of any leaderboard counted,\neach with the cells that counted it and the mark of each `entered`\nvalue, null while missing; a caller with a role at the task alone is\nlisted only the cells that read this task alone. A row with nothing\ncounted is left out. A task that does not grade by runs is\n`not_a_run_task`, and one never published `not_found`.",
+        "description": "Each row the task has closed for, its extension included, by name,\nwith the submissions to the task a cell of any leaderboard counted,\neach with the cells that counted it and the mark of each `entered`\nvalue, null while missing; a caller with a role at the task alone is\nlisted only the cells that read this task alone. A row with nothing\ncounted is left out. A task never published is `not_found`.",
         "operationId": "readGradingQueue",
         "parameters": [
           {
@@ -15417,7 +14657,7 @@
     },
     "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/public/{path}": {
       "get": {
-        "description": "`path` is the file's path under `public/`. Read with exactly the rights\nthe statement is read with, as the task's latest publication holds it,\nand, for a signed-in caller holding a role reaching the task, whether or\nnot it is released, as the task's head holds it, the draft the\nstatement's preview draws. Each answer carries an `ETag` of its bytes\nand is asked again each time; `If-None-Match` with that tag is answered\n304 while the bytes are the same. A path with an empty,\n`.` or `..` segment, or a file that is not there, is `not_found`, the\nsame as a task the caller may not read; one larger than a page is served\nis `public_file_too_large`, with the `limit` in bytes.",
+        "description": "`path` is the file's path under `public/`, which the task's `show`\nlists, or a folder it is in, from its time on. Read with exactly the\nrights the statement is read with, as the task's latest publication\nholds it, and, for a signed-in caller holding a role reaching the task,\nwhether or not it is released, as the task's head holds it, the draft\nthe statement's preview draws, any file its `show` lists at any time.\nEach answer carries an `ETag` of its bytes and is asked again each time;\n`If-None-Match` with that tag is answered 304 while the bytes are the\nsame. A path with an empty, `.` or `..` segment, a file that is not\nthere, or one the task does not show the caller, is `not_found`, the\nsame as a task the caller may not read; one larger than a page is\nserved is `public_file_too_large`, with the `limit` in bytes.",
         "operationId": "getTaskPublicFile",
         "parameters": [
           {
@@ -15534,7 +14774,7 @@
             "description": "An error, as an RFC 9457 problem document. `code` names it."
           }
         },
-        "summary": "A file under a task's public/, such as a statement's image",
+        "summary": "A file under a task's public/ that it shows, such as a statement's image",
         "tags": [
           "contest home"
         ]
@@ -15667,7 +14907,7 @@
     },
     "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/regrades/{regrade}": {
       "get": {
-        "description": "Each submission whose values or verdicts the regrade changed, old to\nnew, worked out on read, a bounded few and the rest counted; how many\nare still running and how many it cannot compare; and, for a manager\nor admin of the contest, each leaderboard that reads the task before and\nafter. A regrade of another task is `not_found`, the same as none, and\nso is one of a task graded test by test, whose gradings say what it\nchanged.",
+        "description": "Each submission whose values or verdicts the regrade changed, old to\nnew, worked out on read, a bounded few and the rest counted; how many\nare still running and how many it cannot compare; and, for a manager\nor admin of the contest, each leaderboard that reads the task before and\nafter. A regrade of another task is `not_found`, the same as none.",
         "operationId": "readRunRegrade",
         "parameters": [
           {
@@ -15730,7 +14970,7 @@
             "description": "An error, as an RFC 9457 problem document. `code` names it."
           }
         },
-        "summary": "What a run task's regrade changed, value by value",
+        "summary": "What a regrade changed, value by value",
         "tags": [
           "gradings"
         ]
@@ -15986,7 +15226,7 @@
             "description": "An error, as an RFC 9457 problem document. `code` names it."
           }
         },
-        "summary": "Take a release of a run task's results back",
+        "summary": "Take a release of a task's results back",
         "tags": [
           "tasks"
         ]
@@ -15994,7 +15234,7 @@
     },
     "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/results/release": {
       "post": {
-        "description": "From now on every entrant is shown what the task's `show` lists under\n`on_release`, and gradings made from now on run those runs early. Without\n`confirm`, nothing changes and the answer is `confirmation_required`\nwith `action` `release` and, as its detail, what becomes visible, to\nwhom, and that it can be taken back. A task already released answers as\nit stands. A task with no publication is `not_found`, and one that does\nnot grade by runs `not_a_run_task`. The answer is read once the release\nhas landed.",
+        "description": "From now on every entrant is shown what the task's `show` lists under\n`on_release`, and gradings made from now on run those runs early. Without\n`confirm`, nothing changes and the answer is `confirmation_required`\nwith `action` `release` and, as its detail, what becomes visible, to\nwhom, and that it can be taken back. A task already released answers as\nit stands. A task with no publication is `not_found`. The answer is\nread once the release has landed.",
         "operationId": "releaseTaskResults",
         "parameters": [
           {
@@ -16057,7 +15297,7 @@
             "description": "An error, as an RFC 9457 problem document. `code` names it."
           }
         },
-        "summary": "Release a run task's results",
+        "summary": "Release a task's results",
         "tags": [
           "tasks"
         ]
@@ -16467,7 +15707,7 @@
     },
     "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/submissions/{number}": {
       "get": {
-        "description": "With what the task's test groups let the caller see of its grading\nnow.",
+        "description": "With what the task's `show` lets the caller see of its grading now.",
         "operationId": "getMySubmission",
         "parameters": [
           {
@@ -17053,7 +16293,7 @@
     },
     "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/workflow-form": {
       "get": {
-        "description": "The workflow `task.yaml` names as it is saved now, a draft included,\nwith each input it declares and each field every test has, in the\nworkflow's order. A workflow declares no defaults; a contestant input's\n`default` is the task's own. A `task.yaml` that is missing or does not\nread, names no workflow or one that cannot be read answers with\n`problem`, the reason, and no inputs, so the form can mend it. Either\nway `graded` says whether the task has a graded submission, from when\non a save refuses a test group it adds without its `show`, and `newer`\nnames the workflow's latest version when it comes after the one the\ntask names, which the task keeps until it is saved naming another.",
+        "description": "The workflow `task.yaml` names as it is saved now, a draft included,\nwith each input it declares, in the workflow's order. A workflow\ndeclares no defaults; an entrant input's `default` is the task's own. A\n`task.yaml` that is missing or does not read, names no workflow or one\nthat cannot be read answers with `problem`, the reason, and no inputs,\nso the form can mend it. Either way `graded` says whether the task has a\ngraded submission, and `newer` names the workflow's latest version when\nit comes after the one the task names, which the task keeps until it is\nsaved naming another.",
         "operationId": "getTaskWorkflowForm",
         "parameters": [
           {
@@ -17106,7 +16346,7 @@
             "description": "An error, as an RFC 9457 problem document. `code` names it."
           }
         },
-        "summary": "The inputs and test fields of the workflow the task names",
+        "summary": "The inputs of the workflow the task names",
         "tags": [
           "tasks"
         ]

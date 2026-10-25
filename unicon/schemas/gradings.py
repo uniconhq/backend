@@ -3,7 +3,7 @@ cancelled with, a mark entered for a submission's value and what was
 kept, a task's grading queue, a grading as an organiser reads it, one
 among a task's or a contest's with its task and who submitted it, what a
 rejudge did, a task's latest regrade of many summed up and what it did to
-one submission, a run task's regrade by the values and verdicts it
+one submission, a regrade by the values and verdicts it
 changed, and where a grading stands after its run reports. Who submitted
 and a contest's queue depth go out as the forge's own `Submitter` and
 `QueueDepth`. A username the feed is narrowed by keeps the forge's rule
@@ -19,10 +19,10 @@ from forge.api.gradings import GradingStatus, Submitter
 from forge.api.regrades import ChangeKind, RegradeCause
 from pydantic import BaseModel, Field, field_validator
 
-from unicon.schemas.exact import Exact, Reported
+from unicon.schemas.exact import Exact
 from unicon.schemas.leaderboards import Counted, Header, LeaderboardRowOwner, SortKey
 from unicon.schemas.publications import PublicationNumber
-from unicon.schemas.submissions import GradedTest, Outcome, TextRef
+from unicon.schemas.submissions import Outcome, TextRef
 
 USERNAME_PATTERN = r"^[A-Za-z0-9](?:[-._]?[A-Za-z0-9])*$"
 """Letters, digits, `-`, `_` and `.`, beginning and ending with a letter or
@@ -30,31 +30,8 @@ a digit, no two of `-`, `_` and `.` side by side: Forgejo's rule."""
 USERNAME_MAX = 40
 
 
-class GradingProgress(BaseModel):
-    """The last progress a grading's run reported: the step it was at and how
-    many of that step's containers were done of how many.
-    """
-
-    step: str
-    done: int
-    total: int
-
-
-class RunResult(BaseModel):
-    """What a run's result says of the submission: what stopped the run,
-    null when nothing did, a row for every test, the values reported once,
-    and, when it stopped on `system_error`, the sentence for staff saying
-    why. Where the run put its log stays out.
-    """
-
-    stopped: Outcome | None
-    tests: list[GradedTest]
-    values: Reported
-    error: str | None
-
-
 class RunVerdict(BaseModel):
-    """One run of a run task's grading: its id and key as the plan gives
+    """One run of a grading: its id and key as the plan gives
     them, its verdict, 1 `passed` when that is `accepted`, the numbers its
     steps reported, exactly, and the texts, with the label and message
     shown with the verdict, null when no step wrote one.
@@ -91,7 +68,7 @@ class StaffNote(BaseModel):
 
 
 class RunsResult(BaseModel):
-    """A run task's grading's result, version 6, one per pipeline: each run
+    """A grading's result, version 6, one per pipeline: each run
     it grades with its verdict, what the steps done once reported, what
     staff alone see, and, when a run's verdict is `system_error`, the
     sentence for staff saying why. Where its log went stays out.
@@ -173,46 +150,27 @@ class QueueRow(BaseModel):
     submissions: list[QueuedSubmission]
 
 
-class RegradeSide(BaseModel):
-    """One result a regrade compares, as organisers see it, every group,
-    nothing held back: its attempt, how many of its tests were `accepted` of
-    how many `tests` its plan has in its groups, and the outcome that
-    `stopped` its run before its tests, null when nothing did.
-    """
-
-    attempt: int
-    accepted: int
-    tests: int
-    stopped: Outcome | None
-
-
 class RegradeChange(BaseModel):
-    """What a regrade did to one submission: `change`, and the result it
-    replaced, `earlier`, the one that counted when the regrade began, null
-    when there was none or it no longer reads, beside its own, `now`, null
-    while it has none.
+    """What a regrade did to one submission: `change`, and the attempt
+    whose result it replaced, `earlier`, the one that counted when the
+    regrade began, null when there was none, beside its own attempt, `now`,
+    null while it has no result.
 
-    `up` and `down`: a larger or smaller share of its tests accepted.
-    `stopped`: it now stops before its tests where the earlier result did
-    not, which on the classic workflow is "now fails to compile".
-    `unchanged`; `new`, graded with no earlier result to compare with;
-    `running`, still being graded; `failed`, no result yet, its latest
-    attempt a system error or cancelled; `over_limit`, not graded, its
-    entrant at the task's most submissions.
+    `regraded`, graded with an earlier result; `new`, graded with no earlier
+    result; `running`, still being graded; `failed`, no result yet, its
+    latest attempt a system error or cancelled; `over_limit`, not graded,
+    its entrant at the task's most submissions.
     """
 
     change: ChangeKind
-    earlier: RegradeSide | None
-    now: RegradeSide | None
+    earlier: int | None
+    now: int | None
 
 
 class RegradeCounts(BaseModel):
     """How many of a regrade's submissions each change counts."""
 
-    up: int
-    down: int
-    stopped: int
-    unchanged: int
+    regraded: int
     new: int
     running: int
     failed: int
@@ -221,17 +179,16 @@ class RegradeCounts(BaseModel):
 
 class RegradeSummary(BaseModel):
     """A task's latest regrade of many as the contest's page shows it, "Regrade
-    of A: 120 graded · 4 went down · 2 now fail to compile · 1 went up": its
-    id, the one the feed is read by; its task by name and `label`, the letter
-    of its place in the contest's `tasks`, null once the contest no longer
-    lists it; what started it, `cause`, a staff `rejudge` or the `save` that
-    published `publication`, the publication its attempts grade against;
-    when and by whom, by user id and `started_by_name`, their username, null
-    when the forge does not say; how many submissions it took, `total`; how
-    many it `graded`, finishing with a result (`up`, `down`, `stopped`,
-    `unchanged` and `new` together); whether any is still `running`; and
-    `counts`, by change. It stays until a newer regrade of the task replaces
-    it or a manager of the task dismisses it.
+    of A: 120 graded": its id, the one the feed is read by; its task by name
+    and `label`, the letter of its place in the contest's `tasks`, null once
+    the contest no longer lists it; what started it, `cause`, a staff
+    `rejudge` or the `save` that published `publication`, the publication
+    its attempts grade against; when and by whom, by user id and
+    `started_by_name`, their username, null when the forge does not say; how
+    many submissions it took, `total`; how many it `graded`, finishing with
+    a result (`regraded` and `new` together); whether any is still
+    `running`; and `counts`, by change. It stays until a newer regrade of
+    the task replaces it or a manager of the task dismisses it.
     """
 
     id: uuid.UUID
@@ -284,11 +241,10 @@ class VerdictChange(BaseModel):
 
 
 class SubmissionChange(BaseModel):
-    """One submission a run task's regrade changed: its latest attempt of
-    the regrade, `grading`, which the task's gradings read in full, the
-    submission by `number`, each value it changed, and the runs whose
-    verdict it changed, at most 20 listed and `more_verdicts` counting the
-    rest."""
+    """One submission a regrade changed: its latest attempt of the regrade,
+    `grading`, which the task's gradings read in full, the submission by
+    `number`, each value it changed, and the runs whose verdict it changed,
+    at most 20 listed and `more_verdicts` counting the rest."""
 
     grading: uuid.UUID
     number: int
@@ -342,7 +298,7 @@ class LeaderboardDiff(BaseModel):
 
 
 class RunRegradeSummary(BaseModel):
-    """A run task's regrade by what it changed: its `id`, what started it,
+    """A regrade by what it changed: its `id`, what started it,
     the publication it grades against, how many submissions it took,
     `total`, how many are still `running`, how many ended with no
     result, `failed`, and how many it cannot compare, `unread`, since
@@ -369,15 +325,14 @@ class RunRegradeSummary(BaseModel):
 
 
 class Grading(BaseModel):
-    """One grading as an organiser managing its task reads it: the
-    submission by its number, the publication it grades against, its
-    attempt and whether that is the submission's `latest`, the one staff
-    cancel or retry, the member who submitted it, `submitted_by`, null when
-    a reconcile found it at the forge, where it stands, the reason it failed, the sentence
-    staff cancelled it with, its result, whether its log was written, the
-    last progress its run reported, its times, and whether the platform made
-    it by itself, `automatic`, retrying the attempt before it once that
-    failed.
+    """One grading as an organiser managing its task reads it: the submission
+    by its number, the publication it grades against, its attempt and
+    whether that is the submission's `latest`, the one staff cancel or
+    retry, the member who submitted it, `submitted_by`, null when a
+    reconcile found it at the forge, where it stands, the reason it failed,
+    the sentence staff cancelled it with, its result, its times, and whether
+    the platform made it by itself, `automatic`, retrying the attempt before
+    it once that failed.
 
     On a latest attempt that has not finished with a result, still being
     graded, a system error or staff cancelled, `last_good` is the latest
@@ -397,12 +352,11 @@ class Grading(BaseModel):
     attempt belongs to, null for none; `change`, given only on the feed read
     by `regrade`, what that regrade did to the submission.
 
-    A run task's submission is graded by up to two pipelines, each with
-    attempts of its own: `early`, the runs shown during the contest, and
-    `late`, the rest, made once the early one is done, with `early` naming
-    the early attempt it follows, null on an early one. Its `result` is a
-    `RunsResult`; a task with tests has `early` attempts alone, each with a
-    `RunResult`.
+    A submission is graded by up to two pipelines, each with attempts of
+    its own: `early`, the runs shown during the contest, and `late`, the
+    rest, made once the early one is done, with `early` naming the early
+    attempt it follows, null on an early one. Its `result` is a
+    `RunsResult`.
     """
 
     id: uuid.UUID
@@ -415,9 +369,7 @@ class Grading(BaseModel):
     status: GradingStatus
     error: str | None
     cancel_reason: str | None
-    result: RunResult | RunsResult | None
-    log: bool
-    progress: GradingProgress | None
+    result: RunsResult | None
     queued_at: datetime
     dispatched_at: datetime | None
     started_at: datetime | None

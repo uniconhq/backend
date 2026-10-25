@@ -1,33 +1,33 @@
 """An organiser's view of and controls over a task's gradings: the list of
 them, newest first, each with who submitted it, where it stands, why it
-failed and whether it is its submission's latest attempt, and a grading's
-run log, which need the observer role at the task; and, with the manager
-role there, cancelling the latest attempt of a submission that reads as a
-system error, with a sentence its contestant reads, when a regrade would
-only repeat the fault; retrying a submission's latest attempt once it is
-finished as a new attempt against the publication it graded against, a
-stuck one included, whose old run is cancelled, as often as staff like
-after the one retry the platform makes by itself of a grading that fails;
-and rejudging every submission's latest attempt against the task's current
-publication. A failed or cancelled attempt never takes a result away: a
-submission counts its latest attempt that finished with a result. A delayed
-submission is graded again, by a retry or a rejudge, only while its entrant
-has room under the task's most submissions, and otherwise ends
-`over_limit`; a grading's `retry_limit` says beforehand when a retry would.
+failed and whether it is its submission's latest attempt, which needs the
+observer role at the task; and, with the manager role there, cancelling the
+latest attempt of a submission that reads as a system error, with a sentence
+its contestant reads, when a regrade would only repeat the fault; retrying a
+submission's latest attempt once it is finished as a new attempt against the
+publication it graded against, a stuck one included, whose old run is
+cancelled, as often as staff like after the one retry the platform makes by
+itself of a grading that fails; and rejudging every submission's latest
+attempt against the task's current publication. A failed or cancelled
+attempt never takes a result away: a submission counts its latest attempt
+that finished with a result. A delayed submission is graded again, by a
+retry or a rejudge, only while its entrant has room under the task's most
+submissions, and otherwise ends `over_limit`; a grading's `retry_limit` says
+beforehand when a retry would.
 
 A rejudge, and the regrade a save that changes how the task grades starts,
 is kept as one regrade of many: anyone holding a role in the contest reads
 each task's latest one they observe summed up by what it did to each
 submission against the result it replaced, and the feed narrowed to its
 gradings, each with that change; a manager of the task dismisses it from
-the contest's page, and reads a run task's regrade by each value and
+the contest's page, and reads a regrade by each value and
 verdict it changed, old to new, with each leaderboard that reads the task
 before and after for a manager or admin of the contest alone.
 
 An observer of the task also reads any entrant's submission as its row
 reads it with everything filled in, beside its grading (TASK-FORMAT.md
 section 1.7): the row picked by `entrant`, as the leaderboards pick one, and the
-submission by its number among the row's; and a text a run task's result
+submission by its number among the row's; and a text a result
 names, one at a time. A manager of the task enters a mark for one of a
 submission's values that reads an `entered` block; every mark is kept, the
 latest counts, and a regrade never touches one. Organisers read the value
@@ -59,9 +59,6 @@ guard reads the scope the role is checked at, as for every other organiser
 route. A grading of any other task is no such grading here, whatever roles
 the caller holds there, so a path names one grading of one task or nothing.
 Forge checks the role again at the grading's own task.
-
-A log is plain text that the browser is told not to guess the type of and
-that runs nothing, so a log is never rendered as a page of the platform's.
 """
 
 import uuid
@@ -112,12 +109,6 @@ TaskManager = Annotated[Organiser, Depends(require(Role.MANAGER, ScopeKind.TASK)
 TaskObserver = Annotated[Organiser, Depends(require(Role.OBSERVER, ScopeKind.TASK))]
 NO_SUCH_GRADING = "There is no such grading."
 LIST_MOST = 500
-LOG = "text/plain; charset=utf-8"
-LOG_HEADERS = {
-    "X-Content-Type-Options": "nosniff",
-    "Content-Security-Policy": "default-src 'none'; sandbox",
-    "Cache-Control": "private, no-store",
-}
 
 
 @router.get(
@@ -261,8 +252,7 @@ async def read_grading_queue(organiser: TaskObserver) -> list[dict[str, Any]]:
     each with the cells that counted it and the mark of each `entered`
     value, null while missing; a caller with a role at the task alone is
     listed only the cells that read this task alone. A row with nothing
-    counted is left out. A task that does not grade by runs is
-    `not_a_run_task`, and one never published `not_found`.
+    counted is left out. A task never published is `not_found`.
     """
     rows = await entries.queue(organiser, tasks.task_id_of(organiser.scope))
     return [
@@ -283,27 +273,6 @@ async def read_grading_queue(organiser: TaskObserver) -> list[dict[str, Any]]:
         }
         for row in rows
     ]
-
-
-@router.get(
-    "/gradings/{grading}/log",
-    operation_id="readGradingLog",
-    summary="The run log of one of the task's gradings",
-    response_class=Response,
-    responses={
-        200: {
-            "description": "The log, as the run wrote it.",
-            "content": {LOG: {"schema": {"type": "string"}}},
-        }
-    },
-)
-async def read_grading_log(organiser: TaskObserver, grading: uuid.UUID) -> Response:
-    """The log of the grading's run. A grading with no log is `not_found`,
-    the same as one that is not there, and a log larger than the platform
-    reads back is `log_too_large` with the `limit` in bytes.
-    """
-    content = await gradings.run_log(organiser, await _of_this_task(organiser, grading))
-    return Response(content=content, media_type=LOG, headers=LOG_HEADERS)
 
 
 @router.post(
@@ -402,8 +371,8 @@ async def list_contest_gradings(
     With `regrade`, the regrade of many a summary of `/gradings/regrades`
     names, it lists that regrade's gradings, one per submission, its latest
     attempt of the regrade, newest first, each with `change`, what it did
-    to the submission beside the result it replaced, the earlier and new
-    tests accepted side by side; `change` narrows them to one kind, and `user` and
+    to the submission beside the result it replaced, the earlier attempt
+    and its own by number; `change` narrows them to one kind, and `user` and
     `entrant` narrow as ever, while `task`, `status` and `latest` are not
     read with it. A regrade the caller cannot see gives no rows, and so
     does `change` without `regrade`.
@@ -487,7 +456,7 @@ async def dismiss_regrade(organiser: TaskManager, regrade: uuid.UUID) -> Respons
 @router.get(
     "/regrades/{regrade}",
     operation_id="readRunRegrade",
-    summary="What a run task's regrade changed, value by value",
+    summary="What a regrade changed, value by value",
     response_model=RunRegradeSummary,
 )
 async def read_run_regrade(organiser: TaskManager, regrade: uuid.UUID) -> dict[str, Any]:
@@ -495,9 +464,7 @@ async def read_run_regrade(organiser: TaskManager, regrade: uuid.UUID) -> dict[s
     new, worked out on read, a bounded few and the rest counted; how many
     are still running and how many it cannot compare; and, for a manager
     or admin of the contest, each leaderboard that reads the task before and
-    after. A regrade of another task is `not_found`, the same as none, and
-    so is one of a task graded test by test, whose gradings say what it
-    changed.
+    after. A regrade of another task is `not_found`, the same as none.
     """
     found = await regrades.run_summary(organiser, tasks.task_id_of(organiser.scope), regrade)
     return {

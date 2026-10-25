@@ -4,7 +4,7 @@
 forge a second time.
 
 The organiser path starts from `acme`, the org made the operator's way with
-ada (7) its admin and the built-in workflow `unicon/classic@v2` public at the
+ada (7) its admin and the built-in workflow `unicon/classic@v3` public at the
 fake as bootstrap makes it, and `sum_task`, the contest acme/spring and the
 task acme/spring/sum in it made through the routes, with ada
 signed in. `world` adds carol (20), who holds nothing. `ORG`, `CONTEST` and
@@ -15,21 +15,32 @@ changes the task's settings.
 `entered` adds carol alone in an approved entrant of the task's contest, and
 `enter` makes anyone else one, answering with the entrant's id; `upload`
 sends a file the way the browser does.
+
+The fake CI asks what each pipeline it starts is while the start is under
+way, as the real CI does, and the client's machines keep the answer.
+`run_pipelines` then runs each pipeline kept, step by step through the step
+doors as the runner's wrapper runs it: its job, what the step wrote put by
+the links the door gives and its done said, and the pipeline's report.
+`publish` and `edit_task` run the save's pipeline alone, so the publication
+its check passes takes over and any regrade it starts waits for the test.
 """
 
 import asyncio
 import hashlib
+import json
 import re
 from collections.abc import AsyncIterator, Awaitable, Callable
+from dataclasses import dataclass, field
 from typing import Any
 from urllib.parse import parse_qs, urlsplit
+from weakref import WeakKeyDictionary
 
 import httpx
 import pytest
 from fastapi import FastAPI
-from forge.api import orgs
+from forge.api import orgs, runs
 from forge.api.types import Scope
-from forge.testing import APP_URL, FakeForge, Setup, seed_classic
+from forge.testing import APP_URL, FakeClock, FakeForge, OrgId, Setup, seed_classic
 
 from unicon.cli import main
 from unicon.main import create_app
@@ -60,11 +71,123 @@ def app(held_setup: object, built_app: FastAPI) -> FastAPI:
     return built_app
 
 
+@dataclass
+class Machines:
+    """What runs the pipelines the test's forge starts: the forge, whose
+    store takes what a step writes, and each pipeline's steps as the
+    platform answered the CI, in the order they were started, until they
+    are run.
+    """
+
+    forge: FakeForge
+    started: list[tuple[str, list[dict[str, Any]]]] = field(default_factory=list)
+
+
+MACHINES: WeakKeyDictionary[httpx.AsyncClient, Machines] = WeakKeyDictionary()
+"""The machines of each test's client."""
+
+
 @pytest.fixture
-async def client(app: FastAPI) -> AsyncIterator[httpx.AsyncClient]:
+async def client(
+    app: FastAPI, fake: FakeForge, clock: FakeClock, monkeypatch: pytest.MonkeyPatch
+) -> AsyncIterator[httpx.AsyncClient]:
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url=APP_URL) as client:
+        MACHINES[client] = _machines(fake, clock, monkeypatch)
         yield client
+
+
+def _machines(fake: FakeForge, clock: FakeClock, monkeypatch: pytest.MonkeyPatch) -> Machines:
+    """The fake CI asking what each pipeline is as it starts it, and the
+    steps it is answered with kept.
+    """
+    machines = Machines(fake)
+    start = fake.grading.start_pipeline
+
+    async def asking(as_: Any, run: Any) -> Any:
+        made = await start(as_, run)
+        found = fake.ci.runs[made]
+        org = OrgId(found.task.split("/", 1)[0])
+        answer = await runs.config(
+            fake.grading.config_request(org, found.variables, now=clock.now())
+        )
+        steps = json.loads(answer.body)["steps"]
+        machines.started.append((found.variables["UNICON_PIPELINE"], steps))
+        return made
+
+    monkeypatch.setattr(fake.grading, "start_pipeline", asking)
+    return machines
+
+
+async def run_pipelines(
+    client: httpx.AsyncClient,
+    verdict: str = "accepted",
+    pipelines: tuple[str, ...] = ("save", "early", "late"),
+) -> None:
+    """Every pipeline of the kinds `pipelines` names started and not yet
+    run, run to its report, and any of them it starts in turn: a compile
+    accepted, writing a program; each run of the entrant's program ending
+    `verdict`, writing its output, its time and its memory when accepted;
+    and each run of a program given a manifest, the classic workflow's
+    compare, accepted with a score of 1.
+    """
+    machines = MACHINES[client]
+    while found := [each for each in machines.started if each[0] in pipelines]:
+        machines.started.remove(found[0])
+        for step in found[0][1]:
+            await _run_step(client, machines.forge, step, verdict)
+
+
+async def _run_step(
+    client: httpx.AsyncClient, forge: FakeForge, step: dict[str, Any], verdict: str
+) -> None:
+    settings = step["settings"]
+    door = urlsplit(settings["data_url"]).path
+    headers = {"Authorization": f"Bearer {settings['data_token']}"}
+    if settings.get("mode") == "report":
+        reported = await client.post(door, content=b"{}", headers=headers)
+        assert reported.status_code == 200, reported.text
+        return
+    asked = await client.get(door, headers=headers)
+    assert asked.status_code in (200, 204), asked.text
+    if asked.status_code == 204:
+        return
+    written = _written(step["image"], asked.json(), verdict)
+    listed = [
+        {"path": path, "sha256": hashlib.sha256(content).hexdigest(), "size": len(content)}
+        for path, content in written.items()
+    ]
+    links = await client.post(
+        f"{door}/uploads", content=json.dumps({"files": listed}).encode(), headers=headers
+    )
+    assert links.status_code == 200, links.text
+    for path, link in links.json()["files"].items():
+        forge.objects.put(link, written[path])
+    done = await client.post(f"{door}/done", content=b"{}", headers=headers)
+    assert done.status_code == 204, done.text
+
+
+def _written(image: str, job: dict[str, Any], verdict: str) -> dict[str, bytes]:
+    """What a step of `image` writes for `job`: its `outputs.json` and the
+    files it names.
+    """
+    if "/primitive-compile@" in image:
+        outputs = {"outcome": "accepted", "log": "", "program": {"file": "out/program"}}
+        document: dict[str, Any] = {"schema_version": 6, "outputs": outputs}
+        return {"outputs.json": json.dumps(document).encode(), "out/program": b"\x7fELF\n"}
+    files: dict[str, bytes] = {}
+    batch = []
+    for entry in job["inputs"]["batch"]:
+        run = entry["run"]
+        compare = "manifest" in entry["inputs"]
+        ran: dict[str, Any] = {"outcome": "accepted" if compare else verdict}
+        if ran["outcome"] == "accepted":
+            ran |= {"output": {"file": f"out/{run}/output"}, "time_ms": 12, "memory_kb": 2048}
+            ran |= {"score": 1} if compare else {}
+            files[f"out/{run}/output"] = b"3\n"
+        batch.append({"run": run, "outputs": ran})
+    document = {"schema_version": 6, "batch": batch}
+    return {"outputs.json": json.dumps(document).encode(), **files}
 
 
 @pytest.fixture
@@ -198,6 +321,7 @@ async def publish(client: httpx.AsyncClient, task: str = TASK) -> None:
         headers=ORIGIN,
     )
     assert "number" in saved.json(), saved.text
+    await run_pipelines(client, pipelines=("save",))
 
 
 async def add_task(client: httpx.AsyncClient, name: str) -> str:
@@ -242,6 +366,7 @@ async def edit_task(client: httpx.AsyncClient, old: str, new: str) -> None:
     )
     assert saved.status_code == 200, saved.text
     assert "number" in saved.json(), saved.text
+    await run_pipelines(client, pipelines=("save",))
 
 
 async def enter(client: httpx.AsyncClient, forge: FakeForge, setup: Setup, user_id: int) -> str:
@@ -284,7 +409,7 @@ async def upload(
     forge: FakeForge,
     content: bytes,
     *,
-    input: str = "submission",
+    input: str = "code",
     filename: str = "main.py",
 ) -> dict[str, Any]:
     """A file uploaded the way the browser does: a slot, the bytes through

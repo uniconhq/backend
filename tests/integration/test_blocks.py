@@ -55,7 +55,7 @@ async def test_a_visitor_reads_every_block_once_with_its_forms(
         "plain": False,
     }
     assert found["count"]["forms"][0]["inputs"]["weights"]["kind"] == "weights"
-    assert answer.json()["leaves"] == ["runs", "run", "value", "fact"]
+    assert answer.json()["leaves"] == ["runs", "run", "value", "fact", "text"]
     assert answer.json()["facts"] == ["seconds_late", "seconds", "compiled"]
     assert answer.json()["leaderboard_leaves"] == ["value", "results", "column", "name"]
     assert answer.json()["leaderboard_facts"] == [

@@ -4,10 +4,7 @@ text, number, true-or-false or enum input, as the forge's own
 `SubmittedInput`: a number as the text of its plain decimal digits, `2.5`,
 the form every number is served in, never a JSON number. A submission
 comes back with the latest attempt of its grading, carrying only what the
-task's test groups let its contestant see now: each group by its `show`,
-`always` with its outcome and its tests, `verdict` with its outcome and its
-tests once the task reveals, and `after_close` with its name and when it is
-shown. What is not shown is null.
+task's `show` lets its contestant see now. What is not shown is null.
 """
 
 import uuid
@@ -15,11 +12,10 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any, Literal
 
-from forge.api.submissions import GradingStatus, Show, SubmissionState, SubmittedInput
+from forge.api.submissions import GradingStatus, SubmissionState, SubmittedInput
 from pydantic import BaseModel, field_validator, model_validator
 
-from unicon.schemas.exact import Exact, Reported, exactly
-from unicon.schemas.publications import ValueMeaning
+from unicon.schemas.exact import Exact, exactly
 
 Outcome = Literal[
     "accepted",
@@ -32,9 +28,9 @@ Outcome = Literal[
     "skipped",
     "system_error",
 ]
-"""The runner's list of outcomes, which each test and what stopped a run
-take one of. Forge keeps a result only once it matches the runner's schema,
-so every outcome read back is on it."""
+"""The runner's list of outcomes, which each run's verdict and each step done
+once take one of. Forge keeps a result only once it matches the runner's
+schema, so every outcome read back is on it."""
 Value = str | bool
 """A value a contestant gives: text, a number as its exact decimal digits, or
 true or false. A number travels as its digits both ways, so one of 30
@@ -67,16 +63,6 @@ class SubmitRequest(BaseModel):
         return given
 
 
-class GradedTest(BaseModel):
-    """One test's row of a result: its id, `<group>/<test>`, its outcome,
-    and the values its steps reported for it.
-    """
-
-    test: str
-    outcome: Outcome
-    values: Reported
-
-
 class TextRef(BaseModel):
     """A text a step wrote, read apart and only while the result shows it.
     Organisers are told the stored output that holds it and that output's
@@ -91,7 +77,7 @@ class TextRef(BaseModel):
 
 
 class RunShown(BaseModel):
-    """One run of a run task's grading as its entrant sees it: the group
+    """One run of a grading as its entrant sees it: the group
     `show` lists that shows it, its place in that group from 1 ("Test 3"),
     its key as the plan gives it, leaving out a file not yet shown, its
     verdict, `passed`, 1 when that is `accepted`, the numbers its steps
@@ -120,7 +106,7 @@ class RunShown(BaseModel):
 
 
 class RunValue(BaseModel):
-    """One value of a run task's scoring as its reader sees it: its name,
+    """One value of a task's scoring as its reader sees it: its name,
     its `number`, exact, null when it is missing, waiting or text; its
     `text`, null when it is a number, missing or waiting; whether
     it is `waiting` for staff, which an entrant reads as "being checked",
@@ -142,28 +128,12 @@ class RunValue(BaseModel):
 
 
 class OnceShown(BaseModel):
-    """What a run task's steps done once reported, as its reader is shown
+    """What a grading's steps done once reported, as its reader is shown
     it: numbers, exactly, and texts, the compile log among them; for an
     entrant, only the reports `show` lists, by name."""
 
     reports: dict[str, Exact] = {}
     texts: dict[str, TextRef] = {}
-
-
-class GroupShown(BaseModel):
-    """One test group as the contestant sees it now: its name, its `show`,
-    its outcome once its verdict is shown, its tests once they are, when
-    what is held back is shown, null once nothing is, and whether it ran on
-    this grading. A group that did not run has no outcome, no tests and
-    nothing held back.
-    """
-
-    group: str
-    show: Show
-    outcome: Outcome | None
-    tests: list[GradedTest] | None
-    shown_at: datetime | None
-    ran: bool
 
 
 class Scored(BaseModel):
@@ -173,13 +143,8 @@ class Scored(BaseModel):
 
     id: uuid.UUID
     attempt: int
-    stopped: Outcome | None
-    outcome: Outcome | None
-    groups: list[GroupShown]
-    values: Reported
     reason: str | None
     limit: int | None
-    meanings: list[ValueMeaning]
     runs: list[RunShown] = []
     run_values: list[RunValue] = []
     once: OnceShown = OnceShown()
@@ -188,38 +153,29 @@ class Scored(BaseModel):
 
 class Result(Scored):
     """The attempt of a submission's grading that counts, as its contestant
-    sees it: the latest that finished with a result, as the leaderboards count
-    it, so a regrade under way, a failure or a cancel leaves the result as
-    it was, and while none has, the latest. Its id, attempt and status, and
-    once it is done, what stopped the
-    run, the outcome over the groups shown, each test group as its `show`
-    allows, the values reported once, each test's row with what it
-    reported, and `meanings`, every value the
-    workflow reports, in its order, with the title and unit a page names it
-    by, falling back to its name, a value a sealed step holds back left out
-    until the reveal. `status` is in the contestant's words: `queued` until
-    its run is started, `grading` while it is graded, `graded` once it has
-    a result, `delayed` while it has none and its grading failed on the
-    platform's side, `over_limit` once it was to be graded again with no
-    room left under the task's most submissions, and `cancelled` once staff
-    end it; organisers read the grading's own status in the gradings
-    routes. A `delayed` one carries nothing else: it is tried again once by
-    itself, and then waits for staff, who grade it again or end it: then it
-    is `cancelled`, with `reason`, the sentence they gave, which is null on
-    every other status. A delayed one is graded again only while its
+    sees it: the latest that finished with a result, as the leaderboards
+    count it, so a regrade under way, a failure or a cancel leaves the
+    result as it was, and while none has, the latest. Its id, attempt and
+    status, in the contestant's words: `queued` until its run is started,
+    `grading` while it is graded, `graded` once it has a result, `delayed`
+    while it has none and its grading failed on the platform's side,
+    `over_limit` once it was to be graded again with no room left under the
+    task's most submissions, and `cancelled` once staff end it; organisers
+    read the grading's own status in the gradings routes. A `delayed` one
+    carries nothing else: it is tried again once by itself, and then waits
+    for staff, who grade it again or end it: then it is `cancelled`, with
+    `reason`, the sentence they gave, which is null on every other status. A
+    delayed one is graded again only while its
     entrant's submissions with a result, those waiting that are not
     delayed, and the delayed ones made before it are fewer than the task's
     most, so the first ones to get a result count, and otherwise it is
     `over_limit`, with `limit`,
     the most it reached ("Not graded: you had reached the limit of 10
     submissions for this task."), and nothing else; `limit` is null on every
-    other status. While a sealed step's stop is held to the reveal, nothing
-    of the run is shown: every group reads as hidden. A task graded test by
-    test gives no points (stage 5).
+    other status.
 
-    A run task's grading has no groups and no `values`: `run_values` holds
-    each value of its scoring its entrant is shown, worked out on every
-    read, and `runs` the runs, those listed under `now` from the start,
+    `run_values` holds each value of its scoring its entrant is shown,
+    worked out on every read, and `runs` the runs, those listed under `now` from the start,
     those under `after_close` once the task reveals, and those under
     `on_release` while staff have released the task's results, hidden
     again when they take the release back. `once` holds what its steps
@@ -230,13 +186,11 @@ class Result(Scored):
     nothing shown during the contest is `submitted` until the reveal, which
     a page words "Submitted, results after the contest". After the reveal,
     while its late runs are still being graded, it is `grading` or
-    `delayed`. A run task's grading whose runs failed for the platform is
-    `delayed` with the runs it gave, a value reading one of its failed early
-    runs `waiting`. These are empty on every other task.
-    `reveal_at` is when the task reveals, until then, as what its entrant
-    reads changes then with no grading's change to say so, so a page open
-    on it reads it again then, as at a group's `shown_at`; null on every
-    other task and once it has revealed.
+    `delayed`. A grading whose runs failed for the platform is `delayed`
+    with the runs it gave, a value reading one of its failed early runs
+    `waiting`. `reveal_at` is when the task reveals, until then, as what its
+    entrant reads changes then with no grading's change to say so, so a page
+    open on it reads it again then; null once it has revealed.
     """
 
     status: SubmissionState
@@ -246,13 +200,10 @@ class Result(Scored):
 class OrganisedResult(Scored):
     """A submission's grading as organisers read it beside the grading
     itself: the payload its contestant reads, with everything filled in as
-    once the task has revealed, so every group's outcome and tests and every
-    value a sealed step reported are there. Each group's `shown_at` is kept as a note of when its
-    contestant is shown it, null once they see its tests. `status` is the
-    grading's own, as in the gradings routes. On a run task, every value
-    and run is there at once, each value with when it shows and what it
-    read, and `facts` holds `seconds_late`, `seconds` and `compiled` as the
-    values read them.
+    once the task has revealed. `status` is the grading's own, as in the
+    gradings routes. Every value and run is there at once, each value with
+    when it shows and what it read, and `facts` holds `seconds_late`,
+    `seconds` and `compiled` as the values read them.
     """
 
     status: GradingStatus

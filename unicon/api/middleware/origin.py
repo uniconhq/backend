@@ -7,15 +7,14 @@ session is covered the day it exists. The platform's origin is asked of
 forge on the first request that is checked, not when the app is built, so an
 app forge was never started for can still be built.
 
-Four kinds of door are let through, each called by a machine with no
-browser and no session, so with no origin to claim: the one the forge
-pushes an org's events to, forge's `EVENTS_PATH` followed by the org's
-name; the CI's configuration extension at `CI_CONFIG_PATH`; a grading run's
-callback at `CALLBACK_PATH`, with one grading's id in it; and a run task's
-step's door, its report at `STEP_PATH`, its upload list at `UPLOADS_PATH`
-and its done at `DONE_PATH`, each with one grading's id and one step's
-name. A signature or a token over the request is what admits each, and no
-cookie is read at any of them.
+Three kinds of door are let through, each called by a machine with no
+browser and no session, so with no origin to claim: the one the forge pushes
+an org's events to, forge's `EVENTS_PATH` followed by the org's name; the
+CI's configuration extension at `CI_CONFIG_PATH`; and a step's door, its
+report at `STEP_PATH`, its upload list at `UPLOADS_PATH` and its done at
+`DONE_PATH`, each with one grading's id and one step's name. A signature or
+a token over the request is what admits each, and no cookie is read at any
+of them.
 """
 
 import re
@@ -24,14 +23,14 @@ from urllib.parse import urlsplit
 from forge.api import public_url
 from forge.api.errors import UniconError
 from forge.api.events import EVENTS_PATH
-from forge.api.runs import CALLBACK_PATH, CI_CONFIG_PATH, DONE_PATH, STEP_PATH, UPLOADS_PATH
+from forge.api.runs import CI_CONFIG_PATH, DONE_PATH, STEP_PATH, UPLOADS_PATH
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 from unicon.api.errors import problem_for
 
 UNSAFE_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
 GRADING_ID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
-"""A grading's id as forge writes it into the callback URL it hands a run."""
+"""A grading's id as forge writes it into the door URLs it hands a step."""
 STEP = "[^/]+"
 """One step's name, which forge checks against the grading's steps."""
 
@@ -42,7 +41,6 @@ def _door(path: str) -> re.Pattern[str]:
     return re.compile(escaped.replace(re.escape("{step}"), STEP))
 
 
-CALLBACK = _door(CALLBACK_PATH)
 STEP_DOORS = (_door(STEP_PATH), _door(UPLOADS_PATH), _door(DONE_PATH))
 
 
@@ -87,7 +85,6 @@ def _is_machine_door(path: str) -> bool:
     return (
         path == CI_CONFIG_PATH
         or _is_forge_event(path)
-        or _is_callback(path)
         or any(door.fullmatch(path) for door in STEP_DOORS)
     )
 
@@ -98,13 +95,6 @@ def _is_forge_event(path: str) -> bool:
     """
     org = path.removeprefix(f"{EVENTS_PATH}/")
     return org != path and org != "" and "/" not in org
-
-
-def _is_callback(path: str) -> bool:
-    """A grading run's report: the callback path with one grading's id,
-    written as forge writes it, and nothing more.
-    """
-    return CALLBACK.fullmatch(path) is not None
 
 
 def _headers(scope: Scope) -> dict[str, str]:

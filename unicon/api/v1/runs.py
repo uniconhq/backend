@@ -1,19 +1,17 @@
 """The doors a grading run calls, with no session and no browser: the CI's
-configuration extension, where the CI asks what a run's steps are; the
-envelope the harness fetches when the run begins; the callback it reports
-through; and a run task's step's door, where each Woodpecker step asks
-for its job, its upload links and the files the forge serves it, says it
-is done, and the pipeline's last step reports. Each hands forge the
-request as it arrived, since what admits it is over its exact bytes: the
-CI's signature over the target and the body, the envelope key in the
-query, and the run's or the step's bearer token. The Origin check lets
+configuration extension, where the CI asks what a pipeline's steps are;
+and a step's door, where each Woodpecker step asks for its job, its upload
+links and the files the forge serves it, says it is done, and the
+pipeline's last step reports. Each hands forge the request as it arrived,
+since what admits it is over its exact bytes: the CI's signature over the
+target and the body, and the step's bearer token. The Origin check lets
 those that change state through, and a body is read only up to a bound,
 as at the event door.
 
-Nothing here logs the `Authorization` header or the envelope's `key`: the
-request log records the path and never the query or a header. The public
-proxy answers the configuration extension with 404, as it does the event
-door, so only the CI inside the stack reaches it.
+Nothing here logs the `Authorization` header: the request log records the
+path and never the query or a header. The public proxy answers the
+configuration extension with 404, as it does the event door, so only the
+CI inside the stack reaches it.
 """
 
 import uuid
@@ -27,9 +25,6 @@ from unicon.api import raw
 from unicon.schemas.gradings import CallbackAnswer
 
 MAX_CONFIG_BODY = 1024 * 1024
-MAX_CALLBACK_BODY = 4 * 1024 * 1024
-"""A finished report carries the result with a row for every test, so its
-bound is wider than the CI's question."""
 MAX_UPLOADS_BODY = 16 * 1024 * 1024
 """A step lists at most 10,000 files, each path at most 1,024 bytes in
 UTF-8."""
@@ -80,49 +75,9 @@ async def answer_ci_config(request: Request) -> Response:
 
 
 @router.get(
-    runs.ENVELOPE_PATH,
-    operation_id="getGradingEnvelope",
-    summary="The envelope a grading run fetches as it begins",
-    responses={
-        200: {"description": "The runner's `envelope.schema.json`.", "content": JSON_OBJECT}
-    },
-)
-async def get_grading_envelope(grading: uuid.UUID, key: str = "") -> JSONResponse:
-    """The runner's `envelope.schema.json`, for the envelope key the URL
-    carries. It is served once, while the grading is dispatched, and that
-    fetch is the run beginning. A wrong key is `not_found`, and a second
-    fetch, a grading the CI holds no run of, or one whose deadline has
-    passed, `grading_closed`. It carries the run's callback token, so it is
-    never stored on the way.
-    """
-    envelope: dict[str, Any] = await runs.envelope(grading, key)
-    return JSONResponse(envelope, headers=NO_STORE)
-
-
-@router.post(
-    runs.CALLBACK_PATH,
-    operation_id="reportGradingRun",
-    summary="A grading run reports how it stands",
-    openapi_extra=_raw_body(
-        "`started`, `progress` with `step`, `done` and `total`, or `finished` with `result`."
-    ),
-)
-async def report_grading_run(request: Request, grading: uuid.UUID) -> CallbackAnswer:
-    """Under `Authorization: Bearer <token>`, the run's own token: `started`,
-    `progress` with the step and its counts, or `finished` with the result.
-    A missing or wrong token is `invalid_token`, a body that is no report
-    `invalid_callback`, and a grading that takes no reports now
-    `grading_closed`. The same result sent again is answered the same.
-    """
-    body = await raw.body(request, MAX_CALLBACK_BODY, "A report")
-    status = await runs.callback(grading, request.headers.get("authorization"), body)
-    return CallbackAnswer(status=status)
-
-
-@router.get(
     runs.STEP_PATH,
     operation_id="getStepJob",
-    summary="A run task's step asks for its job",
+    summary="A step asks for its job",
     response_class=Response,
     responses={
         200: {"description": "The runner's `job.schema.json`.", "content": JSON_OBJECT},
@@ -146,7 +101,7 @@ async def get_step_job(request: Request, grading: uuid.UUID, step: str) -> Respo
 @router.post(
     runs.STEP_PATH,
     operation_id="reportStepPipeline",
-    summary="A run task's pipeline reports that it has ended",
+    summary="A pipeline reports that it has ended",
     openapi_extra=_raw_body("`{}`, from the pipeline's report step."),
 )
 async def report_step_pipeline(request: Request, grading: uuid.UUID, step: str) -> CallbackAnswer:
@@ -162,7 +117,7 @@ async def report_step_pipeline(request: Request, grading: uuid.UUID, step: str) 
 @router.post(
     runs.UPLOADS_PATH,
     operation_id="listStepUploads",
-    summary="A run task's step lists what it will upload",
+    summary="A step lists what it will upload",
     responses={
         200: {"description": "A presigned PUT for each file listed.", "content": JSON_OBJECT}
     },
@@ -185,7 +140,7 @@ async def list_step_uploads(request: Request, grading: uuid.UUID, step: str) -> 
 @router.post(
     runs.DONE_PATH,
     operation_id="sayStepDone",
-    summary="A run task's step says its uploads are in",
+    summary="A step says its uploads are in",
     status_code=204,
     response_class=Response,
     openapi_extra=_raw_body("`{}`."),
@@ -202,7 +157,7 @@ async def say_step_done(request: Request, grading: uuid.UUID, step: str) -> Resp
 @router.get(
     runs.FILE_PATH,
     operation_id="getStepFile",
-    summary="A file the forge serves a run task's step",
+    summary="A file the forge serves a step",
     response_class=Response,
     responses={
         200: {

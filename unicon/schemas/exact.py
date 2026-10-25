@@ -1,9 +1,7 @@
 """Numbers as the API serves them: exactly, as a string of plain decimal
 digits, so a score, a key or a reported value reads back as the forge holds
 it, which a JSON number read into a float would not. A number that is not a
-decimal, a third say, is written to 30 significant digits. A run's values
-come back split into its numbers and its texts, so text that looks like a
-number stays text.
+decimal, a third say, is written to 30 significant digits.
 """
 
 import math
@@ -12,7 +10,7 @@ from fractions import Fraction
 from typing import Annotated, Any
 
 from forge.api.leaderboards import written
-from pydantic import BaseModel, BeforeValidator, Field, model_validator
+from pydantic import BeforeValidator, Field
 
 EXACT_PATTERN = r"^-?[0-9]+(\.[0-9]+)?$"
 
@@ -42,26 +40,3 @@ Exact = Annotated[
     Field(pattern=EXACT_PATTERN, examples=["82.5"]),
 ]
 """An exact number, as its plain decimal digits."""
-
-
-class Reported(BaseModel):
-    """The values a run reported, by name: its numbers, exactly, and its
-    texts, each of at most 10,000 characters.
-    """
-
-    numbers: dict[str, Exact]
-    texts: dict[str, str]
-
-    @model_validator(mode="before")
-    @classmethod
-    def _split(cls, given: Any) -> Any:
-        if not isinstance(given, dict):
-            return given
-        if given and all(isinstance(part, dict) for part in given.values()):
-            return given
-        return {
-            "numbers": {
-                name: value for name, value in given.items() if _rational(value) is not None
-            },
-            "texts": {name: value for name, value in given.items() if isinstance(value, str)},
-        }

@@ -139,7 +139,7 @@ async def test_settings_that_do_not_read_are_told_with_their_errors(
     assert "start" in {error["path"] for error in refused.json()["errors"]}
 
 
-async def test_the_workflow_form_gives_the_inputs_and_test_fields_the_task_names(
+async def test_the_workflow_form_gives_the_inputs_of_the_workflow_the_task_names(
     client: httpx.AsyncClient, sum_task: FakeForge
 ) -> None:
     form = await client.get(FORM)
@@ -147,26 +147,23 @@ async def test_the_workflow_form_gives_the_inputs_and_test_fields_the_task_names
     assert form.status_code == 200, form.text
     body = form.json()
     assert (body["workflow"], body["problem"], body["graded"]) == (
-        "unicon/classic@v2",
+        "unicon/classic@v3",
         None,
         False,
     )
-    assert [(found["id"], found["contestant"]) for found in body["inputs"]] == [
-        ("submission", True),
-        ("language", True),
-        ("time_limit", False),
-        ("memory_limit", False),
+    assert [(found["id"], found["type"]) for found in body["inputs"]] == [
+        ("code", "folder"),
+        ("language", "enum"),
+        ("input", "file"),
+        ("answer", "file"),
+        ("time_limit", "number"),
+        ("memory_limit", "number"),
     ]
     language = body["inputs"][1]
-    assert (language["type"], language["options"]) == ("enum", ["c", "cpp", "java", "python"])
-    assert (language["per_test"], language["optional"]) == (False, False)
-    time_limit = body["inputs"][2]
+    assert (language["options"], language["optional"]) == (["c", "cpp", "java", "python"], False)
+    time_limit = body["inputs"][4]
     assert (time_limit["title"], time_limit["unit"]) == ("Time limit", "seconds")
-    assert time_limit["help"] == "The CPU time the program may use on each test."
-    assert body["test"] == [
-        {"name": "input", "type": "file", "options": None},
-        {"name": "answer", "type": "file", "options": None},
-    ]
+    assert sorted(body) == ["graded", "inputs", "newer", "problem", "workflow"]
 
 
 async def test_a_task_naming_no_workflow_gets_a_form_saying_why(
@@ -176,7 +173,7 @@ async def test_a_task_naming_no_workflow_gets_a_form_saying_why(
     await client.put(
         f"{TASK}/files/task.yaml",
         json={
-            "content": task["content"].replace("workflow: unicon/classic@v2\n", ""),
+            "content": task["content"].replace("workflow: unicon/classic@v3\n", ""),
             "token": task["token"],
         },
         headers=ORIGIN,
@@ -185,7 +182,7 @@ async def test_a_task_naming_no_workflow_gets_a_form_saying_why(
     form = await client.get(FORM)
 
     assert form.status_code == 200, form.text
-    assert (form.json()["workflow"], form.json()["inputs"], form.json()["test"]) == (None, [], [])
+    assert (form.json()["workflow"], form.json()["inputs"]) == (None, [])
     assert form.json()["problem"]
 
 

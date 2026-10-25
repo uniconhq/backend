@@ -1,7 +1,7 @@
 """Making a task in a contest, listing the contest's tasks, by name or each
 with where it stands and its timeline, where a task's files stand against
 its publications, its publications, the form of the workflow it names, and
-the save, which is how a task is published, and releasing a run task's
+the save, which is how a task is published, and releasing a task's
 results or taking a release back. Creating needs the manager role
 at the contest and makes the task before it answers, and the lists the
 observer role there; taking a task out of the contest and putting a
@@ -153,7 +153,7 @@ async def get_task(organiser: TaskObserver) -> tasks.TaskState:
 @router.post(
     f"{TASK}/results/release",
     operation_id="releaseTaskResults",
-    summary="Release a run task's results",
+    summary="Release a task's results",
     response_model=Results,
 )
 async def release_task_results(
@@ -164,9 +164,8 @@ async def release_task_results(
     `confirm`, nothing changes and the answer is `confirmation_required`
     with `action` `release` and, as its detail, what becomes visible, to
     whom, and that it can be taken back. A task already released answers as
-    it stands. A task with no publication is `not_found`, and one that does
-    not grade by runs `not_a_run_task`. The answer is read once the release
-    has landed.
+    it stands. A task with no publication is `not_found`. The answer is
+    read once the release has landed.
     """
     task = tasks.task_id_of(organiser.scope)
     await results.release(organiser, task, confirmed=body.confirm)
@@ -176,7 +175,7 @@ async def release_task_results(
 @router.post(
     f"{TASK}/results/hide",
     operation_id="hideTaskResults",
-    summary="Take a release of a run task's results back",
+    summary="Take a release of a task's results back",
     response_model=Results,
 )
 async def hide_task_results(organiser: TaskManager, body: ResultsRequest) -> results.ResultsState:
@@ -216,19 +215,18 @@ async def list_task_publications(organiser: TaskObserver) -> tuple[publications.
 @router.get(
     f"{TASK}/workflow-form",
     operation_id="getTaskWorkflowForm",
-    summary="The inputs and test fields of the workflow the task names",
+    summary="The inputs of the workflow the task names",
 )
 async def get_task_workflow_form(organiser: TaskObserver) -> publications.WorkflowForm:
     """The workflow `task.yaml` names as it is saved now, a draft included,
-    with each input it declares and each field every test has, in the
-    workflow's order. A workflow declares no defaults; a contestant input's
-    `default` is the task's own. A `task.yaml` that is missing or does not
-    read, names no workflow or one that cannot be read answers with
-    `problem`, the reason, and no inputs, so the form can mend it. Either
-    way `graded` says whether the task has a graded submission, from when
-    on a save refuses a test group it adds without its `show`, and `newer`
-    names the workflow's latest version when it comes after the one the
-    task names, which the task keeps until it is saved naming another.
+    with each input it declares, in the workflow's order. A workflow
+    declares no defaults; an entrant input's `default` is the task's own. A
+    `task.yaml` that is missing or does not read, names no workflow or one
+    that cannot be read answers with `problem`, the reason, and no inputs,
+    so the form can mend it. Either way `graded` says whether the task has a
+    graded submission, and `newer` names the workflow's latest version when
+    it comes after the one the task names, which the task keeps until it is
+    saved naming another.
     """
     return await publications.workflow_form(organiser, tasks.task_id_of(organiser.scope))
 

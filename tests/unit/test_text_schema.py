@@ -36,7 +36,6 @@ def test_a_text_value_a_text_cell_and_an_unchecked_check_validate() -> None:
             "grading_changed": False,
             "changes": [],
             "at": datetime(2026, 1, 1, tzinfo=UTC),
-            "meanings": [],
             "check": "unchecked",
         }
     )

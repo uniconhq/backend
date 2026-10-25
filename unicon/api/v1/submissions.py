@@ -1,18 +1,18 @@
 """A contestant's submissions of a task: submitting the uploads and values
 they give, and reading their own submissions back, each with its grading as
-the task's test groups show it, and the files one was made with. Each needs
-a session and no role. Forge reads only the caller's own: anyone else's
+the task's `show` shows it, and the files one was made with. Each needs a
+session and no role. Forge reads only the caller's own: anyone else's
 submission is no such submission, the same as one that is not there. A
-run's log names every test, hidden ones too, so it is the organisers'
+run's log names every run, hidden ones too, so it is the organisers'
 alone.
 
 A submission's files are downloaded through the download door
 (`unicon/api/door.py`), so their bytes never pass through here.
 
-A run task's result shows where each text a step wrote is, a run's label,
-message and texts and the steps done once's that `show` lists, the
-compile log among them, but never the stored output that holds it, which may be another entrant's
-and says when it was made. The caller reads one at a time by where it is
+A result shows where each text a step wrote is, a run's label, message
+and texts and the steps done once's that `show` lists, the compile log
+among them, but never the stored output that holds it, which may be
+another entrant's and says when it was made. The caller reads one at a time by where it is
 shown, a run's group and place, or neither for the steps done once, and
 the text, and only while their result shows it to them; any other is no
 such text. A text is plain text the browser is told not to guess the type
@@ -99,9 +99,7 @@ async def list_my_submissions(
 async def get_my_submission(
     session: CurrentSession, scope: TaskAtPath, number: Number
 ) -> submissions.Submission:
-    """With what the task's test groups let the caller see of its grading
-    now.
-    """
+    """With what the task's `show` lets the caller see of its grading now."""
     return await submissions.one(session, tasks.task_id_of(scope), number)
 
 

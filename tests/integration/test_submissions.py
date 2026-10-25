@@ -26,6 +26,8 @@ from tests.integration.conftest import (
     edit_task,
     enter,
     entrant_of,
+    read,
+    run_pipelines,
     sign_in_as,
     upload,
 )
@@ -35,14 +37,14 @@ KEY = "key-0001-aaaa"
 SUBMISSIONS = f"{TASK}/submissions"
 DOWNLOADS = "/-/downloads/acme/spring/sum"
 DOWNLOAD_DOOR = "/-/downloads/door"
-MAIN = "files/submission/main.py"
+MAIN = "files/code/main.py"
 
 
 def _submit_body(*uploads: str, key: str = KEY) -> dict[str, Any]:
     return {
         "idempotency_key": key,
         "inputs": {
-            "submission": {"uploads": list(uploads)},
+            "code": {"uploads": list(uploads)},
             "language": {"value": "python"},
         },
     }
@@ -70,13 +72,8 @@ async def test_a_submit_answers_with_its_queued_grading_and_reads_back(
     assert grading == {
         "attempt": 1,
         "status": "queued",
-        "stopped": None,
-        "outcome": None,
-        "groups": [],
-        "values": {"numbers": {}, "texts": {}},
         "reason": None,
         "limit": None,
-        "meanings": [],
         "runs": [],
         "reveal_at": None,
         "run_values": [],
@@ -99,7 +96,7 @@ async def test_a_submission_gives_back_what_it_was_made_with(
     assert files.json() == {
         "number": 1,
         "inputs": {
-            "submission": {"files": [MAIN], "value": None},
+            "code": {"files": [MAIN], "value": None},
             "language": {"files": [], "value": "python"},
         },
     }
@@ -119,7 +116,7 @@ async def test_the_download_door_opens_on_ones_own_file_and_reads_it_from_the_fo
 
     assert opened.status_code == 204, opened.text
     door = Door(opened.headers["X-Forge-Path"], opened.headers["X-Forge-Authorization"])
-    assert re.search(r"/media/files/submission/main\.py\?ref=[0-9a-f]{40}$", door.path), door.path
+    assert re.search(r"/media/files/code/main\.py\?ref=[0-9a-f]{40}$", door.path), door.path
     assert await entered.workspaces.fetch(door) == SOURCE
     assert opened.headers["X-Download-Disposition"] == 'attachment; filename="main.py"'
 
@@ -127,7 +124,7 @@ async def test_the_download_door_opens_on_ones_own_file_and_reads_it_from_the_fo
 @pytest.mark.parametrize(
     "address",
     [
-        f"{DOWNLOADS}/1/files/submission/other.py",
+        f"{DOWNLOADS}/1/files/code/other.py",
         f"{DOWNLOADS}/1/submission.json",
         f"{DOWNLOADS}/2/{MAIN}",
         f"{DOWNLOADS}/x/{MAIN}",
@@ -135,10 +132,10 @@ async def test_the_download_door_opens_on_ones_own_file_and_reads_it_from_the_fo
         f"{DOWNLOADS}/99999999999/{MAIN}",
         f"{DOWNLOADS}/{'9' * 5000}/{MAIN}",
         f"{DOWNLOADS}/1",
-        "/-/downloads/acme/spring/nothing/1/files/submission/main.py",
-        "/-/downloads/acme/autumn/sum/1/files/submission/main.py",
+        "/-/downloads/acme/spring/nothing/1/files/code/main.py",
+        "/-/downloads/acme/autumn/sum/1/files/code/main.py",
         f"/-/uploads/{uuid.uuid4()}",
-        f"{DOWNLOADS}/1/files/submission/%FF.py",
+        f"{DOWNLOADS}/1/files/code/%FF.py",
     ],
     ids=[
         "a file it does not name",
@@ -214,7 +211,7 @@ async def test_a_submit_past_the_tasks_submissions_is_refused_with_the_limit(
     client: httpx.AsyncClient, entered: FakeForge, clock: FakeClock
 ) -> None:
     await sign_in_as(client, entered, 7)
-    await edit_task(client, "test_groups:", "submissions: {max: 1}\ntest_groups:")
+    await edit_task(client, "scoring:", "submissions: {max: 1}\nscoring:")
     await sign_in_as(client, entered, 20)
     await _submit(client, entered)
     clock.advance(timedelta(minutes=1))
@@ -239,7 +236,7 @@ async def test_an_upload_that_is_not_checked_is_not_ready(
     slot = await client.post(
         f"{TASK}/uploads",
         json={
-            "input": "submission",
+            "input": "code",
             "filename": "main.py",
             "size": len(SOURCE),
             "sha256": hashlib.sha256(SOURCE).hexdigest(),
@@ -269,30 +266,41 @@ async def test_inputs_that_do_not_fit_the_task_are_refused_at_their_input(
 
 THIRTY = "0.123456789012345678901234567891"
 """A bound and a value of 30 significant digits, past what a float holds."""
-TUNABLE = CLASSIC.replace(
-    b"\ntest:\n", b"\n  ratio: {type: number, contestant: true}\ntest:\n"
-).replace(
-    b"      input: ${{ test.input }}\n",
-    b"      input: ${{ test.input }}\n      args: ${{ inputs.ratio }}\n",
-)
-"""Classic with a number the contestant gives, handed to the run."""
+TUNABLE = {
+    **CLASSIC,
+    "workflow.yaml": CLASSIC["workflow.yaml"].replace(
+        b"\nsteps:\n", b"  ratio: {type: number, title: Ratio}\n\nsteps:\n"
+    ),
+}
+"""Classic with one more number input, which the task makes the entrant's."""
 
 
 async def _on_tunable(client: httpx.AsyncClient, forge: FakeForge) -> None:
-    """acme/spring/sum moved onto ada's workflow whose contestant also gives
-    a number, `ratio`, at most `THIRTY`; carol signed in again.
+    """acme/spring/sum moved onto ada's workflow with a number input,
+    `ratio`, the entrant's to give, at most `THIRTY`; carol signed in again.
     """
     await sign_in_as(client, forge, 7)
     ada = AsUser(7, forge.mint(7))
     workflow = await forge.workflows.create_workflow(
-        ada, "ada", "tunable", {"workflow.yaml": TUNABLE}, Visibility.PUBLIC
+        ada, "ada", "tunable", TUNABLE, Visibility.PUBLIC
     )
     await forge.workflows.create_workflow_version(ada, workflow, "v1")
-    await edit_task(
-        client,
-        "workflow: unicon/classic@v2\ninputs:\n",
-        f"workflow: ada/tunable@v1\ninputs:\n  ratio: {{max: {THIRTY}}}\n",
+    current = await read(client, f"{TASK}/files/task.yaml")
+    old = "workflow: unicon/classic@v3\ninputs:\n"
+    new = f"workflow: ada/tunable@v1\ninputs:\n  ratio: {{entrant: {{max: {THIRTY}}}}}\n"
+    body = {"content": current["content"].replace(old, new), "token": current["token"]}
+    asked = await client.put(
+        f"{TASK}/files/task.yaml", json={**body, "confirm": True}, headers=ORIGIN
     )
+    # A save naming another workflow asks again, naming what it pins.
+    assert asked.json()["code"] == "confirmation_required", asked.text
+    saved = await client.put(
+        f"{TASK}/files/task.yaml",
+        json={**body, "confirm": True, "asked": asked.json()["asked"]},
+        headers=ORIGIN,
+    )
+    assert "number" in saved.json(), saved.text
+    await run_pipelines(client, pipelines=("save",))
     await sign_in_as(client, forge, 20)
 
 
@@ -421,10 +429,10 @@ async def test_staff_list_and_download_an_entrants_files(
     await sign_in_as(client, entered, 7)
     listed = await client.get(f"{TASK}/organise/submissions/1/files", params={"entrant": entrant})
     opened = await _download(client, address)
-    missing = await _download(client, f"{DOWNLOADS}/entrants/{entrant}/1/files/submission/other.py")
+    missing = await _download(client, f"{DOWNLOADS}/entrants/{entrant}/1/files/code/other.py")
 
     assert listed.status_code == 200, listed.text
-    assert listed.json()["inputs"]["submission"]["files"] == [address]
+    assert listed.json()["inputs"]["code"]["files"] == [address]
     assert opened.status_code == 204, opened.text
     door = Door(opened.headers["X-Forge-Path"], opened.headers["X-Forge-Authorization"])
     assert await entered.workspaces.fetch(door) == SOURCE

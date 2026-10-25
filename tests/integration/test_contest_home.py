@@ -57,11 +57,10 @@ async def test_a_signed_in_person_reads_the_home_and_a_released_task(
     assert (page.json()["due"], page.json()["closes"]) == (None, "2026-09-26T15:00:00Z")
     assert page.json()["inputs"] == [
         {
-            "id": "submission",
-            "type": "file",
+            "id": "code",
+            "type": "folder",
             "label": "Your solution",
             "options": None,
-            "per_test": False,
             "default": None,
             "min": None,
             "max": None,
@@ -73,7 +72,6 @@ async def test_a_signed_in_person_reads_the_home_and_a_released_task(
             "type": "enum",
             "label": "Language",
             "options": ["python"],
-            "per_test": False,
             "default": None,
             "min": None,
             "max": None,
@@ -83,19 +81,23 @@ async def test_a_signed_in_person_reads_the_home_and_a_released_task(
     ]
 
 
-async def test_an_input_the_task_gives_no_label_reads_as_its_workflows_title(
+async def test_an_input_the_task_gives_no_label_reads_as_its_key(
     client: httpx.AsyncClient, world: FakeForge
 ) -> None:
     await run_contest(client, visibility="signed-in")
     await publish(client)
     await sign_in_as(client, world, 7)
-    await edit_task(client, "submission: {label: Your solution}", "submission: {}")
+    await edit_task(
+        client,
+        "code: {entrant: {label: Your solution}}",
+        "code: {entrant: {}}",
+    )
     await sign_in_as(client, world, 20)
 
     page = await client.get(f"{TASK}/page")
 
     assert [(field["id"], field["label"]) for field in page.json()["inputs"]] == [
-        ("submission", "Solution"),
+        ("code", "code"),
         ("language", "Language"),
     ]
 
@@ -146,7 +148,6 @@ def test_a_task_page_keeps_each_parts_title_and_largest_size() -> None:
         type: str
         label: str
         options: None = None
-        per_test: bool = False
         default: None = None
         min: None = None
         max: None = None

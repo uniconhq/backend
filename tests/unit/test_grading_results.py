@@ -55,8 +55,6 @@ RECORD: dict[str, Any] = {
     "submitted_by": 8,
     "status": GradingStatus.DONE,
     "error": None,
-    "log": False,
-    "progress": None,
     "queued_at": AT,
     "dispatched_at": AT,
     "started_at": AT,

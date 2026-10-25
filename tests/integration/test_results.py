@@ -1,9 +1,9 @@
-"""Releasing a run task's results and taking a release back, over HTTP: each
+"""Releasing a task's results and taking a release back, over HTTP: each
 route hands forge the task and the confirmation, and answers where the
 task's results stand, with every action, who and when; one sent without
-its confirmation is `confirmation_required` with the words to show; a task
-that does not grade by runs has no results to release; and the task's
-state says where its results stand.
+its confirmation is `confirmation_required` with the words to show; and the
+task's state says where its results stand, never released at first and
+released once a release lands.
 """
 
 from datetime import UTC, datetime
@@ -21,17 +21,21 @@ from tests.integration.conftest import ORIGIN, TASK, publish
 AT = datetime(2026, 9, 26, 14, 0, tzinfo=UTC)
 
 
-async def test_a_task_never_released_says_so_and_one_not_graded_by_runs_has_none_to_release(
+async def test_a_task_never_released_says_so_until_its_release_lands(
     client: httpx.AsyncClient, sum_task: FakeForge
 ) -> None:
     await publish(client)
 
     state = (await client.get(TASK)).json()
     released = await client.post(f"{TASK}/results/release", json={"confirm": True}, headers=ORIGIN)
+    after = (await client.get(TASK)).json()
 
     assert state["results"] == {"released": False, "history": []}
-    assert released.status_code == 409
-    assert released.json()["code"] == "not_a_run_task"
+    assert released.status_code == 200, released.text
+    assert after["results"] == released.json()
+    assert released.json()["released"] is True
+    [action] = released.json()["history"]
+    assert (action["action"], action["by"], action["by_name"]) == ("released", 7, "ada")
 
 
 async def test_each_route_hands_forge_the_confirmation_and_answers_the_state(

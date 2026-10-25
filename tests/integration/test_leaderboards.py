@@ -12,7 +12,6 @@ submissions it marks.
 import re
 from datetime import timedelta
 from typing import Any
-from urllib.parse import urlsplit
 
 import httpx
 from forge.testing import FakeClock, FakeForge
@@ -21,9 +20,9 @@ from tests.integration.conftest import (
     CONTEST,
     ORIGIN,
     TASK,
-    edit_task,
     entrant_of,
     read,
+    run_pipelines,
     sign_in_as,
     upload,
 )
@@ -39,7 +38,7 @@ leaderboards:
     audience: {who: everyone}
     columns:
       picked: {block: latest, from: {results: sum}}
-      score: {block: otherwise, of: [{value: [{column: picked}, total]}, 0]}
+      score: {block: otherwise, of: [{value: [{column: picked}, score]}, 0]}
     sort: [{score: desc}]
     display: [{score: {places: 1}}]
   private:
@@ -53,7 +52,7 @@ MARKED = """\
 leaderboards:
   final:
     columns:
-      score: {value: [{block: latest, from: {results: sum}, where: {value: [sum, marked]}}, total]}
+      score: {value: [{block: latest, from: {results: sum}, where: {value: [sum, marked]}}, score]}
 """
 
 
@@ -81,8 +80,8 @@ async def _settings(
 async def _graded(
     client: httpx.AsyncClient, forge: FakeForge, key: str, outcome: str = "accepted"
 ) -> None:
-    """A submission by the signed-in contestant, its run finished with one
-    test of `outcome`.
+    """A submission by the signed-in contestant, its pipeline run with its
+    one run ending `outcome`.
     """
     made = await upload(client, forge, f"print({key!r})\n".encode())
     submitted = await client.post(
@@ -90,38 +89,21 @@ async def _graded(
         json={
             "idempotency_key": key,
             "inputs": {
-                "submission": {"uploads": [made["id"]]},
+                "code": {"uploads": [made["id"]]},
                 "language": {"value": "python"},
             },
         },
         headers=ORIGIN,
     )
     assert submitted.status_code == 201, submitted.text
-    grading = submitted.json()["grading"]["id"]
-    [run] = [run for run in forge.ci.runs.values() if run.variables["UNICON_GRADING_ID"] == grading]
-    address = urlsplit(run.variables["UNICON_ENVELOPE_URL"])
-    envelope = (await client.get(f"{address.path}?{address.query}")).json()
-    result: dict[str, Any] = {
-        "schema_version": 5,
-        "stopped": None,
-        "stopped_by": None,
-        "tests": [{"test": "main/1", "outcome": outcome, "values": {"time_ms": 12.5}}],
-        "values": {},
-        "run_log": None,
-        "error": None,
-    }
-    finished = await client.post(
-        urlsplit(envelope["callback"]["url"]).path,
-        json={"event": "finished", "result": result},
-        headers={"Authorization": f"Bearer {envelope['callback']['token']}"},
-    )
-    assert finished.json() == {"status": "done"}, finished.text
+    await run_pipelines(client, verdict=outcome)
 
 
 def _standings(carols: str, told: bool) -> dict[str, Any]:
-    """The leaderboard for everyone with carol's row alone, as staff, carol and
-    a visitor read it."""
-    counted: list[Any] | None = [] if told else None
+    """The leaderboard for everyone with carol's row alone, her one
+    submission accepted, as staff, carol and a visitor read it."""
+    counted: list[Any] | None = [{"task": "sum", "number": 1}] if told else None
+    waiting: list[Any] | None = [] if told else None
     return {
         "key": "standings",
         "title": "Standings",
@@ -130,8 +112,8 @@ def _standings(carols: str, told: bool) -> dict[str, Any]:
             {
                 "name": "score",
                 "places": 1,
-                "at_least": None,
-                "at_most": None,
+                "at_least": "0",
+                "at_most": "1",
                 "self_reported": [],
             }
         ],
@@ -145,11 +127,11 @@ def _standings(carols: str, told: bool) -> dict[str, Any]:
                 "cells": [
                     {
                         "column": "score",
-                        "number": "0",
+                        "number": "1",
                         "text": None,
                         "hidden": False,
                         "counted": counted,
-                        "waiting": counted,
+                        "waiting": waiting,
                     }
                 ],
                 "held": 0,
@@ -179,9 +161,8 @@ async def test_each_caller_reads_the_leaderboards_its_audience_lets_them(
     other = await client.get(f"{LEADERBOARDS}/nothing")
     organise = await client.get(f"{CONTEST}/organise/leaderboards")
 
-    # sum is graded test by test, which a leaderboard does not read, so the
-    # row's score is otherwise's 0. Carol is told what her own row's cells
-    # counted; a visitor is not.
+    # Carol's one submission passed its one run, so the row's score is 1.
+    # Carol is told what her own row's cells counted; a visitor is not.
     assert (mine.status_code, mine.json()) == (200, [_standings(carols, told=True)])
     assert one.json() == _standings(carols, told=True)
     assert (public.status_code, public.json()) == (200, [_standings(carols, told=False)])
@@ -195,10 +176,10 @@ async def test_each_caller_reads_the_leaderboards_its_audience_lets_them(
     assert private["rows"][0]["cells"] == [
         {
             "column": "tries",
-            "number": "0",
+            "number": "1",
             "text": None,
             "hidden": False,
-            "counted": [],
+            "counted": [{"task": "sum", "number": 1}],
             "waiting": [],
         }
     ]
@@ -224,7 +205,7 @@ async def test_a_manager_of_the_contest_ends_its_hold_early_asked_first(
     after = (await client.get(f"{PUBLIC}/standings")).json()
 
     # A visitor reads every row as it stood at the hold's from until the
-    # hold ends; sum's results are no leaderboard's, so none is held.
+    # hold ends: carol's submission came after it, so it is held until then.
     assert held["held_from"] == "2026-09-26T12:30:00Z"
     assert before.json() == {
         "from": "2026-09-26T12:30:00Z",
@@ -244,6 +225,10 @@ async def test_a_manager_of_the_contest_ends_its_hold_early_asked_first(
     }
     assert again.json() == ended.json()
     assert after["held_from"] is None
+    [held_row] = held["rows"]
+    [after_row] = after["rows"]
+    assert (held_row["cells"][0]["number"], held_row["held"]) == ("0", 1)
+    assert (after_row["cells"][0]["number"], after_row["held"]) == ("1", 0)
 
 
 async def test_the_contest_home_carries_the_entrants_own_row_of_each_leaderboard(
@@ -361,9 +346,6 @@ async def test_a_save_of_the_contests_settings_with_nothing_to_report_answers_no
 async def test_organisers_read_a_submission_scored_with_everything_filled_in(
     client: httpx.AsyncClient, entered: FakeForge
 ) -> None:
-    await sign_in_as(client, entered, 7)
-    await edit_task(client, "main: {each: 100}", "main: {each: 100, show: after_close}")
-    await sign_in_as(client, entered, 20)
     carols = await entrant_of(client)
     await _graded(client, entered, "key-0001-aaaa")
     own = (await client.get(f"{TASK}/submissions/1")).json()["grading"]
@@ -375,13 +357,23 @@ async def test_organisers_read_a_submission_scored_with_everything_filled_in(
     assert (refused.status_code, refused.json()["code"]) == (403, "forbidden")
     assert seen.status_code == 200, seen.text
     grading = seen.json()["grading"]
-    [main] = grading["groups"]
-    [mine] = own["groups"]
-    assert main["outcome"] == "accepted"
-    assert [test["test"] for test in main["tests"]] == ["main/1"]
-    assert main["shown_at"] == mine["shown_at"] == "2026-09-26T15:00:00Z"
-    assert (grading["status"], grading["outcome"]) == ("done", "accepted")
-    assert (mine["outcome"], mine["tests"], own["status"]) == (None, None, "graded")
+    # Carol is shown her run with no id and no key, since the task's `show`
+    # lists neither test file, and not the compile log; organisers read
+    # every one of them, each value with when it shows and what it read.
+    [mine] = own["runs"]
+    [run] = grading["runs"]
+    assert (own["status"], mine["id"], mine["key"], own["once"]["texts"]) == (
+        "graded",
+        None,
+        {},
+        {},
+    )
+    assert (grading["status"], run["id"], run["verdict"]) == ("done", "r1", "accepted")
+    assert run["key"] == {"answer": "tests/1.ans", "input": "tests/1.in"}
+    assert list(grading["once"]["texts"]) == ["log"]
+    [score] = grading["run_values"]
+    assert (score["number"], score["show"], score["runs"]) == ("1", "now", ["r1"])
+    assert grading["facts"] == {"seconds_late": "0", "seconds": "7200", "compiled": "1"}
 
 
 async def test_organisers_pick_one_row_with_such_a_submission(

@@ -9,7 +9,6 @@ import uuid
 from datetime import datetime
 from typing import Annotated, Any, Literal, Self
 
-from forge.api.blocks import Better
 from forge.api.types import Uploaded
 from pydantic import BaseModel, BeforeValidator, model_validator
 
@@ -39,7 +38,7 @@ PublicationNumber = Annotated[int, BeforeValidator(_number_of)]
 """A publication by its number among its task's publications."""
 
 Check = Literal["checking", "refused", "replaced", "unchecked"]
-"""Where a run task's publication stands while its save is checked:
+"""Where a publication stands while its save is checked:
 `checking`, its pipeline queued or running, or ended by the system and
 to be tried again; `refused`, it did not pass, so entrants keep being
 graded on the publication before it; `unchecked`, it was made and its
@@ -47,21 +46,6 @@ save failed before a row checked it; or `replaced`, a later save took
 its place before it ended. Null once it passed, or on a task that is
 not checked.
 """
-
-
-class ValueMeaning(BaseModel):
-    """One value the task's workflow reports, as a page names it: its `name`
-    in the report, its `title` ("Run time") and its `unit` ("ms", only on a
-    number), each null where the workflow gives none, so the page names it
-    by `name`; and, on a number reported for each test, how it `fold`s over
-    the tests and which way is `better`, both null otherwise.
-    """
-
-    name: str
-    title: str | None
-    unit: str | None
-    fold: Literal["sum", "mean", "max"] | None
-    better: Better | None
 
 
 class CheckRun(BaseModel):
@@ -93,11 +77,8 @@ class FailedCheck(BaseModel):
 
 class Publication(BaseModel):
     """One publication: its number among the task's publications, the version
-    it froze, whether it changed how the task grades and what, and when;
-    and `meanings`, every value its workflow reports, in the workflow's
-    order, with the words it froze for each, which a form picking a value
-    lists. A publication made before those words were kept lists its values
-    reported for each test by name alone. Which workflow each of its
+    it froze, whether it changed how the task grades and what, and when.
+    Which workflow each of its
     workflow names was at the forge stays out. `check` is where its save's
     check stands, null once it passed or on a task that is not checked;
     once it is `refused`, `failed_checks` lists each of the task's checks
@@ -109,7 +90,6 @@ class Publication(BaseModel):
     grading_changed: bool
     changes: list[str]
     at: datetime
-    meanings: list[ValueMeaning]
     check: Check | None = None
     failed_checks: list[FailedCheck] = []
 
@@ -188,15 +168,14 @@ class SaveEffect(BaseModel):
 class Published(BaseModel):
     """A save that published: the new publication's number among the task's,
     whether it changed how the task grades, and what, the notes the save
-    makes of the task beside publishing it, such as which steps it seals
-    until the reveal, how many submissions it `regraded`, queued to be
-    graded again against it, and what it did, `effect`, in the words the
-    question before a save in a running contest uses. On a run task,
-    `check` is `checking` while the new publication is checked before it
-    takes over, as is a save of the same files that checks a refused one
+    makes of the task beside publishing it, how many submissions it
+    `regraded`, queued to be graded again against it, and what it did,
+    `effect`, in the words the question before a save in a running contest
+    uses. `check` is `checking` while the new publication is checked before
+    it takes over, as is a save of the same files that checks a refused one
     again. `regrade` is the regrade the save started, whose summary the
-    task's regrades read, null when it started none now: a run task
-    checked first starts its regrade once the check passes.
+    task's regrades read, null when it started none now: a task checked
+    first starts its regrade once the check passes.
     """
 
     number: int
