@@ -1,31 +1,48 @@
 """An organiser's view of and controls over a task's gradings: the list of
 them, newest first, each with who submitted it, where it stands, why it
-failed and whether it is its submission's latest attempt, and a grading's
-run log, which need the observer role at the task; and, with the manager
-role there, cancelling the latest attempt of a submission that reads as a
-system error, with a sentence its contestant reads, when a regrade would
-only repeat the fault; retrying a submission's latest attempt once it is
-finished as a new attempt against the publication it graded against, a
-stuck one included, whose old run is cancelled, as often as staff like
-after the one retry the platform makes by itself of a grading that fails;
-and rejudging every submission's latest attempt against the task's current
-publication. A failed or cancelled attempt never takes a result away: a
-submission counts its latest attempt that finished with a result. A delayed
-submission is graded again, by a retry or a rejudge, only while its entrant
-has room under the task's most submissions, and otherwise ends
-`over_limit`; a grading's `retry_limit` says beforehand when a retry would.
+failed and whether it is its submission's latest attempt, which needs the
+observer role at the task; and, with the manager role there, cancelling the
+latest attempt of a submission that reads as a system error, with a sentence
+its contestant reads, when a regrade would only repeat the fault; retrying a
+submission's latest attempt once it is finished as a new attempt against the
+publication it graded against, a stuck one included, whose old run is
+cancelled, as often as staff like after the one retry the platform makes by
+itself of a grading that fails; and rejudging every submission's latest
+attempt against the task's current publication. A failed or cancelled
+attempt never takes a result away: a submission counts its latest attempt
+that finished with a result. A delayed submission is graded again, by a
+retry or a rejudge, only while its entrant has room under the task's most
+submissions, and otherwise ends `over_limit`; a grading's `retry_limit` says
+beforehand when a retry would.
 
 A rejudge, and the regrade a save that changes how the task grades starts,
 is kept as one regrade of many: anyone holding a role in the contest reads
 each task's latest one they observe summed up by what it did to each
 submission against the result it replaced, and the feed narrowed to its
 gradings, each with that change; a manager of the task dismisses it from
-the contest's page.
+the contest's page, and reads a regrade by each value and
+verdict it changed, old to new, with each leaderboard that reads the task
+before and after for a manager or admin of the contest alone.
 
 An observer of the task also reads any entrant's submission as its row
 reads it with everything filled in, beside its grading (TASK-FORMAT.md
-section 1.7): the row picked by `entrant`, as the boards pick one, and the
-submission by its number among the row's.
+section 1.7): the row picked by `entrant`, as the leaderboards pick one, and the
+submission by its number among the row's; and a text a result
+names, one at a time. A manager of the task enters a mark for one of a
+submission's values that reads an `entered` block; every mark is kept, the
+latest counts, and a regrade never touches one. Organisers read the value
+with the rest of the submission's values at once; its entrant reads it
+only once a leaderboard's cell shown to them counted the submission, or, when
+no cell did, from the task's reveal, as forge decides.
+
+An observer of the task reads its grading queue (#505), and enters
+nothing from it: each row the task has closed for, its extension
+included, by name, with the submissions to the task that a cell of any of
+the contest's leaderboards counted, as staff read them, each with the
+leaderboards and columns that counted it and the mark of each `entered`
+value, or null while missing; an observer with a role at the task alone,
+none at its contest, is listed only the cells that read this task alone.
+Forge works it out from what the cells counted on each read.
 
 Anyone holding a role at a contest or at any of its tasks reads the
 gradings of the tasks they observe as one feed, newest first, each with
@@ -42,35 +59,44 @@ guard reads the scope the role is checked at, as for every other organiser
 route. A grading of any other task is no such grading here, whatever roles
 the caller holds there, so a path names one grading of one task or nothing.
 Forge checks the role again at the grading's own task.
-
-A log is plain text that the browser is told not to guess the type of and
-that runs nothing, so a log is never rendered as a page of the platform's.
 """
 
 import uuid
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Query, Response
-from forge.api import contests, gradings, names, regrades, submissions, tasks
+from forge.api import contests, entries, gradings, names, regrades, submissions, tasks
 from forge.api.access import Organiser
-from forge.api.boards import EntrantOwner
 from forge.api.errors import NotFound
 from forge.api.gradings import GradingStatus
+from forge.api.leaderboards import EntrantOwner
 from forge.api.regrades import ChangeKind
-from forge.api.types import Role, ScopeKind, TaskId
+from forge.api.types import Role, Scope, ScopeKind, TaskId
 
 from unicon.api.guard import PREFIX, anywhere, require
-from unicon.api.v1.submissions import Number
+from unicon.api.v1.submissions import (
+    TEXT,
+    TEXT_HEADERS,
+    TEXT_RESPONSES,
+    Number,
+    Output,
+    TextName,
+)
 from unicon.schemas.gradings import (
     USERNAME_MAX,
     USERNAME_PATTERN,
     CancelRequest,
+    EnteredMark,
+    EnterMarkRequest,
     FeedEntry,
     Grading,
+    QueueRow,
     RegradeSummary,
     Rejudged,
+    RunRegradeSummary,
 )
-from unicon.schemas.submissions import OrganisedSubmission
+from unicon.schemas.leaderboards import counted_of, header_of, sort_of
+from unicon.schemas.submissions import OrganisedSubmission, SubmittedFiles
 
 CONTEST = PREFIX[ScopeKind.CONTEST]
 TASK = PREFIX[ScopeKind.TASK]
@@ -83,12 +109,6 @@ TaskManager = Annotated[Organiser, Depends(require(Role.MANAGER, ScopeKind.TASK)
 TaskObserver = Annotated[Organiser, Depends(require(Role.OBSERVER, ScopeKind.TASK))]
 NO_SUCH_GRADING = "There is no such grading."
 LIST_MOST = 500
-LOG = "text/plain; charset=utf-8"
-LOG_HEADERS = {
-    "X-Content-Type-Options": "nosniff",
-    "Content-Security-Policy": "default-src 'none'; sandbox",
-    "Cache-Control": "private, no-store",
-}
 
 
 @router.get(
@@ -105,7 +125,7 @@ async def list_gradings(
     report by its deadline, or was lost by the CI reads as `system_error`
     with the reason in `error`, whatever its row still says.
     """
-    rows = await gradings.list(organiser, tasks.task_id_of(organiser.scope), limit=limit)
+    rows = await gradings.list_gradings(organiser, tasks.task_id_of(organiser.scope), limit=limit)
     return [_entry(row) for row in rows]
 
 
@@ -126,24 +146,137 @@ async def get_organised_submission(
 
 
 @router.get(
-    "/gradings/{grading}/log",
-    operation_id="readGradingLog",
-    summary="The run log of one of the task's gradings",
-    response_class=Response,
-    responses={
-        200: {
-            "description": "The log, as the run wrote it.",
-            "content": {LOG: {"schema": {"type": "string"}}},
-        }
-    },
+    "/organise/submissions/{number}/files",
+    operation_id="listOrganisedSubmissionFiles",
+    summary="What one submission of an entrant was made with",
+    response_model=SubmittedFiles,
 )
-async def read_grading_log(organiser: TaskObserver, grading: uuid.UUID) -> Response:
-    """The log of the grading's run. A grading with no log is `not_found`,
-    the same as one that is not there, and a log larger than the platform
-    reads back is `log_too_large` with the `limit` in bytes.
+async def list_organised_submission_files(
+    organiser: TaskObserver,
+    number: Number,
+    entrant: Annotated[uuid.UUID, Query(description="The entrant whose row it is")],
+) -> submissions.SubmittedFiles:
+    """Each input's files by the address the download door reads them at,
+    `/-/downloads/<org>/<contest>/<task>/entrants/<entrant>/<number>/<path>`,
+    or the value given, and each part's the same of an input given in parts.
+    A row with no such submission is `not_found`.
     """
-    content = await gradings.run_log(organiser, await _of_this_task(organiser, grading))
-    return Response(content=content, media_type=LOG, headers=LOG_HEADERS)
+    task = tasks.task_id_of(organiser.scope)
+    found = await submissions.organised_files(organiser, task, EntrantOwner(entrant), number)
+    return _addressed(found, organiser.scope, entrant)
+
+
+def _addressed(
+    found: submissions.SubmittedFiles, scope: Scope, entrant: uuid.UUID
+) -> submissions.SubmittedFiles:
+    """The submission's files, each path rewritten to the staff download
+    address, a part's as an input's. A value is left as it is.
+    """
+    at = f"/-/downloads/{scope.org}/{scope.contest}/{scope.task}/entrants/{entrant}/{found.number}"
+    return submissions.SubmittedFiles(
+        found.task, found.number, {name: _at(at, given) for name, given in found.inputs.items()}
+    )
+
+
+def _at(at: str, given: Any) -> Any:
+    """An input or a part as `submission.json` holds it, its files' paths
+    under `at`, and each of its parts' too.
+    """
+    if not isinstance(given, dict):
+        return given
+    files, parts = given.get("files"), given.get("parts")
+    moved = dict(given)
+    if isinstance(files, list):
+        moved["files"] = [f"{at}/{path}" for path in files if isinstance(path, str)]
+    if isinstance(parts, dict):
+        moved["parts"] = {number: _at(at, part) for number, part in parts.items()}
+    return moved
+
+
+@router.get(
+    "/organise/submissions/{number}/texts/{output}/{name}",
+    operation_id="readOrganisedSubmissionText",
+    summary="A text a row's submission names, as organisers read it",
+    response_class=Response,
+    responses=TEXT_RESPONSES,
+)
+async def read_organised_submission_text(
+    organiser: TaskObserver,
+    number: Number,
+    output: Output,
+    name: TextName,
+    entrant: Annotated[uuid.UUID, Query(description="The entrant whose row it is")],
+) -> Response:
+    """A text the submission's result names, as `output` and `name`, read
+    as organisers read the submission. Any other is `not_found`.
+    """
+    found = await submissions.read_organised_text(
+        organiser, tasks.task_id_of(organiser.scope), EntrantOwner(entrant), number, output, name
+    )
+    return Response(content=found, media_type=TEXT, headers=TEXT_HEADERS)
+
+
+@router.post(
+    "/organise/submissions/{number}/entries",
+    operation_id="enterMark",
+    summary="Enter a mark for one of a row's submission's entered values",
+    response_model=EnteredMark,
+)
+async def enter_mark(
+    organiser: TaskManager,
+    number: Number,
+    body: EnterMarkRequest,
+    entrant: Annotated[uuid.UUID, Query(description="The entrant whose row it is")],
+) -> entries.Entered:
+    """The mark as it was kept. Null or "" clears it, and the answer's
+    `mark` is then null. A value the task's live version gives no
+    `entered` block, or a mark that is not a plain number within its
+    bounds, is `invalid_mark`; a row with no submission of that number is
+    `not_found`.
+    """
+    return await entries.enter(
+        organiser,
+        tasks.task_id_of(organiser.scope),
+        EntrantOwner(entrant),
+        number,
+        body.value,
+        body.mark,
+    )
+
+
+@router.get(
+    "/organise/queue",
+    operation_id="readGradingQueue",
+    summary="The task's grading queue: each closed row's submissions its cells counted",
+    response_model=list[QueueRow],
+)
+async def read_grading_queue(organiser: TaskObserver) -> list[dict[str, Any]]:
+    """Each row the task has closed for, its extension included, by name,
+    with the submissions to the task a cell of any leaderboard counted,
+    each with the cells that counted it and the mark of each `entered`
+    value, null while missing; a caller with a role at the task alone is
+    listed only the cells that read this task alone. A row with nothing
+    counted is left out. A task never published is `not_found`.
+    """
+    rows = await entries.queue(organiser, tasks.task_id_of(organiser.scope))
+    return [
+        {
+            "row": {"entrant": row.owner.entrant_id, "name": row.name},
+            "closed_at": row.closed_at,
+            "submissions": [
+                {
+                    "number": each.number,
+                    "counted_by": [
+                        {"leaderboard": leaderboard, "column": column}
+                        for leaderboard, column in each.counted_by
+                    ],
+                    "marks": [{"value": value, "mark": mark} for value, mark in each.marks],
+                }
+                for each in row.submissions
+            ],
+        }
+        for row in rows
+    ]
 
 
 @router.post(
@@ -242,8 +375,8 @@ async def list_contest_gradings(
     With `regrade`, the regrade of many a summary of `/gradings/regrades`
     names, it lists that regrade's gradings, one per submission, its latest
     attempt of the regrade, newest first, each with `change`, what it did
-    to the submission beside the result it replaced, the earlier and new
-    points side by side; `change` narrows them to one kind, and `user` and
+    to the submission beside the result it replaced, the earlier attempt
+    and its own by number; `change` narrows them to one kind, and `user` and
     `entrant` narrow as ever, while `task`, `status` and `latest` are not
     read with it. A regrade the caller cannot see gives no rows, and so
     does `change` without `regrade`.
@@ -322,6 +455,75 @@ async def dismiss_regrade(organiser: TaskManager, regrade: uuid.UUID) -> Respons
     """
     await regrades.dismiss(organiser, tasks.task_id_of(organiser.scope), regrade)
     return Response(status_code=204)
+
+
+@router.get(
+    "/regrades/{regrade}",
+    operation_id="readRunRegrade",
+    summary="What a regrade changed, value by value",
+    response_model=RunRegradeSummary,
+)
+async def read_run_regrade(organiser: TaskManager, regrade: uuid.UUID) -> dict[str, Any]:
+    """Each submission whose values or verdicts the regrade changed, old to
+    new, worked out on read, a bounded few and the rest counted; how many
+    are still running and how many it cannot compare; and, for a manager
+    or admin of the contest, each leaderboard that reads the task before and
+    after. A regrade of another task is `not_found`, the same as none.
+    """
+    found = await regrades.run_summary(organiser, tasks.task_id_of(organiser.scope), regrade)
+    return {
+        "id": found.id,
+        "cause": found.cause,
+        "publication": found.publication,
+        "total": found.total,
+        "running": found.running,
+        "failed": found.failed,
+        "unread": found.unread,
+        "changed": [
+            {
+                "grading": each.grading,
+                "number": each.number,
+                "values": each.values,
+                "verdicts": each.verdicts,
+                "more_verdicts": each.more_verdicts,
+            }
+            for each in found.changed
+        ],
+        "more_changed": found.more_changed,
+        "leaderboards": None
+        if found.leaderboards is None
+        else [_diff(leaderboard) for leaderboard in found.leaderboards],
+    }
+
+
+def _diff(leaderboard: regrades.LeaderboardDiff) -> dict[str, Any]:
+    return {
+        "leaderboard": leaderboard.leaderboard,
+        "title": leaderboard.title,
+        "headers": [header_of(header) for header in leaderboard.headers],
+        "sort": sort_of(leaderboard.sort),
+        "rows": [
+            {
+                "row": {"entrant": row.owner.entrant_id, "name": row.name},
+                "place_before": row.place_before,
+                "place_after": row.place_after,
+                "cells": [
+                    {
+                        "column": cell.column,
+                        "before": cell.before,
+                        "after": cell.after,
+                        "waiting": counted_of(cell.waiting),
+                        "text_before": cell.text_before,
+                        "text_after": cell.text_after,
+                    }
+                    for cell in row.cells
+                ],
+                "regrading": counted_of(row.regrading),
+            }
+            for row in leaderboard.rows
+        ],
+        "unread": leaderboard.unread,
+    }
 
 
 def _entry(row: gradings.FeedEntry) -> dict[str, Any]:

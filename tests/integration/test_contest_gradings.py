@@ -42,7 +42,7 @@ async def _submit(client: httpx.AsyncClient, forge: FakeForge) -> str:
         json={
             "idempotency_key": "key-0001-aaaa",
             "inputs": {
-                "submission": {"uploads": [made["id"]]},
+                "code": {"uploads": [made["id"]]},
                 "language": {"value": "python"},
             },
         },

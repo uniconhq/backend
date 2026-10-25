@@ -10,14 +10,16 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any, Literal
 
+from forge.api import leaderboards
 from forge.api.contest_home import ContestVisibility, State
 from forge.api.entrants import Status
 from forge.api.release import TaskRelease
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel, field_validator, model_validator
 
 from unicon.schemas.entrants import MyEntry
 from unicon.schemas.exact import Exact, exactly
-from unicon.schemas.submissions import Points, Value
+from unicon.schemas.leaderboards import Leaderboard, leaderboard_of
+from unicon.schemas.submissions import Value
 
 
 class ContestNames(BaseModel):
@@ -40,50 +42,20 @@ class ContestSummary(BaseModel):
     status: Status | None
 
 
-class BoardPoints(BaseModel):
-    """The caller's entrant's points on a task as one leaderboard counts
-    them. `board` is the leaderboard's name; `covers` whether it covers the
-    task, the page reading "—" where it does not. Where it does, `points`
-    is the points now as that board counts the task, its scope (`over`) and
-    the submissions its `select` counts under its `order`, the same number
-    the board's own row counts: `shown`, over the scope's groups whose
-    results are shown, 0 while the board's cell for the task does not count,
-    null while the board shows nothing of the task yet; and `pending`, the
-    most the scope's groups not shown yet could still add, until
-    `pending_until`, the task's reveal, null when nothing is pending. A
-    group whose results are not shown yet never counts in `shown`, as on
-    every board. `most` is the most the board can count from the task, its
-    scope's groups' most points. `points` and `most` are null where the
-    board does not cover the task, and on a task that gives no points.
-    """
-
-    board: str
-    covers: bool
-    points: Points | None
-    most: Exact | None
-
-
 class TaskEntry(BaseModel):
     """A task released to the caller: its name, the label its place in the
-    contest gives it, its title, the most points it gives, null on a task
-    that gives none, whether they may submit to it now, and when it falls
-    due, null when it has no due, and closes for them, their extension on it
-    included.
-
-    `points` is, for a member of an approved entrant, their entrant's points
-    on it on each leaderboard of the home's `boards`, one for each, in the
-    same order, so a page draws one column per board under one header row.
-    Empty for anyone else, who reads the task's `worth`.
+    contest gives it, its title, whether they may submit to it now, and
+    when it falls due, null when it has no due, and closes for them, their
+    extension on it included. A task's standing on the contest's leaderboards is the
+    leaderboards' own to say, the home's `standing` among them.
     """
 
     name: str
     label: str
     title: str
-    worth: Exact | None
     release: TaskRelease
     due: datetime | None
     closes: datetime | None
-    points: list[BoardPoints]
 
 
 class ContestHome(BaseModel):
@@ -91,9 +63,9 @@ class ContestHome(BaseModel):
     role at the contest, which keeps them from registering; `registration`
     is their registration panel, as `entrants/mine` answers it: their
     entrant, whether and how they may register, and whether to ask them for
-    a code. `boards` names the leaderboards a member of an approved entrant
-    sees, in the contest's order, which each task's `points` follow; empty
-    for anyone else.
+    a code. `standing` is their own row of each leaderboard they read, as
+    that leaderboard's route shows it to them, empty unless they are in an
+    approved entrant.
     """
 
     where: ContestNames
@@ -106,7 +78,15 @@ class ContestHome(BaseModel):
     organises: bool
     now: datetime
     tasks: list[TaskEntry]
-    boards: list[str]
+    standing: list[Leaderboard]
+
+    @field_validator("standing", mode="before")
+    @classmethod
+    def _standing(cls, found: Any) -> Any:
+        return [
+            leaderboard_of(each) if isinstance(each, leaderboards.LeaderboardView) else each
+            for each in found
+        ]
 
 
 class Rate(BaseModel):
@@ -129,26 +109,41 @@ InputType = Literal["text", "number", "boolean", "enum", "file", "folder"]
 """The types a contestant input has."""
 
 
+class InputPart(BaseModel):
+    """One part of an input given once per tuple: the tuple's title, and the
+    most that part may hold, in bytes.
+    """
+
+    title: str | None = None
+    max_size: int
+
+    @model_validator(mode="before")
+    @classmethod
+    def _of(cls, given: Any) -> Any:
+        if dataclasses.is_dataclass(given) and not isinstance(given, type):
+            return {each.name: getattr(given, each.name) for each in dataclasses.fields(given)}
+        return given
+
+
 class InputField(BaseModel):
     """One input the contestant gives, with what its form shows: its
-    `type`, its `label`, the task's, else the workflow's title for the
-    input, else its key, the `options` of an enum, whether it takes one file
-    per test, `per_test`, named for the test as `<group>/<test>`, the
-    `default` a value takes when it is left out, `min` and `max` of a
-    number, exactly, and `max_size`, the most its files may total in bytes. A
-    number input's default is served as its exact digits, as its bounds are.
-    The submit panel shows one field or drop zone per input.
+    `type`, its `label`, the task's, else its key, the `options` of an enum,
+    the `default` a value takes when it is left out, `min` and `max` of a
+    number, exactly, `max_size`, the most its files may total in bytes, and
+    `parts`, on an input given once per tuple. A number input's default is
+    served as its exact digits, as its bounds are. The submit panel shows
+    one field or drop zone per input.
     """
 
     id: str
     type: InputType
     label: str
     options: list[str] | None
-    per_test: bool
     default: Value | None
     min: Exact | None
     max: Exact | None
     max_size: int
+    parts: list[InputPart] | None = None
 
     @model_validator(mode="before")
     @classmethod
@@ -170,15 +165,15 @@ class TaskPage(BaseModel):
     """A task as the caller reads it: its statement in Markdown, the caps a
     submit is counted against, the inputs a contestant gives, when it falls
     due and closes for them, and `marks`, how many of their entrant's
-    submissions they may mark for the `marked` boards, null unless such a
-    board covers the task and their entrant is approved; and nothing
-    else the task holds.
+    submissions they may mark, null unless the contest's entry for the
+    task gives `marks` or a leaderboard reads which of the task's
+    submissions an entrant marks, and their entrant is approved; and
+    nothing else the task holds.
     """
 
     name: str
     label: str
     title: str
-    worth: Exact | None
     statement: str
     submissions: Submissions
     inputs: list[InputField]

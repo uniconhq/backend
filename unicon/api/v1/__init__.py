@@ -9,16 +9,19 @@ from forge.api.types import ScopeKind
 from unicon.api.v1 import (
     announcements,
     auth,
-    boards,
+    blocks,
     clarifications,
     contest_home,
     contests,
     entrants,
     files,
     gradings,
+    hold,
     invites,
     landing,
+    leaderboards,
     live,
+    marks,
     me,
     orgs,
     roles,
@@ -44,7 +47,10 @@ router.include_router(uploads.router)
 router.include_router(submissions.router)
 router.include_router(gradings.router)
 router.include_router(gradings.feed)
-router.include_router(boards.router)
+router.include_router(leaderboards.router)
+router.include_router(hold.router)
+router.include_router(marks.router)
+router.include_router(blocks.router)
 router.include_router(workflows.router)
 router.include_router(announcements.reading)
 router.include_router(clarifications.router)

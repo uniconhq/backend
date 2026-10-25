@@ -1,5 +1,4 @@
-"""A contest's and a task's files through the routes: a folder's entries (a task's
-`public/` empty until its first file), a
+"""A contest's and a task's files through the routes: a folder's entries, a
 file at the latest and at an older version, the history, a write that
 answers with its version at a contest and as a save at a task, a stale
 token answered as a conflict, a binary file's round trip through base64, a
@@ -32,8 +31,6 @@ async def test_a_tasks_top_folder_lists_its_starter_files(
     client: httpx.AsyncClient, sum_task: FakeForge
 ) -> None:
     listed = await client.get(f"{TASK}/tree")
-    inside = await client.get(f"{TASK}/tree", params={"path": "tests/main"})
-    public = await client.get(f"{TASK}/tree", params={"path": "public"})
     missing = await client.get(f"{TASK}/tree", params={"path": "data"})
 
     assert listed.status_code == 200
@@ -43,25 +40,22 @@ async def test_a_tasks_top_folder_lists_its_starter_files(
         "task.yaml": "file",
         "tests": "directory",
     }
-    assert [entry["path"] for entry in inside.json()] == ["tests/main/1"]
-    # No public/ until its first picture, and it lists empty, not missing.
-    assert (public.status_code, public.json()) == (200, [])
     assert missing.status_code == 404
 
 
 async def test_a_tests_folder_lists_how_each_small_file_starts(
     client: httpx.AsyncClient, sum_task: FakeForge
 ) -> None:
-    listed = await client.get(f"{TASK}/tree", params={"path": "tests/main/1"})
+    listed = await client.get(f"{TASK}/tree", params={"path": "tests"})
 
     assert listed.status_code == 200
     entries = {entry["path"]: entry for entry in listed.json()}
     assert {path: entry["start"] for path, entry in entries.items()} == {
-        "tests/main/1/answer": "3\n",
-        "tests/main/1/input": "1 2\n",
+        "tests/1.ans": "3\n",
+        "tests/1.in": "1 2\n",
     }
-    answer = await read(client, f"{TASK}/files/tests/main/1/answer")
-    assert entries["tests/main/1/answer"]["token"] == answer["token"]
+    answer = await read(client, f"{TASK}/files/tests/1.ans")
+    assert entries["tests/1.ans"]["token"] == answer["token"]
 
 
 async def test_a_contest_write_answers_its_version_and_shows_in_the_history(
@@ -161,9 +155,9 @@ async def test_a_rollback_writes_the_older_file_back_as_a_new_change(
 async def test_a_task_write_is_a_save_and_answers_as_one(
     client: httpx.AsyncClient, sum_task: FakeForge
 ) -> None:
-    example = await read(client, f"{TASK}/files/tests/main/1/input")
+    example = await read(client, f"{TASK}/files/tests/1.in")
 
-    written = await _put(client, f"{TASK}/files/tests/main/1/input", "1 2\n", example["token"])
+    written = await _put(client, f"{TASK}/files/tests/1.in", "1 2\n", example["token"])
 
     assert written.status_code == 200
     assert written.json()["number"] == 1

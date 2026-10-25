@@ -21,7 +21,6 @@ def _field(**given: Any) -> InputField:
             "type": "number",
             "label": "ratio",
             "options": None,
-            "per_test": False,
             "default": None,
             "min": None,
             "max": None,

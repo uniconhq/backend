@@ -1,9 +1,8 @@
 """What a contestant is answered with is what forge gives and nothing more: a
-grading carries exactly what the task's test groups let through, a group
-that did not run on it marked so, its numbers and its points as exact
-decimal strings, a submission's inputs are read leniently from its
-`submission.json`, and a file's download is named after the file, quoted
-when its name is not plain.
+grading carries its runs as forge shows them and when it reveals, its
+numbers as exact decimal strings and its text as text, a submission's inputs
+are read leniently from its `submission.json`, and a file's download is
+named after the file, quoted when its name is not plain.
 """
 
 import json
@@ -13,31 +12,20 @@ from decimal import Decimal
 from fractions import Fraction
 
 import pytest
-from forge.api.boards import Better, Points
-from forge.api.submissions import (
-    Fold,
-    GroupShown,
-    Key,
-    OnBoard,
-    Over,
-    Result,
-    Show,
-    SubmissionState,
-    ValueMeaning,
-)
+from forge.api.submissions import GradingStatus, Result, SubmissionState, ValueShown
 from forge.api.submissions import SubmittedFiles as SubmittedFilesRecord
 from forge.api.types import TaskId
 
 from unicon.api.door import attachment
+from unicon.schemas.submissions import OrganisedResult, SubmittedFiles
 from unicon.schemas.submissions import Result as ResultAnswer
-from unicon.schemas.submissions import SubmittedFiles
 
 GRADING = uuid.UUID("0192f4a4-7b7e-7000-8000-000000000001")
 REVEAL = datetime(2026, 9, 26, 15, tzinfo=UTC)
 
 
 def test_a_grading_being_run_carries_its_status_alone() -> None:
-    result = Result(GRADING, 2, SubmissionState.GRADING, None, None, (), {})
+    result = Result(GRADING, 2, SubmissionState.GRADING)
 
     answer = ResultAnswer.model_validate(result, from_attributes=True).model_dump(mode="json")
 
@@ -45,220 +33,173 @@ def test_a_grading_being_run_carries_its_status_alone() -> None:
         "id": str(GRADING),
         "attempt": 2,
         "status": "grading",
-        "stopped": None,
-        "outcome": None,
-        "groups": [],
-        "values": {"numbers": {}, "texts": {}},
         "reason": None,
-        "points": None,
-        "factor": None,
         "limit": None,
-        "meanings": [],
-        "boards": [],
+        "runs": [],
+        "reveal_at": None,
+        "run_values": [],
+        "once": {"reports": {}, "texts": {}},
+        "compiled": None,
     }
 
 
 def test_a_grading_staff_cancelled_carries_their_sentence() -> None:
-    result = Result(GRADING, 1, SubmissionState.CANCELLED, None, None, (), {}, "Not counted.")
+    result = Result(GRADING, 1, SubmissionState.CANCELLED, "Not counted.")
 
     answer = ResultAnswer.model_validate(result, from_attributes=True).model_dump(mode="json")
 
-    assert (answer["status"], answer["reason"], answer["groups"]) == (
+    assert (answer["status"], answer["reason"], answer["runs"]) == (
         "cancelled",
         "Not counted.",
         [],
     )
 
 
-def test_a_grading_carries_each_group_as_forge_let_it_through() -> None:
-    row = {
-        "test": "samples/1",
-        "outcome": "accepted",
-        "values": {"time_ms": 12, "fraction": Decimal("0.25")},
+def test_a_grading_carries_each_run_with_exact_numbers_its_texts_and_reveal() -> None:
+    run = {
+        "group": "sample_tests",
+        "place": 1,
+        "tuples": [
+            {"title": "Small grid", "key": {"input": "samples/1.in"}},
+            {"title": None, "key": {"seed": 2}},
+        ],
+        "verdict": "accepted",
+        "passed": 1,
+        "reports": [
+            {"title": "Run time", "unit": "ms", "number": 12},
+            {"title": "Memory used", "unit": "KB", "number": Decimal("2048")},
+        ],
+        # An entrant is sent where a text is, never the output holding it.
+        "texts": {"log": {}},
+        "message": {},
+    }
+    result = Result(GRADING, 1, SubmissionState.GRADED, runs=(run,), reveal_at=REVEAL)
+
+    answer = ResultAnswer.model_validate(result, from_attributes=True).model_dump(mode="json")
+
+    assert answer["reveal_at"] == "2026-09-26T15:00:00Z"
+    assert answer["runs"] == [
+        {
+            "group": "sample_tests",
+            "place": 1,
+            "id": None,
+            "dropped": False,
+            "tuples": [
+                {"title": "Small grid", "key": {"input": "samples/1.in"}},
+                {"title": None, "key": {"seed": 2}},
+            ],
+            "verdict": "accepted",
+            "passed": 1,
+            "reports": [
+                {"title": "Run time", "unit": "ms", "number": "12"},
+                {"title": "Memory used", "unit": "KB", "number": "2048"},
+            ],
+            "texts": {"log": {"output": None, "name": None}},
+            "label": None,
+            "message": {"output": None, "name": None},
+        }
+    ]
+
+
+def test_a_gradings_values_once_and_compiled_are_served_exactly() -> None:
+    log = {"output": "0192f4a4-7b7e-7000-8000-000000000002", "name": "log"}
+    run = {
+        "group": "all",
+        "place": 1,
+        "id": "3",
+        "tuples": [{"title": "Big grid", "key": {}}],
+        "verdict": "accepted",
+        "passed": 1,
+        "reports": [],
+        "label": log,
     }
     result = Result(
         GRADING,
         1,
-        SubmissionState.GRADED,
-        None,
-        "wrong_answer",
-        (
-            GroupShown("samples", Show.ALWAYS, "accepted", (row,), None),
-            GroupShown("small", Show.VERDICT, "wrong_answer", None, REVEAL),
-            GroupShown("large", Show.AFTER_CLOSE, None, None, REVEAL),
-            GroupShown("extra", Show.ALWAYS, None, (), None, ran=False),
+        GradingStatus.DONE,
+        runs=(run, {**run, "place": 2, "id": "9", "dropped": True}),
+        run_values=(
+            ValueShown("score", Fraction(1, 3), False, True, "now", ("3",), ("tests",), ()),
+            ValueShown("late", None, True, False),
+            ValueShown("first_failed", None, False, False, "now", (), (), (), "WA"),
         ),
-        {"log": "", "score": Decimal("1.5")},
+        once={"reports": {"compile_ms": 40}, "texts": {"compile_log": log}},
+        compiled=1,
+        facts={"seconds_late": Fraction(1800), "compiled": Fraction(1)},
     )
 
-    answer = ResultAnswer.model_validate(result, from_attributes=True)
+    answer = OrganisedResult.model_validate(result, from_attributes=True).model_dump(mode="json")
 
-    assert answer.model_dump(mode="json") == {
-        "id": str(GRADING),
-        "attempt": 1,
-        "status": "graded",
-        "stopped": None,
-        "outcome": "wrong_answer",
-        "groups": [
-            {
-                "group": "samples",
-                "show": "always",
-                "outcome": "accepted",
-                "tests": [
-                    {
-                        "test": "samples/1",
-                        "outcome": "accepted",
-                        "values": {"numbers": {"time_ms": "12", "fraction": "0.25"}, "texts": {}},
-                        "credit": None,
-                        "best": None,
-                    }
-                ],
-                "shown_at": None,
-                "ran": True,
-                "points": None,
-                "max": None,
-            },
-            {
-                "group": "small",
-                "show": "verdict",
-                "outcome": "wrong_answer",
-                "tests": None,
-                "shown_at": "2026-09-26T15:00:00Z",
-                "ran": True,
-                "points": None,
-                "max": None,
-            },
-            {
-                "group": "large",
-                "show": "after_close",
-                "outcome": None,
-                "tests": None,
-                "shown_at": "2026-09-26T15:00:00Z",
-                "ran": True,
-                "points": None,
-                "max": None,
-            },
-            {
-                "group": "extra",
-                "show": "always",
-                "outcome": None,
-                "tests": [],
-                "shown_at": None,
-                "ran": False,
-                "points": None,
-                "max": None,
-            },
-        ],
-        "values": {"numbers": {"score": "1.5"}, "texts": {"log": ""}},
-        "reason": None,
-        "points": None,
-        "factor": None,
-        "limit": None,
-        "meanings": [],
-        "boards": [],
-    }
+    assert answer["run_values"] == [
+        {
+            "name": "score",
+            "number": "0." + "3" * 30,
+            "text": None,
+            "waiting": False,
+            "self_reported": True,
+            "show": "now",
+            "runs": ["3"],
+            "values": ["tests"],
+            "facts": [],
+        },
+        {
+            "name": "late",
+            "number": None,
+            "text": None,
+            "waiting": True,
+            "self_reported": False,
+            "show": None,
+            "runs": None,
+            "values": None,
+            "facts": None,
+        },
+        {
+            "name": "first_failed",
+            "number": None,
+            "text": "WA",
+            "waiting": False,
+            "self_reported": False,
+            "show": "now",
+            "runs": [],
+            "values": [],
+            "facts": [],
+        },
+    ]
+    assert answer["runs"][0]["label"] == log
+    assert answer["runs"][0]["tuples"] == [{"title": "Big grid", "key": {}}]
+    assert [each["dropped"] for each in answer["runs"]] == [False, True]
+    assert answer["once"] == {"reports": {"compile_ms": "40"}, "texts": {"compile_log": log}}
+    assert (answer["compiled"], answer["facts"]) == (1, {"seconds_late": "1800", "compiled": "1"})
 
 
 def test_numbers_are_served_as_exact_decimals_and_text_stays_text() -> None:
-    row = {
-        "test": "main/1",
-        "outcome": "accepted",
-        "values": {"loss": Decimal("0.1000000000000000000000000001"), "label": "12.5"},
-        "credit": Fraction(1, 3),
-        "best": Decimal("0.05"),
+    run = {
+        "group": "all",
+        "place": 1,
+        "tuples": [{"title": None, "key": {}}],
+        "verdict": "accepted",
+        "passed": 1,
+        "reports": [
+            {"title": "loss", "number": Decimal("0.1000000000000000000000000001")},
+            {"title": "total", "number": 10**20},
+        ],
     }
     result = Result(
         GRADING,
         1,
         SubmissionState.GRADED,
-        None,
-        "accepted",
-        (
-            GroupShown(
-                "main",
-                Show.ALWAYS,
-                "accepted",
-                (row,),
-                None,
-                points=Fraction(85, 3),
-                max=Fraction(85),
-            ),
-            GroupShown("large", Show.AFTER_CLOSE, None, None, REVEAL, max=Fraction(15)),
-        ),
-        {"total": 10**20},
-        points=Points(Fraction(85, 3), Fraction(15), REVEAL),
-        factor=Fraction(9, 10),
-        meanings=(
-            ValueMeaning("time_ms", "Run time", "ms", Better.LOWER),
-            ValueMeaning("log", "Compile log"),
-        ),
-        boards=(
-            OnBoard(
-                "Fastest",
-                Over.LIVE,
-                (
-                    (Key("points", Better.HIGHER), Fraction(85, 3)),
-                    (
-                        Key("time_ms", Better.LOWER, title="Run time", unit="ms", fold=Fold.MAX),
-                        Fraction(1, 3),
-                    ),
-                ),
-                Fraction(15),
-                None,
-                True,
-            ),
-        ),
+        runs=(run,),
+        run_values=(ValueShown("label", None, False, False, text="12.5"),),
     )
 
     served = json.loads(ResultAnswer.model_validate(result, from_attributes=True).model_dump_json())
 
-    [main, large] = served["groups"]
-    [test] = main["tests"]
-    assert test["values"] == {
-        "numbers": {"loss": "0.1000000000000000000000000001"},
-        "texts": {"label": "12.5"},
-    }
-    assert (test["credit"], test["best"]) == ("0." + "3" * 30, "0.05")
-    assert (main["points"], main["max"]) == ("28." + "3" * 28, "85")
-    assert (large["points"], large["max"]) == (None, "15")
-    assert served["values"] == {"numbers": {"total": "100000000000000000000"}, "texts": {}}
-    assert served["points"] == {
-        "shown": "28." + "3" * 28,
-        "pending": "15",
-        "pending_until": "2026-09-26T15:00:00Z",
-    }
-    assert served["factor"] == "0.9"
-    # Each value with the words a page names it by, in the report's order.
-    assert served["meanings"] == [
-        {"name": "time_ms", "title": "Run time", "unit": "ms", "better": "lower"},
-        {"name": "log", "title": "Compile log", "unit": None, "better": None},
+    assert served["runs"][0]["reports"] == [
+        {"title": "loss", "unit": None, "number": "0.1000000000000000000000000001"},
+        {"title": "total", "unit": None, "number": "100000000000000000000"},
     ]
-    # Its line on each board, every key but penalty, as the board folds it.
-    assert served["boards"] == [
-        {
-            "board": "Fastest",
-            "over": "live",
-            "numbers": [
-                {
-                    "by": "points",
-                    "fold": None,
-                    "title": None,
-                    "unit": None,
-                    "value": "28." + "3" * 28,
-                },
-                {
-                    "by": "time_ms",
-                    "fold": "max",
-                    "title": "Run time",
-                    "unit": "ms",
-                    "value": "0." + "3" * 30,
-                },
-            ],
-            "pending": "15",
-            "shown_at": None,
-            "counted": True,
-        }
-    ]
+    [label] = served["run_values"]
+    assert (label["number"], label["text"]) == (None, "12.5")
 
 
 def test_a_submissions_inputs_are_read_leniently() -> None:
@@ -266,12 +207,15 @@ def test_a_submissions_inputs_are_read_leniently() -> None:
         TaskId("acme/spring/sum"),
         3,
         {
-            "submission": {"files": ["files/submission/main.py", 7]},
+            "code": {"files": ["files/code/main.py", 7]},
             "language": {"value": "python"},
             "alpha": {"value": 0.5},
             "ratio": {"value": Decimal("0.123456789012345678901234567891")},
             "odd": ["not", "an", "object"],
             "weights": {"files": "files/weights/model.bin", "value": {"nested": True}},
+            "route": {"parts": {"1": {"files": ["files/route/1/a.txt", 3]}, "3": {"value": 7}}},
+            "tour": {"parts": {"1": "not an object", "2": {"value": True}}},
+            "broken": {"parts": ["files/broken/1/a.txt"]},
         },
     )
 
@@ -280,12 +224,22 @@ def test_a_submissions_inputs_are_read_leniently() -> None:
     assert answer == {
         "number": 3,
         "inputs": {
-            "submission": {"files": ["files/submission/main.py"], "value": None},
-            "language": {"files": [], "value": "python"},
-            "alpha": {"files": [], "value": "0.5"},
-            "ratio": {"files": [], "value": "0.123456789012345678901234567891"},
-            "odd": {"files": [], "value": None},
-            "weights": {"files": [], "value": None},
+            "code": {"files": ["files/code/main.py"], "value": None, "parts": None},
+            "language": {"files": [], "value": "python", "parts": None},
+            "alpha": {"files": [], "value": "0.5", "parts": None},
+            "ratio": {"files": [], "value": "0.123456789012345678901234567891", "parts": None},
+            "odd": {"files": [], "value": None, "parts": None},
+            "weights": {"files": [], "value": None, "parts": None},
+            "route": {
+                "files": [],
+                "value": None,
+                "parts": {
+                    "1": {"files": ["files/route/1/a.txt"], "value": None},
+                    "3": {"files": [], "value": "7"},
+                },
+            },
+            "tour": {"files": [], "value": None, "parts": {"2": {"files": [], "value": True}}},
+            "broken": {"files": [], "value": None, "parts": None},
         },
     }
 
@@ -293,7 +247,7 @@ def test_a_submissions_inputs_are_read_leniently() -> None:
 @pytest.mark.parametrize(
     ("path", "header"),
     [
-        ("files/submission/main.py", 'attachment; filename="main.py"'),
+        ("files/code/main.py", 'attachment; filename="main.py"'),
         ("files/notes/my notes.txt", "attachment; filename*=UTF-8''my%20notes.txt"),
         ('files/notes/"x";.txt', "attachment; filename*=UTF-8''%22x%22%3B.txt"),
         ("files/notes/résumé.pdf", "attachment; filename*=UTF-8''r%C3%A9sum%C3%A9.pdf"),

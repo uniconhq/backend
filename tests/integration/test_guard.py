@@ -53,6 +53,7 @@ MOVE = {"to": "0192f4a4-7b7e-7000-8000-000000000002"}
 SECONDS = {"seconds": 60}
 ENTRANT = f"{CONTEST}/organise/entrants/{NO_GRADING}"
 CANCEL = {"reason": "Not counted."}
+MARK = {"value": "review", "mark": "5"}
 ASKER = "entrant." + "0" * 31 + "1"
 """An asker as a question names one: an entrant's desk."""
 TASK_FILE = {"path": "data/weights.bin", "size": 1, "sha256": "0" * 64}
@@ -73,14 +74,15 @@ SESSION_ONLY = {
     "listMySubmissions",
     "getMySubmission",
     "listMySubmissionFiles",
+    "readMySubmissionText",
     "listContestAnnouncements",
     "listTaskAnnouncements",
     "askQuestion",
     "listMyQuestions",
     "followUpQuestion",
     "listClarificationInbox",
-    "listBoards",
-    "getBoard",
+    "listLeaderboards",
+    "getLeaderboard",
     "getMyMarks",
     "markSubmission",
     "unmarkSubmission",
@@ -117,7 +119,6 @@ ROUTES: list[tuple[str, str, dict[str, Any] | None, Role, Scope]] = [
     ("PUT", f"{CONTEST}/files/notes.md", NEW_FILE, Role.MANAGER, SPRING),
     ("POST", f"{CONTEST}/files/notes.md/rollback", ROLLBACK, Role.MANAGER, SPRING),
     ("GET", f"{CONTEST}/organise/tasks", None, Role.OBSERVER, SPRING),
-    ("GET", f"{CONTEST}/organise/boards", None, Role.OBSERVER, SPRING),
     ("GET", TASK, None, Role.OBSERVER, SUM),
     ("GET", f"{TASK}/workflow-form", None, Role.OBSERVER, SUM),
     ("GET", f"{TASK}/publications", None, Role.OBSERVER, SUM),
@@ -133,12 +134,20 @@ ROUTES: list[tuple[str, str, dict[str, Any] | None, Role, Scope]] = [
     ("PUT", f"{TASK}/files/tests/main/1/input", NEW_FILE, Role.MANAGER, SUM),
     ("POST", f"{TASK}/files/task.yaml/rollback", ROLLBACK, Role.MANAGER, SUM),
     ("GET", f"{TASK}/gradings", None, Role.OBSERVER, SUM),
-    ("GET", f"{TASK}/gradings/{NO_GRADING}/log", None, Role.OBSERVER, SUM),
     ("GET", f"{TASK}/organise/submissions/1", None, Role.OBSERVER, SUM),
+    ("GET", f"{TASK}/organise/submissions/1/files", None, Role.OBSERVER, SUM),
+    ("GET", f"{TASK}/organise/submissions/1/texts/out/log", None, Role.OBSERVER, SUM),
+    ("POST", f"{TASK}/organise/submissions/1/entries", MARK, Role.MANAGER, SUM),
+    ("GET", f"{TASK}/organise/queue", None, Role.OBSERVER, SUM),
     ("POST", f"{TASK}/gradings/{NO_GRADING}/cancel", CANCEL, Role.MANAGER, SUM),
     ("POST", f"{TASK}/gradings/{NO_GRADING}/retry", None, Role.MANAGER, SUM),
     ("POST", f"{TASK}/rejudge", None, Role.MANAGER, SUM),
+    ("POST", f"{TASK}/results/release", {}, Role.MANAGER, SUM),
+    ("GET", f"{CONTEST}/hold", None, Role.OBSERVER, SPRING),
+    ("POST", f"{CONTEST}/hold/end", {}, Role.MANAGER, SPRING),
+    ("POST", f"{TASK}/results/hide", {}, Role.MANAGER, SUM),
     ("POST", f"{TASK}/regrades/{NO_GRADING}/dismiss", None, Role.MANAGER, SUM),
+    ("GET", f"{TASK}/regrades/{NO_GRADING}", None, Role.MANAGER, SUM),
     ("POST", f"{TASK}/organise/uploads", TASK_FILE, Role.MANAGER, SUM),
     ("GET", f"{CONTEST}/announcements", None, Role.OBSERVER, SPRING),
     ("POST", f"{CONTEST}/announcements", NOTE, Role.MANAGER, SPRING),
@@ -226,14 +235,18 @@ NO_SESSION = {
     "getForgeUrl",
     "receiveForgeEvent",
     "answerCiConfig",
-    "getGradingEnvelope",
-    "reportGradingRun",
+    "getStepJob",
+    "reportStepPipeline",
+    "listStepUploads",
+    "sayStepDone",
+    "getStepFile",
     "listPublicContests",
     "getPublicContest",
     "getPublicStatement",
     "getTaskPublicFile",
-    "listPublicBoards",
-    "getPublicBoard",
+    "listPublicLeaderboards",
+    "getPublicLeaderboard",
+    "listBlocks",
 }
 
 

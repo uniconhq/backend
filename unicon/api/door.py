@@ -12,7 +12,10 @@ to the repository as it hashes what arrives.
 
 **Downloads.** A browser asks for one file of one of its own submissions at
 `/-/downloads/<org>/<contest>/<task>/<number>/<path>`, or, holding a role
-reaching the task, observer or above, for one of the task's own files at
+reaching the task, observer or above, for one of an entrant's submitted
+files at
+`/-/downloads/<org>/<contest>/<task>/entrants/<entrant>/<number>/<path>`,
+or for one of the task's own files at
 `/-/downloads/<org>/<contest>/<task>/versions/<version>/<path>`, the version
 a read of the file named. nginx asks here the same way, and the answer is
 where at the forge that file is read whole, what credential to present
@@ -36,6 +39,7 @@ from urllib.parse import quote, unquote
 from fastapi import APIRouter, Header, Response, status
 from forge.api import access, files, names, submissions, tasks, uploads
 from forge.api.errors import Forbidden, InvalidPath, NotFound
+from forge.api.leaderboards import EntrantOwner
 from forge.api.types import Role, Session, VersionId
 from forge.api.uploads import Door
 
@@ -79,9 +83,12 @@ async def download_door(
     """
     asked = _download_of(original_uri)
     try:
-        door = await (
-            _task_file(session, asked) if asked.version is not None else _submitted(session, asked)
-        )
+        if asked.version is not None:
+            door = await _task_file(session, asked)
+        elif asked.entrant is not None:
+            door = await _organised(session, asked)
+        else:
+            door = await _submitted(session, asked)
     except NotFound, InvalidPath:
         raise Forbidden(DOWNLOAD_REFUSED) from None
     response.headers[PATH_HEADER] = door.path
@@ -110,6 +117,24 @@ async def _task_file(session: Session, asked: Download) -> Door:
         raise Forbidden(DOWNLOAD_REFUSED) from None
     task = tasks.task_id_of(organiser.scope)
     return await files.download(organiser, task, asked.path, VersionId(asked.version))
+
+
+async def _organised(session: Session, asked: Download) -> Door:
+    """The door to one file of an entrant's submission, for an observer of
+    the task or above. Not holding the role is refused in the door's own
+    words, as everything else is.
+    """
+    assert asked.number is not None and asked.entrant is not None
+    try:
+        organiser = await access.organiser_at(
+            session, Role.OBSERVER, asked.org, asked.contest, asked.task
+        )
+    except Forbidden:
+        raise Forbidden(DOWNLOAD_REFUSED) from None
+    task = tasks.task_id_of(organiser.scope)
+    return await submissions.organised_download(
+        organiser, task, EntrantOwner(asked.entrant), asked.number, asked.path
+    )
 
 
 def attachment(path: str) -> str:
@@ -171,6 +196,7 @@ class Download:
     number: int | None
     version: str | None
     path: str
+    entrant: uuid.UUID | None = None
 
 
 def _download_of(original_uri: str) -> Download:
@@ -186,6 +212,8 @@ def _download_of(original_uri: str) -> Download:
     if not raw.startswith(DOWNLOADS):
         raise Forbidden(DOWNLOAD_REFUSED)
     parts = raw.removeprefix(DOWNLOADS).split("/")
+    if len(parts) >= 7 and parts[3] == "entrants":
+        return _staff_download(parts)
     task_file = len(parts) >= 6 and parts[3] == VERSIONS
     if not task_file and (len(parts) < 5 or not _number(parts[3])):
         raise Forbidden(DOWNLOAD_REFUSED)
@@ -197,6 +225,24 @@ def _download_of(original_uri: str) -> Download:
         raise Forbidden(DOWNLOAD_REFUSED) from None
     number = None if task_file else int(parts[3])
     return Download(org, contest, task, number, version, path)
+
+
+def _staff_download(parts: list[str]) -> Download:
+    """An entrant's submitted file: `entrants/<uuid>/<number>/files/...`."""
+    try:
+        entrant = uuid.UUID(parts[4])
+    except ValueError:
+        raise Forbidden(DOWNLOAD_REFUSED) from None
+    if not _number(parts[5]):
+        raise Forbidden(DOWNLOAD_REFUSED)
+    try:
+        org, contest, task = (_segment(part) for part in parts[:3])
+        path = "/".join(_segment(part) for part in parts[6:])
+    except UnicodeDecodeError:
+        raise Forbidden(DOWNLOAD_REFUSED) from None
+    if not path.startswith("files/") or path == "files/":
+        raise Forbidden(DOWNLOAD_REFUSED)
+    return Download(org, contest, task, int(parts[5]), None, path, entrant)
 
 
 def _segment(part: str) -> str:

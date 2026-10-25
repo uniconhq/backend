@@ -58,6 +58,7 @@ async def request_upload_slot(
         size=body.size,
         sha256=body.sha256,
         content_type=body.content_type,
+        part=body.part,
     )
 
 

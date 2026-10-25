@@ -200,7 +200,7 @@ async def test_a_version_of_a_draft_with_problems_is_refused_with_each_path(
 ) -> None:
     await _own(client, acme)
     draft = (await client.get("/api/v1/workflows/bob/tuned")).json()["draft"]
-    broken = draft["content"].replace("steps.compile.binary", "steps.compiler.binary")
+    broken = draft["content"].replace("steps.compile.program", "steps.compiler.program")
     saved = await client.put(
         "/api/v1/workflows/bob/tuned/draft",
         json={"content": broken, "token": draft["token"]},
@@ -216,7 +216,7 @@ async def test_a_version_of_a_draft_with_problems_is_refused_with_each_path(
     assert refused.json()["code"] == "invalid_definition"
     assert refused.json()["errors"] == [
         {
-            "path": "steps[1].with.binary",
+            "path": "steps[1].with.program",
             "message": "There is no step called compiler before this one.",
         }
     ]
@@ -227,18 +227,18 @@ async def test_check_answers_every_problem_at_its_path_and_writes_nothing(
 ) -> None:
     await sign_in_as(client, acme, 8)
     classic = acme.state.repos[("unicon", "classic.workflow")].files["workflow.yaml"].decode()
-    uses_workflow = classic.replace("unicon/diff-check@v2", "unicon/classic@v2")
+    unknown = classic.replace("unicon/exec@v1", "unicon/exec@v9")
 
     good = await client.post("/api/v1/workflows/check", json={"content": classic}, headers=ORIGIN)
-    bad = await client.post(
-        "/api/v1/workflows/check", json={"content": uses_workflow}, headers=ORIGIN
-    )
+    bad = await client.post("/api/v1/workflows/check", json={"content": unknown}, headers=ORIGIN)
 
     assert good.json() == {"problems": []}
     assert bad.status_code == 200, bad.text
-    (problem,) = bad.json()["problems"]
-    assert problem["path"] == "steps[2].use"
-    assert "is a workflow, and a step can only use a primitive" in problem["message"]
+    assert [problem["path"] for problem in bad.json()["problems"]] == [
+        "steps[1].use",
+        "steps[3].use",
+    ]
+    assert "cannot open unicon/exec@v9" in bad.json()["problems"][0]["message"]
 
 
 async def test_a_workflow_is_shared_with_a_person_who_then_reads_it(
@@ -290,34 +290,24 @@ async def test_a_person_lists_what_they_may_read(
     ]
 
 
-async def test_a_copy_and_a_combination_are_new_private_workflows(
-    client: httpx.AsyncClient, acme: FakeForge
-) -> None:
+async def test_a_copy_is_a_new_private_workflow(client: httpx.AsyncClient, acme: FakeForge) -> None:
     await sign_in_as(client, acme, 8)
-    classic = "unicon/classic@v2"
 
     copied = await client.post(
         "/api/v1/workflow-copies",
-        json={"source": classic, "owner": "bob", "name": "mine"},
+        json={"source": "unicon/classic@v3", "owner": "bob", "name": "mine"},
         headers=ORIGIN,
     )
-    combined = await client.post(
+    gone = await client.post(
         "/api/v1/workflow-combinations",
-        json={"sources": [classic, classic], "owner": "bob", "name": "both"},
-        headers=ORIGIN,
-    )
-    one = await client.post(
-        "/api/v1/workflow-combinations",
-        json={"sources": [classic], "owner": "bob", "name": "one"},
+        json={"sources": ["unicon/classic@v3"], "owner": "bob", "name": "both"},
         headers=ORIGIN,
     )
 
     assert copied.status_code == 201, copied.text
     assert copied.json() == {"owner": "bob", "name": "mine"}
-    assert combined.status_code == 201, combined.text
-    assert acme.state.repos[("bob", "both.workflow")].private is True
-    assert one.status_code == 422
-    assert one.json()["code"] == "rejected"
+    assert acme.state.repos[("bob", "mine.workflow")].private is True
+    assert gone.status_code == 404
 
 
 async def test_the_primitives_are_listed_with_their_ports(
@@ -329,43 +319,48 @@ async def test_the_primitives_are_listed_with_their_ports(
 
     assert listed.status_code == 200
     by_ref = {item["ref"]: item for item in listed.json()}
-    assert sorted(by_ref) == [
-        "unicon/compile@v2",
-        "unicon/diff-check@v2",
-        "unicon/sandbox-run@v2",
-    ]
-    run = by_ref["unicon/sandbox-run@v2"]
-    assert run["batch"] is True
-    assert run["title"] == "Run program"
-    assert run["description"].startswith("Runs a program on each test's input")
-    assert run["inputs"]["binary"] == {
-        "type": "file",
+    assert sorted(by_ref) == ["unicon/compile@v3", "unicon/exec@v1"]
+    compile = by_ref["unicon/compile@v3"]
+    assert (compile["batch"], compile["title"]) == (False, "Compile")
+    assert compile["inputs"]["source"] == {
+        "type": "folder",
         "options": None,
         "optional": False,
         "runs": True,
         "secret": False,
-        "description": "The program to run.",
+        "description": "The source files to compile, with their layout.",
         "outcomes": None,
+        "names": None,
+        "better": None,
+        "at_least": None,
+        "at_most": None,
+        "inputs": None,
+        "outputs": None,
     }
-    assert run["inputs"]["args"]["optional"] is True
-    assert run["limits_from"]["time_ms"] == {
+    assert compile["inputs"]["entry"]["optional"] is True
+    assert compile["limits"]["memory_mb"] == 1024
+    # The outcome port says what each outcome the step reports means, in
+    # the declaration's order, for the step's drawer.
+    assert compile["outputs"]["outcome"]["outcomes"] == {
+        "accepted": "the source compiles",
+        "compile_error": "it does not compile, or the compiler goes over a limit",
+    }
+    assert compile["problem"] is None
+    # A primitive given in forms has no ports of its own: each form has its
+    # ports and limits.
+    run = by_ref["unicon/exec@v1"]
+    assert (run["batch"], run["inputs"], run["outputs"]) == (True, {}, {})
+    one = run["forms"]["one"]
+    assert one["outputs_from"] == "manifest"
+    assert one["inputs"]["program"]["runs"] is True
+    assert one["limits_from"]["time_ms"] == {
         "input": "time_limit",
+        "sum": None,
+        "max": None,
         "scale": "2000",
         "add": "3000",
     }
-    assert run["limits"]["memory_mb"] == 256
-    # The outcome port says what each outcome the step reports means, in
-    # the declaration's order, for the step's drawer.
-    assert list(run["outputs"]["outcome"]["outcomes"]) == [
-        "accepted",
-        "time_limit",
-        "memory_limit",
-        "output_limit",
-        "runtime_error",
-    ]
-    compiled = by_ref["unicon/compile@v2"]["outputs"]["outcome"]["outcomes"]
-    assert compiled["accepted"] == "the source compiles"
-    assert run["problem"] is None
+    assert one["limits"]["memory_mb"] == 256
 
 
 @pytest.mark.parametrize(
@@ -381,11 +376,7 @@ async def test_the_primitives_are_listed_with_their_ports(
         ("DELETE", "/api/v1/workflows/bob/tuned/readers/ada", None),
         ("POST", "/api/v1/workflows/check", {"content": "x"}),
         ("POST", "/api/v1/workflow-copies", {"source": "a/b@v1", "owner": "bob", "name": "c"}),
-        (
-            "POST",
-            "/api/v1/workflow-combinations",
-            {"sources": ["a/b@v1"], "owner": "bob", "name": "c"},
-        ),
+        ("GET", "/api/v1/workflows/bob/tuned/versions/v1/box", None),
         ("GET", "/api/v1/primitives", None),
     ],
 )
@@ -435,12 +426,7 @@ async def test_a_version_of_a_save_someone_has_saved_over_is_a_conflict(
         (
             "POST",
             "/api/v1/workflow-copies",
-            {"source": "unicon/classic@v2", "owner": "bob", "name": "c"},
-        ),
-        (
-            "POST",
-            "/api/v1/workflow-combinations",
-            {"sources": ["unicon/classic@v2", "unicon/classic@v2"], "owner": "bob", "name": "c"},
+            {"source": "unicon/classic@v3", "owner": "bob", "name": "c"},
         ),
     ],
 )
@@ -454,3 +440,167 @@ async def test_someone_else_may_not_change_a_persons_workflow(
 
     assert refused.status_code == 403
     assert refused.json()["code"] == "forbidden"
+
+
+_NOOP = (
+    "image: ghcr.io/uniconhq/primitive-noop@sha256:" + ("0" * 64) + "\n"
+    "schema_version: 6\n"
+    "limits: {time_ms: 1, cpu_ms: 1, memory_mb: 1, pids: 1, output_mb: 1, gpus: 0}\n"
+    "inputs:\n"
+    "  note: {type: text, optional: true}\n"
+    "outputs:\n"
+    "  outcome: outcome\n"
+    "  time_ms: {type: number, better: lower, at_least: 0}\n"
+)
+_HELD = """\
+inputs:
+  cap: {type: number, title: Limit, unit: seconds}
+  note: {type: text, optional: true, title: Note}
+steps:
+  - id: run
+    use: unicon/noop@v1
+    with:
+      note: ${{ inputs.note }}
+outputs:
+  time_ms: ${{ steps.run.time_ms }}
+"""
+
+
+async def _save(client: httpx.AsyncClient, name: str, content: str, token: str | None) -> str:
+    saved = await client.put(
+        f"/api/v1/workflows/bob/{name}/draft",
+        json={"content": content, "token": token},
+        headers=ORIGIN,
+    )
+    assert saved.status_code == 200, saved.text
+    token = saved.json()["token"]
+    assert isinstance(token, str)
+    return token
+
+
+async def test_a_box_answers_a_workflow_version_and_one_unread(
+    client: httpx.AsyncClient, acme: FakeForge
+) -> None:
+    acme.primitives.add("noop", {"v1": _NOOP.encode()})
+    await sign_in_as(client, acme, 8)
+    made = await client.post(
+        "/api/v1/workflows", json={"owner": "bob", "name": "held"}, headers=ORIGIN
+    )
+    assert made.status_code == 201, made.text
+    token = (await client.get("/api/v1/workflows/bob/held")).json()["draft"]["token"]
+    token = await _save(client, "held", _HELD, token)
+    version = await client.post(
+        "/api/v1/workflows/bob/held/versions",
+        json={"version": "v1", "token": token},
+        headers=ORIGIN,
+    )
+    assert version.status_code == 201, version.text
+    token = await _save(client, "held", _HELD + "\n", token)
+    again = await client.post(
+        "/api/v1/workflows/bob/held/versions",
+        json={"version": "v2", "token": token},
+        headers=ORIGIN,
+    )
+    assert again.status_code == 201, again.text
+
+    face = await client.get("/api/v1/workflows/bob/held/versions/v1/box")
+    classic = await client.get("/api/v1/workflows/unicon/classic/versions/v3/box")
+
+    assert face.status_code == 200, face.text
+    assert face.json() == {
+        "run": True,
+        "inputs": [
+            {
+                "name": "cap",
+                "type": "number",
+                "options": None,
+                "optional": False,
+                "title": "Limit",
+                "unit": "seconds",
+            },
+            {
+                "name": "note",
+                "type": "text",
+                "options": None,
+                "optional": True,
+                "title": "Note",
+                "unit": None,
+            },
+        ],
+        "outputs": [
+            {
+                "name": "time_ms",
+                "type": "number",
+                "title": None,
+                "unit": None,
+                "better": "lower",
+                "at_least": "0",
+                "at_most": None,
+            }
+        ],
+        "newer_version": "v2",
+    }
+    assert classic.status_code == 200, classic.text
+    assert [each["name"] for each in classic.json()["inputs"]] == [
+        "code",
+        "language",
+        "input",
+        "answer",
+        "time_limit",
+        "memory_limit",
+    ]
+    assert [each["name"] for each in classic.json()["outputs"]] == [
+        "score",
+        "time_ms",
+        "memory_kb",
+        "log",
+    ]
+
+    await sign_in_as(client, acme, 7)
+    refused = await client.get("/api/v1/workflows/bob/held/versions/v1/box")
+    assert refused.status_code == 404
+    assert refused.json()["code"] == "not_found"
+
+
+async def test_checking_a_draft_that_holds_its_own_workflow_names_the_step(
+    client: httpx.AsyncClient, acme: FakeForge
+) -> None:
+    acme.primitives.add("noop", {"v1": _NOOP.encode()})
+    await sign_in_as(client, acme, 8)
+    await client.post("/api/v1/workflows", json={"owner": "bob", "name": "held"}, headers=ORIGIN)
+    token = (await client.get("/api/v1/workflows/bob/held")).json()["draft"]["token"]
+    token = await _save(client, "held", _HELD, token)
+    made = await client.post(
+        "/api/v1/workflows/bob/held/versions",
+        json={"version": "v1", "token": token},
+        headers=ORIGIN,
+    )
+    assert made.status_code == 201, made.text
+    closing = "steps:\n  - id: again\n    use: bob/held@v1\n"
+    token = await _save(client, "held", closing, token)
+
+    checked = await client.post(
+        "/api/v1/workflows/check",
+        json={"content": closing, "owner": "bob", "name": "held"},
+        headers=ORIGIN,
+    )
+    refused = await client.post(
+        "/api/v1/workflows/bob/held/versions",
+        json={"version": "v2", "token": token},
+        headers=ORIGIN,
+    )
+
+    assert checked.status_code == 200, checked.text
+    assert checked.json()["problems"] == [
+        {
+            "path": "steps[0].use",
+            "message": (
+                "`again` uses bob/held@v1, and bob/held is already on that path, so the "
+                "workflow would hold itself."
+            ),
+            "step": "again",
+        }
+    ]
+    assert refused.status_code == 422
+    assert refused.json()["code"] == "invalid_definition"
+    assert refused.json()["errors"][0]["step"] == "again"
