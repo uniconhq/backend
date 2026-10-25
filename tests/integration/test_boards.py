@@ -47,7 +47,8 @@ leaderboards:
       tries: {block: count, over: {results: sum}}
     display: [tries]
 """
-HOLD = "hold: {from: 2026-09-26T10:00:00Z, until: staff}\n"
+HOLD = "hold: {from: 2026-09-26T12:30:00Z, until: staff}\n"
+"""A hold from half an hour after the tests' clock starts, inside the contest."""
 MARKED = """\
 leaderboards:
   final:
@@ -151,6 +152,7 @@ def _standings(carols: str, told: bool) -> dict[str, Any]:
                     }
                 ],
                 "held": 0,
+                "grading": 0 if told else None,
             }
         ],
     }
@@ -197,9 +199,10 @@ async def test_each_caller_reads_the_boards_its_audience_lets_them(
 
 
 async def test_a_manager_of_the_contest_ends_its_hold_early_asked_first(
-    client: httpx.AsyncClient, entered: FakeForge
+    client: httpx.AsyncClient, entered: FakeForge, clock: FakeClock
 ) -> None:
     await _settings(client, entered, HOLD + SETTINGS)
+    clock.advance(timedelta(hours=1))
     await _graded(client, entered, "key-0001-aaaa")
     client.cookies.clear()
     held = (await client.get(f"{PUBLIC}/standings")).json()
@@ -214,9 +217,9 @@ async def test_a_manager_of_the_contest_ends_its_hold_early_asked_first(
 
     # A visitor reads every row as it stood at the hold's from until the
     # hold ends; sum's results are no board's, so none is held.
-    assert held["held_from"] == "2026-09-26T10:00:00Z"
+    assert held["held_from"] == "2026-09-26T12:30:00Z"
     assert before.json() == {
-        "from": "2026-09-26T10:00:00Z",
+        "from": "2026-09-26T12:30:00Z",
         "until": "staff",
         "holding": True,
         "ended_by": None,

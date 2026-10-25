@@ -599,7 +599,7 @@
         "type": "object"
       },
       "BoardRow": {
-        "description": "A row on the board: its place, shared by rows equal on every sort\nkey, null on a board with no `sort`, when a sort key was dropped for\nthe caller, and on a board showing them only their own row; whose it\nis; its listed cells in order; and `held`, how many of its submissions\nthe hold keeps from the caller.",
+        "description": "A row on the board: its place, shared by rows equal on every sort\nkey, null on a board with no `sort`, when a sort key was dropped for\nthe caller, and on a board showing them only their own row; whose it\nis; its listed cells in order; `held`, how many of its submissions\nthe hold keeps from the caller; and `grading`, how many of its\nsubmissions to the tasks the board reads still grade, a value the\ncaller is shown still to come, null unless the row is the caller's\nown or they are staff.",
         "properties": {
           "cells": {
             "items": {
@@ -607,6 +607,17 @@
             },
             "title": "Cells",
             "type": "array"
+          },
+          "grading": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grading"
           },
           "held": {
             "title": "Held",
@@ -631,7 +642,8 @@
           "place",
           "row",
           "cells",
-          "held"
+          "held",
+          "grading"
         ],
         "title": "BoardRow",
         "type": "object"

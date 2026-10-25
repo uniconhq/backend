@@ -5,7 +5,8 @@ hold holds other rows from, and its rows in order, each with its place,
 its listed cells and how many of its submissions the hold keeps back,
 every number an exact decimal string. A cell says whether it is hidden
 and, on the caller's own row and for staff, names the submissions it
-counted and those it left out as still waiting, each by task and number.
+counted and those it left out as still waiting, each by task and number,
+and the row says how many of its submissions still grade.
 """
 
 import uuid
@@ -82,14 +83,18 @@ class BoardRow(BaseModel):
     """A row on the board: its place, shared by rows equal on every sort
     key, null on a board with no `sort`, when a sort key was dropped for
     the caller, and on a board showing them only their own row; whose it
-    is; its listed cells in order; and `held`, how many of its submissions
-    the hold keeps from the caller.
+    is; its listed cells in order; `held`, how many of its submissions
+    the hold keeps from the caller; and `grading`, how many of its
+    submissions to the tasks the board reads still grade, a value the
+    caller is shown still to come, null unless the row is the caller's
+    own or they are staff.
     """
 
     place: int | None
     row: BoardRowOwner
     cells: list[BoardCell]
     held: int
+    grading: int | None
 
 
 class SortKey(BaseModel):
@@ -161,6 +166,7 @@ def board_of(board: boards.Board) -> dict[str, Any]:
                     for cell in row.cells
                 ],
                 "held": row.held,
+                "grading": row.grading if row.told else None,
             }
             for row in board.rows
         ],
