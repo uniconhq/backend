@@ -18,7 +18,7 @@ from pydantic import BaseModel, field_validator
 
 from unicon.schemas.exact import Exact, Reported
 from unicon.schemas.publications import PublicationNumber
-from unicon.schemas.submissions import GradedTest, Outcome
+from unicon.schemas.submissions import GradedTest, Outcome, TextRef
 
 USERNAME_PATTERN = r"^[A-Za-z0-9](?:[-._]?[A-Za-z0-9])*$"
 """Letters, digits, `-`, `_` and `.`, beginning and ending with a letter or
@@ -49,14 +49,6 @@ class RunResult(BaseModel):
     error: str | None
 
 
-class TextRef(BaseModel):
-    """A text a step wrote, named by the stored output that holds it and
-    that output's name; the text itself is read apart."""
-
-    output: str
-    name: str
-
-
 class RunVerdict(BaseModel):
     """One run of a run task's grading: its id and key as the plan gives
     them, its verdict, 1 `passed` when that is `accepted`, the numbers its
@@ -75,10 +67,13 @@ class RunVerdict(BaseModel):
 
 
 class OnceReports(BaseModel):
-    """What the steps done once reported: numbers, exactly, and texts."""
+    """What the steps done once reported: numbers, exactly, and texts; and
+    the outcome each returned, by its id, which the `compiled` fact reads.
+    """
 
     reports: dict[str, Exact]
     texts: dict[str, TextRef]
+    outcomes: dict[str, Outcome] = {}
 
 
 class StaffNote(BaseModel):

@@ -83,24 +83,73 @@ class GradedTest(BaseModel):
     best: Exact | None = None
 
 
+class TextRef(BaseModel):
+    """A text a step wrote, read apart and only while the result shows it.
+    Organisers are told the stored output that holds it and that output's
+    name, and read it by them. An entrant is told neither, both null, since
+    the output may be another entrant's and its id says when it was made:
+    they read it by where it is shown, its run's group and place, or the
+    steps done once, and the text's name or `label` or `message`.
+    """
+
+    output: str | None = None
+    name: str | None = None
+
+
 class RunShown(BaseModel):
     """One run of a run task's grading as its entrant sees it: the group
     `show` lists that shows it, its place in that group from 1 ("Test 3"),
     its key as the plan gives it, leaving out a file not yet shown, its
-    verdict, `passed`, 1 when that is `accepted`, and the numbers its steps
-    reported, exactly. A run in two groups shown is shown in each. Its
-    texts stay out until an entrant's route reads them. Organisers read
-    every run, under `all` in the task's order, with its `id`, which
-    counts every run of the task; `id` is null for an entrant.
+    verdict, `passed`, 1 when that is `accepted`, the numbers its steps
+    reported, exactly, and its texts, with the `label` and `message` shown
+    with its verdict, null when no step wrote one. A run in two groups
+    shown is shown in each; a run no group shown holds is never shown, even
+    when a value shown reads it. Organisers read every run, under `all` in
+    the task's order, with its `id`, which counts every run of the task;
+    `id` is null for an entrant. A run a row holds that the task's latest
+    publication no longer has is `dropped`, listed to organisers after the
+    rest; never to an entrant.
     """
 
     group: str
     place: int
     id: str | None = None
+    dropped: bool = False
     key: dict[str, Any]
     verdict: Outcome
     passed: int
     reports: dict[str, Exact]
+    texts: dict[str, TextRef] = {}
+    label: TextRef | None = None
+    message: TextRef | None = None
+
+
+class RunValue(BaseModel):
+    """One value of a run task's scoring as its reader sees it: its name,
+    its `number`, exact, null when it is missing or waiting; whether
+    it is `waiting` for staff, which an entrant reads as "being checked",
+    told only once the runs it waits on are early or shown; and whether it
+    is `self_reported`, reading a column the entrant could set. Organisers
+    also read the time `show` lists it under, null when never, and what it
+    read: `runs` by id, `values` and `facts`; each is null for an entrant.
+    """
+
+    name: str
+    number: Exact | None
+    waiting: bool
+    self_reported: bool
+    show: Literal["now", "after_close", "on_release"] | None = None
+    runs: list[str] | None = None
+    values: list[str] | None = None
+    facts: list[str] | None = None
+
+
+class OnceShown(BaseModel):
+    """What a run task's steps done once reported, as its reader is shown
+    it: numbers, exactly, and texts, the compile log among them."""
+
+    reports: dict[str, Exact] = {}
+    texts: dict[str, TextRef] = {}
 
 
 class GroupShown(BaseModel):
@@ -153,6 +202,9 @@ class Scored(BaseModel):
     limit: int | None
     meanings: list[ValueMeaning]
     runs: list[RunShown] = []
+    run_values: list[RunValue] = []
+    once: OnceShown = OnceShown()
+    compiled: int | None = None
 
 
 class Result(Scored):
@@ -191,12 +243,19 @@ class Result(Scored):
     otherwise. While a sealed step's stop is held to the reveal, nothing of
     the run is shown: every group reads as hidden.
 
-    A run task's grading has no groups or values yet, which its scoring
-    makes in a later stage: `runs` holds the runs its entrant is shown,
-    those of the groups `show` lists under `now` from the start, and those
-    under `after_close` once the task reveals; a group under `on_release`
-    shows none yet. After the reveal, while those are still being graded, it
-    is `grading` or `delayed`. `runs` is empty on every other task.
+    A run task's grading has no groups and no `values`: `run_values` holds
+    each value of its scoring its entrant is shown, worked out on every
+    read, and `runs` the runs, those listed under `now` from the start and
+    those under `after_close` once the task reveals; what `on_release`
+    lists shows nothing yet. `once` holds what its steps done once
+    reported, the compile log among them, and `compiled` 1, or 0 when a
+    compile done once stopped it, both once a run is shown. A task with
+    nothing shown during the contest is `submitted` until the reveal, which
+    a page words "Submitted, results after the contest". After the reveal,
+    while its late runs are still being graded, it is `grading` or
+    `delayed`. A run task's grading whose runs failed for the platform is
+    `delayed` with the runs it gave, a value reading one of its failed early
+    runs `waiting`. These are empty on every other task.
     `reveal_at` is when the task reveals, until then, as what its entrant
     reads changes then with no grading's change to say so, so a page open
     on it reads it again then, as at a group's `shown_at`; null on every
@@ -214,10 +273,14 @@ class OrganisedResult(Scored):
     and every value a sealed step reported are there, its points all shown
     and none pending. Each group's `shown_at` is kept as a note of when its
     contestant is shown it, null once they see its tests. `status` is the
-    grading's own, as in the gradings routes.
+    grading's own, as in the gradings routes. On a run task, every value
+    and run is there at once, each value with when it shows and what it
+    read, and `facts` holds `seconds_late`, `seconds` and `compiled` as the
+    values read them.
     """
 
     status: GradingStatus
+    facts: dict[str, Exact] = {}
 
 
 class Numbered(BaseModel):

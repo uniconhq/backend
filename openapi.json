@@ -3257,8 +3257,27 @@
         "type": "object"
       },
       "OnceReports": {
-        "description": "What the steps done once reported: numbers, exactly, and texts.",
+        "description": "What the steps done once reported: numbers, exactly, and texts; and\nthe outcome each returned, by its id, which the `compiled` fact reads.",
         "properties": {
+          "outcomes": {
+            "additionalProperties": {
+              "enum": [
+                "accepted",
+                "wrong_answer",
+                "time_limit",
+                "memory_limit",
+                "output_limit",
+                "runtime_error",
+                "compile_error",
+                "skipped",
+                "system_error"
+              ],
+              "type": "string"
+            },
+            "default": {},
+            "title": "Outcomes",
+            "type": "object"
+          },
           "reports": {
             "additionalProperties": {
               "examples": [
@@ -3280,9 +3299,41 @@
         },
         "required": [
           "reports",
-          "texts"
+          "texts",
+          "outcomes"
         ],
         "title": "OnceReports",
+        "type": "object"
+      },
+      "OnceShown": {
+        "description": "What a run task's steps done once reported, as its reader is shown\nit: numbers, exactly, and texts, the compile log among them.",
+        "properties": {
+          "reports": {
+            "additionalProperties": {
+              "examples": [
+                "82.5"
+              ],
+              "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+              "type": "string"
+            },
+            "default": {},
+            "title": "Reports",
+            "type": "object"
+          },
+          "texts": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/TextRef"
+            },
+            "default": {},
+            "title": "Texts",
+            "type": "object"
+          }
+        },
+        "required": [
+          "reports",
+          "texts"
+        ],
+        "title": "OnceShown",
         "type": "object"
       },
       "OpenInviteRequest": {
@@ -3518,11 +3569,22 @@
         "type": "object"
       },
       "OrganisedResult": {
-        "description": "A submission's grading as organisers read it beside the grading\nitself: the payload its contestant reads, with everything filled in as\nonce the task has revealed, so every group's outcome, tests and points\nand every value a sealed step reported are there, its points all shown\nand none pending. Each group's `shown_at` is kept as a note of when its\ncontestant is shown it, null once they see its tests. `status` is the\ngrading's own, as in the gradings routes.",
+        "description": "A submission's grading as organisers read it beside the grading\nitself: the payload its contestant reads, with everything filled in as\nonce the task has revealed, so every group's outcome, tests and points\nand every value a sealed step reported are there, its points all shown\nand none pending. Each group's `shown_at` is kept as a note of when its\ncontestant is shown it, null once they see its tests. `status` is the\ngrading's own, as in the gradings routes. On a run task, every value\nand run is there at once, each value with when it shows and what it\nread, and `facts` holds `seconds_late`, `seconds` and `compiled` as the\nvalues read them.",
         "properties": {
           "attempt": {
             "title": "Attempt",
             "type": "integer"
+          },
+          "compiled": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Compiled"
           },
           "factor": {
             "anyOf": [
@@ -3538,6 +3600,18 @@
               }
             ],
             "title": "Factor"
+          },
+          "facts": {
+            "additionalProperties": {
+              "examples": [
+                "82.5"
+              ],
+              "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+              "type": "string"
+            },
+            "default": {},
+            "title": "Facts",
+            "type": "object"
           },
           "folded": {
             "additionalProperties": {
@@ -3579,6 +3653,13 @@
             },
             "title": "Meanings",
             "type": "array"
+          },
+          "once": {
+            "$ref": "#/components/schemas/OnceShown",
+            "default": {
+              "reports": {},
+              "texts": {}
+            }
           },
           "outcome": {
             "anyOf": [
@@ -3622,6 +3703,14 @@
               }
             ],
             "title": "Reason"
+          },
+          "run_values": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/RunValue"
+            },
+            "title": "Run Values",
+            "type": "array"
           },
           "runs": {
             "default": [],
@@ -3674,7 +3763,11 @@
           "limit",
           "meanings",
           "runs",
-          "status"
+          "run_values",
+          "once",
+          "compiled",
+          "status",
+          "facts"
         ],
         "title": "OrganisedResult",
         "type": "object"
@@ -4944,11 +5037,22 @@
         "type": "object"
       },
       "Result": {
-        "description": "The attempt of a submission's grading that counts, as its contestant\nsees it: the latest that finished with a result, as the boards count\nit, so a regrade under way, a failure or a cancel leaves the result as\nit was, and while none has, the latest. Its id, attempt and status, and\nonce it is done, what stopped the\nrun, the outcome over the groups shown, each test group as its `show`\nallows, the values reported once, and `folded`, each per-test value\nwith a fold, folded over the tests shown, a test that was not accepted\nor did not report it counting as its worst bound, and the value absent\nwhen it declares none, so a wrong answer has no time; each test's row\nstill carries what it reported; and `meanings`, every value the\nworkflow reports, in its order, with the title and unit a page names it\nby, falling back to its name, a value a sealed step holds back left out\nuntil the reveal. `status` is in the contestant's words: `queued` until\nits run is started, `grading` while it is graded, `graded` once it has\na result, `delayed` while it has none and its grading failed on the\nplatform's side, `over_limit` once it was to be graded again with no\nroom left under the task's most submissions, and `cancelled` once staff\nend it; organisers read the grading's own status in the gradings\nroutes. A `delayed` one carries nothing else: it is tried again once by\nitself, and then waits for staff, who grade it again or end it: then it\nis `cancelled`, with `reason`, the sentence they gave, which is null on\nevery other status. A delayed one is graded again only while its\nentrant's submissions with a result, those waiting that are not\ndelayed, and the delayed ones made before it are fewer than the task's\nmost, so the first ones to get a result count, and otherwise it is\n`over_limit`, with `limit`,\nthe most it reached (\"Not graded: you had reached the limit of 10\nsubmissions for this task.\"), and nothing else; `limit` is null on every\nother status.\nOnce done on a task that gives points, it carries\nits `points` and the late `factor` they include; both are null\notherwise. While a sealed step's stop is held to the reveal, nothing of\nthe run is shown: every group reads as hidden.\n\nA run task's grading has no groups or values yet, which its scoring\nmakes in a later stage: `runs` holds the runs its entrant is shown,\nthose of the groups `show` lists under `now` from the start, and those\nunder `after_close` once the task reveals; a group under `on_release`\nshows none yet. After the reveal, while those are still being graded, it\nis `grading` or `delayed`. `runs` is empty on every other task.\n`reveal_at` is when the task reveals, until then, as what its entrant\nreads changes then with no grading's change to say so, so a page open\non it reads it again then, as at a group's `shown_at`; null on every\nother task and once it has revealed.",
+        "description": "The attempt of a submission's grading that counts, as its contestant\nsees it: the latest that finished with a result, as the boards count\nit, so a regrade under way, a failure or a cancel leaves the result as\nit was, and while none has, the latest. Its id, attempt and status, and\nonce it is done, what stopped the\nrun, the outcome over the groups shown, each test group as its `show`\nallows, the values reported once, and `folded`, each per-test value\nwith a fold, folded over the tests shown, a test that was not accepted\nor did not report it counting as its worst bound, and the value absent\nwhen it declares none, so a wrong answer has no time; each test's row\nstill carries what it reported; and `meanings`, every value the\nworkflow reports, in its order, with the title and unit a page names it\nby, falling back to its name, a value a sealed step holds back left out\nuntil the reveal. `status` is in the contestant's words: `queued` until\nits run is started, `grading` while it is graded, `graded` once it has\na result, `delayed` while it has none and its grading failed on the\nplatform's side, `over_limit` once it was to be graded again with no\nroom left under the task's most submissions, and `cancelled` once staff\nend it; organisers read the grading's own status in the gradings\nroutes. A `delayed` one carries nothing else: it is tried again once by\nitself, and then waits for staff, who grade it again or end it: then it\nis `cancelled`, with `reason`, the sentence they gave, which is null on\nevery other status. A delayed one is graded again only while its\nentrant's submissions with a result, those waiting that are not\ndelayed, and the delayed ones made before it are fewer than the task's\nmost, so the first ones to get a result count, and otherwise it is\n`over_limit`, with `limit`,\nthe most it reached (\"Not graded: you had reached the limit of 10\nsubmissions for this task.\"), and nothing else; `limit` is null on every\nother status.\nOnce done on a task that gives points, it carries\nits `points` and the late `factor` they include; both are null\notherwise. While a sealed step's stop is held to the reveal, nothing of\nthe run is shown: every group reads as hidden.\n\nA run task's grading has no groups and no `values`: `run_values` holds\neach value of its scoring its entrant is shown, worked out on every\nread, and `runs` the runs, those listed under `now` from the start and\nthose under `after_close` once the task reveals; what `on_release`\nlists shows nothing yet. `once` holds what its steps done once\nreported, the compile log among them, and `compiled` 1, or 0 when a\ncompile done once stopped it, both once a run is shown. A task with\nnothing shown during the contest is `submitted` until the reveal, which\na page words \"Submitted, results after the contest\". After the reveal,\nwhile its late runs are still being graded, it is `grading` or\n`delayed`. A run task's grading whose runs failed for the platform is\n`delayed` with the runs it gave, a value reading one of its failed early\nruns `waiting`. These are empty on every other task.\n`reveal_at` is when the task reveals, until then, as what its entrant\nreads changes then with no grading's change to say so, so a page open\non it reads it again then, as at a group's `shown_at`; null on every\nother task and once it has revealed.",
         "properties": {
           "attempt": {
             "title": "Attempt",
             "type": "integer"
+          },
+          "compiled": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Compiled"
           },
           "factor": {
             "anyOf": [
@@ -5006,6 +5110,13 @@
             "title": "Meanings",
             "type": "array"
           },
+          "once": {
+            "$ref": "#/components/schemas/OnceShown",
+            "default": {
+              "reports": {},
+              "texts": {}
+            }
+          },
           "outcome": {
             "anyOf": [
               {
@@ -5061,6 +5172,14 @@
             ],
             "title": "Reveal At"
           },
+          "run_values": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/RunValue"
+            },
+            "title": "Run Values",
+            "type": "array"
+          },
           "runs": {
             "default": [],
             "items": {
@@ -5112,6 +5231,9 @@
           "limit",
           "meanings",
           "runs",
+          "run_values",
+          "once",
+          "compiled",
           "status",
           "reveal_at"
         ],
@@ -5242,8 +5364,13 @@
         "type": "object"
       },
       "RunShown": {
-        "description": "One run of a run task's grading as its entrant sees it: the group\n`show` lists that shows it, its place in that group from 1 (\"Test 3\"),\nits key as the plan gives it, leaving out a file not yet shown, its\nverdict, `passed`, 1 when that is `accepted`, and the numbers its steps\nreported, exactly. A run in two groups shown is shown in each. Its\ntexts stay out until an entrant's route reads them. Organisers read\nevery run, under `all` in the task's order, with its `id`, which\ncounts every run of the task; `id` is null for an entrant.",
+        "description": "One run of a run task's grading as its entrant sees it: the group\n`show` lists that shows it, its place in that group from 1 (\"Test 3\"),\nits key as the plan gives it, leaving out a file not yet shown, its\nverdict, `passed`, 1 when that is `accepted`, the numbers its steps\nreported, exactly, and its texts, with the `label` and `message` shown\nwith its verdict, null when no step wrote one. A run in two groups\nshown is shown in each; a run no group shown holds is never shown, even\nwhen a value shown reads it. Organisers read every run, under `all` in\nthe task's order, with its `id`, which counts every run of the task;\n`id` is null for an entrant. A run a row holds that the task's latest\npublication no longer has is `dropped`, listed to organisers after the\nrest; never to an entrant.",
         "properties": {
+          "dropped": {
+            "default": false,
+            "title": "Dropped",
+            "type": "boolean"
+          },
           "group": {
             "title": "Group",
             "type": "string"
@@ -5264,6 +5391,26 @@
             "title": "Key",
             "type": "object"
           },
+          "label": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TextRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "message": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TextRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "passed": {
             "title": "Passed",
             "type": "integer"
@@ -5281,6 +5428,14 @@
               "type": "string"
             },
             "title": "Reports",
+            "type": "object"
+          },
+          "texts": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/TextRef"
+            },
+            "default": {},
+            "title": "Texts",
             "type": "object"
           },
           "verdict": {
@@ -5303,12 +5458,118 @@
           "group",
           "place",
           "id",
+          "dropped",
           "key",
           "verdict",
           "passed",
-          "reports"
+          "reports",
+          "texts",
+          "label",
+          "message"
         ],
         "title": "RunShown",
+        "type": "object"
+      },
+      "RunValue": {
+        "description": "One value of a run task's scoring as its reader sees it: its name,\nits `number`, exact, null when it is missing or waiting; whether\nit is `waiting` for staff, which an entrant reads as \"being checked\",\ntold only once the runs it waits on are early or shown; and whether it\nis `self_reported`, reading a column the entrant could set. Organisers\nalso read the time `show` lists it under, null when never, and what it\nread: `runs` by id, `values` and `facts`; each is null for an entrant.",
+        "properties": {
+          "facts": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Facts"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "number": {
+            "anyOf": [
+              {
+                "examples": [
+                  "82.5"
+                ],
+                "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Number"
+          },
+          "runs": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Runs"
+          },
+          "self_reported": {
+            "title": "Self Reported",
+            "type": "boolean"
+          },
+          "show": {
+            "anyOf": [
+              {
+                "enum": [
+                  "now",
+                  "after_close",
+                  "on_release"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Show"
+          },
+          "values": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Values"
+          },
+          "waiting": {
+            "title": "Waiting",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "number",
+          "waiting",
+          "self_reported",
+          "show",
+          "runs",
+          "values",
+          "facts"
+        ],
+        "title": "RunValue",
         "type": "object"
       },
       "RunVerdict": {
@@ -6402,15 +6663,29 @@
         "type": "object"
       },
       "TextRef": {
-        "description": "A text a step wrote, named by the stored output that holds it and\nthat output's name; the text itself is read apart.",
+        "description": "A text a step wrote, read apart and only while the result shows it.\nOrganisers are told the stored output that holds it and that output's\nname, and read it by them. An entrant is told neither, both null, since\nthe output may be another entrant's and its id says when it was made:\nthey read it by where it is shown, its run's group and place, or the\nsteps done once, and the text's name or `label` or `message`.",
         "properties": {
           "name": {
-            "title": "Name",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
           },
           "output": {
-            "title": "Output",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output"
           }
         },
         "required": [
@@ -13554,6 +13829,116 @@
         ]
       }
     },
+    "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/organise/submissions/{number}/texts/{output}/{name}": {
+      "get": {
+        "description": "A text the submission's result names, as `output` and `name`, read\nas organisers read the submission. Any other is `not_found`.",
+        "operationId": "readOrganisedSubmissionText",
+        "parameters": [
+          {
+            "description": "The submission's number",
+            "in": "path",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "description": "The submission's number",
+              "maximum": 2147483647,
+              "minimum": 1,
+              "title": "Number",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "The stored output that holds the text, as named",
+            "in": "path",
+            "name": "output",
+            "required": true,
+            "schema": {
+              "description": "The stored output that holds the text, as named",
+              "maxLength": 64,
+              "title": "Output",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The text's name in that output",
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "description": "The text's name in that output",
+              "maxLength": 255,
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "task",
+            "required": true,
+            "schema": {
+              "title": "Task",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The entrant whose row it is",
+            "in": "query",
+            "name": "entrant",
+            "required": true,
+            "schema": {
+              "description": "The entrant whose row it is",
+              "format": "uuid",
+              "title": "Entrant",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/plain; charset=utf-8": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "The text, as the step wrote it."
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "A text a row's submission names, as organisers read it",
+        "tags": [
+          "gradings"
+        ]
+      }
+    },
     "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/organise/uploads": {
       "post": {
         "description": "The address to send the file to, or `ready` for a file the task's\nplace at the forge already holds. Nothing is in the task until a save\nnames the upload for the same path. A path that leaves the task is\n`invalid_path`, and a name, digest or size that is not one\n`invalid_inputs`, naming the path.",
@@ -14732,6 +15117,155 @@
           }
         },
         "summary": "What one of the caller's own submissions was made with",
+        "tags": [
+          "submissions"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/submissions/{number}/text": {
+      "get": {
+        "description": "A text the submission's result shows the caller now, where it shows\nit: a run's, by the group and place it is shown at, or the steps done\nonce's, with neither. Any other is `not_found`, the same as one that\nis not there.",
+        "operationId": "readMySubmissionText",
+        "parameters": [
+          {
+            "description": "The submission's number",
+            "in": "path",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "description": "The submission's number",
+              "maximum": 2147483647,
+              "minimum": 1,
+              "title": "Number",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "task",
+            "required": true,
+            "schema": {
+              "title": "Task",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The group the run is shown under; none for once",
+            "in": "query",
+            "name": "group",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 255,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The group the run is shown under; none for once",
+              "title": "Group"
+            }
+          },
+          {
+            "description": "The run's place in that group, from 1",
+            "in": "query",
+            "name": "place",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 2147483647,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The run's place in that group, from 1",
+              "title": "Place"
+            }
+          },
+          {
+            "description": "`texts` for a text by its name, or the run's label or message",
+            "in": "query",
+            "name": "field",
+            "required": false,
+            "schema": {
+              "default": "texts",
+              "description": "`texts` for a text by its name, or the run's label or message",
+              "enum": [
+                "texts",
+                "label",
+                "message"
+              ],
+              "title": "Field",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The text's name, under `texts`",
+            "in": "query",
+            "name": "name",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 255,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The text's name, under `texts`",
+              "title": "Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/plain; charset=utf-8": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "The text, as the step wrote it."
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "A text one of the caller's own submissions shows them",
         "tags": [
           "submissions"
         ]

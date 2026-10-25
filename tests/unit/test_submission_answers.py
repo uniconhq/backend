@@ -17,18 +17,20 @@ import pytest
 from forge.api.boards import Better, Points
 from forge.api.submissions import (
     Fold,
+    GradingStatus,
     GroupShown,
     Result,
     Show,
     SubmissionState,
     ValueMeaning,
+    ValueShown,
 )
 from forge.api.submissions import SubmittedFiles as SubmittedFilesRecord
 from forge.api.types import TaskId
 
 from unicon.api.door import attachment
+from unicon.schemas.submissions import OrganisedResult, SubmittedFiles
 from unicon.schemas.submissions import Result as ResultAnswer
-from unicon.schemas.submissions import SubmittedFiles
 
 GRADING = uuid.UUID("0192f4a4-7b7e-7000-8000-000000000001")
 REVEAL = datetime(2026, 9, 26, 15, tzinfo=UTC)
@@ -55,6 +57,9 @@ def test_a_grading_being_run_carries_its_status_alone() -> None:
         "meanings": [],
         "runs": [],
         "reveal_at": None,
+        "run_values": [],
+        "once": {"reports": {}, "texts": {}},
+        "compiled": None,
     }
 
 
@@ -158,10 +163,13 @@ def test_a_grading_carries_each_group_as_forge_let_it_through() -> None:
         "meanings": [],
         "runs": [],
         "reveal_at": None,
+        "run_values": [],
+        "once": {"reports": {}, "texts": {}},
+        "compiled": None,
     }
 
 
-def test_a_run_tasks_grading_carries_each_run_with_exact_numbers_and_its_reveal() -> None:
+def test_a_run_tasks_grading_carries_each_run_with_exact_numbers_its_texts_and_reveal() -> None:
     run = {
         "group": "sample_tests",
         "place": 1,
@@ -169,6 +177,9 @@ def test_a_run_tasks_grading_carries_each_run_with_exact_numbers_and_its_reveal(
         "verdict": "accepted",
         "passed": 1,
         "reports": {"time_ms": 12, "memory_kb": Decimal("2048")},
+        # An entrant is sent where a text is, never the output holding it.
+        "texts": {"log": {}},
+        "message": {},
     }
     result = Result(
         GRADING, 1, SubmissionState.GRADED, None, None, (), {}, runs=(run,), reveal_at=REVEAL
@@ -182,12 +193,76 @@ def test_a_run_tasks_grading_carries_each_run_with_exact_numbers_and_its_reveal(
             "group": "sample_tests",
             "place": 1,
             "id": None,
+            "dropped": False,
             "key": {"input": "samples/1.in"},
             "verdict": "accepted",
             "passed": 1,
             "reports": {"time_ms": "12", "memory_kb": "2048"},
+            "texts": {"log": {"output": None, "name": None}},
+            "label": None,
+            "message": {"output": None, "name": None},
         }
     ]
+
+
+def test_a_run_tasks_values_once_and_compiled_are_served_exactly() -> None:
+    log = {"output": "0192f4a4-7b7e-7000-8000-000000000002", "name": "log"}
+    run = {
+        "group": "all",
+        "place": 1,
+        "id": "3",
+        "key": {},
+        "verdict": "accepted",
+        "passed": 1,
+        "reports": {},
+        "label": log,
+    }
+    result = Result(
+        GRADING,
+        1,
+        GradingStatus.DONE,
+        None,
+        None,
+        (),
+        {},
+        runs=(run, {**run, "place": 2, "id": "9", "dropped": True}),
+        run_values=(
+            ValueShown("score", Fraction(1, 3), False, True, "now", ("3",), ("tests",), ()),
+            ValueShown("late", None, True, False),
+        ),
+        once={"reports": {"compile_ms": 40}, "texts": {"compile_log": log}},
+        compiled=1,
+        facts={"seconds_late": Fraction(1800), "compiled": Fraction(1)},
+    )
+
+    answer = OrganisedResult.model_validate(result, from_attributes=True).model_dump(mode="json")
+
+    assert answer["run_values"] == [
+        {
+            "name": "score",
+            "number": "0." + "3" * 30,
+            "waiting": False,
+            "self_reported": True,
+            "show": "now",
+            "runs": ["3"],
+            "values": ["tests"],
+            "facts": [],
+        },
+        {
+            "name": "late",
+            "number": None,
+            "waiting": True,
+            "self_reported": False,
+            "show": None,
+            "runs": None,
+            "values": None,
+            "facts": None,
+        },
+    ]
+    assert answer["runs"][0]["label"] == log
+    assert [each["dropped"] for each in answer["runs"]] == [False, True]
+    assert answer["once"] == {"reports": {"compile_ms": "40"}, "texts": {"compile_log": log}}
+    assert (answer["compiled"], answer["facts"]) == (1, {"seconds_late": "1800", "compiled": "1"})
 
 
 def test_numbers_are_served_as_exact_decimals_and_text_stays_text() -> None:

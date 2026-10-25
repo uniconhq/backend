@@ -25,7 +25,8 @@ the contest's page.
 An observer of the task also reads any entrant's submission as its row
 reads it with everything filled in, beside its grading (TASK-FORMAT.md
 section 1.7): the row picked by `entrant`, as the boards pick one, and the
-submission by its number among the row's.
+submission by its number among the row's; and a text a run task's result
+names, one at a time.
 
 Anyone holding a role at a contest or at any of its tasks reads the
 gradings of the tasks they observe as one feed, newest first, each with
@@ -60,7 +61,14 @@ from forge.api.regrades import ChangeKind
 from forge.api.types import Role, ScopeKind, TaskId
 
 from unicon.api.guard import PREFIX, anywhere, require
-from unicon.api.v1.submissions import Number
+from unicon.api.v1.submissions import (
+    TEXT,
+    TEXT_HEADERS,
+    TEXT_RESPONSES,
+    Number,
+    Output,
+    TextName,
+)
 from unicon.schemas.gradings import (
     USERNAME_MAX,
     USERNAME_PATTERN,
@@ -123,6 +131,29 @@ async def get_organised_submission(
     """A row with no submission of that number is `not_found`."""
     row = EntrantOwner(entrant)
     return await submissions.organised(organiser, tasks.task_id_of(organiser.scope), row, number)
+
+
+@router.get(
+    "/organise/submissions/{number}/texts/{output}/{name}",
+    operation_id="readOrganisedSubmissionText",
+    summary="A text a row's submission names, as organisers read it",
+    response_class=Response,
+    responses=TEXT_RESPONSES,
+)
+async def read_organised_submission_text(
+    organiser: TaskObserver,
+    number: Number,
+    output: Output,
+    name: TextName,
+    entrant: Annotated[uuid.UUID, Query(description="The entrant whose row it is")],
+) -> Response:
+    """A text the submission's result names, as `output` and `name`, read
+    as organisers read the submission. Any other is `not_found`.
+    """
+    found = await submissions.read_organised_text(
+        organiser, tasks.task_id_of(organiser.scope), EntrantOwner(entrant), number, output, name
+    )
+    return Response(content=found, media_type=TEXT, headers=TEXT_HEADERS)
 
 
 @router.get(
