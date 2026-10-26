@@ -206,7 +206,7 @@ async def test_a_file_written_or_rolled_back_while_the_contest_runs_asks_and_is_
     client: httpx.AsyncClient, running: FakeForge
 ) -> None:
     statement = await read(client, f"{TASK}/files/statement.md")
-    [*_, first] = (await client.get(f"{TASK}/history", params={"path": "statement.md"})).json()
+    [first, *_] = (await client.get(f"{TASK}/history", params={"path": "statement.md"})).json()
 
     written = await _written_as_asked(
         client,
@@ -436,3 +436,21 @@ async def test_a_task_rollback_is_a_save(client: httpx.AsyncClient, sum_task: Fa
     assert rolled.json()["number"] == 2
     back = await read(client, f"{TASK}/files/statement.md")
     assert back["content"] == "Write the statement entrants read here.\n"
+
+
+async def test_a_scheduled_tasks_rollback_to_the_starter_statement_stays_a_draft(
+    client: httpx.AsyncClient, running: FakeForge
+) -> None:
+    statement = await read(client, f"{TASK}/files/statement.md")
+    [*_, starter] = (await client.get(f"{TASK}/history", params={"path": "statement.md"})).json()
+    rolled = await client.post(
+        f"{TASK}/files/statement.md/rollback",
+        json={"version": starter["version"], "token": statement["token"], "confirm": True},
+        headers=ORIGIN,
+    )
+    assert rolled.status_code == 200, rolled.text
+    assert rolled.json()["errors"] == [
+        {"path": "statement.md", "message": "A · sum: its statement is not written yet."}
+    ]
+    assert "number" not in rolled.json()
+    assert len((await client.get(f"{TASK}/publications")).json()) == 1

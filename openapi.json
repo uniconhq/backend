@@ -2273,7 +2273,7 @@
         "type": "object"
       },
       "Header": {
-        "description": "One displayed column, the same for every row: its `name`, the decimal\n`places` it is shown to, null when the leaderboard gives none, the least and\nmost it can give, both null unless both are known, and each\nself-reported value it reads, which a page marks on the column's\nheader.",
+        "description": "One displayed column, the same for every row: its `name`, the\n`decimals` it is shown to, null when the leaderboard gives none, the least and\nmost it can give, both null unless both are known, and each\nself-reported value it reads, which a page marks on the column's\nheader.",
         "properties": {
           "at_least": {
             "anyOf": [
@@ -2305,11 +2305,7 @@
             ],
             "title": "At Most"
           },
-          "name": {
-            "title": "Name",
-            "type": "string"
-          },
-          "places": {
+          "decimals": {
             "anyOf": [
               {
                 "type": "integer"
@@ -2318,7 +2314,11 @@
                 "type": "null"
               }
             ],
-            "title": "Places"
+            "title": "Decimals"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
           },
           "self_reported": {
             "items": {
@@ -2330,7 +2330,7 @@
         },
         "required": [
           "name",
-          "places",
+          "decimals",
           "at_least",
           "at_most",
           "self_reported"

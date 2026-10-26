@@ -267,14 +267,14 @@ async def test_a_run_tasks_regrade_is_read_by_each_value_and_verdict_it_changed(
             "headers": [
                 {
                     "name": "st2",
-                    "places": None,
+                    "decimals": None,
                     "at_least": None,
                     "at_most": None,
                     "self_reported": [],
                 },
                 {
                     "name": "total",
-                    "places": 2,
+                    "decimals": 2,
                     "at_least": "0",
                     "at_most": "100",
                     "self_reported": [{"task": "sum", "value": "total"}],

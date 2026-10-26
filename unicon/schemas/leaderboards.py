@@ -37,15 +37,15 @@ class SelfReported(BaseModel):
 
 
 class Header(BaseModel):
-    """One displayed column, the same for every row: its `name`, the decimal
-    `places` it is shown to, null when the leaderboard gives none, the least and
+    """One displayed column, the same for every row: its `name`, the
+    `decimals` it is shown to, null when the leaderboard gives none, the least and
     most it can give, both null unless both are known, and each
     self-reported value it reads, which a page marks on the column's
     header.
     """
 
     name: str
-    places: int | None
+    decimals: int | None
     at_least: Exact | None
     at_most: Exact | None
     self_reported: list[SelfReported]
@@ -131,7 +131,7 @@ class Leaderboard(BaseModel):
 def header_of(header: leaderboards.Header) -> dict[str, Any]:
     return {
         "name": header.name,
-        "places": header.places,
+        "decimals": header.decimals,
         "at_least": header.at_least,
         "at_most": header.at_most,
         "self_reported": [{"task": task, "value": value} for task, value in header.self_reported],
