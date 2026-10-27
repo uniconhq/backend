@@ -3,13 +3,24 @@ publication, released and open once the contest is published and running,
 and no such task for someone the contest is hidden from.
 """
 
+import re
+
 import httpx
 from forge.testing import FakeForge
 
-from tests.integration.conftest import TASK, add_task, publish, run_contest, sign_in_as
+from tests.integration.conftest import (
+    CONTEST,
+    ORIGIN,
+    TASK,
+    add_task,
+    publish,
+    read,
+    run_contest,
+    sign_in_as,
+)
 
 
-async def test_a_task_is_released_to_a_person_once_it_is_published_and_the_contest_runs(
+async def test_a_task_is_released_to_a_person_once_it_is_published_scheduled_and_the_contest_runs(
     client: httpx.AsyncClient, sum_task: FakeForge
 ) -> None:
     # A task made once the contest is open, then published.
@@ -20,6 +31,19 @@ async def test_a_task_is_released_to_a_person_once_it_is_published_and_the_conte
 
     await sign_in_as(client, sum_task, 7)
     await publish(client, product)
+    settings = await read(client, f"{CONTEST}/files/contest.yaml")
+    scheduled = await client.put(
+        f"{CONTEST}/files/contest.yaml",
+        json={
+            "content": re.sub(
+                r"(?m)^(\s*- id: product\n)\s+release_at: .*\n", r"\1", settings["content"]
+            ),
+            "token": settings["token"],
+            "confirm": True,
+        },
+        headers=ORIGIN,
+    )
+    assert scheduled.status_code == 200, scheduled.text
     await sign_in_as(client, sum_task, 8)
     after = await client.get(f"{product}/release")
 
