@@ -40,7 +40,7 @@ leaderboards:
       picked: {block: latest, from: {results: sum}}
       score: {block: otherwise, of: [{value: [{column: picked}, score]}, 0]}
     sort: [{score: desc}]
-    display: [{score: {places: 1}}]
+    display: [{score: {decimals: 1}}]
   private:
     columns:
       tries: {block: count, over: {results: sum}}
@@ -70,7 +70,7 @@ async def _settings(
         content = re.sub(r"(?m)^(\s*- id: sum)$", rf"\1\n    marks: {marks}", content)
     written = await client.put(
         f"{CONTEST}/files/contest.yaml",
-        json={"encoding": "utf-8", "content": content, "token": settings["token"]},
+        json={"encoding": "utf-8", "content": content, "token": settings["token"], "confirm": True},
         headers=ORIGIN,
     )
     assert written.status_code == 200, written.text
@@ -111,7 +111,7 @@ def _standings(carols: str, told: bool) -> dict[str, Any]:
         "headers": [
             {
                 "name": "score",
-                "places": 1,
+                "decimals": 1,
                 "at_least": "0",
                 "at_most": "1",
                 "self_reported": [],
@@ -335,7 +335,11 @@ async def test_a_save_of_the_contests_settings_with_nothing_to_report_answers_no
 
     written = await client.put(
         f"{CONTEST}/files/contest.yaml",
-        json={"content": content.rstrip("\n") + "\n" + SETTINGS, "token": settings["token"]},
+        json={
+            "content": content.rstrip("\n") + "\n" + SETTINGS,
+            "token": settings["token"],
+            "confirm": True,
+        },
         headers=ORIGIN,
     )
 

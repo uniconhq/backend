@@ -325,26 +325,9 @@ async def publish(client: httpx.AsyncClient, task: str = TASK) -> None:
 
 
 async def add_task(client: httpx.AsyncClient, name: str) -> str:
-    """Another task of acme/spring made through the routes by the signed-in
-    organiser, listed last in the contest, opening with it, and not yet
-    published; its URL. In an open contest a new task's entry holds it back
-    to the contest's end, so that hold is taken off its entry.
-    """
+    """A new unpublished task, held at the contest's end until scheduled."""
     made = await client.post(f"{CONTEST}/tasks", json={"name": name}, headers=ORIGIN)
     assert made.status_code == 201, made.text
-    settings = await read(client, f"{CONTEST}/files/contest.yaml")
-    held = rf"(?m)^(\s*- id: {re.escape(name)}\n)\s+release_at: .*\n"
-    if re.search(held, settings["content"]):
-        written = await client.put(
-            f"{CONTEST}/files/contest.yaml",
-            json={
-                "encoding": "utf-8",
-                "content": re.sub(held, r"\1", settings["content"]),
-                "token": settings["token"],
-            },
-            headers=ORIGIN,
-        )
-        assert written.status_code == 200, written.text
     return f"{CONTEST}/tasks/{name}"
 
 

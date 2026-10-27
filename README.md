@@ -718,7 +718,7 @@ anyone, with no cookie too, reads `everyone` leaderboards.
 
 A leaderboard carries its `key` and `title`, its `audience`, `{who, rows}`,
 the `headers` of the columns listed to the caller, each with its `name`,
-`places`, bounds and the values a contestant could set it by, its `sort`
+`decimals`, bounds and the values a contestant could set it by, its `sort`
 keys and those `dropped` for the caller, `held_from`, when the hold
 holds other rows from, and its `rows` in order. A row carries its
 `place`, shared by rows equal on every sort key, whose it is as `row`,
