@@ -237,13 +237,15 @@ class BoxOutput(BaseModel):
 
 class WorkflowBox(BaseModel):
     """A workflow version as a box. `run` is false for a workflow of the
-    test format, and then both lists are empty.
+    test format, and then both lists are empty. `description` is what the
+    workflow says it does, or null when it says nothing.
     """
 
     run: bool
     inputs: list[BoxInput]
     outputs: list[BoxOutput]
     newer_version: str | None
+    description: str | None
 
     @classmethod
     def of(cls, found: ForgeBox) -> Self:
@@ -252,6 +254,7 @@ class WorkflowBox(BaseModel):
             inputs=[BoxInput.of(item) for item in found.inputs],
             outputs=[BoxOutput.of(item) for item in found.outputs],
             newer_version=found.newer_version,
+            description=found.description,
         )
 
 

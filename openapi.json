@@ -7626,8 +7626,19 @@
         "type": "object"
       },
       "WorkflowBox": {
-        "description": "A workflow version as a box. `run` is false for a workflow of the\ntest format, and then both lists are empty.",
+        "description": "A workflow version as a box. `run` is false for a workflow of the\ntest format, and then both lists are empty. `description` is what the\nworkflow says it does, or null when it says nothing.",
         "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
           "inputs": {
             "items": {
               "$ref": "#/components/schemas/BoxInput"
@@ -7662,7 +7673,8 @@
           "run",
           "inputs",
           "outputs",
-          "newer_version"
+          "newer_version",
+          "description"
         ],
         "title": "WorkflowBox",
         "type": "object"
@@ -8012,7 +8024,7 @@
   "info": {
     "summary": "Contests on top of a git host, a CI and an object store",
     "title": "Unicon API",
-    "version": "0.13.0"
+    "version": "0.14.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -18080,6 +18092,85 @@
           }
         },
         "summary": "A version's inputs and outputs, for drawing it as a box",
+        "tags": [
+          "workflows"
+        ]
+      }
+    },
+    "/api/v1/workflows/{owner}/{name}/versions/{version}/tree": {
+      "get": {
+        "description": "Read as the caller, as the version itself is: anyone who may read it\nsees what it ships with, and `not_found` in the same words otherwise.\nEach file downloads at\n`/-/downloads/workflows/<owner>/<name>/versions/<version>/<path>`.",
+        "operationId": "listWorkflowVersionFiles",
+        "parameters": [
+          {
+            "description": "An org's name or a person's username",
+            "in": "path",
+            "name": "owner",
+            "required": true,
+            "schema": {
+              "description": "An org's name or a person's username",
+              "title": "Owner",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The workflow's name under its owner",
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "description": "The workflow's name under its owner",
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "title": "Version",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "path",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Path",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TreeEntry"
+                  },
+                  "title": "Response Listworkflowversionfiles",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "The files and folders a version was frozen with",
         "tags": [
           "workflows"
         ]

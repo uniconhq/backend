@@ -680,7 +680,11 @@ its `value`, a number as its exact digits; an input given in parts has its
 own `files` or `value`, and `parts` is null on any other input.
 A file itself is downloaded through the proxy's download door,
 `/-/downloads/<org>/<contest>/<task>/<number>/<path>` (a task's own files go
-through the same door at `.../<task>/versions/<version>/<path>`), which asks this
+through the same door at `.../<task>/versions/<version>/<path>`, and a
+workflow version's at `/-/downloads/workflows/<owner>/<name>/versions/<version>/<path>`,
+whose version is `v` and a number where a task's is a commit's id, and a
+workflow draft's at `/-/downloads/workflows/<owner>/<name>/draft/<path>`, for
+whoever may change the workflow), which asks this
 process whether the caller may read it and then streams it from the forge
 as an attachment named after the file, so a file of any size passes
 through the proxy and never through this process. Another contestant's submission is not found, the same as one
@@ -775,6 +779,7 @@ is `not_found`, in the same words as one that is not there.
 | `POST /workflows/check` | every problem a version of `content` would be refused for, each with its `path`, `message` and, inside a box, `step`; given `owner` and `name`, a draft that would hold that workflow is refused; nothing is written |
 | `POST /workflow-copies` | a new private workflow under `owner` from `source`, `<owner>/<name>@<version>`, 201 |
 | `GET /workflows/{owner}/{name}/versions/{version}/box` | the version's inputs and outputs for drawing it as a box, read as the caller; `run` false for a workflow of the test format |
+| `GET /workflows/{owner}/{name}/versions/{version}/tree` | the files and folders directly under `path` that the version was frozen with, read as the caller, as the draft's tree lists them; each file downloads through the proxy's download door at `/-/downloads/workflows/<owner>/<name>/versions/<version>/<path>`, each segment quoted on its own, for anyone who may read the version |
 | `GET /primitives` | every primitive at every version, its `ref` what a step's `use:` names, with `batch`, `network`, `limits`, `limits_from` and its `inputs` and `outputs`, each port's `type`, `options`, `optional`, `runs`, `secret` and `description`, and on the `outcome` port `outcomes`, each outcome the step can report with a line saying when, null when the primitive does not say; a version the platform no longer reads has `problem` instead |
 
 ## The event door
