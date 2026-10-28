@@ -30,6 +30,36 @@ async def test_a_person_makes_a_workflow_under_their_own_name(
     assert repo.files["workflow.yaml"].startswith(b"# bob/tuned, a workflow.")
 
 
+async def test_an_empty_new_workflow_has_no_version_and_one_problem(
+    client: httpx.AsyncClient, acme: FakeForge
+) -> None:
+    await sign_in_as(client, acme, 8)
+    await client.post("/api/v1/workflows", json={"owner": "bob", "name": "empty"}, headers=ORIGIN)
+    page = (await client.get("/api/v1/workflows/bob/empty")).json()
+    assert page["versions"] == []
+    assert (
+        page["draft"]["content"]
+        == "# bob/empty, a workflow. The format is SIMPLER-CORE.md 7.\nsteps: []\n"
+    )
+    checked = await client.post(
+        "/api/v1/workflows/check", json={"content": page["draft"]["content"]}, headers=ORIGIN
+    )
+    assert checked.json()["problems"] == [
+        {
+            "path": "steps",
+            "message": "A workflow needs at least one step. Add one from the tray.",
+            "step": None,
+        }
+    ]
+    refused = await client.post(
+        "/api/v1/workflows/bob/empty/versions", json={"version": "v1"}, headers=ORIGIN
+    )
+    assert refused.status_code == 422
+    assert refused.json()["errors"] == [
+        {"path": "steps", "message": "A workflow needs at least one step. Add one from the tray."}
+    ]
+
+
 @pytest.mark.parametrize("role", [Role.MANAGER, Role.ADMIN])
 async def test_a_manager_or_admin_of_the_org_makes_one_in_the_org(
     client: httpx.AsyncClient, acme: FakeForge, role: Role
@@ -131,6 +161,10 @@ async def _own(client: httpx.AsyncClient, acme: FakeForge) -> None:
         "/api/v1/workflows", json={"owner": "bob", "name": "tuned"}, headers=ORIGIN
     )
     assert made.status_code == 201, made.text
+    repo = acme.state.repos[("bob", "tuned.workflow")]
+    acme.state.commit(
+        repo, acme.state.repos[("unicon", "classic.workflow")].files, "Write workflow files", 8
+    )
 
 
 async def test_the_owner_reads_saves_and_versions_a_workflow(

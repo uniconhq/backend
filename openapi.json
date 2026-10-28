@@ -18085,6 +18085,85 @@
         ]
       }
     },
+    "/api/v1/workflows/{owner}/{name}/versions/{version}/tree": {
+      "get": {
+        "description": "Read as the caller, as the version itself is: anyone who may read it\nsees what it ships with, and `not_found` in the same words otherwise.\nEach file downloads at\n`/-/downloads/workflows/<owner>/<name>/versions/<version>/<path>`.",
+        "operationId": "listWorkflowVersionFiles",
+        "parameters": [
+          {
+            "description": "An org's name or a person's username",
+            "in": "path",
+            "name": "owner",
+            "required": true,
+            "schema": {
+              "description": "An org's name or a person's username",
+              "title": "Owner",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The workflow's name under its owner",
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "description": "The workflow's name under its owner",
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "title": "Version",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "path",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Path",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TreeEntry"
+                  },
+                  "title": "Response Listworkflowversionfiles",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "The files and folders a version was frozen with",
+        "tags": [
+          "workflows"
+        ]
+      }
+    },
     "/api/v1/workflows/{owner}/{name}/visibility": {
       "put": {
         "operationId": "setWorkflowVisibility",

@@ -1,8 +1,9 @@
 """Workflows for anyone signed in: making one, the ones they may read, one
 as its page shows it, its definition at a version, saving its draft,
 making a version, checking a definition on its own, its visibility and who
-it is shared with, copying one, and a version's inputs and outputs for
-drawing it as a box; and the platform's primitives with their declared ports.
+it is shared with, copying one, a version's inputs and outputs for
+drawing it as a box, and the files a version was frozen with; and the
+platform's primitives with their declared ports.
 
 Every route needs a session and no role: forge decides who may act on a
 workflow, its owner or a manager or admin of the org that owns it, and
@@ -245,6 +246,22 @@ async def get_workflow_box(
     the test format answers `run` false, with both lists empty.
     """
     return WorkflowBox.of(await workflows.box(session, f"{owner}/{name}@{version}"))
+
+
+@router.get(
+    f"{WORKFLOW}/versions/{{version}}/tree",
+    operation_id="listWorkflowVersionFiles",
+    summary="The files and folders a version was frozen with",
+)
+async def list_workflow_version_files(
+    session: CurrentSession, owner: Owner, name: Name, version: str, path: str = ""
+) -> tuple[TreeEntry, ...]:
+    """Read as the caller, as the version itself is: anyone who may read it
+    sees what it ships with, and `not_found` in the same words otherwise.
+    Each file downloads at
+    `/-/downloads/workflows/<owner>/<name>/versions/<version>/<path>`.
+    """
+    return await workflows.version_files(session, f"{owner}/{name}@{version}", path)
 
 
 @router.put(
