@@ -7626,8 +7626,19 @@
         "type": "object"
       },
       "WorkflowBox": {
-        "description": "A workflow version as a box. `run` is false for a workflow of the\ntest format, and then both lists are empty.",
+        "description": "A workflow version as a box. `run` is false for a workflow of the\ntest format, and then both lists are empty. `description` is what the\nworkflow says it does, or null when it says nothing.",
         "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
           "inputs": {
             "items": {
               "$ref": "#/components/schemas/BoxInput"
@@ -7662,7 +7673,8 @@
           "run",
           "inputs",
           "outputs",
-          "newer_version"
+          "newer_version",
+          "description"
         ],
         "title": "WorkflowBox",
         "type": "object"

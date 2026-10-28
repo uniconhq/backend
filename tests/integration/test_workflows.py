@@ -487,6 +487,7 @@ _NOOP = (
     "  time_ms: {type: number, better: lower, at_least: 0}\n"
 )
 _HELD = """\
+description: Holds a run until its limit.
 inputs:
   cap: {type: number, title: Limit, unit: seconds}
   note: {type: text, optional: true, title: Note}
@@ -573,6 +574,7 @@ async def test_a_box_answers_a_workflow_version_and_one_unread(
             }
         ],
         "newer_version": "v2",
+        "description": "Holds a run until its limit.",
     }
     assert classic.status_code == 200, classic.text
     assert [each["name"] for each in classic.json()["inputs"]] == [
