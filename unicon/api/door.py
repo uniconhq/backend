@@ -17,7 +17,13 @@ files at
 `/-/downloads/<org>/<contest>/<task>/entrants/<entrant>/<number>/<path>`,
 or for one of the task's own files at
 `/-/downloads/<org>/<contest>/<task>/versions/<version>/<path>`, the version
-a read of the file named. nginx asks here the same way, and the answer is
+a read of the file named, or, for anyone who may read a workflow's version,
+for one of the files it was frozen with at
+`/-/downloads/workflows/<owner>/<name>/versions/<version>/<path>`, or, for
+whoever may change a workflow, for one of its draft's files at
+`/-/downloads/workflows/<owner>/<name>/draft/<path>`. A workflow's version
+is `v` and a number and a task's a commit's id, so the two never name the
+same address. nginx asks here the same way, and the answer is
 where at the forge that file is read whole, what credential to present
 there, and how the download is named. nginx streams the forge's answer to
 the browser, so a file of any size passes through the proxy and never
@@ -27,18 +33,19 @@ answer.
 Three things keep these routes to themselves. The proxy never routes them
 from outside, they are left out of the OpenAPI document, and the only thing
 they answer to is a session cookie for the upload's own owner, the
-submission's own contestant, or an organiser of the task. Everything else
-is 403 with no reason.
+submission's own contestant, an organiser of the task, or a reader of the
+workflow. Everything else is 403 with no reason.
 """
 
+import re
 import uuid
 from dataclasses import dataclass
 from typing import Annotated
 from urllib.parse import quote, unquote
 
 from fastapi import APIRouter, Header, Response, status
-from forge.api import access, files, names, submissions, tasks, uploads
-from forge.api.errors import Forbidden, InvalidPath, NotFound
+from forge.api import access, files, names, submissions, tasks, uploads, workflows
+from forge.api.errors import Forbidden, InvalidName, InvalidPath, NotFound
 from forge.api.leaderboards import EntrantOwner
 from forge.api.types import Role, Session, VersionId
 from forge.api.uploads import Door
@@ -50,6 +57,9 @@ PATH = "/-/uploads/door"
 DOWNLOAD_PATH = "/-/downloads/door"
 DOWNLOADS = "/-/downloads/"
 VERSIONS = "versions"
+DRAFT = "draft"
+WORKFLOWS = "workflows"
+WORKFLOW_VERSION = re.compile(r"v[1-9][0-9]*")
 PATH_HEADER = "X-Forge-Path"
 AUTHORIZATION_HEADER = "X-Forge-Authorization"
 DISPOSITION_HEADER = "X-Download-Disposition"
@@ -81,6 +91,23 @@ async def download_door(
     """Whether this file may be downloaded by the caller, and if so where it
     is read from and what it is called.
     """
+    workflow = _workflow_download_of(original_uri)
+    if workflow is not None:
+        try:
+            if workflow.version is None:
+                door = await workflows.draft_download(
+                    session, workflow.owner, workflow.name, workflow.path
+                )
+            else:
+                door = await workflows.version_download(
+                    session, f"{workflow.owner}/{workflow.name}@{workflow.version}", workflow.path
+                )
+        except NotFound, Forbidden, InvalidPath, InvalidName:
+            raise Forbidden(DOWNLOAD_REFUSED) from None
+        response.headers[PATH_HEADER] = door.path
+        response.headers[AUTHORIZATION_HEADER] = door.authorization
+        response.headers[DISPOSITION_HEADER] = attachment(workflow.path)
+        return
     asked = _download_of(original_uri)
     try:
         if asked.version is not None:
@@ -225,6 +252,45 @@ def _download_of(original_uri: str) -> Download:
         raise Forbidden(DOWNLOAD_REFUSED) from None
     number = None if task_file else int(parts[3])
     return Download(org, contest, task, number, version, path)
+
+
+@dataclass(frozen=True, slots=True)
+class WorkflowDownload:
+    """What a download of a workflow's file names: the workflow, the
+    version, or none for its draft, and the file's path in it.
+    """
+
+    owner: str
+    name: str
+    version: str | None
+    path: str
+
+
+def _workflow_download_of(original_uri: str) -> WorkflowDownload | None:
+    """The workflow's file the browser's request names, at
+    `workflows/<owner>/<name>/versions/<version>/<path>` or, in its draft,
+    `workflows/<owner>/<name>/draft/<path>`, or none when the address is not
+    of either shape, which a task's never is: its version is a commit's id,
+    and it has no draft. Each segment is decoded on its own, as a task's are.
+    """
+    raw = original_uri.split("?", 1)[0]
+    if not raw.startswith(DOWNLOADS):
+        return None
+    parts = raw.removeprefix(DOWNLOADS).split("/")
+    if len(parts) < 5 or parts[0] != WORKFLOWS:
+        return None
+    if parts[3] == DRAFT:
+        version, rest = None, parts[4:]
+    elif len(parts) >= 6 and parts[3] == VERSIONS and WORKFLOW_VERSION.fullmatch(parts[4]):
+        version, rest = parts[4], parts[5:]
+    else:
+        return None
+    try:
+        owner, name = (_segment(part) for part in parts[1:3])
+        path = "/".join(_segment(part) for part in rest)
+    except UnicodeDecodeError:
+        raise Forbidden(DOWNLOAD_REFUSED) from None
+    return WorkflowDownload(owner, name, version, path)
 
 
 def _staff_download(parts: list[str]) -> Download:
