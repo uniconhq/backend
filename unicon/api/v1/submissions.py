@@ -10,10 +10,10 @@ A submission's files are downloaded through the download door
 (`unicon/api/door.py`), so their bytes never pass through here.
 
 A result shows where each text a step wrote is, a run's label, message
-and texts and the steps done once's that `show` lists, the compile log
-among them, but never the stored output that holds it, which may be
+and texts and those given once that `show` lists, the compile log among
+them, but never the stored output that holds it, which may be
 another entrant's and says when it was made. The caller reads one at a time by where it is
-shown, a run's group and place, or neither for the steps done once, and
+shown, a run's group and place, or neither for what is given once, and
 the text, and only while their result shows it to them; any other is no
 such text. A text is plain text the browser is told not to guess the type
 of and that runs nothing, as a run log is.

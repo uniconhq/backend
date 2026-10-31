@@ -48,8 +48,11 @@ class RunVerdict(BaseModel):
 
 
 class OnceReports(BaseModel):
-    """What the steps done once reported: numbers, exactly, and texts; and
-    the outcome each returned, by its id, which the `compiled` fact reads.
+    """What the steps done once reported, and what a batch step gives once
+    for all its runs: numbers, exactly, and texts; and the outcome each
+    returned, by its id, which the `compiled` fact reads: for a batch step,
+    the outcome it gives once for all its runs, `compile_error`, else
+    `accepted` whatever its runs ended.
     """
 
     reports: dict[str, Exact]

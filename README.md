@@ -649,8 +649,9 @@ with its `id`, `attempt` and `status`, and what the task's `show` lets the
 contestant see now: `run_values`, each value of its scoring shown, worked
 out on every read; `runs`, each run shown, by the group `show` lists it in
 and its place there, with its `verdict`, `passed`, the numbers its steps
-reported and its texts; `once`, what its steps done once reported that
-`show` lists, the compile log among them; `compiled`; and `reveal_at`,
+reported and its texts; `once`, what its steps done once reported, and
+what a batch step gives once for all its runs, that `show` lists, the
+compile log among them; `compiled`; and `reveal_at`,
 when the task reveals, until then. Every number is served exactly, as a
 string of plain decimal digits, to 30 significant digits when it is no
 decimal, and a value that gives text gives it as `text`, so text that
@@ -752,7 +753,7 @@ username, or the name of an org where they hold the manager role or above,
 and forge decides which. The answer is 201 with the workflow's `owner` and
 `name`, never its id at the forge, which is built from an org's key. The
 workflow is private, and its first commit, a `workflow.yaml` named
-`<owner>/<name>` holding `unicon/classic@v3`'s files but its README, is
+`<owner>/<name>` holding `unicon/classic@v4`'s files but its README, is
 the caller's. An
 observer of the org, a person with no role there, an org that is not there
 and another person's username are all `forbidden`, in the same words, so the
@@ -872,7 +873,8 @@ checks the role again at the grading's own task. A grading carries its
 `attempt`, `latest`, whether that is its submission's latest attempt, the
 one staff cancel or retry, worked out over every attempt of it, `status`, `error`, the line for staff, `cancel_reason`, the
 sentence staff cancelled it with, the `result` (its pipeline's `runs`, each
-with its verdict and reports, what the steps done once reported, what staff
+with its verdict and reports, what the steps done once reported and what a
+batch step gives once for all its runs, what staff
 alone see and the `error` for staff), its `pipeline`, `early` or `late`,
 and its times. A cancel takes a body, `reason`, the
 sentence the contestant reads, trimmed, of 1 to 500 characters
