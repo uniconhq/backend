@@ -7,9 +7,10 @@ arrived, answers a step left with nothing to do 204, keeps each body to its
 bound, and never logs the token. A submission's pipeline run through those
 doors step by step leaves the result its contestant then reads, with its
 runs and the values its scoring shows, the organisers read whole, the
-task's form then saying it has a graded submission. A run that failed on
-the platform's side is delayed to its contestant and a system error to the
-organisers.
+task's form then saying it has a graded submission. A source that does not
+compile ends every run `compile_error` with nothing run, `compiled` 0, and
+the organisers read its compile log. A run that failed on the platform's
+side is delayed to its contestant and a system error to the organisers.
 """
 
 import hashlib
@@ -25,15 +26,26 @@ from forge.api import runs
 from forge.api.runs import CI_CONFIG_PATH, GradingStatus, InboundRequest
 from forge.testing import FakeClock, FakeForge, OrgId, Setup
 
-from tests.integration.conftest import MACHINES, ORIGIN, TASK, run_pipelines, sign_in_as, upload
+from tests.integration.conftest import (
+    COMPILE_LOG,
+    DOES_NOT_COMPILE,
+    MACHINES,
+    ORIGIN,
+    SOLUTION_LOG,
+    TASK,
+    run_pipelines,
+    sign_in_as,
+    upload,
+)
 
 SOURCE = b"print(sum(map(int, input().split())))\n"
 MIB = 1024 * 1024
 
 
-async def _submitted(client: httpx.AsyncClient, forge: FakeForge) -> str:
-    """carol's first submission of acme/spring/sum; its grading's id."""
-    made = await upload(client, forge, SOURCE)
+async def _submitted(client: httpx.AsyncClient, forge: FakeForge, source: bytes = SOURCE) -> str:
+    """carol's first submission of acme/spring/sum, of `source`; its
+    grading's id."""
+    made = await upload(client, forge, source)
     submitted = await client.post(
         f"{TASK}/submissions",
         json={
@@ -147,6 +159,49 @@ async def test_a_pipeline_run_step_by_step_leaves_the_result_the_contestant_read
     assert listed.json() == [detail.json()]
 
 
+async def test_the_log_told_once_is_the_solutions_and_every_step_its_outcome(
+    client: httpx.AsyncClient, entered: FakeForge
+) -> None:
+    await _submitted(client, entered)
+
+    await run_pipelines(client)
+    await sign_in_as(client, entered, 7)
+    [entry] = (await client.get(f"{TASK}/gradings")).json()
+
+    once = entry["grading"]["result"]["once"]
+    assert once["outcomes"] == {"solution": "accepted", "compare": "accepted"}
+    log = once["texts"]["log"]
+    read = await client.get(
+        f"{TASK}/organise/submissions/1/texts/{log['output']}/{log['name']}",
+        params={"entrant": entry["by"]["entrant"]},
+    )
+    assert (read.status_code, read.text) == (200, SOLUTION_LOG)
+
+
+async def test_a_source_that_does_not_compile_ends_every_run_with_nothing_run(
+    client: httpx.AsyncClient, entered: FakeForge
+) -> None:
+    grading = await _submitted(client, entered, DOES_NOT_COMPILE)
+
+    await run_pipelines(client)
+    result = (await client.get(f"{TASK}/submissions/1")).json()["grading"]
+    await sign_in_as(client, entered, 7)
+    [entry] = (await client.get(f"{TASK}/gradings")).json()
+
+    assert (result["id"], result["status"], result["compiled"]) == (grading, "graded", 0)
+    [run] = result["runs"]
+    assert (run["verdict"], run["passed"], run["reports"]) == ("compile_error", 0, [])
+    once = entry["grading"]["result"]["once"]
+    # The compare after it never ran, so only the solution's outcome is told.
+    assert once["outcomes"] == {"solution": "compile_error"}
+    log = once["texts"]["log"]
+    read = await client.get(
+        f"{TASK}/organise/submissions/1/texts/{log['output']}/{log['name']}",
+        params={"entrant": entry["by"]["entrant"]},
+    )
+    assert (read.status_code, read.text) == (200, COMPILE_LOG)
+
+
 async def test_the_organisers_read_the_result_whole(
     client: httpx.AsyncClient, entered: FakeForge
 ) -> None:
@@ -221,7 +276,7 @@ STEP_TOKEN = "step-token-81c4d2"
 SHA256 = "0" * 64
 
 
-def _step_door(grading: str, step: str = "compile") -> str:
+def _step_door(grading: str, step: str = "solution") -> str:
     return runs.STEP_PATH.format(grading=grading, step=step)
 
 
@@ -301,13 +356,13 @@ async def test_a_steps_door_hands_forge_what_arrived_and_answers_in_kind(
         assert answer.headers["cache-control"] == "no-store"
     bearer = headers["Authorization"]
     assert handed == [
-        ("job", grading, "compile", bearer),
-        ("job", grading, "compile", bearer),
-        ("report", grading, "compile", bearer, b"{}"),
-        ("admits", grading, "compile", bearer),
-        ("uploads", grading, "compile", bearer, b'{"files": []}'),
-        ("done", grading, "compile", bearer, b"{}"),
-        ("file", grading, "compile", SHA256, bearer),
+        ("job", grading, "solution", bearer),
+        ("job", grading, "solution", bearer),
+        ("report", grading, "solution", bearer, b"{}"),
+        ("admits", grading, "solution", bearer),
+        ("uploads", grading, "solution", bearer, b'{"files": []}'),
+        ("done", grading, "solution", bearer, b"{}"),
+        ("file", grading, "solution", SHA256, bearer),
     ]
 
 

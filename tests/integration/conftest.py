@@ -4,7 +4,7 @@
 forge a second time.
 
 The organiser path starts from `acme`, the org made the operator's way with
-ada (7) its admin and the built-in workflow `unicon/classic@v3` public at the
+ada (7) its admin and the built-in workflow `unicon/classic@v4` public at the
 fake as bootstrap makes it, and `sum_task`, the contest acme/spring and the
 task acme/spring/sum in it made through the routes, with ada
 signed in. `world` adds carol (20), who holds nothing. `ORG`, `CONTEST` and
@@ -52,6 +52,19 @@ TASK = f"{CONTEST}/tasks/sum"
 ACME = Scope("acme")
 SPRING = Scope("acme", "spring")
 SUM = Scope("acme", "spring", "sum")
+
+DOES_NOT_COMPILE = b"print(\n"
+"""A source file the fake CI's exec does not compile."""
+COMPILE_LOG = "SyntaxError: '(' was never closed"
+"""The log of a source holding `DOES_NOT_COMPILE`."""
+SOLUTION_LOG = "built the solution"
+"""The log of an entrant's source that compiles."""
+CHECKER_LOG = "built the checker"
+"""The log of a source that compiles given a manifest or built at the save:
+the classic workflow's compare."""
+BUILT = frozenset({"source", "language", "entry"})
+"""The inputs of exec's `build` form: an item given only these compiles
+its source and runs nothing."""
 
 Command = Callable[[list[str]], Awaitable[int]]
 
@@ -125,34 +138,42 @@ async def run_pipelines(
     pipelines: tuple[str, ...] = ("save", "early", "late"),
 ) -> None:
     """Every pipeline of the kinds `pipelines` names started and not yet
-    run, run to its report, and any of them it starts in turn: a compile
-    accepted, writing a program; each run of the entrant's program ending
-    `verdict`, writing its output, its time and its memory when accepted;
-    and each run of a program given a manifest, the classic workflow's
-    compare, accepted with a score of 1.
+    run, run to its report, and any of them it starts in turn: a build at
+    the save accepted; each run of the entrant's program ending `verdict`,
+    writing its output, its time and its memory when accepted; and each run
+    of a program given a manifest, the classic workflow's compare, accepted
+    with a score of 1. Every exec step gives its compile's `log`, and one
+    whose source holds `DOES_NOT_COMPILE` ends every run `compile_error`.
+    A step that fails on what is not accepted (`fail_on_non_accepted`)
+    and is not, stops its pipeline but for the report, as the runner's
+    wrapper and Woodpecker do.
     """
     machines = MACHINES[client]
     while found := [each for each in machines.started if each[0] in pipelines]:
         machines.started.remove(found[0])
+        stopped = False
         for step in found[0][1]:
-            await _run_step(client, machines.forge, step, verdict)
+            if not stopped or step["settings"].get("mode") == "report":
+                stopped = await _run_step(client, machines.forge, step, verdict) or stopped
 
 
 async def _run_step(
     client: httpx.AsyncClient, forge: FakeForge, step: dict[str, Any], verdict: str
-) -> None:
+) -> bool:
+    """Run `step` through the door; whether it stops its pipeline."""
     settings = step["settings"]
     door = urlsplit(settings["data_url"]).path
     headers = {"Authorization": f"Bearer {settings['data_token']}"}
     if settings.get("mode") == "report":
         reported = await client.post(door, content=b"{}", headers=headers)
         assert reported.status_code == 200, reported.text
-        return
+        return False
     asked = await client.get(door, headers=headers)
     assert asked.status_code in (200, 204), asked.text
     if asked.status_code == 204:
-        return
-    written = _written(step["image"], asked.json(), verdict)
+        return False
+    job = asked.json()
+    written = _written(job, verdict)
     listed = [
         {"path": path, "sha256": hashlib.sha256(content).hexdigest(), "size": len(content)}
         for path, content in written.items()
@@ -165,29 +186,67 @@ async def _run_step(
         forge.objects.put(link, written[path])
     done = await client.post(f"{door}/done", content=b"{}", headers=headers)
     assert done.status_code == 204, done.text
+    answered = json.loads(written["outputs.json"])
+    items = [entry["outputs"] for entry in answered.get("batch", [])] or [answered["outputs"]]
+    return job["fail_on_non_accepted"] and any(item["outcome"] != "accepted" for item in items)
 
 
-def _written(image: str, job: dict[str, Any], verdict: str) -> dict[str, bytes]:
-    """What a step of `image` writes for `job`: its `outputs.json` and the
-    files it names.
+def _written(job: dict[str, Any], verdict: str) -> dict[str, bytes]:
+    """What an exec step writes for `job`: its `outputs.json` and the files
+    it names. Every item gives the compile's `log`; as exec does, a source
+    of any item holding `DOES_NOT_COMPILE` ends every item `compile_error`
+    with nothing run. Only a file the job lists with its `sha256`, one
+    uploaded, can be marked so. Inputs given alone, a build's at the save,
+    are one item answered with `outputs`.
     """
-    if "/primitive-compile@" in image:
-        outputs = {"outcome": "accepted", "log": "", "program": {"file": "out/program"}}
-        document: dict[str, Any] = {"schema_version": 6, "outputs": outputs}
-        return {"outputs.json": json.dumps(document).encode(), "out/program": b"\x7fELF\n"}
+    given = job["inputs"]
+    broken = [
+        file["path"]
+        for file in job["files"]
+        if file.get("sha256") == hashlib.sha256(DOES_NOT_COMPILE).hexdigest()
+    ]
+    items = [given["inputs"]] if "batch" not in given else [e["inputs"] for e in given["batch"]]
+    failed = any(
+        path.startswith(f"{inputs['source']['folder']}/") for inputs in items for path in broken
+    )
     files: dict[str, bytes] = {}
-    batch = []
-    for entry in job["inputs"]["batch"]:
-        run = entry["run"]
-        compare = "manifest" in entry["inputs"]
-        ran: dict[str, Any] = {"outcome": "accepted" if compare else verdict}
-        if ran["outcome"] == "accepted":
-            ran |= {"output": {"file": f"out/{run}/output"}, "time_ms": 12, "memory_kb": 2048}
-            ran |= {"score": 1} if compare else {}
-            files[f"out/{run}/output"] = b"3\n"
-        batch.append({"run": run, "outputs": ran})
+    if "batch" not in given:
+        outputs = _item(given["inputs"], "alone", verdict, failed, files)
+        document: dict[str, Any] = {"schema_version": 6, "outputs": outputs}
+        return {"outputs.json": json.dumps(document).encode(), **files}
+    batch = [
+        {
+            "run": entry["run"],
+            "outputs": _item(entry["inputs"], entry["run"], verdict, failed, files),
+        }
+        for entry in given["batch"]
+    ]
     document = {"schema_version": 6, "batch": batch}
     return {"outputs.json": json.dumps(document).encode(), **files}
+
+
+def _item(
+    inputs: dict[str, Any], run: str, verdict: str, failed: bool, files: dict[str, bytes]
+) -> dict[str, Any]:
+    """One item's outputs, its files added to `files`: `compile_error` and
+    its log when its batch `failed`; a build's outcome and log alone; or a
+    run ending `verdict`, writing its output, its time and its memory when
+    accepted, and a program given a manifest, the classic workflow's
+    compare, accepted with a score of 1.
+    """
+    if failed:
+        return {"outcome": "compile_error", "log": COMPILE_LOG}
+    compare = "manifest" in inputs
+    if set(inputs) <= BUILT:
+        return {"outcome": "accepted", "log": CHECKER_LOG}
+    log = CHECKER_LOG if compare else SOLUTION_LOG
+    assert inputs["time_limit"], "exec runs a program under a time limit"
+    ran: dict[str, Any] = {"outcome": "accepted" if compare else verdict, "log": log}
+    if ran["outcome"] == "accepted":
+        ran |= {"output": {"file": f"out/{run}/output"}, "time_ms": 12, "memory_kb": 2048}
+        ran |= {"score": 1} if compare else {}
+        files[f"out/{run}/output"] = b"3\n"
+    return ran
 
 
 @pytest.fixture

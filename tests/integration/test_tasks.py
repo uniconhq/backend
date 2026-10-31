@@ -147,7 +147,7 @@ async def test_the_workflow_form_gives_the_inputs_of_the_workflow_the_task_names
     assert form.status_code == 200, form.text
     body = form.json()
     assert (body["workflow"], body["problem"], body["graded"]) == (
-        "unicon/classic@v3",
+        "unicon/classic@v4",
         None,
         False,
     )
@@ -174,7 +174,7 @@ async def test_a_task_naming_no_workflow_gets_a_form_saying_why(
     await client.put(
         f"{TASK}/files/task.yaml",
         json={
-            "content": task["content"].replace("workflow: unicon/classic@v3\n", ""),
+            "content": task["content"].replace("workflow: unicon/classic@v4\n", ""),
             "token": task["token"],
         },
         headers=ORIGIN,
@@ -202,7 +202,7 @@ async def test_a_refused_publication_lists_each_check_that_refused_it(
         index=1,
         failing=("The run r4 got wrong_answer, not accepted.", "total is 40, not 100."),
         runs=(run,),
-        outcomes={"compile": "accepted"},
+        outcomes={"solution": "accepted"},
         values={},
         error=None,
     )
@@ -237,7 +237,7 @@ async def test_a_refused_publication_lists_each_check_that_refused_it(
                     "reports": {"time_ms": "12"},
                 }
             ],
-            "outcomes": {"compile": "accepted"},
+            "outcomes": {"solution": "accepted"},
             "values": {},
             "error": None,
         }
