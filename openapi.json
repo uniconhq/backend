@@ -1749,7 +1749,7 @@
         "type": "object"
       },
       "FailedCheck": {
-        "description": "A check that refused its save, for the task's organisers: its\n`index` in `checks`, from 1; why it failed, a sentence each, at most\n20; its `runs`; the `outcomes` of its steps done once, by step; the\nnumber each value's program reported, exactly, or its text, by value;\nand the fault of its steps, null when none. Entrants never read a\ncheck.",
+        "description": "A check that refused its save, for the task's organisers: its\n`index` in `checks`, from 1; why it failed, a sentence each, at most\n20; its `runs`; the `outcomes` of its steps done once, and of its batch\nsteps the outcome given once for all their runs (`compile_error`, else\n`accepted`), by step; the\nnumber each value's program reported, exactly, or its text, by value;\nand the fault of its steps, null when none. Entrants never read a\ncheck.",
         "properties": {
           "error": {
             "anyOf": [
@@ -3650,7 +3650,7 @@
         "type": "object"
       },
       "OnceReports": {
-        "description": "What the steps done once reported: numbers, exactly, and texts; and\nthe outcome each returned, by its id, which the `compiled` fact reads.",
+        "description": "What the steps done once reported, and what a batch step gives once\nfor all its runs: numbers, exactly, and texts; and the outcome each\nreturned, by its id, which the `compiled` fact reads: for a batch step,\nthe outcome it gives once for all its runs, `compile_error`, else\n`accepted` whatever its runs ended.",
         "properties": {
           "outcomes": {
             "additionalProperties": {
@@ -3699,7 +3699,7 @@
         "type": "object"
       },
       "OnceShown": {
-        "description": "What a grading's steps done once reported, as its reader is shown\nit: numbers, exactly, and texts, the compile log among them; for an\nentrant, only the reports `show` lists, by name.",
+        "description": "What a grading's steps done once reported, and what a batch step\ngives once for all its runs, as its reader is shown it: numbers,\nexactly, and texts, the compile log among them; for an entrant, only\nthe reports `show` lists, by name.",
         "properties": {
           "reports": {
             "additionalProperties": {
@@ -5321,7 +5321,7 @@
         "type": "object"
       },
       "Result": {
-        "description": "The attempt of a submission's grading that counts, as its contestant\nsees it: the latest that finished with a result, as the leaderboards\ncount it, so a regrade under way, a failure or a cancel leaves the\nresult as it was, and while none has, the latest. Its id, attempt and\nstatus, in the contestant's words: `queued` until its run is started,\n`grading` while it is graded, `graded` once it has a result, `delayed`\nwhile it has none and its grading failed on the platform's side,\n`over_limit` once it was to be graded again with no room left under the\ntask's most submissions, and `cancelled` once staff end it; organisers\nread the grading's own status in the gradings routes. A `delayed` one\ncarries nothing else: it is tried again once by itself, and then waits\nfor staff, who grade it again or end it: then it is `cancelled`, with\n`reason`, the sentence they gave, which is null on every other status. A\ndelayed one is graded again only while its\nentrant's submissions with a result, those waiting that are not\ndelayed, and the delayed ones made before it are fewer than the task's\nmost, so the first ones to get a result count, and otherwise it is\n`over_limit`, with `limit`,\nthe most it reached (\"Not graded: you had reached the limit of 10\nsubmissions for this task.\"), and nothing else; `limit` is null on every\nother status.\n\n`run_values` holds each value of its scoring its entrant is shown,\nworked out on every read, and `runs` the runs, those listed under `now` from the start,\nthose under `after_close` once the task reveals, and those under\n`on_release` while staff have released the task's results, hidden\nagain when they take the release back. `once` holds what its steps\ndone once reported that `show` lists, the compile log among them when\nlisted, once a run is shown; and `compiled` 1, or 0 when a compile\ndone once stopped it, from the time `show` lists it or once a run is\nshown, null while its compile is still to run. A task with\nnothing shown during the contest is `submitted` until the reveal, which\na page words \"Submitted, results after the contest\". After the reveal,\nwhile its late runs are still being graded, it is `grading` or\n`delayed`. A grading whose runs failed for the platform is `delayed`\nwith the runs it gave, a value reading one of its failed early runs\n`waiting`. `reveal_at` is when the task reveals, until then, as what its\nentrant reads changes then with no grading's change to say so, so a page\nopen on it reads it again then; null once it has revealed.",
+        "description": "The attempt of a submission's grading that counts, as its contestant\nsees it: the latest that finished with a result, as the leaderboards\ncount it, so a regrade under way, a failure or a cancel leaves the\nresult as it was, and while none has, the latest. Its id, attempt and\nstatus, in the contestant's words: `queued` until its run is started,\n`grading` while it is graded, `graded` once it has a result, `delayed`\nwhile it has none and its grading failed on the platform's side,\n`over_limit` once it was to be graded again with no room left under the\ntask's most submissions, and `cancelled` once staff end it; organisers\nread the grading's own status in the gradings routes. A `delayed` one\ncarries nothing else: it is tried again once by itself, and then waits\nfor staff, who grade it again or end it: then it is `cancelled`, with\n`reason`, the sentence they gave, which is null on every other status. A\ndelayed one is graded again only while its\nentrant's submissions with a result, those waiting that are not\ndelayed, and the delayed ones made before it are fewer than the task's\nmost, so the first ones to get a result count, and otherwise it is\n`over_limit`, with `limit`,\nthe most it reached (\"Not graded: you had reached the limit of 10\nsubmissions for this task.\"), and nothing else; `limit` is null on every\nother status.\n\n`run_values` holds each value of its scoring its entrant is shown,\nworked out on every read, and `runs` the runs, those listed under `now` from the start,\nthose under `after_close` once the task reveals, and those under\n`on_release` while staff have released the task's results, hidden\nagain when they take the release back. `once` holds what its steps\ndone once reported, and what a batch step gives once for all its runs,\nthat `show` lists, the compile log among them when listed, once a run\nis shown; and `compiled` 1, or 0 when the entrant's code did not\ncompile, from the time `show` lists it or once a run is shown, null\nwhile its compile is still to run. A task with\nnothing shown during the contest is `submitted` until the reveal, which\na page words \"Submitted, results after the contest\". After the reveal,\nwhile its late runs are still being graded, it is `grading` or\n`delayed`. A grading whose runs failed for the platform is `delayed`\nwith the runs it gave, a value reading one of its failed early runs\n`waiting`. `reveal_at` is when the task reveals, until then, as what its\nentrant reads changes then with no grading's change to say so, so a page\nopen on it reads it again then; null once it has revealed.",
         "properties": {
           "attempt": {
             "title": "Attempt",
@@ -7134,7 +7134,7 @@
         "type": "object"
       },
       "TextRef": {
-        "description": "A text a step wrote, read apart and only while the result shows it.\nOrganisers are told the stored output that holds it and that output's\nname, and read it by them. An entrant is told neither, both null, since\nthe output may be another entrant's and its id says when it was made:\nthey read it by where it is shown, its run's group and place, or the\nsteps done once, and the text's name or `label` or `message`.",
+        "description": "A text a step wrote, read apart and only while the result shows it.\nOrganisers are told the stored output that holds it and that output's\nname, and read it by them. An entrant is told neither, both null, since\nthe output may be another entrant's and its id says when it was made:\nthey read it by where it is shown, its run's group and place, or\nneither for what is given once, and the text's name or `label` or\n`message`.",
         "properties": {
           "name": {
             "anyOf": [

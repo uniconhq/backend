@@ -62,7 +62,9 @@ class CheckRun(BaseModel):
 class FailedCheck(BaseModel):
     """A check that refused its save, for the task's organisers: its
     `index` in `checks`, from 1; why it failed, a sentence each, at most
-    20; its `runs`; the `outcomes` of its steps done once, by step; the
+    20; its `runs`; the `outcomes` of its steps done once, and of its batch
+    steps the outcome given once for all their runs (`compile_error`, else
+    `accepted`), by step; the
     number each value's program reported, exactly, or its text, by value;
     and the fault of its steps, null when none. Entrants never read a
     check."""

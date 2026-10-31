@@ -234,7 +234,7 @@ async def test_a_version_of_a_draft_with_problems_is_refused_with_each_path(
 ) -> None:
     await _own(client, acme)
     draft = (await client.get("/api/v1/workflows/bob/tuned")).json()["draft"]
-    broken = draft["content"].replace("steps.compile.program", "steps.compiler.program")
+    broken = draft["content"].replace("steps.solution.output", "steps.solver.output")
     saved = await client.put(
         "/api/v1/workflows/bob/tuned/draft",
         json={"content": broken, "token": draft["token"]},
@@ -250,8 +250,8 @@ async def test_a_version_of_a_draft_with_problems_is_refused_with_each_path(
     assert refused.json()["code"] == "invalid_definition"
     assert refused.json()["errors"] == [
         {
-            "path": "steps[1].with.program",
-            "message": "There is no step called compiler before this one.",
+            "path": "steps[1].with.files.output",
+            "message": "There is no step called solver before this one.",
         }
     ]
 
@@ -261,7 +261,7 @@ async def test_check_answers_every_problem_at_its_path_and_writes_nothing(
 ) -> None:
     await sign_in_as(client, acme, 8)
     classic = acme.state.repos[("unicon", "classic.workflow")].files["workflow.yaml"].decode()
-    unknown = classic.replace("unicon/exec@v1", "unicon/exec@v9")
+    unknown = classic.replace("unicon/exec@v2", "unicon/exec@v9")
 
     good = await client.post("/api/v1/workflows/check", json={"content": classic}, headers=ORIGIN)
     bad = await client.post("/api/v1/workflows/check", json={"content": unknown}, headers=ORIGIN)
@@ -269,8 +269,8 @@ async def test_check_answers_every_problem_at_its_path_and_writes_nothing(
     assert good.json() == {"problems": []}
     assert bad.status_code == 200, bad.text
     assert [problem["path"] for problem in bad.json()["problems"]] == [
+        "steps[0].use",
         "steps[1].use",
-        "steps[3].use",
     ]
     assert "cannot open unicon/exec@v9" in bad.json()["problems"][0]["message"]
 
@@ -329,12 +329,12 @@ async def test_a_copy_is_a_new_private_workflow(client: httpx.AsyncClient, acme:
 
     copied = await client.post(
         "/api/v1/workflow-copies",
-        json={"source": "unicon/classic@v3", "owner": "bob", "name": "mine"},
+        json={"source": "unicon/classic@v4", "owner": "bob", "name": "mine"},
         headers=ORIGIN,
     )
     gone = await client.post(
         "/api/v1/workflow-combinations",
-        json={"sources": ["unicon/classic@v3"], "owner": "bob", "name": "both"},
+        json={"sources": ["unicon/classic@v4"], "owner": "bob", "name": "both"},
         headers=ORIGIN,
     )
 
@@ -353,16 +353,25 @@ async def test_the_primitives_are_listed_with_their_ports(
 
     assert listed.status_code == 200
     by_ref = {item["ref"]: item for item in listed.json()}
-    assert sorted(by_ref) == ["unicon/compile@v3", "unicon/exec@v1"]
-    compile = by_ref["unicon/compile@v3"]
-    assert (compile["batch"], compile["title"]) == (False, "Compile")
-    assert compile["inputs"]["source"] == {
+    assert sorted(by_ref) == ["unicon/exec@v2"]
+    # A primitive given in forms has no ports of its own: each form has its
+    # ports and limits.
+    run = by_ref["unicon/exec@v2"]
+    assert (run["batch"], run["title"], run["inputs"], run["outputs"]) == (
+        True,
+        "Run programs",
+        {},
+        {},
+    )
+    assert sorted(run["forms"]) == ["build", "one", "programs"]
+    build = run["forms"]["build"]
+    assert build["inputs"]["source"] == {
         "type": "folder",
         "options": None,
         "optional": False,
         "runs": True,
         "secret": False,
-        "description": "The source files to compile, with their layout.",
+        "description": "The program's source files, with their layout.",
         "outcomes": None,
         "names": None,
         "better": None,
@@ -371,22 +380,19 @@ async def test_the_primitives_are_listed_with_their_ports(
         "inputs": None,
         "outputs": None,
     }
-    assert compile["inputs"]["entry"]["optional"] is True
-    assert compile["limits"]["memory_mb"] == 1024
+    assert build["inputs"]["entry"]["optional"] is True
+    assert build["limits"]["memory_mb"] == 1136
     # The outcome port says what each outcome the step reports means, in
     # the declaration's order, for the step's drawer.
-    assert compile["outputs"]["outcome"]["outcomes"] == {
+    assert build["outputs"]["outcome"]["outcomes"] == {
         "accepted": "the source compiles",
-        "compile_error": "it does not compile, or the compiler goes over a limit",
+        "compile_error": "it does not",
     }
-    assert compile["problem"] is None
-    # A primitive given in forms has no ports of its own: each form has its
-    # ports and limits.
-    run = by_ref["unicon/exec@v1"]
-    assert (run["batch"], run["inputs"], run["outputs"]) == (True, {}, {})
+    assert run["problem"] is None
     one = run["forms"]["one"]
     assert one["outputs_from"] == "manifest"
-    assert one["inputs"]["program"]["runs"] is True
+    assert one["inputs"]["source"]["runs"] is True
+    assert one["outputs"]["log"]["type"] == "text"
     assert one["limits_from"]["time_ms"] == {
         "input": "time_limit",
         "sum": None,
@@ -394,7 +400,27 @@ async def test_the_primitives_are_listed_with_their_ports(
         "scale": "2000",
         "add": "3000",
     }
-    assert one["limits"]["memory_mb"] == 256
+    assert one["limits"]["memory_mb"] == 1136
+
+
+async def test_a_retired_primitive_left_at_the_forge_is_listed_with_why(
+    client: httpx.AsyncClient, acme: FakeForge
+) -> None:
+    """Bootstrap never deletes a version, so a stack not reset still holds
+    the compile primitive."""
+    acme.primitives.add("compile", {"v3": b"title: Compile\n"})
+    await sign_in_as(client, acme, 8)
+
+    listed = await client.get("/api/v1/primitives")
+
+    by_ref = {item["ref"]: item for item in listed.json()}
+    assert sorted(by_ref) == ["unicon/compile@v3", "unicon/exec@v2"]
+    retired = by_ref["unicon/compile@v3"]
+    assert (retired["inputs"], retired["forms"], retired["problem"]) == (
+        {},
+        {},
+        "unicon/compile and unicon/exec@v1 are retired; use unicon/exec@v2.",
+    )
 
 
 @pytest.mark.parametrize(
@@ -460,7 +486,7 @@ async def test_a_version_of_a_save_someone_has_saved_over_is_a_conflict(
         (
             "POST",
             "/api/v1/workflow-copies",
-            {"source": "unicon/classic@v3", "owner": "bob", "name": "c"},
+            {"source": "unicon/classic@v4", "owner": "bob", "name": "c"},
         ),
     ],
 )
@@ -539,7 +565,7 @@ async def test_a_box_answers_a_workflow_version_and_one_unread(
     assert again.status_code == 201, again.text
 
     face = await client.get("/api/v1/workflows/bob/held/versions/v1/box")
-    classic = await client.get("/api/v1/workflows/unicon/classic/versions/v3/box")
+    classic = await client.get("/api/v1/workflows/unicon/classic/versions/v4/box")
 
     assert face.status_code == 200, face.text
     assert face.json() == {

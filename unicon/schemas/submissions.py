@@ -73,8 +73,9 @@ class TextRef(BaseModel):
     Organisers are told the stored output that holds it and that output's
     name, and read it by them. An entrant is told neither, both null, since
     the output may be another entrant's and its id says when it was made:
-    they read it by where it is shown, its run's group and place, or the
-    steps done once, and the text's name or `label` or `message`.
+    they read it by where it is shown, its run's group and place, or
+    neither for what is given once, and the text's name or `label` or
+    `message`.
     """
 
     output: str | None = None
@@ -153,9 +154,10 @@ class RunValue(BaseModel):
 
 
 class OnceShown(BaseModel):
-    """What a grading's steps done once reported, as its reader is shown
-    it: numbers, exactly, and texts, the compile log among them; for an
-    entrant, only the reports `show` lists, by name."""
+    """What a grading's steps done once reported, and what a batch step
+    gives once for all its runs, as its reader is shown it: numbers,
+    exactly, and texts, the compile log among them; for an entrant, only
+    the reports `show` lists, by name."""
 
     reports: dict[str, Exact] = {}
     texts: dict[str, TextRef] = {}
@@ -204,10 +206,11 @@ class Result(Scored):
     those under `after_close` once the task reveals, and those under
     `on_release` while staff have released the task's results, hidden
     again when they take the release back. `once` holds what its steps
-    done once reported that `show` lists, the compile log among them when
-    listed, once a run is shown; and `compiled` 1, or 0 when a compile
-    done once stopped it, from the time `show` lists it or once a run is
-    shown, null while its compile is still to run. A task with
+    done once reported, and what a batch step gives once for all its runs,
+    that `show` lists, the compile log among them when listed, once a run
+    is shown; and `compiled` 1, or 0 when the entrant's code did not
+    compile, from the time `show` lists it or once a run is shown, null
+    while its compile is still to run. A task with
     nothing shown during the contest is `submitted` until the reveal, which
     a page words "Submitted, results after the contest". After the reveal,
     while its late runs are still being graded, it is `grading` or

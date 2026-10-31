@@ -130,12 +130,12 @@ async def test_a_request_without_a_session_is_checked_too(client: httpx.AsyncCli
         "/api/v1/ci",
         "/api/v1/gradings/0192f4a4-7b7e-7000-8000-000000000001/cancel",
         "/api/v1/gradings/0192f4a4-7b7e-7000-8000-000000000001/callback",
-        "/api/v1/gradings/0192F4A4-7B7E-7000-8000-000000000001/steps/compile/done",
-        "/api/v1/gradings/0192f4a47b7e70008000000000000001/steps/compile/done",
-        "/api/v1/gradings/not-a-grading/steps/compile/done",
+        "/api/v1/gradings/0192F4A4-7B7E-7000-8000-000000000001/steps/solution/done",
+        "/api/v1/gradings/0192f4a47b7e70008000000000000001/steps/solution/done",
+        "/api/v1/gradings/not-a-grading/steps/solution/done",
         "/api/v1/gradings/0192f4a4-7b7e-7000-8000-000000000001/steps",
         "/api/v1/gradings/0192f4a4-7b7e-7000-8000-000000000001/steps//done",
-        "/api/v1/gradings/0192f4a4-7b7e-7000-8000-000000000001/steps/compile/more",
+        "/api/v1/gradings/0192f4a4-7b7e-7000-8000-000000000001/steps/solution/more",
         "/api/v1/gradings/0192f4a4-7b7e-7000-8000-000000000001/steps/a/b/done",
     ],
 )
@@ -154,7 +154,7 @@ async def test_only_the_machine_doors_are_let_past_the_check(
         "/api/v1/ci/config",
         "/api/v1/gradings/0192f4a4-7b7e-7000-8000-000000000001/steps/report",
         "/api/v1/gradings/0192f4a4-7b7e-7000-8000-000000000001/steps/solution.r1/uploads",
-        "/api/v1/gradings/0192f4a4-7b7e-7000-8000-000000000001/steps/compile/done",
+        "/api/v1/gradings/0192f4a4-7b7e-7000-8000-000000000001/steps/solution/done",
     ],
 )
 async def test_the_ci_and_a_steps_door_are_let_past_the_check(
