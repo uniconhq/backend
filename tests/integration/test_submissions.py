@@ -287,7 +287,7 @@ async def _on_tunable(client: httpx.AsyncClient, forge: FakeForge) -> None:
     )
     await forge.workflows.create_workflow_version(ada, workflow, "v1")
     current = await read(client, f"{TASK}/files/task.yaml")
-    old = "workflow: unicon/classic@v3\ninputs:\n"
+    old = "workflow: unicon/classic@v4\ninputs:\n"
     new = f"workflow: ada/tunable@v1\ninputs:\n  ratio: {{entrant: {{max: {THIRTY}}}}}\n"
     body = {"content": current["content"].replace(old, new), "token": current["token"]}
     asked = await client.put(
@@ -454,19 +454,16 @@ async def test_staff_list_and_download_an_entrants_files(
 
 
 IN_PARTS = (
-    (
-        "  code: {entrant: {label: Your solution}}\n",
-        "",
-    ),
-    (
-        "  - inputs: [input, answer]\n    tuples:\n      - [tests/1.in, tests/1.ans]\n",
-        "  - inputs: [input, answer, code]\n    tuples:\n"
-        "      - [tests/1.in, tests/1.ans, entrant]\n"
-        "      - [tests/1.in, tests/1.ans, entrant]\n",
-    ),
+    "  - inputs: [input, answer]\n    tuples:\n      - [tests/1.in, tests/1.ans]\n",
+    "  - inputs: [input, answer]\n    tuples:\n"
+    "      - [entrant, tests/1.ans]\n"
+    "      - [entrant, tests/1.ans]\n",
 )
-"""The starter with its `code` given once per test, in two parts."""
-SECOND = b"print(sum(map(int, input().split())) + 0)\n"
+"""The starter with its `input` the entrant's, given once per test, in two
+parts. The code stays given once: a step that compiles it once is never
+given a source that differs by run."""
+FIRST = b"1 2\n"
+SECOND = b"2 1\n"
 
 
 async def test_an_input_given_in_parts_is_read_back_by_part_by_its_entrant_and_staff(
@@ -474,20 +471,20 @@ async def test_an_input_given_in_parts_is_read_back_by_part_by_its_entrant_and_s
 ) -> None:
     await sign_in_as(client, entered, 7)
     current = await read(client, f"{TASK}/files/task.yaml")
-    settings = current["content"]
-    for old, new in IN_PARTS:
-        assert old in settings
-        settings = settings.replace(old, new)
-    await edit_task(client, current["content"], settings)
+    old, new = IN_PARTS
+    assert old in current["content"]
+    await edit_task(client, old, new)
     await sign_in_as(client, entered, 20)
-    first = await upload(client, entered, SOURCE, part=1)
-    second = await upload(client, entered, SECOND, filename="other.py", part=2)
+    code = await upload(client, entered, SOURCE)
+    first = await upload(client, entered, FIRST, input="input", filename="1.in", part=1)
+    second = await upload(client, entered, SECOND, input="input", filename="2.in", part=2)
     submitted = await client.post(
         SUBMISSIONS,
         json={
             "idempotency_key": KEY,
             "inputs": {
-                "code": {
+                "code": {"uploads": [code["id"]]},
+                "input": {
                     "parts": {"1": {"uploads": [first["id"]]}, "2": {"uploads": [second["id"]]}}
                 },
                 "language": {"value": "python"},
@@ -499,29 +496,30 @@ async def test_an_input_given_in_parts_is_read_back_by_part_by_its_entrant_and_s
     entrant = await entrant_of(client)
 
     own = await client.get(f"{SUBMISSIONS}/1/files")
-    opened = await _download(client, f"{DOWNLOADS}/1/files/code/2/other.py")
+    opened = await _download(client, f"{DOWNLOADS}/1/files/input/2/2.in")
     await sign_in_as(client, entered, 7)
     staff = await client.get(f"{TASK}/organise/submissions/1/files", params={"entrant": entrant})
     at = f"{DOWNLOADS}/entrants/{entrant}/1"
-    staff_opened = await _download(client, f"{at}/files/code/1/main.py")
+    staff_opened = await _download(client, f"{at}/files/input/1/1.in")
 
-    assert own.json()["inputs"]["code"] == {
+    assert own.json()["inputs"]["input"] == {
         "files": [],
         "value": None,
         "parts": {
-            "1": {"files": ["files/code/1/main.py"], "value": None},
-            "2": {"files": ["files/code/2/other.py"], "value": None},
+            "1": {"files": ["files/input/1/1.in"], "value": None},
+            "2": {"files": ["files/input/2/2.in"], "value": None},
         },
     }
+    assert own.json()["inputs"]["code"] == {"files": [MAIN], "value": None, "parts": None}
     assert own.json()["inputs"]["language"] == {"files": [], "value": "python", "parts": None}
     door = Door(opened.headers["X-Forge-Path"], opened.headers["X-Forge-Authorization"])
     assert await entered.workspaces.fetch(door) == SECOND
-    assert staff.json()["inputs"]["code"]["parts"] == {
-        "1": {"files": [f"{at}/files/code/1/main.py"], "value": None},
-        "2": {"files": [f"{at}/files/code/2/other.py"], "value": None},
+    assert staff.json()["inputs"]["input"]["parts"] == {
+        "1": {"files": [f"{at}/files/input/1/1.in"], "value": None},
+        "2": {"files": [f"{at}/files/input/2/2.in"], "value": None},
     }
     door = Door(staff_opened.headers["X-Forge-Path"], staff_opened.headers["X-Forge-Authorization"])
-    assert await entered.workspaces.fetch(door) == SOURCE
+    assert await entered.workspaces.fetch(door) == FIRST
 
 
 @pytest.mark.parametrize("value", [1, 0, 1.0])

@@ -123,7 +123,7 @@ def test_a_gradings_values_once_and_compiled_are_served_exactly() -> None:
             ValueShown("late", None, True, False),
             ValueShown("first_failed", None, False, False, "now", (), (), (), "WA"),
         ),
-        once={"reports": {"compile_ms": 40}, "texts": {"compile_log": log}},
+        once={"reports": {"setup_ms": 40}, "texts": {"log": log}},
         compiled=1,
         facts={"seconds_late": Fraction(1800), "compiled": Fraction(1)},
     )
@@ -168,7 +168,7 @@ def test_a_gradings_values_once_and_compiled_are_served_exactly() -> None:
     assert answer["runs"][0]["label"] == log
     assert answer["runs"][0]["tuples"] == [{"title": "Big grid", "key": {}}]
     assert [each["dropped"] for each in answer["runs"]] == [False, True]
-    assert answer["once"] == {"reports": {"compile_ms": "40"}, "texts": {"compile_log": log}}
+    assert answer["once"] == {"reports": {"setup_ms": "40"}, "texts": {"log": log}}
     assert (answer["compiled"], answer["facts"]) == (1, {"seconds_late": "1800", "compiled": "1"})
 
 

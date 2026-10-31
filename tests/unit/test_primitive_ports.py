@@ -29,7 +29,8 @@ PROGRAMS = {
         "programs": {
             "type": "programs",
             "inputs": {
-                "program": {"type": "file", "runs": True},
+                "source": {"type": "folder", "runs": True},
+                "language": {"type": "enum", "options": ["c", "python"]},
                 "manifest": {"type": "file", "runs": False, "optional": True},
                 "time_limit": "number",
                 "memory_limit": "number",
@@ -44,7 +45,7 @@ PROGRAMS = {
 
 
 def test_a_programs_port_and_its_limits_are_listed_whole() -> None:
-    found = PrimitiveVersion("exec", "v1", PrimitiveDeclaration.model_validate(PROGRAMS))
+    found = PrimitiveVersion("exec", "v2", PrimitiveDeclaration.model_validate(PROGRAMS))
 
     listed = Primitive.of(found).model_dump(mode="json")
 
@@ -65,7 +66,13 @@ def test_a_programs_port_and_its_limits_are_listed_whole() -> None:
         },
     }
     programs = listed["inputs"]["programs"]
-    assert sorted(programs["inputs"]) == ["manifest", "memory_limit", "program", "time_limit"]
+    assert sorted(programs["inputs"]) == [
+        "language",
+        "manifest",
+        "memory_limit",
+        "source",
+        "time_limit",
+    ]
     assert programs["outputs"]["score"]["type"] == "number"
     assert (
         programs["outputs"]["score"]["better"],
