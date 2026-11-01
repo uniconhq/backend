@@ -8,7 +8,8 @@ is not there yet. A primitive goes out with its declared ports, so the
 editor's palette shows each with its type and its marks.
 """
 
-from typing import Any, Literal, Self
+from datetime import datetime
+from typing import Annotated, Any, Literal, Self
 
 from forge.api.blocks import Better
 from forge.api.workflows import Box as ForgeBox
@@ -68,6 +69,8 @@ class WorkflowItem(BaseModel):
     visibility: Visibility
     versions: list[str]
     editable: bool
+    description: str = ""
+    yanked: dict[str, YankMark] = Field(default_factory=dict)
 
     @classmethod
     def of(cls, summary: WorkflowSummary) -> Self:
@@ -77,7 +80,27 @@ class WorkflowItem(BaseModel):
             visibility=summary.visibility,
             versions=list(summary.versions),
             editable=summary.editable,
+            description=summary.description,
+            yanked={
+                version: YankMark(reason=mark.reason, at=mark.at, by=mark.by)
+                for version, mark in summary.yanked.items()
+            },
         )
+
+
+class YankMark(BaseModel):
+    reason: str
+    at: datetime
+    by: int
+
+
+class YankVersion(BaseModel):
+    reason: str = Field(min_length=1, max_length=2048)
+
+
+class WorkflowSearch(BaseModel):
+    items: list[WorkflowItem]
+    next: int | None
 
 
 class Definition(BaseModel):
@@ -164,6 +187,9 @@ class CheckDefinition(BaseModel):
     content: str
     owner: str | None = None
     name: str | None = None
+    paths: list[Annotated[str, Field(max_length=1024)]] | None = Field(
+        default=None, max_length=10_000
+    )
 
 
 class DefinitionProblem(BaseModel):

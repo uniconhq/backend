@@ -800,6 +800,22 @@
               }
             ],
             "title": "Owner"
+          },
+          "paths": {
+            "anyOf": [
+              {
+                "items": {
+                  "maxLength": 1024,
+                  "type": "string"
+                },
+                "maxItems": 10000,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paths"
           }
         },
         "required": [
@@ -7741,6 +7757,16 @@
               }
             ],
             "title": "Workflow"
+          },
+          "yanked": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Yanked"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -7749,7 +7775,8 @@
           "problem",
           "graded",
           "newer",
-          "text_values"
+          "text_values",
+          "yanked"
         ],
         "title": "WorkflowForm",
         "type": "object"
@@ -7757,6 +7784,11 @@
       "WorkflowItem": {
         "description": "A workflow a person may read: its visibility, its versions in natural\norder, and whether they may edit it.",
         "properties": {
+          "description": {
+            "default": "",
+            "title": "Description",
+            "type": "string"
+          },
           "editable": {
             "title": "Editable",
             "type": "boolean"
@@ -7778,6 +7810,13 @@
           },
           "visibility": {
             "$ref": "#/components/schemas/Visibility"
+          },
+          "yanked": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/YankMark"
+            },
+            "title": "Yanked",
+            "type": "object"
           }
         },
         "required": [
@@ -7785,7 +7824,9 @@
           "name",
           "visibility",
           "versions",
-          "editable"
+          "editable",
+          "description",
+          "yanked"
         ],
         "title": "WorkflowItem",
         "type": "object"
@@ -7793,6 +7834,11 @@
       "WorkflowPage": {
         "description": "A workflow as its page shows it. For someone who may edit it, `draft`,\nits `workflow.yaml` now, and `readers`, the usernames it is shared with;\nfor anyone else, no draft and no readers.",
         "properties": {
+          "description": {
+            "default": "",
+            "title": "Description",
+            "type": "string"
+          },
           "draft": {
             "anyOf": [
               {
@@ -7831,6 +7877,13 @@
           },
           "visibility": {
             "$ref": "#/components/schemas/Visibility"
+          },
+          "yanked": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/YankMark"
+            },
+            "title": "Yanked",
+            "type": "object"
           }
         },
         "required": [
@@ -7839,10 +7892,40 @@
           "visibility",
           "versions",
           "editable",
+          "description",
+          "yanked",
           "draft",
           "readers"
         ],
         "title": "WorkflowPage",
+        "type": "object"
+      },
+      "WorkflowSearch": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/WorkflowItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next"
+          }
+        },
+        "required": [
+          "items",
+          "next"
+        ],
+        "title": "WorkflowSearch",
         "type": "object"
       },
       "WriteFile": {
@@ -8017,6 +8100,69 @@
           "notes"
         ],
         "title": "Written",
+        "type": "object"
+      },
+      "YankMark": {
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "by": {
+            "title": "By",
+            "type": "integer"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason",
+          "at",
+          "by"
+        ],
+        "title": "YankMark",
+        "type": "object"
+      },
+      "YankVersion": {
+        "properties": {
+          "reason": {
+            "maxLength": 2048,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "YankVersion",
+        "type": "object"
+      },
+      "Yanked": {
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "by": {
+            "title": "By",
+            "type": "integer"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason",
+          "at",
+          "by"
+        ],
+        "title": "Yanked",
         "type": "object"
       }
     }
@@ -17276,6 +17422,98 @@
         ]
       }
     },
+    "/api/v1/workflow-search": {
+      "get": {
+        "operationId": "searchWorkflows",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "default": "",
+              "maxLength": 256,
+              "title": "Q",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "scope",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "mine",
+                    "orgs",
+                    "public"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Scope"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "org",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Org"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkflowSearch"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Search visible workflows",
+        "tags": [
+          "workflows"
+        ]
+      }
+    },
     "/api/v1/workflows": {
       "get": {
         "description": "The caller's own, their orgs', those shared with them and the public\nones, by owner and then name, each saying whether they may edit it.",
@@ -18171,6 +18409,128 @@
           }
         },
         "summary": "The files and folders a version was frozen with",
+        "tags": [
+          "workflows"
+        ]
+      }
+    },
+    "/api/v1/workflows/{owner}/{name}/versions/{version}/yank": {
+      "delete": {
+        "operationId": "unyankWorkflowVersion",
+        "parameters": [
+          {
+            "description": "An org's name or a person's username",
+            "in": "path",
+            "name": "owner",
+            "required": true,
+            "schema": {
+              "description": "An org's name or a person's username",
+              "title": "Owner",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The workflow's name under its owner",
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "description": "The workflow's name under its owner",
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "title": "Version",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Allow new use of a workflow version",
+        "tags": [
+          "workflows"
+        ]
+      },
+      "post": {
+        "operationId": "yankWorkflowVersion",
+        "parameters": [
+          {
+            "description": "An org's name or a person's username",
+            "in": "path",
+            "name": "owner",
+            "required": true,
+            "schema": {
+              "description": "An org's name or a person's username",
+              "title": "Owner",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The workflow's name under its owner",
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "description": "The workflow's name under its owner",
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "title": "Version",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/YankVersion"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Stop new use of a workflow version",
         "tags": [
           "workflows"
         ]

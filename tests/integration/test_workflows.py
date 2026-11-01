@@ -666,3 +666,83 @@ async def test_checking_a_draft_that_holds_its_own_workflow_names_the_step(
     assert refused.status_code == 422
     assert refused.json()["code"] == "invalid_definition"
     assert refused.json()["errors"][0]["step"] == "again"
+
+
+async def test_search_and_withdrawing_a_version_keep_its_content_readable(
+    client: httpx.AsyncClient, acme: FakeForge
+) -> None:
+    await _own(client, acme)
+    made = await client.post(
+        "/api/v1/workflows/bob/tuned/versions", json={"version": "v1"}, headers=ORIGIN
+    )
+    assert made.status_code == 201, made.text
+    found = await client.get("/api/v1/workflow-search", params={"q": "tuned", "scope": "mine"})
+    assert found.status_code == 200, found.text
+    assert [item["name"] for item in found.json()["items"]] == ["tuned"]
+    assert found.json()["next"] is None
+    path = "/api/v1/workflows/bob/tuned/versions/v1/yank"
+    refused = await client.post(
+        path, json={"reason": "Replace the checker"}, headers={"Origin": "http://elsewhere.test"}
+    )
+    assert refused.status_code == 403
+    stopped = await client.post(path, json={"reason": "Replace the checker"}, headers=ORIGIN)
+    assert stopped.status_code == 204, stopped.text
+    page = (await client.get("/api/v1/workflows/bob/tuned")).json()
+    assert page["yanked"]["v1"]["reason"] == "Replace the checker"
+    assert (await client.get("/api/v1/workflows/bob/tuned/versions/v1")).status_code == 200
+    resumed = await client.delete(path, headers=ORIGIN)
+    assert resumed.status_code == 204, resumed.text
+    assert (await client.get("/api/v1/workflows/bob/tuned")).json()["yanked"] == {}
+
+
+@pytest.mark.parametrize(
+    ("method", "path", "body"),
+    [
+        ("GET", "/api/v1/workflow-search", None),
+        ("POST", "/api/v1/workflows/bob/tuned/versions/v1/yank", {"reason": "Replaced"}),
+        ("DELETE", "/api/v1/workflows/bob/tuned/versions/v1/yank", None),
+    ],
+)
+async def test_workflow_search_and_withdrawal_require_a_session(
+    client: httpx.AsyncClient, method: str, path: str, body: object
+) -> None:
+    response = await client.request(method, path, json=body, headers=ORIGIN)
+    assert response.status_code == 401
+
+
+async def test_check_uses_the_saved_and_staged_path_list(
+    client: httpx.AsyncClient, acme: FakeForge
+) -> None:
+    await sign_in_as(client, acme, 8)
+    files = acme.state.repos[("unicon", "classic.workflow")].files
+    content = files["workflow.yaml"].decode()
+    missing = await client.post(
+        "/api/v1/workflows/check", json={"content": content, "paths": []}, headers=ORIGIN
+    )
+    staged = await client.post(
+        "/api/v1/workflows/check", json={"content": content, "paths": list(files)}, headers=ORIGIN
+    )
+    assert missing.status_code == 200, missing.text
+    assert any("diff/" in problem["message"] for problem in missing.json()["problems"])
+    assert staged.json() == {"problems": []}
+
+
+@pytest.mark.parametrize("paths", [["x" * 1025], ["x"] * 10_001])
+async def test_check_refuses_excessive_path_lists_before_reading_workflows(
+    client: httpx.AsyncClient, acme: FakeForge, paths: list[str]
+) -> None:
+    await sign_in_as(client, acme, 8)
+    response = await client.post(
+        "/api/v1/workflows/check",
+        json={"content": "steps: []", "paths": paths},
+        headers=ORIGIN,
+    )
+    assert response.status_code == 422
+    assert response.json()["code"] == "validation_error"
+
+
+def test_check_path_limits_accept_the_boundary() -> None:
+    from unicon.schemas.workflows import CheckDefinition
+
+    assert len(CheckDefinition(content="", paths=["x" * 1024] * 10_000).paths or []) == 10_000
+    assert CheckDefinition(content="").paths is None

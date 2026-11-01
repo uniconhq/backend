@@ -16,9 +16,9 @@ a box may carry `step`, the flat step it belongs to.
 """
 
 import uuid
-from typing import Annotated
+from typing import Annotated, Literal
 
-from fastapi import APIRouter, Path, status
+from fastapi import APIRouter, Path, Query, status
 from forge.api import uploads, workflows
 from forge.api.files import TreeEntry
 from forge.api.types import ConflictToken, Edit, VersionId
@@ -44,6 +44,8 @@ from unicon.schemas.workflows import (
     WorkflowBox,
     WorkflowItem,
     WorkflowPage,
+    WorkflowSearch,
+    YankVersion,
 )
 
 CREATED = status.HTTP_201_CREATED
@@ -88,8 +90,50 @@ async def check_workflow(session: CurrentSession, body: CheckDefinition) -> Chec
     reads them. Nothing is written. Given `owner` and `name`, a draft that
     would hold that workflow is refused, and the problem carries `step`.
     """
-    found = await workflows.check(session, body.content, owner=body.owner, name=body.name)
+    found = await workflows.check(
+        session, body.content, owner=body.owner, name=body.name, paths=body.paths
+    )
     return Checked(problems=[DefinitionProblem(**problem) for problem in found])
+
+
+@router.get("/workflow-search", operation_id="searchWorkflows", summary="Search visible workflows")
+async def search_workflows(
+    session: CurrentSession,
+    q: Annotated[str, Query(max_length=256)] = "",
+    scope: Literal["mine", "orgs", "public"] | None = None,
+    page: Annotated[int, Query(ge=1)] = 1,
+    org: str | None = None,
+) -> WorkflowSearch:
+    found = await workflows.search(session, q, scope, page, org)
+    return WorkflowSearch(items=[WorkflowItem.of(item) for item in found.items], next=found.next)
+
+
+@router.post(
+    f"{WORKFLOW}/versions/{{version}}/yank",
+    operation_id="yankWorkflowVersion",
+    summary="Stop new use of a workflow version",
+    status_code=NO_CONTENT,
+)
+async def yank_workflow_version(
+    session: CurrentSession,
+    owner: Owner,
+    name: Name,
+    version: str,
+    body: YankVersion,
+) -> None:
+    await workflows.yank(session, owner, name, version, body.reason)
+
+
+@router.delete(
+    f"{WORKFLOW}/versions/{{version}}/yank",
+    operation_id="unyankWorkflowVersion",
+    summary="Allow new use of a workflow version",
+    status_code=NO_CONTENT,
+)
+async def unyank_workflow_version(
+    session: CurrentSession, owner: Owner, name: Name, version: str
+) -> None:
+    await workflows.unyank(session, owner, name, version)
 
 
 @router.post(

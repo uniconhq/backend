@@ -163,7 +163,15 @@ async def test_the_workflow_form_gives_the_inputs_of_the_workflow_the_task_names
     assert (language["options"], language["optional"]) == (["c", "cpp", "java", "python"], False)
     time_limit = body["inputs"][4]
     assert (time_limit["title"], time_limit["unit"]) == ("Time limit", "seconds")
-    assert sorted(body) == ["graded", "inputs", "newer", "problem", "text_values", "workflow"]
+    assert sorted(body) == [
+        "graded",
+        "inputs",
+        "newer",
+        "problem",
+        "text_values",
+        "workflow",
+        "yanked",
+    ]
     assert body["text_values"] == []
 
 
