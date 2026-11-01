@@ -1998,6 +1998,46 @@
         "title": "FileContent",
         "type": "object"
       },
+      "FinishParts": {
+        "properties": {
+          "parts": {
+            "items": {
+              "$ref": "#/components/schemas/FinishedPart"
+            },
+            "maxItems": 10000,
+            "minItems": 1,
+            "title": "Parts",
+            "type": "array"
+          }
+        },
+        "required": [
+          "parts"
+        ],
+        "title": "FinishParts",
+        "type": "object"
+      },
+      "FinishedPart": {
+        "properties": {
+          "etag": {
+            "maxLength": 1024,
+            "minLength": 1,
+            "title": "Etag",
+            "type": "string"
+          },
+          "number": {
+            "maximum": 10000.0,
+            "minimum": 1.0,
+            "title": "Number",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "number",
+          "etag"
+        ],
+        "title": "FinishedPart",
+        "type": "object"
+      },
       "ForgeUrl": {
         "description": "Where a browser reaches the forge's own pages: sign-in and the account\nsettings. No trailing slash.",
         "properties": {
@@ -4087,6 +4127,57 @@
         "title": "OrganisedSubmission",
         "type": "object"
       },
+      "Part": {
+        "properties": {
+          "etag": {
+            "title": "Etag",
+            "type": "string"
+          },
+          "number": {
+            "title": "Number",
+            "type": "integer"
+          },
+          "size": {
+            "title": "Size",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "number",
+          "etag",
+          "size"
+        ],
+        "title": "Part",
+        "type": "object"
+      },
+      "PartUploadRequest": {
+        "description": "A resumable organiser upload, bounded again by the deployment's cap.",
+        "properties": {
+          "path": {
+            "maxLength": 1024,
+            "minLength": 1,
+            "title": "Path",
+            "type": "string"
+          },
+          "sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Sha256",
+            "type": "string"
+          },
+          "size": {
+            "minimum": 1.0,
+            "title": "Size",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "path",
+          "size",
+          "sha256"
+        ],
+        "title": "PartUploadRequest",
+        "type": "object"
+      },
       "Person": {
         "description": "Someone as another person sees them, by their forge id. Their email\nstays out.",
         "properties": {
@@ -4128,6 +4219,86 @@
           "avatar_url"
         ],
         "title": "Person",
+        "type": "object"
+      },
+      "Preparation": {
+        "properties": {
+          "deadline_at": {
+            "format": "date-time",
+            "title": "Deadline At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Published"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "enum": [
+              "preparing",
+              "ready",
+              "refused",
+              "replaced"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "reason",
+          "deadline_at",
+          "result"
+        ],
+        "title": "Preparation",
+        "type": "object"
+      },
+      "Preparing": {
+        "properties": {
+          "preparation": {
+            "format": "uuid",
+            "title": "Preparation",
+            "type": "string"
+          },
+          "status": {
+            "const": "preparing",
+            "default": "preparing",
+            "title": "Status",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "preparation",
+          "version",
+          "status"
+        ],
+        "title": "Preparing",
         "type": "object"
       },
       "Primitive": {
@@ -6384,6 +6555,24 @@
         "title": "ShownOutput",
         "type": "object"
       },
+      "SignParts": {
+        "properties": {
+          "numbers": {
+            "items": {
+              "type": "integer"
+            },
+            "maxItems": 1000,
+            "minItems": 1,
+            "title": "Numbers",
+            "type": "array"
+          }
+        },
+        "required": [
+          "numbers"
+        ],
+        "title": "SignParts",
+        "type": "object"
+      },
       "Slot": {
         "description": "A slot for one file: where to send it, and when the slot stops being\ngood. `ready` is true for a file the forge already holds, which is sent\nagain by sending nothing.",
         "properties": {
@@ -7234,6 +7423,72 @@
           "closes"
         ],
         "title": "Timeline",
+        "type": "object"
+      },
+      "Transfer": {
+        "properties": {
+          "deadline_at": {
+            "format": "date-time",
+            "title": "Deadline At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "part_size": {
+            "title": "Part Size",
+            "type": "integer"
+          },
+          "parts": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/Part"
+            },
+            "title": "Parts",
+            "type": "array"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "sha256": {
+            "title": "Sha256",
+            "type": "string"
+          },
+          "size": {
+            "title": "Size",
+            "type": "integer"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "path",
+          "sha256",
+          "size",
+          "part_size",
+          "status",
+          "reason",
+          "deadline_at",
+          "parts"
+        ],
+        "title": "Transfer",
         "type": "object"
       },
       "TreeEntry": {
@@ -13418,6 +13673,9 @@
                     },
                     {
                       "$ref": "#/components/schemas/Draft"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Preparing"
                     }
                   ],
                   "title": "Response Writetaskfile"
@@ -13505,6 +13763,9 @@
                     },
                     {
                       "$ref": "#/components/schemas/Draft"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Preparing"
                     }
                   ],
                   "title": "Response Rollbacktaskfile"
@@ -14393,6 +14654,446 @@
         ]
       }
     },
+    "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/organise/part-uploads": {
+      "get": {
+        "operationId": "listTaskPartUploads",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "task",
+            "required": true,
+            "schema": {
+              "title": "Task",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Transfer"
+                  },
+                  "title": "Response Listtaskpartuploads",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "List Task Part Uploads",
+        "tags": [
+          "submissions",
+          "files"
+        ]
+      },
+      "post": {
+        "operationId": "startTaskPartUpload",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "task",
+            "required": true,
+            "schema": {
+              "title": "Task",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PartUploadRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Transfer"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Start Task Part Upload",
+        "tags": [
+          "submissions",
+          "files"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/organise/part-uploads/{upload}": {
+      "delete": {
+        "operationId": "abortTaskPartUpload",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "upload",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Upload",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "task",
+            "required": true,
+            "schema": {
+              "title": "Task",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Transfer"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Abort Task Part Upload",
+        "tags": [
+          "submissions",
+          "files"
+        ]
+      },
+      "get": {
+        "operationId": "readTaskPartUpload",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "upload",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Upload",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "task",
+            "required": true,
+            "schema": {
+              "title": "Task",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Transfer"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Read Task Part Upload",
+        "tags": [
+          "submissions",
+          "files"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/organise/part-uploads/{upload}/finish": {
+      "post": {
+        "operationId": "finishTaskPartUpload",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "upload",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Upload",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "task",
+            "required": true,
+            "schema": {
+              "title": "Task",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FinishParts"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Transfer"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Finish Task Part Upload",
+        "tags": [
+          "submissions",
+          "files"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/organise/part-uploads/{upload}/sign": {
+      "post": {
+        "operationId": "signTaskUploadParts",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "upload",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Upload",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "task",
+            "required": true,
+            "schema": {
+              "title": "Task",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignParts"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Signtaskuploadparts",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Sign Task Upload Parts",
+        "tags": [
+          "submissions",
+          "files"
+        ]
+      }
+    },
     "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/organise/queue": {
       "get": {
         "description": "Each row the task has closed for, its extension included, by name,\nwith the submissions to the task a cell of any leaderboard counted,\neach with the cells that counted it and the mark of each `entered`\nvalue, null while missing; a caller with a role at the task alone is\nlisted only the cells that read this task alone. A row with nothing\ncounted is left out. A task never published is `not_found`.",
@@ -15031,6 +15732,66 @@
         "summary": "The open announcements of a released task",
         "tags": [
           "announcements"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/preparation": {
+      "get": {
+        "operationId": "readTaskPreparation",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "task",
+            "required": true,
+            "schema": {
+              "title": "Task",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Preparation"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "The task's latest package preparation",
+        "tags": [
+          "tasks"
         ]
       }
     },
@@ -15926,6 +16687,9 @@
                     },
                     {
                       "$ref": "#/components/schemas/Draft"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Preparing"
                     }
                   ],
                   "title": "Response Savetask"
@@ -17904,6 +18668,410 @@
           }
         },
         "summary": "One saved file of the draft",
+        "tags": [
+          "workflows"
+        ]
+      }
+    },
+    "/api/v1/workflows/{owner}/{name}/part-uploads": {
+      "get": {
+        "operationId": "listWorkflowPartUploads",
+        "parameters": [
+          {
+            "description": "An org's name or a person's username",
+            "in": "path",
+            "name": "owner",
+            "required": true,
+            "schema": {
+              "description": "An org's name or a person's username",
+              "title": "Owner",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The workflow's name under its owner",
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "description": "The workflow's name under its owner",
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Transfer"
+                  },
+                  "title": "Response Listworkflowpartuploads",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "List Workflow Part Uploads",
+        "tags": [
+          "workflows"
+        ]
+      },
+      "post": {
+        "operationId": "startWorkflowPartUpload",
+        "parameters": [
+          {
+            "description": "An org's name or a person's username",
+            "in": "path",
+            "name": "owner",
+            "required": true,
+            "schema": {
+              "description": "An org's name or a person's username",
+              "title": "Owner",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The workflow's name under its owner",
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "description": "The workflow's name under its owner",
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PartUploadRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Transfer"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Start Workflow Part Upload",
+        "tags": [
+          "workflows"
+        ]
+      }
+    },
+    "/api/v1/workflows/{owner}/{name}/part-uploads/{upload}": {
+      "delete": {
+        "operationId": "abortWorkflowPartUpload",
+        "parameters": [
+          {
+            "description": "An org's name or a person's username",
+            "in": "path",
+            "name": "owner",
+            "required": true,
+            "schema": {
+              "description": "An org's name or a person's username",
+              "title": "Owner",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The workflow's name under its owner",
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "description": "The workflow's name under its owner",
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "upload",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Upload",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Transfer"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Abort Workflow Part Upload",
+        "tags": [
+          "workflows"
+        ]
+      },
+      "get": {
+        "operationId": "readWorkflowPartUpload",
+        "parameters": [
+          {
+            "description": "An org's name or a person's username",
+            "in": "path",
+            "name": "owner",
+            "required": true,
+            "schema": {
+              "description": "An org's name or a person's username",
+              "title": "Owner",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The workflow's name under its owner",
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "description": "The workflow's name under its owner",
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "upload",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Upload",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Transfer"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Read Workflow Part Upload",
+        "tags": [
+          "workflows"
+        ]
+      }
+    },
+    "/api/v1/workflows/{owner}/{name}/part-uploads/{upload}/finish": {
+      "post": {
+        "operationId": "finishWorkflowPartUpload",
+        "parameters": [
+          {
+            "description": "An org's name or a person's username",
+            "in": "path",
+            "name": "owner",
+            "required": true,
+            "schema": {
+              "description": "An org's name or a person's username",
+              "title": "Owner",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The workflow's name under its owner",
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "description": "The workflow's name under its owner",
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "upload",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Upload",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FinishParts"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Transfer"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Finish Workflow Part Upload",
+        "tags": [
+          "workflows"
+        ]
+      }
+    },
+    "/api/v1/workflows/{owner}/{name}/part-uploads/{upload}/sign": {
+      "post": {
+        "operationId": "signWorkflowUploadParts",
+        "parameters": [
+          {
+            "description": "An org's name or a person's username",
+            "in": "path",
+            "name": "owner",
+            "required": true,
+            "schema": {
+              "description": "An org's name or a person's username",
+              "title": "Owner",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The workflow's name under its owner",
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "description": "The workflow's name under its owner",
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "upload",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Upload",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignParts"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Signworkflowuploadparts",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Sign Workflow Upload Parts",
         "tags": [
           "workflows"
         ]

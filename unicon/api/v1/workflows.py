@@ -19,13 +19,20 @@ import uuid
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Path, Query, status
-from forge.api import uploads, workflows
+from forge.api import part_uploads, uploads, workflows
 from forge.api.files import TreeEntry
 from forge.api.types import ConflictToken, Edit, VersionId
 
 from unicon.api.deps import CurrentSession
 from unicon.schemas.files import FileContent, token_of
-from unicon.schemas.uploads import TaskFileUploadRequest, Upload, UploadSlot
+from unicon.schemas.uploads import (
+    FinishParts,
+    PartUploadRequest,
+    SignParts,
+    TaskFileUploadRequest,
+    Upload,
+    UploadSlot,
+)
 from unicon.schemas.workflows import (
     CheckDefinition,
     Checked,
@@ -351,3 +358,79 @@ async def list_primitives(session: CurrentSession) -> list[Primitive]:
     editor's palette. Every primitive is public; a session is all it needs.
     """
     return [Primitive.of(found) for found in await workflows.primitives(session)]
+
+
+@router.post(
+    WORKFLOW + "/part-uploads",
+    operation_id="startWorkflowPartUpload",
+    status_code=201,
+    response_model=part_uploads.Transfer,
+)
+async def start_workflow_part_upload(
+    session: CurrentSession, owner: Owner, name: Name, body: PartUploadRequest
+) -> part_uploads.Transfer:
+    return await workflows.start_part_file(
+        session, owner, name, path=body.path, digest=body.sha256, size=body.size
+    )
+
+
+@router.get(
+    WORKFLOW + "/part-uploads",
+    operation_id="listWorkflowPartUploads",
+    response_model=list[part_uploads.Transfer],
+)
+async def list_workflow_part_uploads(
+    session: CurrentSession, owner: Owner, name: Name
+) -> tuple[part_uploads.Transfer, ...]:
+    return await part_uploads.opened(session, await workflows.transfer_place(session, owner, name))
+
+
+@router.get(
+    WORKFLOW + "/part-uploads/{upload}",
+    operation_id="readWorkflowPartUpload",
+    response_model=part_uploads.Transfer,
+)
+async def read_workflow_part_upload(
+    session: CurrentSession, owner: Owner, name: Name, upload: uuid.UUID
+) -> part_uploads.Transfer:
+    return await part_uploads.read(
+        session, upload, place=await workflows.transfer_place(session, owner, name)
+    )
+
+
+@router.post(WORKFLOW + "/part-uploads/{upload}/sign", operation_id="signWorkflowUploadParts")
+async def sign_workflow_upload_parts(
+    session: CurrentSession, owner: Owner, name: Name, upload: uuid.UUID, body: SignParts
+) -> dict[int, str]:
+    return await part_uploads.sign(
+        session, upload, body.numbers, place=await workflows.transfer_place(session, owner, name)
+    )
+
+
+@router.post(
+    WORKFLOW + "/part-uploads/{upload}/finish",
+    operation_id="finishWorkflowPartUpload",
+    response_model=part_uploads.Transfer,
+)
+async def finish_workflow_part_upload(
+    session: CurrentSession, owner: Owner, name: Name, upload: uuid.UUID, body: FinishParts
+) -> part_uploads.Transfer:
+    return await part_uploads.finish(
+        session,
+        upload,
+        [(part.number, part.etag) for part in body.parts],
+        place=await workflows.transfer_place(session, owner, name),
+    )
+
+
+@router.delete(
+    WORKFLOW + "/part-uploads/{upload}",
+    operation_id="abortWorkflowPartUpload",
+    response_model=part_uploads.Transfer,
+)
+async def abort_workflow_part_upload(
+    session: CurrentSession, owner: Owner, name: Name, upload: uuid.UUID
+) -> part_uploads.Transfer:
+    return await part_uploads.abort(
+        session, upload, place=await workflows.transfer_place(session, owner, name)
+    )

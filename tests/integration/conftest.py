@@ -4,7 +4,7 @@
 forge a second time.
 
 The organiser path starts from `acme`, the org made the operator's way with
-ada (7) its admin and the built-in workflow `unicon/classic@v4` public at the
+ada (7) its admin and the built-in workflow `unicon/classic@v5` public at the
 fake as bootstrap makes it, and `sum_task`, the contest acme/spring and the
 task acme/spring/sum in it made through the routes, with ada
 signed in. `world` adds carol (20), who holds nothing. `ORG`, `CONTEST` and

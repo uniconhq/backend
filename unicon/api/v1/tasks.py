@@ -18,7 +18,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, status
 from forge.api import contests, publications, release, results, tasks
 from forge.api.access import Organiser
-from forge.api.publications import Draft, Published
+from forge.api.publications import Draft, Preparing, Published
 from forge.api.types import Edit, Role, ScopeKind
 from forge.api.types import Named as NamedRecord
 
@@ -36,7 +36,7 @@ from unicon.schemas.contests import (
     TaskState,
 )
 from unicon.schemas.files import token_of
-from unicon.schemas.publications import Publication, SaveRequest, SaveResult
+from unicon.schemas.publications import Preparation, Publication, SaveRequest, SaveResult
 
 CREATED = status.HTTP_201_CREATED
 CONTEST = PREFIX[ScopeKind.CONTEST]
@@ -239,7 +239,7 @@ async def get_task_workflow_form(organiser: TaskObserver) -> publications.Workfl
     summary="Save the task's files, publishing them when they are valid",
     response_model=SaveResult,
 )
-async def save_task(organiser: TaskManager, body: SaveRequest) -> Published | Draft:
+async def save_task(organiser: TaskManager, body: SaveRequest) -> Published | Draft | Preparing:
     """A valid save publishes and one that is not is kept as a draft with its
     errors. Once the contest has started, until it is archived, every save
     that would publish something new is refused as `confirmation_required`
@@ -269,4 +269,16 @@ async def save_task(organiser: TaskManager, body: SaveRequest) -> Published | Dr
         asked=body.asked,
         keep_as_draft=body.keep_as_draft,
         message=body.message,
+    )
+
+
+@router.get(
+    f"{TASK}/preparation",
+    operation_id="readTaskPreparation",
+    summary="The task's latest package preparation",
+)
+async def read_preparation(organiser: TaskManager) -> Preparation:
+    return Preparation.model_validate(
+        await publications.preparation(organiser, tasks.task_id_of(organiser.scope)),
+        from_attributes=True,
     )

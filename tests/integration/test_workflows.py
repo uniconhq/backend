@@ -261,7 +261,7 @@ async def test_check_answers_every_problem_at_its_path_and_writes_nothing(
 ) -> None:
     await sign_in_as(client, acme, 8)
     classic = acme.state.repos[("unicon", "classic.workflow")].files["workflow.yaml"].decode()
-    unknown = classic.replace("unicon/exec@v2", "unicon/exec@v9")
+    unknown = classic.replace("unicon/exec@v3", "unicon/exec@v9")
 
     good = await client.post("/api/v1/workflows/check", json={"content": classic}, headers=ORIGIN)
     bad = await client.post("/api/v1/workflows/check", json={"content": unknown}, headers=ORIGIN)
@@ -329,12 +329,12 @@ async def test_a_copy_is_a_new_private_workflow(client: httpx.AsyncClient, acme:
 
     copied = await client.post(
         "/api/v1/workflow-copies",
-        json={"source": "unicon/classic@v4", "owner": "bob", "name": "mine"},
+        json={"source": "unicon/classic@v5", "owner": "bob", "name": "mine"},
         headers=ORIGIN,
     )
     gone = await client.post(
         "/api/v1/workflow-combinations",
-        json={"sources": ["unicon/classic@v4"], "owner": "bob", "name": "both"},
+        json={"sources": ["unicon/classic@v5"], "owner": "bob", "name": "both"},
         headers=ORIGIN,
     )
 
@@ -353,10 +353,10 @@ async def test_the_primitives_are_listed_with_their_ports(
 
     assert listed.status_code == 200
     by_ref = {item["ref"]: item for item in listed.json()}
-    assert sorted(by_ref) == ["unicon/exec@v2"]
+    assert sorted(by_ref) == ["unicon/exec@v3"]
     # A primitive given in forms has no ports of its own: each form has its
     # ports and limits.
-    run = by_ref["unicon/exec@v2"]
+    run = by_ref["unicon/exec@v3"]
     assert (run["batch"], run["title"], run["inputs"], run["outputs"]) == (
         True,
         "Run programs",
@@ -414,12 +414,12 @@ async def test_a_retired_primitive_left_at_the_forge_is_listed_with_why(
     listed = await client.get("/api/v1/primitives")
 
     by_ref = {item["ref"]: item for item in listed.json()}
-    assert sorted(by_ref) == ["unicon/compile@v3", "unicon/exec@v2"]
+    assert sorted(by_ref) == ["unicon/compile@v3", "unicon/exec@v3"]
     retired = by_ref["unicon/compile@v3"]
     assert (retired["inputs"], retired["forms"], retired["problem"]) == (
         {},
         {},
-        "unicon/compile and unicon/exec@v1 are retired; use unicon/exec@v2.",
+        "unicon/compile and unicon/exec@v1 and unicon/exec@v2 are retired; use unicon/exec@v3.",
     )
 
 
@@ -486,7 +486,7 @@ async def test_a_version_of_a_save_someone_has_saved_over_is_a_conflict(
         (
             "POST",
             "/api/v1/workflow-copies",
-            {"source": "unicon/classic@v4", "owner": "bob", "name": "c"},
+            {"source": "unicon/classic@v5", "owner": "bob", "name": "c"},
         ),
     ],
 )
@@ -565,7 +565,7 @@ async def test_a_box_answers_a_workflow_version_and_one_unread(
     assert again.status_code == 201, again.text
 
     face = await client.get("/api/v1/workflows/bob/held/versions/v1/box")
-    classic = await client.get("/api/v1/workflows/unicon/classic/versions/v4/box")
+    classic = await client.get("/api/v1/workflows/unicon/classic/versions/v5/box")
 
     assert face.status_code == 200, face.text
     assert face.json() == {

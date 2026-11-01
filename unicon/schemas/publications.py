@@ -200,5 +200,19 @@ class Draft(BaseModel):
     held_back: list[str]
 
 
-SaveResult = Published | Draft
+class Preparing(BaseModel):
+    preparation: uuid.UUID
+    version: str
+    status: Literal["preparing"] = "preparing"
+
+
+class Preparation(BaseModel):
+    id: uuid.UUID
+    status: Literal["preparing", "ready", "refused", "replaced"]
+    reason: str | None
+    deadline_at: datetime
+    result: Published | None
+
+
+SaveResult = Published | Draft | Preparing
 """A save's answer: published, or kept as a draft."""
