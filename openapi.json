@@ -7344,6 +7344,13 @@
           "statement_written": {
             "title": "Statement Written",
             "type": "boolean"
+          },
+          "toolchains": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/Toolchain"
+            },
+            "title": "Toolchains",
+            "type": "object"
           }
         },
         "required": [
@@ -7353,7 +7360,8 @@
           "errors",
           "statement_written",
           "head_statement_written",
-          "results"
+          "results",
+          "toolchains"
         ],
         "title": "TaskState",
         "type": "object"
@@ -7425,6 +7433,31 @@
         "title": "Timeline",
         "type": "object"
       },
+      "Toolchain": {
+        "properties": {
+          "picked": {
+            "title": "Picked",
+            "type": "string"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          }
+        },
+        "required": [
+          "picked",
+          "version"
+        ],
+        "title": "Toolchain",
+        "type": "object"
+      },
       "Transfer": {
         "properties": {
           "deadline_at": {
@@ -7473,6 +7506,13 @@
             "type": "integer"
           },
           "status": {
+            "enum": [
+              "open",
+              "finishing",
+              "stored",
+              "refused",
+              "aborted"
+            ],
             "title": "Status",
             "type": "string"
           }

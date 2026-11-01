@@ -19,7 +19,7 @@ async def test_the_saved_environment_prepares_and_publishes_through_the_task_rou
                     "path": "task.yaml",
                     "token": before["token"],
                     "content": before["content"]
-                    + "\nenvironment:\n  python:\n    packages: [numpy]\n",
+                    + '\nenvironment:\n  cpp: {version: "14"}\n  python:\n    packages: [numpy]\n',
                 }
             ],
             "confirm": True,
@@ -35,3 +35,9 @@ async def test_the_saved_environment_prepares_and_publishes_through_the_task_rou
     assert ready.json()["result"]["number"] == 1
     lock = await read(client, f"{TASK}/files/environment.lock")
     assert '"linux-aarch64"' in lock["content"] and '"linux-64"' in lock["content"]
+
+    state = (await client.get(TASK)).json()
+    assert state["toolchains"] == {
+        "cpp": {"picked": "gxx 14", "version": "14"},
+        "python": {"picked": "python 3.14", "version": None},
+    }

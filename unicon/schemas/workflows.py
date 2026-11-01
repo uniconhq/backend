@@ -394,7 +394,7 @@ class PrimitiveForm(BaseModel):
     outputs: dict[str, PrimitivePort] = Field(default_factory=dict)
 
     @classmethod
-    def of(cls, form: Any) -> Self:
+    def of(cls, form: Any, automatic: frozenset[str] = frozenset()) -> Self:
         return cls(
             description=form.description,
             outputs_from=form.outputs_from,
@@ -402,7 +402,11 @@ class PrimitiveForm(BaseModel):
             limits_from={
                 limit: LimitSource.of(source) for limit, source in form.limits_from.items()
             },
-            inputs={name: PrimitivePort.of(port) for name, port in form.inputs.items()},
+            inputs={
+                name: PrimitivePort.of(port)
+                for name, port in form.inputs.items()
+                if name not in automatic
+            },
             outputs={name: PrimitivePort.of(port) for name, port in form.outputs.items()},
         )
 
@@ -446,7 +450,11 @@ class Primitive(BaseModel):
             limits_from = {
                 limit: LimitSource.of(source) for limit, source in declared.limits_from.items()
             }
-            inputs = {name: PrimitivePort.of(port) for name, port in declared.inputs.items()}
+            inputs = {
+                name: PrimitivePort.of(port)
+                for name, port in declared.inputs.items()
+                if name not in found.automatic_inputs
+            }
             outputs = {name: PrimitivePort.of(port) for name, port in declared.outputs.items()}
         return cls(
             ref=found.ref,
@@ -460,5 +468,8 @@ class Primitive(BaseModel):
             limits_from=limits_from,
             inputs=inputs,
             outputs=outputs,
-            forms={name: PrimitiveForm.of(form) for name, form in declared.forms.items()},
+            forms={
+                name: PrimitiveForm.of(form, found.automatic_inputs)
+                for name, form in declared.forms.items()
+            },
         )

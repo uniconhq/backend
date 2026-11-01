@@ -253,7 +253,9 @@ async def _faulted(client: httpx.AsyncClient) -> None:
     first, report = steps[0]["settings"], steps[-1]["settings"]
     door = urlsplit(first["data_url"]).path
     headers = {"Authorization": f"Bearer {first['data_token']}"}
-    assert (await client.get(door, headers=headers)).status_code == 200
+    assert (
+        await client.get(door, headers=headers, params={"platform": "linux-64"})
+    ).status_code == 200
     written = b"not json"
     listed = {"path": "outputs.json", "sha256": hashlib.sha256(written).hexdigest(), "size": 8}
     links = await client.post(

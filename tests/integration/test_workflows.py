@@ -364,6 +364,7 @@ async def test_the_primitives_are_listed_with_their_ports(
         {},
     )
     assert sorted(run["forms"]) == ["build", "one", "programs"]
+    assert all("environment" not in form["inputs"] for form in run["forms"].values())
     build = run["forms"]["build"]
     assert build["inputs"]["source"] == {
         "type": "folder",
