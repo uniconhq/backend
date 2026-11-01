@@ -319,6 +319,21 @@ async def retry_grading(organiser: TaskManager, grading: uuid.UUID) -> gradings.
 
 
 @router.post(
+    "/gradings/{grading}/from-scratch",
+    operation_id="regradeFromScratch",
+    summary="Measure a submission again without reusing its stored outputs",
+    response_model=Grading,
+)
+async def regrade_from_scratch(
+    organiser: TaskManager, grading: uuid.UUID
+) -> gradings.GradingRecord:
+    """A new early attempt on the same publication; its measurements replace
+    this submission's stored times. The normal retry guards still apply.
+    """
+    return await gradings.regrade_from_scratch(organiser, await _of_this_task(organiser, grading))
+
+
+@router.post(
     "/rejudge",
     operation_id="rejudgeTask",
     summary="Grade every submission of the task again against its current publication",

@@ -1736,6 +1736,11 @@
       "ExtensionRequest": {
         "description": "How long, in seconds, the extension moves the due and the close of\neach of the contest's `tasks`, by name, or of every task when it names\nnone, in place of any extension there was.",
         "properties": {
+          "confirm": {
+            "default": false,
+            "title": "Confirm",
+            "type": "boolean"
+          },
           "seconds": {
             "maximum": 1000000000.0,
             "minimum": -1000000000.0,
@@ -4523,6 +4528,21 @@
           "detail": {
             "title": "Detail",
             "type": "string"
+          },
+          "hiding": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Hiding"
           },
           "status": {
             "title": "Status",
@@ -11816,7 +11836,7 @@
     },
     "/api/v1/orgs/{org}/contests/{contest}/organise/entrants/{entrant_id}/extension": {
       "put": {
-        "description": "It moves the entrant's due and close on the named tasks, or on every\ntask when none are named, in place of any extension it had; zero takes\nit away. One that names a task the contest does not list, would let it\nsubmit to a task whose reveal has passed, or would leave one of its\nsubmissions after the due or the close it was made before is\n`invalid_extension`.",
+        "description": "It moves the entrant's due and close on the named tasks, or on every\ntask when none are named, in place of any extension it had; zero takes\nit away. An extension allowing submissions after hidden results were\nshown asks with `confirmation_required` and `hiding`; `confirm` saves it.\nUnknown tasks, or shortening an extension past an existing submission\nor its due time, remain `invalid_extension`.",
         "operationId": "extendEntrant",
         "parameters": [
           {
@@ -13663,6 +13683,77 @@
           }
         },
         "summary": "End a submission whose grading is a system error, saying why",
+        "tags": [
+          "gradings"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/gradings/{grading}/from-scratch": {
+      "post": {
+        "description": "A new early attempt on the same publication; its measurements replace\nthis submission's stored times. The normal retry guards still apply.",
+        "operationId": "regradeFromScratch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "grading",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Grading",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "task",
+            "required": true,
+            "schema": {
+              "title": "Task",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Grading"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Measure a submission again without reusing its stored outputs",
         "tags": [
           "gradings"
         ]

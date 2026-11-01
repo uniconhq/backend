@@ -20,6 +20,7 @@ class Problem(BaseModel):
     status: int
     detail: str
     code: str
+    hiding: tuple[str, ...] | None = None
 
     @classmethod
     def of(cls, *, code: str, status: int, title: str, detail: str, **extra: Any) -> Problem:
