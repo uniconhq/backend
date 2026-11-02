@@ -25,6 +25,7 @@ from tests.integration.conftest import (
     ORIGIN,
     SUM,
     TASK,
+    prepared,
     publish,
     read,
     run_contest,
@@ -53,9 +54,10 @@ def _change(path: str, content: str, token: str | None) -> dict[str, Any]:
 async def _save(
     client: httpx.AsyncClient, *changes: dict[str, Any], **options: bool | str
 ) -> httpx.Response:
-    return await client.post(
+    response = await client.post(
         f"{TASK}/save", json={"changes": list(changes), **options}, headers=ORIGIN
     )
+    return await prepared(client, response)
 
 
 async def _edit(client: httpx.AsyncClient, path: str, old: str, new: str) -> dict[str, Any]:
@@ -86,6 +88,8 @@ async def test_the_organiser_path_from_an_org_to_a_publication(
     )
 
     assert written.status_code == 200, written.text
+    assert written.json()["status"] == "preparing"
+    written = await prepared(client, written)
     first = written.json()
     assert (first["number"], first["grading_changed"]) == (1, False)
     assert first["effect"]["scores"] == ["No score changes."]

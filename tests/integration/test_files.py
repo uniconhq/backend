@@ -14,7 +14,7 @@ import httpx
 from forge.api.types import Role
 from forge.testing import FakeForge
 
-from tests.integration.conftest import CONTEST, ORIGIN, SPRING, TASK, read, sign_in_as
+from tests.integration.conftest import CONTEST, ORIGIN, SPRING, TASK, prepared, read, sign_in_as
 
 BINARY = b"\x89PNG\r\n\x1a\n\x00\xff\xfe"
 
@@ -22,9 +22,10 @@ BINARY = b"\x89PNG\r\n\x1a\n\x00\xff\xfe"
 async def _put(
     client: httpx.AsyncClient, path: str, content: str, token: str | None, **fields: object
 ) -> httpx.Response:
-    return await client.put(
+    response = await client.put(
         path, json={"content": content, "token": token, **fields}, headers=ORIGIN
     )
+    return await prepared(client, response)
 
 
 async def test_a_tasks_top_folder_lists_its_starter_files(

@@ -19,13 +19,21 @@ import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, status
-from forge.api import tasks, uploads
+from forge.api import part_uploads, tasks, uploads
 from forge.api.access import Organiser
 from forge.api.types import Role, ScopeKind
 
 from unicon.api.deps import CurrentSession
 from unicon.api.guard import PREFIX, TaskAtPath, require
-from unicon.schemas.uploads import TaskFileUploadRequest, Upload, UploadRequest, UploadSlot
+from unicon.schemas.uploads import (
+    FinishParts,
+    PartUploadRequest,
+    SignParts,
+    TaskFileUploadRequest,
+    Upload,
+    UploadRequest,
+    UploadSlot,
+)
 
 CREATED = status.HTTP_201_CREATED
 TASK = PREFIX[ScopeKind.TASK]
@@ -105,3 +113,90 @@ async def complete_upload(
     contestant's upload and an organiser's are completed alike.
     """
     return await uploads.complete(session, tasks.task_id_of(scope), upload)
+
+
+@router.post(
+    "/organise/part-uploads",
+    operation_id="startTaskPartUpload",
+    tags=["files"],
+    status_code=201,
+    response_model=part_uploads.Transfer,
+)
+async def start_task_part_upload(
+    organiser: TaskManager, body: PartUploadRequest
+) -> part_uploads.Transfer:
+    return await part_uploads.start_task(
+        organiser,
+        tasks.task_id_of(organiser.scope),
+        path=body.path,
+        digest=body.sha256,
+        size=body.size,
+    )
+
+
+@router.get(
+    "/organise/part-uploads",
+    operation_id="listTaskPartUploads",
+    tags=["files"],
+    response_model=list[part_uploads.Transfer],
+)
+async def list_task_part_uploads(
+    session: CurrentSession, scope: TaskAtPath
+) -> tuple[part_uploads.Transfer, ...]:
+    return await part_uploads.opened(session, part_uploads.TaskPlace(tasks.task_id_of(scope)))
+
+
+@router.get(
+    "/organise/part-uploads/{upload}",
+    operation_id="readTaskPartUpload",
+    tags=["files"],
+    response_model=part_uploads.Transfer,
+)
+async def read_task_part_upload(
+    session: CurrentSession, scope: TaskAtPath, upload: uuid.UUID
+) -> part_uploads.Transfer:
+    return await part_uploads.read(
+        session, upload, place=part_uploads.TaskPlace(tasks.task_id_of(scope))
+    )
+
+
+@router.post(
+    "/organise/part-uploads/{upload}/sign", operation_id="signTaskUploadParts", tags=["files"]
+)
+async def sign_task_upload_parts(
+    session: CurrentSession, scope: TaskAtPath, upload: uuid.UUID, body: SignParts
+) -> dict[int, str]:
+    return await part_uploads.sign(
+        session, upload, body.numbers, place=part_uploads.TaskPlace(tasks.task_id_of(scope))
+    )
+
+
+@router.post(
+    "/organise/part-uploads/{upload}/finish",
+    operation_id="finishTaskPartUpload",
+    tags=["files"],
+    response_model=part_uploads.Transfer,
+)
+async def finish_task_part_upload(
+    session: CurrentSession, scope: TaskAtPath, upload: uuid.UUID, body: FinishParts
+) -> part_uploads.Transfer:
+    return await part_uploads.finish(
+        session,
+        upload,
+        [(part.number, part.etag) for part in body.parts],
+        place=part_uploads.TaskPlace(tasks.task_id_of(scope)),
+    )
+
+
+@router.delete(
+    "/organise/part-uploads/{upload}",
+    operation_id="abortTaskPartUpload",
+    tags=["files"],
+    response_model=part_uploads.Transfer,
+)
+async def abort_task_part_upload(
+    session: CurrentSession, scope: TaskAtPath, upload: uuid.UUID
+) -> part_uploads.Transfer:
+    return await part_uploads.abort(
+        session, upload, place=part_uploads.TaskPlace(tasks.task_id_of(scope))
+    )

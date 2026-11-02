@@ -4,7 +4,7 @@
 forge a second time.
 
 The organiser path starts from `acme`, the org made the operator's way with
-ada (7) its admin and the built-in workflow `unicon/classic@v4` public at the
+ada (7) its admin and the built-in workflow `unicon/classic@v5` public at the
 fake as bootstrap makes it, and `sum_task`, the contest acme/spring and the
 task acme/spring/sum in it made through the routes, with ada
 signed in. `world` adds carol (20), who holds nothing. `ORG`, `CONTEST` and
@@ -62,7 +62,7 @@ SOLUTION_LOG = "built the solution"
 CHECKER_LOG = "built the checker"
 """The log of a source that compiles given a manifest or built at the save:
 the classic workflow's compare."""
-BUILT = frozenset({"source", "language", "entry"})
+BUILT = frozenset({"source", "language", "entry", "environment"})
 """The inputs of exec's `build` form: an item given only these compiles
 its source and runs nothing."""
 
@@ -93,6 +93,7 @@ class Machines:
     """
 
     forge: FakeForge
+    setup: Setup
     started: list[tuple[str, list[dict[str, Any]]]] = field(default_factory=list)
 
 
@@ -102,19 +103,25 @@ MACHINES: WeakKeyDictionary[httpx.AsyncClient, Machines] = WeakKeyDictionary()
 
 @pytest.fixture
 async def client(
-    app: FastAPI, fake: FakeForge, clock: FakeClock, monkeypatch: pytest.MonkeyPatch
+    app: FastAPI,
+    fake: FakeForge,
+    clock: FakeClock,
+    monkeypatch: pytest.MonkeyPatch,
+    held_setup: Setup,
 ) -> AsyncIterator[httpx.AsyncClient]:
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url=APP_URL) as client:
-        MACHINES[client] = _machines(fake, clock, monkeypatch)
+        MACHINES[client] = _machines(fake, clock, monkeypatch, held_setup)
         yield client
 
 
-def _machines(fake: FakeForge, clock: FakeClock, monkeypatch: pytest.MonkeyPatch) -> Machines:
+def _machines(
+    fake: FakeForge, clock: FakeClock, monkeypatch: pytest.MonkeyPatch, setup: Setup
+) -> Machines:
     """The fake CI asking what each pipeline is as it starts it, and the
     steps it is answered with kept.
     """
-    machines = Machines(fake)
+    machines = Machines(fake, setup)
     start = fake.grading.start_pipeline
 
     async def asking(as_: Any, run: Any) -> Any:
@@ -168,7 +175,7 @@ async def _run_step(
         reported = await client.post(door, content=b"{}", headers=headers)
         assert reported.status_code == 200, reported.text
         return False
-    asked = await client.get(door, headers=headers)
+    asked = await client.get(door, headers=headers, params={"platform": "linux-64"})
     assert asked.status_code in (200, 204), asked.text
     if asked.status_code == 204:
         return False
@@ -379,6 +386,7 @@ async def publish(client: httpx.AsyncClient, task: str = TASK) -> None:
         },
         headers=ORIGIN,
     )
+    saved = await prepared(client, saved, task)
     assert "number" in saved.json(), saved.text
     await run_pipelines(client, pipelines=("save",))
 
@@ -407,6 +415,7 @@ async def edit_task(client: httpx.AsyncClient, old: str, new: str) -> None:
         headers=ORIGIN,
     )
     assert saved.status_code == 200, saved.text
+    saved = await prepared(client, saved)
     assert "number" in saved.json(), saved.text
     await run_pipelines(client, pipelines=("save",))
 
@@ -488,3 +497,18 @@ async def upload(
     assert completed.status_code == 200, completed.text
     upload: dict[str, Any] = completed.json()
     return upload
+
+
+async def prepared(
+    client: httpx.AsyncClient, response: httpx.Response, task: str = TASK
+) -> httpx.Response:
+    """Wait for a fixture's preparation and return its exact publication answer."""
+    if not response.is_success or response.json().get("status") != "preparing":
+        return response
+    await MACHINES[client].setup.settle()
+    state = await client.get(f"{task}/preparation")
+    assert state.status_code == 200, state.text
+    assert state.json()["status"] == "ready", state.text
+    return httpx.Response(
+        response.status_code, json=state.json()["result"], request=response.request
+    )
