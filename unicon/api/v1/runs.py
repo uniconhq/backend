@@ -92,7 +92,13 @@ async def get_step_job(request: Request, grading: uuid.UUID, step: str) -> Respo
     `grading_closed`. The job carries presigned links, so it is never
     stored on the way.
     """
-    job = await runs.step_job(grading, step, request.headers.get("authorization"))
+    platform = request.query_params.get("platform")
+    job = await runs.step_job(
+        grading,
+        step,
+        request.headers.get("authorization"),
+        **({"platform": platform} if platform is not None else {}),
+    )
     if job is None:
         return Response(status_code=204, headers=NO_STORE)
     return Response(content=job, media_type="application/json", headers=NO_STORE)

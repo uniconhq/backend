@@ -17,7 +17,15 @@ import httpx
 import pytest
 from forge.testing import FakeForge
 
-from tests.integration.conftest import ORIGIN, TASK, read, run_contest, run_pipelines, sign_in_as
+from tests.integration.conftest import (
+    ORIGIN,
+    TASK,
+    prepared,
+    read,
+    run_contest,
+    run_pipelines,
+    sign_in_as,
+)
 from unicon.api.cookies import SESSION_COOKIE
 
 PNG = b"\x89PNG\r\n\x1a\n not really a picture"
@@ -60,6 +68,7 @@ async def _publish_public(client: httpx.AsyncClient, *, shown: bool = True) -> N
         },
         headers=ORIGIN,
     )
+    saved = await prepared(client, saved)
     assert saved.status_code == 200 and "number" in saved.json(), saved.text
     await run_pipelines(client, pipelines=("save",))
 

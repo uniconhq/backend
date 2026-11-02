@@ -123,7 +123,7 @@ UNMAPPED_DETAIL = (
     "happening."
 )
 INVALID_REQUEST_DETAIL = "Some of what was sent could not be read. Reload the page and try again."
-DOCUMENT_FIELDS = frozenset(Problem.model_fields)
+DOCUMENT_FIELDS = frozenset(Problem.model_fields) - {"hiding"}
 
 
 def register_error_handlers(app: FastAPI) -> None:
@@ -140,7 +140,9 @@ def status_of(error: UniconError) -> int:
 def problem_response(problem: Problem) -> JSONResponse:
     return JSONResponse(
         status_code=problem.status,
-        content=problem.model_dump(mode="json"),
+        content=problem.model_dump(
+            mode="json", exclude={"hiding"} if problem.hiding is None else set()
+        ),
         media_type=PROBLEM_CONTENT_TYPE,
     )
 

@@ -16,16 +16,23 @@ a box may carry `step`, the flat step it belongs to.
 """
 
 import uuid
-from typing import Annotated
+from typing import Annotated, Literal
 
-from fastapi import APIRouter, Path, status
-from forge.api import uploads, workflows
+from fastapi import APIRouter, Path, Query, status
+from forge.api import part_uploads, uploads, workflows
 from forge.api.files import TreeEntry
 from forge.api.types import ConflictToken, Edit, VersionId
 
 from unicon.api.deps import CurrentSession
 from unicon.schemas.files import FileContent, token_of
-from unicon.schemas.uploads import TaskFileUploadRequest, Upload, UploadSlot
+from unicon.schemas.uploads import (
+    FinishParts,
+    PartUploadRequest,
+    SignParts,
+    TaskFileUploadRequest,
+    Upload,
+    UploadSlot,
+)
 from unicon.schemas.workflows import (
     CheckDefinition,
     Checked,
@@ -44,6 +51,8 @@ from unicon.schemas.workflows import (
     WorkflowBox,
     WorkflowItem,
     WorkflowPage,
+    WorkflowSearch,
+    YankVersion,
 )
 
 CREATED = status.HTTP_201_CREATED
@@ -88,8 +97,50 @@ async def check_workflow(session: CurrentSession, body: CheckDefinition) -> Chec
     reads them. Nothing is written. Given `owner` and `name`, a draft that
     would hold that workflow is refused, and the problem carries `step`.
     """
-    found = await workflows.check(session, body.content, owner=body.owner, name=body.name)
+    found = await workflows.check(
+        session, body.content, owner=body.owner, name=body.name, paths=body.paths
+    )
     return Checked(problems=[DefinitionProblem(**problem) for problem in found])
+
+
+@router.get("/workflow-search", operation_id="searchWorkflows", summary="Search visible workflows")
+async def search_workflows(
+    session: CurrentSession,
+    q: Annotated[str, Query(max_length=256)] = "",
+    scope: Literal["mine", "orgs", "public"] | None = None,
+    page: Annotated[int, Query(ge=1)] = 1,
+    org: str | None = None,
+) -> WorkflowSearch:
+    found = await workflows.search(session, q, scope, page, org)
+    return WorkflowSearch(items=[WorkflowItem.of(item) for item in found.items], next=found.next)
+
+
+@router.post(
+    f"{WORKFLOW}/versions/{{version}}/yank",
+    operation_id="yankWorkflowVersion",
+    summary="Stop new use of a workflow version",
+    status_code=NO_CONTENT,
+)
+async def yank_workflow_version(
+    session: CurrentSession,
+    owner: Owner,
+    name: Name,
+    version: str,
+    body: YankVersion,
+) -> None:
+    await workflows.yank(session, owner, name, version, body.reason)
+
+
+@router.delete(
+    f"{WORKFLOW}/versions/{{version}}/yank",
+    operation_id="unyankWorkflowVersion",
+    summary="Allow new use of a workflow version",
+    status_code=NO_CONTENT,
+)
+async def unyank_workflow_version(
+    session: CurrentSession, owner: Owner, name: Name, version: str
+) -> None:
+    await workflows.unyank(session, owner, name, version)
 
 
 @router.post(
@@ -307,3 +358,79 @@ async def list_primitives(session: CurrentSession) -> list[Primitive]:
     editor's palette. Every primitive is public; a session is all it needs.
     """
     return [Primitive.of(found) for found in await workflows.primitives(session)]
+
+
+@router.post(
+    WORKFLOW + "/part-uploads",
+    operation_id="startWorkflowPartUpload",
+    status_code=201,
+    response_model=part_uploads.Transfer,
+)
+async def start_workflow_part_upload(
+    session: CurrentSession, owner: Owner, name: Name, body: PartUploadRequest
+) -> part_uploads.Transfer:
+    return await workflows.start_part_file(
+        session, owner, name, path=body.path, digest=body.sha256, size=body.size
+    )
+
+
+@router.get(
+    WORKFLOW + "/part-uploads",
+    operation_id="listWorkflowPartUploads",
+    response_model=list[part_uploads.Transfer],
+)
+async def list_workflow_part_uploads(
+    session: CurrentSession, owner: Owner, name: Name
+) -> tuple[part_uploads.Transfer, ...]:
+    return await part_uploads.opened(session, await workflows.transfer_place(session, owner, name))
+
+
+@router.get(
+    WORKFLOW + "/part-uploads/{upload}",
+    operation_id="readWorkflowPartUpload",
+    response_model=part_uploads.Transfer,
+)
+async def read_workflow_part_upload(
+    session: CurrentSession, owner: Owner, name: Name, upload: uuid.UUID
+) -> part_uploads.Transfer:
+    return await part_uploads.read(
+        session, upload, place=await workflows.transfer_place(session, owner, name)
+    )
+
+
+@router.post(WORKFLOW + "/part-uploads/{upload}/sign", operation_id="signWorkflowUploadParts")
+async def sign_workflow_upload_parts(
+    session: CurrentSession, owner: Owner, name: Name, upload: uuid.UUID, body: SignParts
+) -> dict[int, str]:
+    return await part_uploads.sign(
+        session, upload, body.numbers, place=await workflows.transfer_place(session, owner, name)
+    )
+
+
+@router.post(
+    WORKFLOW + "/part-uploads/{upload}/finish",
+    operation_id="finishWorkflowPartUpload",
+    response_model=part_uploads.Transfer,
+)
+async def finish_workflow_part_upload(
+    session: CurrentSession, owner: Owner, name: Name, upload: uuid.UUID, body: FinishParts
+) -> part_uploads.Transfer:
+    return await part_uploads.finish(
+        session,
+        upload,
+        [(part.number, part.etag) for part in body.parts],
+        place=await workflows.transfer_place(session, owner, name),
+    )
+
+
+@router.delete(
+    WORKFLOW + "/part-uploads/{upload}",
+    operation_id="abortWorkflowPartUpload",
+    response_model=part_uploads.Transfer,
+)
+async def abort_workflow_part_upload(
+    session: CurrentSession, owner: Owner, name: Name, upload: uuid.UUID
+) -> part_uploads.Transfer:
+    return await part_uploads.abort(
+        session, upload, place=await workflows.transfer_place(session, owner, name)
+    )

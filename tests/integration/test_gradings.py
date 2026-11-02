@@ -179,6 +179,17 @@ async def test_a_retry_of_a_graded_submission_reuses_what_its_steps_did(
     ]
 
 
+async def test_from_scratch_starts_a_new_measurement_instead_of_reusing_the_finished_one(
+    client: httpx.AsyncClient, entered: FakeForge
+) -> None:
+    first = await _graded(client, entered)
+    await sign_in_as(client, entered, 7)
+    retried = await client.post(f"{TASK}/gradings/{first}/from-scratch", headers=ORIGIN)
+    assert retried.status_code == 200, retried.text
+    assert retried.json()["attempt"] == 2
+    assert retried.json()["status"] == "queued"
+
+
 async def test_a_failed_later_attempt_leaves_the_submission_at_its_last_result_and_says_which(
     client: httpx.AsyncClient, entered: FakeForge, clock: FakeClock, held_setup: Setup
 ) -> None:
@@ -369,7 +380,7 @@ async def test_a_contestant_is_refused_every_control(
     [Scope("acme", "spring", "product"), Scope("acme", "spring")],
     ids=["managing the other task alone", "managing both tasks"],
 )
-@pytest.mark.parametrize("control", ["cancel", "retry"])
+@pytest.mark.parametrize("control", ["cancel", "retry", "from-scratch"])
 async def test_a_grading_named_under_another_task_is_no_such_grading(
     client: httpx.AsyncClient, entered: FakeForge, held_setup: Setup, scope: Scope, control: str
 ) -> None:

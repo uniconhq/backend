@@ -225,10 +225,10 @@ async def extend(
 ) -> entrants.Entrant:
     """It moves the entrant's due and close on the named tasks, or on every
     task when none are named, in place of any extension it had; zero takes
-    it away. One that names a task the contest does not list, would let it
-    submit to a task whose reveal has passed, or would leave one of its
-    submissions after the due or the close it was made before is
-    `invalid_extension`.
+    it away. An extension allowing submissions after hidden results were
+    shown asks with `confirmation_required` and `hiding`; `confirm` saves it.
+    Unknown tasks, or shortening an extension past an existing submission
+    or its due time, remain `invalid_extension`.
     """
     return await entrants.extend(
         organiser,
@@ -236,6 +236,7 @@ async def extend(
         entrant_id,
         timedelta(seconds=body.seconds),
         tasks=body.tasks,
+        confirm=body.confirm,
     )
 
 

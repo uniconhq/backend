@@ -59,3 +59,24 @@ class Upload(BaseModel):
     size: int
     sha256: str
     status: UploadStatus
+
+
+class PartUploadRequest(BaseModel):
+    """A resumable organiser upload, bounded again by the deployment's cap."""
+
+    path: str = Field(min_length=1, max_length=1024)
+    size: int = Field(ge=1)
+    sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+
+
+class SignParts(BaseModel):
+    numbers: list[int] = Field(min_length=1, max_length=1000)
+
+
+class FinishedPart(BaseModel):
+    number: int = Field(ge=1, le=10000)
+    etag: str = Field(min_length=1, max_length=1024)
+
+
+class FinishParts(BaseModel):
+    parts: list[FinishedPart] = Field(min_length=1, max_length=10000)
