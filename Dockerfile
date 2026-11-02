@@ -28,10 +28,13 @@ RUN uv sync --frozen --no-dev
 
 FROM python:3.14-slim-trixie
 
-RUN useradd --create-home --uid 10001 unicon
+RUN useradd --create-home --uid 10001 unicon \
+    && mkdir -p /var/cache/unicon/resolve \
+    && chown unicon:unicon /var/cache/unicon/resolve
 COPY --from=build --chown=unicon:unicon /opt/unicon /opt/unicon
 WORKDIR /opt/unicon/backend
 ENV PATH="/opt/unicon/backend/.venv/bin:$PATH" PYTHONUNBUFFERED=1
+ENV UNICON_RESOLVE_CACHE=/var/cache/unicon/resolve
 USER unicon
 EXPOSE 8000
 

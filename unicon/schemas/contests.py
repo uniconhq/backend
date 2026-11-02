@@ -7,7 +7,7 @@ from typing import Literal
 
 from forge.api.contest_home import State
 from forge.api.tasks import TakeOut
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
 
 from unicon.schemas.publications import DefinitionError, Publication
 
@@ -74,6 +74,13 @@ class ResultsRequest(BaseModel):
     confirm: bool = False
 
 
+class Toolchain(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    picked: str
+    version: str | None
+
+
 class TaskState(BaseModel):
     """Where a task's files stand: the version at their head, the latest
     publication or none, and whether the head is a draft, a state no
@@ -92,6 +99,7 @@ class TaskState(BaseModel):
     statement_written: bool
     head_statement_written: bool
     results: Results
+    toolchains: dict[str, Toolchain] = Field(default_factory=dict)
 
 
 class Timeline(BaseModel):

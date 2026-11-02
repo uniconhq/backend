@@ -73,6 +73,7 @@ class ExtensionRequest(BaseModel):
     none, in place of any extension there was.
     """
 
+    confirm: bool = False
     seconds: int = Field(ge=-SECONDS_BOUND, le=SECONDS_BOUND)
     tasks: list[str] | None = Field(default=None, max_length=TASKS_BOUND)
 

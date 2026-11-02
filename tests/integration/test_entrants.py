@@ -8,9 +8,10 @@ every one of those. A refusal of a decision carries its code.
 """
 
 import re
+from datetime import timedelta
 
 import httpx
-from forge.testing import FakeForge, Setup
+from forge.testing import FakeClock, FakeForge, Setup
 
 from tests.integration.conftest import CONTEST, ORIGIN, run_contest, sign_in_as
 
@@ -272,3 +273,26 @@ async def test_registering_needs_a_session(client: httpx.AsyncClient, world: Fak
     assert (await client.post(ENTRANTS, json={}, headers=ORIGIN)).status_code == 401
     assert (await client.get(MINE)).status_code == 401
     assert (await client.post(f"{MINE}/leave", headers=ORIGIN)).status_code == 401
+
+
+async def test_an_extension_warning_reaches_the_client_and_confirmation_saves_it(
+    client: httpx.AsyncClient, world: FakeForge, clock: FakeClock
+) -> None:
+    await run_contest(client, visibility="everyone")
+    entrant = (await _register_carol(client, world)).json()["id"]
+    await sign_in_as(client, world, 7)
+    one = f"{ORGANISE}/{entrant}"
+    assert (await client.post(f"{one}/approve", headers=ORIGIN)).status_code == 200
+    clock.advance(timedelta(hours=3, minutes=15))
+    await sign_in_as(client, world, 7)
+    body = {"seconds": 7200, "tasks": ["sum"]}
+    asked = await client.put(f"{one}/extension", json=body, headers=ORIGIN)
+    assert asked.status_code == 409
+    warning = asked.json()
+    assert warning["code"] == "confirmation_required"
+    assert len(warning["hiding"]) == 1
+    assert "sum's hidden results were shown since" in warning["hiding"][0]
+    assert (await client.get(ORGANISE)).json()[0]["time_extension"] == 0
+    saved = await client.put(f"{one}/extension", json={**body, "confirm": True}, headers=ORIGIN)
+    assert saved.status_code == 200, saved.text
+    assert saved.json()["time_extension"] == 7200

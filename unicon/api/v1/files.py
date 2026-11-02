@@ -25,7 +25,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query
 from forge.api import contests, files, tasks
 from forge.api.access import Organiser
-from forge.api.publications import Draft, Published
+from forge.api.publications import Draft, Preparing, Published
 from forge.api.types import ContestId, Role, ScopeKind, TaskId, Uploaded, VersionId
 
 from unicon.api.guard import PREFIX, require
@@ -86,7 +86,7 @@ def router_at(kind: ScopeKind) -> APIRouter:
         @write
         async def write_task_file(
             organiser: Manager, path: str, body: WriteTaskFile
-        ) -> Written | Published | Draft:
+        ) -> Written | Published | Draft | Preparing:
             """A save of the task. A file named by its `upload` is one the
             caller uploaded for this path: one that is not theirs for it is
             `invalid_inputs`, and one whose bytes have not arrived
@@ -112,7 +112,7 @@ def router_at(kind: ScopeKind) -> APIRouter:
         @write
         async def write_contest_file(
             organiser: Manager, path: str, body: WriteFile
-        ) -> Written | Published | Draft:
+        ) -> Written | Published | Draft | Preparing:
             return await _write(organiser, path, body.data(), body)
 
     @router.post(
@@ -123,7 +123,7 @@ def router_at(kind: ScopeKind) -> APIRouter:
     )
     async def roll_back_file(
         organiser: Manager, path: str, body: RollbackFile
-    ) -> Written | Published | Draft:
+    ) -> Written | Published | Draft | Preparing:
         result = await files.rollback(
             organiser,
             _place(organiser),
@@ -142,7 +142,7 @@ def router_at(kind: ScopeKind) -> APIRouter:
 
 async def _write(
     organiser: Organiser, path: str, content: bytes, body: WriteFile | WriteTaskFile
-) -> Written | Published | Draft:
+) -> Written | Published | Draft | Preparing:
     result = await files.write(
         organiser,
         _place(organiser),
@@ -164,7 +164,9 @@ def _place(organiser: Organiser) -> ContestId | TaskId:
     return contests.contest_id_of(scope)
 
 
-def _answered(result: files.Written | Published | Draft) -> Written | Published | Draft:
-    if isinstance(result, Published | Draft):
+def _answered(
+    result: files.Written | Published | Draft | Preparing,
+) -> Written | Published | Draft | Preparing:
+    if isinstance(result, Published | Draft | Preparing):
         return result
     return Written(version=result.version, notes=list(result.notes))
