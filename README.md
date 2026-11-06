@@ -90,7 +90,10 @@ list and done, at `STEP_PATH`, `UPLOADS_PATH` and `DONE_PATH` with one
 grading's id and one step's name, under the step's token.
 
 `GET /api/v1/me` returns the caller's identity as `user` and their `roles`
-at every scope, each with the `names` of where it is held.
+at every scope, each with the `names` of where it is held, and by name
+only the `orgs` a role of theirs reaches, the `contests` one is held at or
+inside, and the `tasks` one is held at, for naming a place whose list they
+may not read.
 The session list (`GET /api/v1/me/sessions`), revoke
 (`DELETE /api/v1/me/sessions/{session_id}`), sign-out-everywhere
 (`DELETE /api/v1/me/sessions`), deactivate (`POST /api/v1/me/deactivate`)
@@ -171,6 +174,7 @@ the one the route needs at the scope in the third column.
 | `GET <task>` | observer | task | | the task's state |
 | `GET <task>/publications` | observer | task | | the publications, oldest first, each with where its save's `check` stands |
 | `GET <task>/workflow-form` | observer | task | | the inputs of the workflow the task names, or the `problem`, and whether the task is `graded` |
+| `POST <task>/draft-runs` | observer | task | `repeat` | the `runs` the draft's axes make, first axis outermost, their `count`, and each axis's tuples as runs |
 | `POST <task>/show-preview` | observer | task | `show`, `moment`, `entrant`, `number` | what an entrant would be shown at that moment under the draft `show`, below |
 | `GET <task>/release` | a session | | | whether the caller sees the task and may submit to it now, or 404 when the contest is hidden from them |
 | `GET <contest>/organise/entrants` | observer | contest | | every entrant, the earliest registered first, with its members and the invites into it |
@@ -183,7 +187,7 @@ the one the route needs at the scope in the third column.
 | `DELETE <contest>/organise/entrants/{entrant_id}` | manager | contest | | 204 |
 | `DELETE <contest>/organise/entrants/{entrant_id}/members/{user_id}` | manager | contest | | the entrant, or null when that left it with nobody and no submissions |
 | `POST <contest>/organise/entrants/{entrant_id}/members/{user_id}/move` | manager | contest | `to` | the entrant the person is in now |
-| `POST <task>/save` | manager | task | `changes`, `confirm`, `asked`, `keep_as_draft`, `message` | the save's result |
+| `POST <task>/save` | manager | task | `changes`, each with `content`, `upload`, `values` for `task.yaml`, or `remove`; `confirm`, `asked`, `keep_as_draft`, `message` | the save's result |
 | `POST <task>/organise/uploads` | manager | task | `path`, `size`, `sha256`, `content_type` | 201, a slot |
 | `GET <scope>/roles` | observer | scope | | the holders |
 | `POST <scope>/roles` | manager | scope | `username`, `role` | 204 |
@@ -197,6 +201,8 @@ the one the route needs at the scope in the third column.
 | `GET <place>/history?path=` | observer | place | | every change, newest first |
 | `PUT <place>/files/{path}` | manager | place | `encoding`, `content` or, at a task, `upload`, `token`, `message`, `confirm`, `asked`, `keep_as_draft` | `version` and `notes` at a contest, the save's result at a task |
 | `POST <place>/files/{path}/rollback` | manager | place | `version`, `token`, `message`, `confirm`, `asked`, `keep_as_draft` | as a write |
+| `GET <place>/settings` | observer | place | | the settings file as a form's `values`, its leaderboards, columns and a task's groups and values as lists of named entries, with its `token`; or null `values` and why it does not read |
+| `PUT <contest>/settings` | manager | contest | `values`, `token`, `confirm`, `asked` | as a write of `contest.yaml`, the values written into the file as it is |
 | `GET <task>/gradings?limit=` | observer | task | | the task's gradings, newest first, each as the feed gives it |
 | `GET <task>/organise/submissions/{number}?entrant=` | observer | task | | a row's submission as the row reads it, with everything filled in |
 | `POST <task>/gradings/{grading}/cancel` | manager | task | `reason` | the grading, `cancelled` with its `cancel_reason` |
@@ -808,14 +814,15 @@ is `not_found`, in the same words as one that is not there.
 | Route | What it does |
 |---|---|
 | `GET /workflows` | every workflow the caller reaches, their own, their orgs', those shared with them and the platform's built-ins, by `owner` and `name`, with its `visibility`, its `versions` in natural order and whether it is `editable` |
-| `GET /workflows/{owner}/{name}` | the same for one; for one the caller may edit, its `draft`, `content` and the `token` a save carries, and `readers`, the usernames it is shared with |
-| `PUT /workflows/{owner}/{name}/draft` | write `workflow.yaml` over the one read with `token`, or create it with none, problems and all; `conflict` when it moved since |
+| `GET /workflows/{owner}/{name}` | the same for one; for one the caller may edit, `readers`, the usernames it is shared with |
+| `GET /workflows/{owner}/{name}/draft` | for one the caller may edit, `workflow.yaml` as `values` with the `token` a save carries; when it does not read, `values` null, `unreadable` saying why and `content` its text |
+| `PUT /workflows/{owner}/{name}/draft` | write `values` into `workflow.yaml` as it is, keeping its comments, or `content` as its whole text, over the one read with `token`, or create it with none, problems and all; answers as the read does; `conflict` when it moved since, `invalid_definition` when the values cannot be written into it |
 | `POST /workflows/{owner}/{name}/versions` | freeze the saved draft under `version`, `v` and a whole number from 1 with no leading zero (`invalid_name` otherwise), 201, only when it passes every check a version must; otherwise `invalid_definition` with every problem in `errors` and no version made; given the `token` the draft was saved with, `conflict` when someone has saved since |
-| `GET /workflows/{owner}/{name}/versions/{version}` | the `content` at a version, one of its tags and never a branch, read as the caller |
+| `GET /workflows/{owner}/{name}/versions/{version}` | the `content` at a version and its `values`, or `unreadable`, one of its tags and never a branch, read as the caller |
 | `PUT /workflows/{owner}/{name}/visibility` | `private`, `shared` or `public`, 204; private and public empty the list of readers |
 | `PUT /workflows/{owner}/{name}/readers/{username}` | share it with a person; `conflict` while it is public |
 | `DELETE /workflows/{owner}/{name}/readers/{username}` | take their read away, 204 |
-| `POST /workflows/check` | every problem a version of `content` would be refused for, each with its `path`, `message` and, inside a box, `step`; given `owner` and `name`, a draft that would hold that workflow is refused; nothing is written |
+| `POST /workflows/check` | every problem a version of `values`, or of the text `content`, would be refused for, each with its `path`, `message` and, inside a box, `step`; given `owner` and `name`, a draft that would hold that workflow is refused; nothing is written |
 | `POST /workflow-copies` | a new private workflow under `owner` from `source`, `<owner>/<name>@<version>`, 201 |
 | `GET /workflows/{owner}/{name}/versions/{version}/box` | the version's inputs and outputs for drawing it as a box, read as the caller; `run` false for a workflow of the test format; given a task's `repeated` inputs, whether each output is given `once` |
 | `GET /workflows/{owner}/{name}/versions/{version}/tree` | the files and folders directly under `path` that the version was frozen with, read as the caller, as the draft's tree lists them; each file downloads through the proxy's download door at `/-/downloads/workflows/<owner>/<name>/versions/<version>/<path>`, each segment quoted on its own, for anyone who may read the version |

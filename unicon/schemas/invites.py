@@ -54,7 +54,8 @@ class Invite(BaseModel):
     organiser role, the entrant it asks someone into, if any, the username
     or the address it names, who sent it, where it stands, whether it has
     lapsed, its dates, and what became of its mail: `waiting`, `sent`,
-    `failed`, or `off` where the deployment sends no mail.
+    `failed`, or `off` where the deployment sends no mail. `may_change`
+    says whether the caller may send it again or withdraw it.
     """
 
     id: uuid.UUID
@@ -72,6 +73,7 @@ class Invite(BaseModel):
     decided_at: datetime | None
     mail_status: MailStatus
     mailed_at: datetime | None
+    may_change: bool
 
 
 class AcceptedInvite(BaseModel):

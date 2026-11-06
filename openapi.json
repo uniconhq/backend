@@ -389,8 +389,15 @@
         "type": "object"
       },
       "BoxInput": {
-        "description": "One input of a run workflow drawn as a box.",
+        "description": "One input of a run workflow drawn as a box, with the types a wire\ninto it may carry.",
         "properties": {
+          "accepts": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Accepts",
+            "type": "array"
+          },
           "name": {
             "title": "Name",
             "type": "string"
@@ -446,7 +453,8 @@
           "options",
           "optional",
           "title",
-          "unit"
+          "unit",
+          "accepts"
         ],
         "title": "BoxInput",
         "type": "object"
@@ -785,11 +793,18 @@
         "type": "string"
       },
       "CheckDefinition": {
-        "description": "A `workflow.yaml` to check as a version would be, writing nothing.\n`owner` and `name`, when both are given, name the workflow this text is\na draft of, so a draft that would hold that workflow is refused.",
+        "description": "A `workflow.yaml` to check as a version would be, writing nothing:\nits `values`, or its text in `content`, one of the two. `owner` and\n`name`, when both are given, name the workflow this is a draft of, so a\ndraft that would hold that workflow is refused.",
         "properties": {
           "content": {
-            "title": "Content",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content"
           },
           "name": {
             "anyOf": [
@@ -828,11 +843,20 @@
               }
             ],
             "title": "Paths"
+          },
+          "values": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Values"
           }
         },
-        "required": [
-          "content"
-        ],
         "title": "CheckDefinition",
         "type": "object"
       },
@@ -891,7 +915,7 @@
         "type": "object"
       },
       "Clarification": {
-        "description": "One question: its contest by name, whose desk it is in, the asking\nentrant's `entrant.<id>`, its number there, the task it names, what it\nasks, when, whether it is answered and whether it is open, and every\nmessage under it, oldest first.",
+        "description": "One question: its contest by name, whose desk it is in, the asking\nentrant's `entrant.<id>`, its number there, the task it names, what it\nasks, when, whether it is answered and whether it is open, every\nmessage under it, oldest first, and whether the reader manages its\ncontest, who may reply to it, mark it and answer it publicly.",
         "properties": {
           "answered": {
             "title": "Answered",
@@ -916,6 +940,10 @@
           },
           "contest": {
             "$ref": "#/components/schemas/ScopeNames"
+          },
+          "may_answer": {
+            "title": "May Answer",
+            "type": "boolean"
           },
           "messages": {
             "items": {
@@ -954,7 +982,8 @@
           "asked_at",
           "answered",
           "closed",
-          "messages"
+          "messages",
+          "may_answer"
         ],
         "title": "Clarification",
         "type": "object"
@@ -1390,54 +1419,26 @@
         "title": "DeclaredInput",
         "type": "object"
       },
-      "Definition": {
-        "description": "A `workflow.yaml` as text, and the token a save of it carries back:\nnone for one that is not there yet. `revision` names the saved repository,\nincluding its files, for publishing exactly that save.",
-        "properties": {
-          "content": {
-            "title": "Content",
-            "type": "string"
-          },
-          "revision": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Revision"
-          },
-          "token": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Token"
-          }
-        },
-        "required": [
-          "content",
-          "token",
-          "revision"
-        ],
-        "title": "Definition",
-        "type": "object"
-      },
       "DefinitionError": {
-        "description": "One thing wrong with a definition file: its YAML path, \"\" for the file\nas a whole, and a sentence a form shows beside that field.",
+        "description": "One thing wrong with a definition file: where, as its keys and list\nindices, such as `[\"tasks\", 1, \"due\"]`, empty for the file as a whole\nand one file path for a file, and a sentence a form shows there.",
         "properties": {
           "message": {
             "title": "Message",
             "type": "string"
           },
           "path": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
             "title": "Path",
-            "type": "string"
+            "type": "array"
           }
         },
         "required": [
@@ -1448,15 +1449,25 @@
         "type": "object"
       },
       "DefinitionProblem": {
-        "description": "One problem: its YAML path in `workflow.yaml`, `steps[1].with.binary`,\nand what is wrong there. The path is empty for the file as a whole.\n`step` is the flat step a problem inside a box belongs to, when the path\ncan only name the box; none otherwise.",
+        "description": "One problem: where in `workflow.yaml`, as its keys and list indices,\nsuch as `[\"steps\", 1, \"with\", \"binary\"]`, empty for the file as a whole,\nand what is wrong there. `step` is the flat step a problem inside a box\nbelongs to, when the path can only name the box; none otherwise.",
         "properties": {
           "message": {
             "title": "Message",
             "type": "string"
           },
           "path": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
             "title": "Path",
-            "type": "string"
+            "type": "array"
           },
           "step": {
             "anyOf": [
@@ -1506,6 +1517,77 @@
           "held_back"
         ],
         "title": "Draft",
+        "type": "object"
+      },
+      "DraftRun": {
+        "description": "One run of a draft: the titles of its tuples and the values the task\ngives it, by input; a value the entrant gives is left out.",
+        "properties": {
+          "cells": {
+            "additionalProperties": true,
+            "title": "Cells",
+            "type": "object"
+          },
+          "titles": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Titles",
+            "type": "array"
+          }
+        },
+        "required": [
+          "titles",
+          "cells"
+        ],
+        "title": "DraftRun",
+        "type": "object"
+      },
+      "DraftRuns": {
+        "description": "The runs a draft's `repeat` makes, the first axis outermost, none\nwhen there would be more than a task may have; their `count`; and each\naxis's own tuples as runs, in the draft's order.",
+        "properties": {
+          "axes": {
+            "items": {
+              "items": {
+                "$ref": "#/components/schemas/DraftRun"
+              },
+              "type": "array"
+            },
+            "title": "Axes",
+            "type": "array"
+          },
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "runs": {
+            "items": {
+              "$ref": "#/components/schemas/DraftRun"
+            },
+            "title": "Runs",
+            "type": "array"
+          }
+        },
+        "required": [
+          "runs",
+          "count",
+          "axes"
+        ],
+        "title": "DraftRuns",
+        "type": "object"
+      },
+      "DraftRunsRequest": {
+        "description": "A task's draft `repeat`, as its settings' values give it.",
+        "properties": {
+          "repeat": {
+            "items": {},
+            "title": "Repeat",
+            "type": "array"
+          }
+        },
+        "required": [
+          "repeat"
+        ],
+        "title": "DraftRunsRequest",
         "type": "object"
       },
       "EnterMarkRequest": {
@@ -1851,7 +1933,7 @@
         "type": "object"
       },
       "FeedEntry": {
-        "description": "One grading among a task's or a contest's: the grading as an\norganiser reads it, its task by name, null for a task the platform has\nno name for, its `label`, the letter of its place in the contest's\n`tasks`, null once the contest no longer lists it or its settings do\nnot read, and `by`, whose submission it is: the `entrant` by its id and\n`entrant_name`, the name it is shown under, and the member who\nsubmitted it by `user_id` and `username`, both null when a reconcile\nfound it at the forge, the username null when the forge did not say.",
+        "description": "One grading among a task's or a contest's: the grading as an\norganiser reads it, its task by name, null for a task the platform has\nno name for, its `label`, the letter of its place in the contest's\n`tasks`, null once the contest no longer lists it or its settings do\nnot read, and `by`, whose submission it is: the `entrant` by its id and\n`entrant_name`, the name it is shown under, and the member who\nsubmitted it by `user_id` and `username`, both null when a reconcile\nfound it at the forge, the username null when the forge did not say.\n`may_manage` says whether the caller manages its task, so may cancel\nor retry it.",
         "properties": {
           "by": {
             "$ref": "#/components/schemas/Submitter"
@@ -1870,6 +1952,10 @@
             ],
             "title": "Label"
           },
+          "may_manage": {
+            "title": "May Manage",
+            "type": "boolean"
+          },
           "task": {
             "anyOf": [
               {
@@ -1886,13 +1972,14 @@
           "grading",
           "task",
           "label",
-          "by"
+          "by",
+          "may_manage"
         ],
         "title": "FeedEntry",
         "type": "object"
       },
       "FileChange": {
-        "description": "One file of a save, with the token it was read with: typed as\n`content`, uploaded for this path as `upload`, or removed with `remove:\ntrue`, exactly one of the three. The token is null for a file the save\ncreates, and a removal always carries one. Removing a folder, such as a\ntest, is removing each file under it, named one by one.",
+        "description": "One file of a save, with the token it was read with: typed as\n`content`, uploaded for this path as `upload`, `task.yaml` given as its\nform's `values` (as `Settings` gives them), or removed with `remove:\ntrue`, exactly one of the four. The token is null for a file the save\ncreates, and a removal always carries one. Removing a folder, such as a\ntest, is removing each file under it, named one by one.",
         "properties": {
           "content": {
             "anyOf": [
@@ -1945,6 +2032,18 @@
               }
             ],
             "title": "Upload"
+          },
+          "values": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Values"
           }
         },
         "required": [
@@ -1955,7 +2054,7 @@
         "type": "object"
       },
       "FileContent": {
-        "description": "One file at one version, with the token a write presents back, and\n`upload` when it is a file an organiser uploaded: its `content` is then\nthe pointer to the bytes, never opened as text, and `upload` the size\nand SHA-256 of what it holds. A typed file has none. `version` is the\ncommit holding the file as read, the latest change to it or the one it\nwas read at, which a task's file is downloaded at\n(`/-/downloads/<org>/<contest>/<task>/versions/<version>/<path>`); null\nwhen the forge names no commit and it was not read at one. A tree's\nentries name their `version` the same way.",
+        "description": "One file at one version, with the token a write presents back, and\n`upload` when it is a file an organiser uploaded: its `content` is then\nthe pointer to the bytes, never opened as text, and `upload` the size\nand SHA-256 of what it holds. A typed file has none. `version` is the\ncommit holding the file as read, the latest change to it or the one it\nwas read at; null when the forge names no commit and it was not read\nat one. `href` is where the download door serves it: a task's file at\n`version`, a workflow draft's as last saved; null for a contest's file\nand a task's without a version.",
         "properties": {
           "content": {
             "title": "Content",
@@ -1968,6 +2067,17 @@
             ],
             "title": "Encoding",
             "type": "string"
+          },
+          "href": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Href"
           },
           "path": {
             "title": "Path",
@@ -2005,7 +2115,8 @@
           "content",
           "token",
           "upload",
-          "version"
+          "version",
+          "href"
         ],
         "title": "FileContent",
         "type": "object"
@@ -2514,10 +2625,14 @@
         "type": "object"
       },
       "Holder": {
-        "description": "Someone holding `role` at the scope asked about, held directly at\n`at_names`: that scope, or a broader one, such as the org of a contest\nwhose admin is listed at the contest.",
+        "description": "Someone holding `role` at the scope asked about, held directly at\n`at_names`: that scope, or a broader one, such as the org of a contest\nwhose admin is listed at the contest. `may_change` says whether the\ncaller may change or take the role, held here and not above.",
         "properties": {
           "at_names": {
             "$ref": "#/components/schemas/ScopeNames"
+          },
+          "may_change": {
+            "title": "May Change",
+            "type": "boolean"
           },
           "role": {
             "$ref": "#/components/schemas/Role"
@@ -2529,7 +2644,8 @@
         "required": [
           "user",
           "role",
-          "at_names"
+          "at_names",
+          "may_change"
         ],
         "title": "Holder",
         "type": "object"
@@ -2705,7 +2821,7 @@
         "type": "object"
       },
       "Invite": {
-        "description": "An invite: where it is to, by its names, and the title of the contest\nit is at or under, null at an org; what it grants, a place in a\ncontest (`contestant`), a member's place in an entrant (`member`) or an\norganiser role, the entrant it asks someone into, if any, the username\nor the address it names, who sent it, where it stands, whether it has\nlapsed, its dates, and what became of its mail: `waiting`, `sent`,\n`failed`, or `off` where the deployment sends no mail.",
+        "description": "An invite: where it is to, by its names, and the title of the contest\nit is at or under, null at an org; what it grants, a place in a\ncontest (`contestant`), a member's place in an entrant (`member`) or an\norganiser role, the entrant it asks someone into, if any, the username\nor the address it names, who sent it, where it stands, whether it has\nlapsed, its dates, and what became of its mail: `waiting`, `sent`,\n`failed`, or `off` where the deployment sends no mail. `may_change`\nsays whether the caller may send it again or withdraw it.",
         "properties": {
           "contest_title": {
             "anyOf": [
@@ -2798,6 +2914,10 @@
             ],
             "title": "Mailed At"
           },
+          "may_change": {
+            "title": "May Change",
+            "type": "boolean"
+          },
           "status": {
             "$ref": "#/components/schemas/InviteStatus"
           },
@@ -2831,7 +2951,8 @@
           "expires_at",
           "decided_at",
           "mail_status",
-          "mailed_at"
+          "mailed_at",
+          "may_change"
         ],
         "title": "Invite",
         "type": "object"
@@ -2969,7 +3090,7 @@
         "type": "object"
       },
       "Leaderboard": {
-        "description": "One leaderboard as the caller reads it: the headers of the columns listed\nto them, the keys its rows were sorted by and the sort keys `dropped`,\nhidden on a row served or not listed, its rows cut to its audience, and\n`held_from`, when the hold holds other rows from, null when it holds\nnothing for the caller.",
+        "description": "One leaderboard as the caller reads it: the headers of the columns listed\nto them, the keys its rows were sorted by and the sort keys `dropped`,\nhidden on a row served or not listed, its rows cut to its audience, and\n`held_from`, when the hold holds other rows from, null when it holds\nnothing for the caller. `staff` says the caller reads it as staff, who\nalone are told a header's bounds.",
         "properties": {
           "audience": {
             "$ref": "#/components/schemas/LeaderboardAudience"
@@ -3018,6 +3139,10 @@
             "title": "Sort",
             "type": "array"
           },
+          "staff": {
+            "title": "Staff",
+            "type": "boolean"
+          },
           "title": {
             "title": "Title",
             "type": "string"
@@ -3031,7 +3156,8 @@
           "sort",
           "dropped",
           "held_from",
-          "rows"
+          "rows",
+          "staff"
         ],
         "title": "Leaderboard",
         "type": "object"
@@ -3330,7 +3456,7 @@
         "type": "object"
       },
       "ListedContest": {
-        "description": "A contest in its org's list, by name, with its state, start and end as\nits settings say them, all three null when its settings cannot be read.",
+        "description": "A contest in its org's list or read alone, by name, with its state,\nstart and end as its settings say them, all three null when its\nsettings cannot be read. `may` is what the caller may do there, told\neven then.",
         "properties": {
           "end": {
             "anyOf": [
@@ -3343,6 +3469,9 @@
               }
             ],
             "title": "End"
+          },
+          "may": {
+            "$ref": "#/components/schemas/PlaceMay"
           },
           "name": {
             "title": "Name",
@@ -3375,9 +3504,29 @@
           "name",
           "state",
           "start",
-          "end"
+          "end",
+          "may"
         ],
         "title": "ListedContest",
+        "type": "object"
+      },
+      "ListedTask": {
+        "description": "A task in its contest's list, by name, and whether the caller manages it.",
+        "properties": {
+          "may_manage": {
+            "title": "May Manage",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "may_manage"
+        ],
+        "title": "ListedTask",
         "type": "object"
       },
       "Locks": {
@@ -3434,11 +3583,25 @@
         "type": "object"
       },
       "Me": {
-        "description": "The signed-in user and their roles at every scope. `degraded` is set\nwhen the forge did not answer and the identity comes from the session.",
+        "description": "The signed-in user and their roles at every scope. `degraded` is set\nwhen the forge did not answer and the identity comes from the session.\n`orgs` are the names of the orgs a role of theirs reaches, at the org or\ninside it; `contests` the contests a role of theirs is held at or\ninside, and `tasks` the tasks one is held at, by name only; and\n`workflow_owners` the owners they may make a workflow under: their own\nusername first, then each org they manage.",
         "properties": {
+          "contests": {
+            "items": {
+              "$ref": "#/components/schemas/ScopeNames"
+            },
+            "title": "Contests",
+            "type": "array"
+          },
           "degraded": {
             "title": "Degraded",
             "type": "boolean"
+          },
+          "orgs": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Orgs",
+            "type": "array"
           },
           "roles": {
             "items": {
@@ -3447,14 +3610,32 @@
             "title": "Roles",
             "type": "array"
           },
+          "tasks": {
+            "items": {
+              "$ref": "#/components/schemas/ScopeNames"
+            },
+            "title": "Tasks",
+            "type": "array"
+          },
           "user": {
             "$ref": "#/components/schemas/Account"
+          },
+          "workflow_owners": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Workflow Owners",
+            "type": "array"
           }
         },
         "required": [
           "user",
           "roles",
-          "degraded"
+          "degraded",
+          "orgs",
+          "contests",
+          "tasks",
+          "workflow_owners"
         ],
         "title": "Me",
         "type": "object"
@@ -3796,8 +3977,8 @@
         "title": "OpenInviteRequest",
         "type": "object"
       },
-      "OrgProfile": {
-        "description": "An org's own fields at the forge, which its admin changes: the name it\nis shown under, none while it has none of its own, and its description.",
+      "Org": {
+        "description": "An org as its organisers read it: the name it is shown under, none\nwhile it has none of its own, its description, and what the reader may\ndo there.",
         "properties": {
           "description": {
             "title": "Description",
@@ -3813,13 +3994,51 @@
               }
             ],
             "title": "Display Name"
+          },
+          "may": {
+            "$ref": "#/components/schemas/OrgMay"
           }
         },
         "required": [
           "display_name",
-          "description"
+          "description",
+          "may"
         ],
-        "title": "OrgProfile",
+        "title": "Org",
+        "type": "object"
+      },
+      "OrgMay": {
+        "description": "At an org: change what it says about itself (`orgs.update`), make a\ncontest in it (`contests.create`), and read, change and give admin to\nits organisers (`roles.holders`, `roles.grant` and `roles.revoke`).",
+        "properties": {
+          "create_contest": {
+            "title": "Create Contest",
+            "type": "boolean"
+          },
+          "edit": {
+            "title": "Edit",
+            "type": "boolean"
+          },
+          "give_admin": {
+            "title": "Give Admin",
+            "type": "boolean"
+          },
+          "manage_people": {
+            "title": "Manage People",
+            "type": "boolean"
+          },
+          "see_people": {
+            "title": "See People",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "edit",
+          "create_contest",
+          "see_people",
+          "manage_people",
+          "give_admin"
+        ],
+        "title": "OrgMay",
         "type": "object"
       },
       "OrganisedEntrant": {
@@ -4218,6 +4437,70 @@
         "title": "Person",
         "type": "object"
       },
+      "Pictures": {
+        "description": "What a statement's picture may be: at most `most` bytes, and a file\nending in one of `endings`, in lower case without the dot.",
+        "properties": {
+          "endings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Endings",
+            "type": "array"
+          },
+          "most": {
+            "title": "Most",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "most",
+          "endings"
+        ],
+        "title": "Pictures",
+        "type": "object"
+      },
+      "PlaceMay": {
+        "description": "At a contest or a task: change it (`files.write`, `task_save.save`\nand every other manager's action there), change its admin-only\nsettings, and read, change and give admin to its organisers.\n`locked_keys` are the settings file's top keys a save of theirs may not\nchange: the admin-only ones, unless they are an admin.",
+        "properties": {
+          "edit_admin_settings": {
+            "title": "Edit Admin Settings",
+            "type": "boolean"
+          },
+          "give_admin": {
+            "title": "Give Admin",
+            "type": "boolean"
+          },
+          "locked_keys": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Locked Keys",
+            "type": "array"
+          },
+          "manage": {
+            "title": "Manage",
+            "type": "boolean"
+          },
+          "manage_people": {
+            "title": "Manage People",
+            "type": "boolean"
+          },
+          "see_people": {
+            "title": "See People",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "manage",
+          "edit_admin_settings",
+          "locked_keys",
+          "see_people",
+          "manage_people",
+          "give_admin"
+        ],
+        "title": "PlaceMay",
+        "type": "object"
+      },
       "PlaceholderRun": {
         "description": "A run an entrant would be shown before there is a submission: the\nentry's `of` and its place there, one tuple per axis with the inputs\nit shows, and the names of the fields its result would fill.\n`first_not_passed` is one row with no tuples, since which run it picks\nis not known.",
         "properties": {
@@ -4594,8 +4877,22 @@
         "type": "object"
       },
       "PrimitivePort": {
-        "description": "One port: its type, the options an enum takes, the names a\n`named_files` port's files must have, whether it may be left out, on an\ninput whether the primitive runs what arrives there and whether it\nkeeps it from the program it runs, on a `number` output which way is\n`better` and the bounds every value lies within, both inclusive, on a\n`programs` port the `inputs` each program takes and the `outputs` the\nprimitive gives of each, and a sentence saying what it takes or gives\nback, none when the primitive gives none. The `outcome` port may carry\n`outcomes`: each outcome the step can report, in the declaration's\norder, with a line saying when (`accepted`: \"the source compiles\"), for\nthe step's drawer to say what it reports; none when the primitive does\nnot say, and on every other port.",
+        "description": "One port: its type, the options an enum takes, the names a\n`named_files` port's files must have, whether it may be left out, on an\ninput whether the primitive runs what arrives there and whether it\nkeeps it from the program it runs, on a `number` output which way is\n`better` and the bounds every value lies within, both inclusive, on a\n`programs` port the `inputs` each program takes and the `outputs` the\nprimitive gives of each, and a sentence saying what it takes or gives\nback, none when the primitive gives none. The `outcome` port may carry\n`outcomes`: each outcome the step can report, in the declaration's\norder, with a line saying when (`accepted`: \"the source compiles\"), for\nthe step's drawer to say what it reports; none when the primitive does\nnot say, and on every other port. An input port's `accepts` lists the\ntypes a wire into it may carry; an output's is none.",
         "properties": {
+          "accepts": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accepts"
+          },
           "at_least": {
             "anyOf": [
               {
@@ -4754,7 +5051,8 @@
           "at_least",
           "at_most",
           "inputs",
-          "outputs"
+          "outputs",
+          "accepts"
         ],
         "title": "PrimitivePort",
         "type": "object"
@@ -5457,7 +5755,7 @@
         "type": "object"
       },
       "RegradeSummary": {
-        "description": "A task's latest regrade of many as the contest's page shows it, \"Regrade\nof A: 120 graded\": its id, the one the feed is read by; its task by name\nand `label`, the letter of its place in the contest's `tasks`, null once\nthe contest no longer lists it; what started it, `cause`, a staff\n`rejudge` or the `save` that published `publication`, the publication\nits attempts grade against; when and by whom, by user id and\n`started_by_name`, their username, null when the forge does not say; how\nmany submissions it took, `total`; how many it `graded`, finishing with\na result (`regraded` and `new` together); whether any is still\n`running`; and `counts`, by change. It stays until a newer regrade of\nthe task replaces it or a manager of the task dismisses it.",
+        "description": "A task's latest regrade of many as the contest's page shows it, \"Regrade\nof A: 120 graded\": its id, the one the feed is read by; its task by name\nand `label`, the letter of its place in the contest's `tasks`, null once\nthe contest no longer lists it; what started it, `cause`, a staff\n`rejudge` or the `save` that published `publication`, the publication\nits attempts grade against; when and by whom, by user id and\n`started_by_name`, their username, null when the forge does not say; how\nmany submissions it took, `total`; how many it `graded`, finishing with\na result (`regraded` and `new` together); whether any is still\n`running`; and `counts`, by change. It stays until a newer regrade of\nthe task replaces it or a manager of the task dismisses it.\n`may_manage` says whether the caller may dismiss it.",
         "properties": {
           "cause": {
             "$ref": "#/components/schemas/RegradeCause"
@@ -5484,6 +5782,10 @@
               }
             ],
             "title": "Label"
+          },
+          "may_manage": {
+            "title": "May Manage",
+            "type": "boolean"
           },
           "publication": {
             "title": "Publication",
@@ -5548,7 +5850,8 @@
           "total",
           "graded",
           "running",
-          "counts"
+          "counts",
+          "may_manage"
         ],
         "title": "RegradeSummary",
         "type": "object"
@@ -6408,8 +6711,8 @@
         "title": "RunsResult",
         "type": "object"
       },
-      "SaveDefinition": {
-        "description": "A draft to write over the one read with `token`, or to create when\nthe token is none. `changes` writes its own files in the same commit.\nWhatever it holds saves, problems and all.",
+      "SaveDraft": {
+        "description": "A draft to write over the one read with `token`, or to create when\nthe token is none: `values` written into `workflow.yaml` as it is, or,\nfor a draft that does not read, `content`, its whole text; one of the\ntwo. `changes` writes its own files in the same commit. Whatever it\nholds saves, problems and all.",
         "properties": {
           "changes": {
             "items": {
@@ -6419,8 +6722,15 @@
             "type": "array"
           },
           "content": {
-            "title": "Content",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content"
           },
           "token": {
             "anyOf": [
@@ -6432,13 +6742,24 @@
               }
             ],
             "title": "Token"
+          },
+          "values": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Values"
           }
         },
         "required": [
-          "content",
           "token"
         ],
-        "title": "SaveDefinition",
+        "title": "SaveDraft",
         "type": "object"
       },
       "SaveEffect": {
@@ -6657,6 +6978,64 @@
           "visibility"
         ],
         "title": "SetVisibility",
+        "type": "object"
+      },
+      "Settings": {
+        "description": "A contest's or a task's settings as their form reads them: the\nsettings file's data as plain values, its leaderboards, their columns\nand a task's scoring groups and values as lists of named entries, with\nthe token a save presents back. When the file does not read as\nsettings, `values` is null and `unreadable` says why; a file not there\nyet has empty values and no token.",
+        "properties": {
+          "token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Token"
+          },
+          "unreadable": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unreadable"
+          },
+          "values": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Values"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          }
+        },
+        "required": [
+          "values",
+          "unreadable",
+          "token",
+          "version"
+        ],
+        "title": "Settings",
         "type": "object"
       },
       "ShowPreview": {
@@ -7106,12 +7485,31 @@
         "title": "SubmitRequest",
         "type": "object"
       },
+      "SubmittedFile": {
+        "description": "One submitted file: its path in the submission and where the download\ndoor serves it.",
+        "properties": {
+          "href": {
+            "title": "Href",
+            "type": "string"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "href"
+        ],
+        "title": "SubmittedFile",
+        "type": "object"
+      },
       "SubmittedFileInput": {
-        "description": "What one input of a submission was: the paths of its files in the\nsubmission, each a download through the download door, or the value\ngiven, a number as its exact decimal digits; or, for an input given\nonce per tuple, its `parts` by number from \"1\", only the parts given,\nits own `files` empty and `value` null, and `parts` null on any other.\nIt is read leniently from the submission's `submission.json`: a member\nof the wrong type is left out rather than failing the answer.",
+        "description": "What one input of a submission was: its files, or the value\ngiven, a number as its exact decimal digits; or, for an input given\nonce per tuple, its `parts` by number from \"1\", only the parts given,\nits own `files` empty and `value` null, and `parts` null on any other.\nIt is read leniently from the submission's `submission.json`: a member\nof the wrong type is left out rather than failing the answer.",
         "properties": {
           "files": {
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/SubmittedFile"
             },
             "title": "Files",
             "type": "array"
@@ -7213,11 +7611,11 @@
         "type": "object"
       },
       "SubmittedPart": {
-        "description": "What one part of an input given in parts was: the paths of its files\nin the submission, each a download through the download door, or the\nvalue given, a number as its exact decimal digits. It is read leniently\nfrom the submission's `submission.json`: a member of the wrong type is\nleft out rather than failing the answer.",
+        "description": "What one part of an input given in parts was: its files, or the\nvalue given, a number as its exact decimal digits. It is read leniently\nfrom the submission's `submission.json`: a member of the wrong type is\nleft out rather than failing the answer.",
         "properties": {
           "files": {
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/SubmittedFile"
             },
             "title": "Files",
             "type": "array"
@@ -7328,6 +7726,74 @@
           "done"
         ],
         "title": "TakenOut",
+        "type": "object"
+      },
+      "TaskDetail": {
+        "description": "A task's state as its own page reads it, with `pictures`, what a\npicture added to its statement may be.",
+        "properties": {
+          "draft": {
+            "title": "Draft",
+            "type": "boolean"
+          },
+          "errors": {
+            "items": {
+              "$ref": "#/components/schemas/DefinitionError"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "head": {
+            "title": "Head",
+            "type": "string"
+          },
+          "head_statement_written": {
+            "title": "Head Statement Written",
+            "type": "boolean"
+          },
+          "latest": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Publication"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "may": {
+            "$ref": "#/components/schemas/PlaceMay"
+          },
+          "pictures": {
+            "$ref": "#/components/schemas/Pictures"
+          },
+          "results": {
+            "$ref": "#/components/schemas/Results"
+          },
+          "statement_written": {
+            "title": "Statement Written",
+            "type": "boolean"
+          },
+          "toolchains": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/Toolchain"
+            },
+            "title": "Toolchains",
+            "type": "object"
+          }
+        },
+        "required": [
+          "head",
+          "latest",
+          "draft",
+          "errors",
+          "statement_written",
+          "head_statement_written",
+          "results",
+          "may",
+          "toolchains",
+          "pictures"
+        ],
+        "title": "TaskDetail",
         "type": "object"
       },
       "TaskEntry": {
@@ -7628,7 +8094,7 @@
         "type": "object"
       },
       "TaskState": {
-        "description": "Where a task's files stand: the version at their head, the latest\npublication or none, and whether the head is a draft, a state no\npublication froze. A draft carries the errors that keep it from\npublishing; a draft with none was held back, or has not been saved since\nit was made. `statement_written` says whether the latest publication\nholds a statement, there, not blank and not the starter's placeholder,\nfalse when nothing is published, and `head_statement_written` the same\nof the head. `results` says where the task's results stand.",
+        "description": "Where a task's files stand: the version at their head, the latest\npublication or none, and whether the head is a draft, a state no\npublication froze. A draft carries the errors that keep it from\npublishing; a draft with none was held back, or has not been saved since\nit was made. `statement_written` says whether the latest publication\nholds a statement, there, not blank and not the starter's placeholder,\nfalse when nothing is published, and `head_statement_written` the same\nof the head. `results` says where the task's results stand, and `may`\nwhat the caller may do at the task.",
         "properties": {
           "draft": {
             "title": "Draft",
@@ -7659,6 +8125,9 @@
               }
             ]
           },
+          "may": {
+            "$ref": "#/components/schemas/PlaceMay"
+          },
           "results": {
             "$ref": "#/components/schemas/Results"
           },
@@ -7682,6 +8151,7 @@
           "statement_written",
           "head_statement_written",
           "results",
+          "may",
           "toolchains"
         ],
         "title": "TaskState",
@@ -7853,8 +8323,19 @@
         "type": "object"
       },
       "TreeEntry": {
-        "description": "One entry of a folder: a file, with the size of what its commit\nholds and that commit, the one that last changed it, which holds it as\nlisted whatever the head has moved to since (none when the forge does\nnot say), or a folder. `upload` tells an uploaded file from a typed one.\n`token` is the file's `ConflictToken`, as a read gives it, plain text so the\nentry is served as it is; `start` is how a small text\nfile begins (`start_of`), none for any other file and for an upload,\nwhose commit holds only the pointer to its bytes.",
+        "description": "One entry of a folder, as the forge lists it (`forge.api.files.\nTreeEntry`), with `href`, where the download door serves a file, as\n`FileContent` says; null for a folder.",
         "properties": {
+          "href": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Href"
+          },
           "kind": {
             "$ref": "#/components/schemas/EntryKind"
           },
@@ -7924,7 +8405,8 @@
           "upload",
           "version",
           "token",
-          "start"
+          "start",
+          "href"
         ],
         "title": "TreeEntry",
         "type": "object"
@@ -8226,15 +8708,40 @@
         "type": "object"
       },
       "VersionContent": {
-        "description": "A workflow's `workflow.yaml` at one version.",
+        "description": "A workflow's `workflow.yaml` at one version: its text, and its plain\nvalues, or null with why it does not read in `unreadable`.",
         "properties": {
           "content": {
             "title": "Content",
             "type": "string"
+          },
+          "unreadable": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unreadable"
+          },
+          "values": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Values"
           }
         },
         "required": [
-          "content"
+          "content",
+          "values",
+          "unreadable"
         ],
         "title": "VersionContent",
         "type": "object"
@@ -8329,6 +8836,76 @@
           "description"
         ],
         "title": "WorkflowBox",
+        "type": "object"
+      },
+      "WorkflowDraft": {
+        "description": "A workflow's draft: its `workflow.yaml` as plain values, with the\ntoken a save carries back, none for a file not there yet. When the file\ndoes not read as values, `values` is null, `unreadable` says why and\n`content` is its text; otherwise `content` is null. `revision` names\nthe saved repository, including its files, for publishing exactly that\nsave.",
+        "properties": {
+          "content": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content"
+          },
+          "revision": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revision"
+          },
+          "token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Token"
+          },
+          "unreadable": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unreadable"
+          },
+          "values": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Values"
+          }
+        },
+        "required": [
+          "values",
+          "unreadable",
+          "content",
+          "token",
+          "revision"
+        ],
+        "title": "WorkflowDraft",
         "type": "object"
       },
       "WorkflowForm": {
@@ -8468,22 +9045,12 @@
         "type": "object"
       },
       "WorkflowPage": {
-        "description": "A workflow as its page shows it. For someone who may edit it, `draft`,\nits `workflow.yaml` now, and `readers`, the usernames it is shared with;\nfor anyone else, no draft and no readers.",
+        "description": "A workflow as its page shows it. For someone who may edit it,\n`readers`, the usernames it is shared with; for anyone else, none.",
         "properties": {
           "description": {
             "default": "",
             "title": "Description",
             "type": "string"
-          },
-          "draft": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/Definition"
-              },
-              {
-                "type": "null"
-              }
-            ]
           },
           "editable": {
             "title": "Editable",
@@ -8530,7 +9097,6 @@
           "editable",
           "description",
           "yanked",
-          "draft",
           "readers"
         ],
         "title": "WorkflowPage",
@@ -8629,6 +9195,49 @@
           "token"
         ],
         "title": "WriteFile",
+        "type": "object"
+      },
+      "WriteSettings": {
+        "description": "A contest's settings saved from its form: every value, as `Settings`\ngives them, written into `contest.yaml` as it is, `token` being the one\nthey were read with, and `confirm` and `asked` doing what they do for a\nfile's write.",
+        "properties": {
+          "asked": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Asked"
+          },
+          "confirm": {
+            "default": false,
+            "title": "Confirm",
+            "type": "boolean"
+          },
+          "token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Token"
+          },
+          "values": {
+            "additionalProperties": true,
+            "title": "Values",
+            "type": "object"
+          }
+        },
+        "required": [
+          "values",
+          "token"
+        ],
+        "title": "WriteSettings",
         "type": "object"
       },
       "WriteTaskFile": {
@@ -9893,7 +10502,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/OrgProfile"
+                  "$ref": "#/components/schemas/Org"
                 }
               }
             },
@@ -9910,7 +10519,7 @@
             "description": "An error, as an RFC 9457 problem document. `code` names it."
           }
         },
-        "summary": "The org's display name and description",
+        "summary": "The org's display name and description, and what the caller may do there",
         "tags": [
           "orgs"
         ]
@@ -10008,7 +10617,7 @@
     },
     "/api/v1/orgs/{org}/contests": {
       "get": {
-        "description": "The contests the forge lets the caller read, by name, each with its\nstate and dates.",
+        "description": "The contests the forge lets the caller read, by name, each with its\nstate and dates and what the caller may do there.",
         "operationId": "listContests",
         "parameters": [
           {
@@ -10098,6 +10707,58 @@
           }
         },
         "summary": "Make a contest in the org",
+        "tags": [
+          "contests"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}": {
+      "get": {
+        "description": "The contest's state and dates, null when its settings do not read,\nand what the caller may do there.",
+        "operationId": "getContest",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListedContest"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "The contest, as the org's list tells it",
         "tags": [
           "contests"
         ]
@@ -13355,9 +14016,120 @@
         ]
       }
     },
+    "/api/v1/orgs/{org}/contests/{contest}/settings": {
+      "get": {
+        "operationId": "readContestSettings",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Settings"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "The settings as values",
+        "tags": [
+          "files"
+        ]
+      },
+      "put": {
+        "description": "`contest.yaml` with the values written into it as it is, saved as\na write of the file is.",
+        "operationId": "writeContestSettings",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WriteSettings"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Written"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "Save the settings' values",
+        "tags": [
+          "files"
+        ]
+      }
+    },
     "/api/v1/orgs/{org}/contests/{contest}/tasks": {
       "get": {
-        "description": "The tasks the forge lets the caller read, by name.",
+        "description": "The tasks the forge lets the caller read, by name, each with whether\nthey manage it.",
         "operationId": "listTasks",
         "parameters": [
           {
@@ -13385,7 +14157,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "$ref": "#/components/schemas/Named"
+                    "$ref": "#/components/schemas/ListedTask"
                   },
                   "title": "Response Listtasks",
                   "type": "array"
@@ -13473,7 +14245,7 @@
     },
     "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}": {
       "get": {
-        "description": "The head, the latest publication, and when the head is a draft, the\nerrors that keep it from publishing, worked out again on every read;\nand whether the task's results are released, with every release and\ntake-back, who and when.",
+        "description": "The head, the latest publication, and when the head is a draft, the\nerrors that keep it from publishing, worked out again on every read;\nwhether the task's results are released, with every release and\ntake-back, who and when; what the caller may do there; and what a\nstatement's picture may be.",
         "operationId": "getTask",
         "parameters": [
           {
@@ -13509,7 +14281,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/TaskState"
+                  "$ref": "#/components/schemas/TaskDetail"
                 }
               }
             },
@@ -13883,6 +14655,77 @@
         "summary": "Reopen a closed announcement, which its readers see again",
         "tags": [
           "announcements"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/draft-runs": {
+      "post": {
+        "description": "Every combination of the draft's tuples, as a save makes the runs,\nfor the task's cards while the organiser edits. Nothing is saved.",
+        "operationId": "listTaskDraftRuns",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "task",
+            "required": true,
+            "schema": {
+              "title": "Task",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DraftRunsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DraftRuns"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "The runs a draft's repeat makes",
+        "tags": [
+          "tasks"
         ]
       }
     },
@@ -15706,7 +16549,7 @@
     },
     "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/organise/submissions/{number}/files": {
       "get": {
-        "description": "Each input's files by the address the download door reads them at,\n`/-/downloads/<org>/<contest>/<task>/entrants/<entrant>/<number>/<path>`,\nor the value given, and each part's the same of an input given in parts.\nA row with no such submission is `not_found`.",
+        "description": "Each input's files by their paths in the submission and the\naddresses the download door reads them at,\n`/-/downloads/<org>/<contest>/<task>/entrants/<entrant>/<number>/<path>`,\nor the value given, and each part's the same of an input given in parts.\nA row with no such submission is `not_found`.",
         "operationId": "listOrganisedSubmissionFiles",
         "parameters": [
           {
@@ -17176,6 +18019,66 @@
         ]
       }
     },
+    "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/settings": {
+      "get": {
+        "operationId": "readTaskSettings",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "task",
+            "required": true,
+            "schema": {
+              "title": "Task",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Settings"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "The settings as values",
+        "tags": [
+          "files"
+        ]
+      }
+    },
     "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/show-preview": {
       "post": {
         "description": "The task's latest publication with the draft's `show` in its place,\nread at the moment picked as its entrant would read it then: the\nsubmission named, or with none, what they would be shown before any,\nwith `hidden` the runs staff read that the entrant would not be shown.\nThe draft is checked alone against the publication, and a problem is\n`invalid_definition` at its path in `task.yaml`, under `scoring.show`,\nas the save words it. Nothing is saved. A task never published is\n`not_found`, \"Publish the task to preview it.\", and so is an entrant\nwith no submission of that number.",
@@ -17456,7 +18359,7 @@
     },
     "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/submissions/{number}/files": {
       "get": {
-        "description": "Each input's files by their paths in the submission, or its value,\nand each part's the same of an input given in parts; each file\ndownloads through the download door.",
+        "description": "Each input's files by their paths in the submission and their\naddresses at the download door, or its value, and each part's the\nsame of an input given in parts.",
         "operationId": "listMySubmissionFiles",
         "parameters": [
           {
@@ -19090,7 +19993,7 @@
     },
     "/api/v1/workflows/check": {
       "post": {
-        "description": "Every problem a version of the definition would be refused for, each\nat its YAML path, against the primitives its steps use as the caller\nreads them. Nothing is written. Given `owner` and `name`, a draft that\nwould hold that workflow is refused, and the problem carries `step`.",
+        "description": "Every problem a version of the definition, given as values or as\ntext, would be refused for, each at its place in the file, against the\nprimitives its steps use as the caller reads them. Nothing is written.\nGiven `owner` and `name`, a draft that would hold that workflow is\nrefused, and the problem carries `step`.",
         "operationId": "checkWorkflow",
         "requestBody": {
           "content": {
@@ -19132,7 +20035,7 @@
     },
     "/api/v1/workflows/{owner}/{name}": {
       "get": {
-        "description": "Its visibility, versions and whether the caller may edit it; for one\nwho may, its draft with the token a save carries and who reads it.",
+        "description": "Its visibility, versions and whether the caller may edit it; for one\nwho may, who reads it.",
         "operationId": "getWorkflow",
         "parameters": [
           {
@@ -19187,8 +20090,62 @@
       }
     },
     "/api/v1/workflows/{owner}/{name}/draft": {
+      "get": {
+        "description": "For the person it is named for or a manager of its org: its values\nwith the token a save carries, or why it does not read and its text.",
+        "operationId": "getWorkflowDraft",
+        "parameters": [
+          {
+            "description": "An org's name or a person's username",
+            "in": "path",
+            "name": "owner",
+            "required": true,
+            "schema": {
+              "description": "An org's name or a person's username",
+              "title": "Owner",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The workflow's name under its owner",
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "description": "The workflow's name under its owner",
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkflowDraft"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "The draft as values",
+        "tags": [
+          "workflows"
+        ]
+      },
       "put": {
-        "description": "Write `workflow.yaml` and the file changes together, problems and all.\nEach file carries its token; a conflict writes nothing.",
+        "description": "Write `workflow.yaml` and the file changes together, problems and all:\nthe values into the file as it is, keeping its comments, or the whole\ntext. Each file carries its token; a conflict writes nothing, and values\nthat cannot be written into the file are `invalid_definition`.",
         "operationId": "saveWorkflow",
         "parameters": [
           {
@@ -19218,7 +20175,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/SaveDefinition"
+                "$ref": "#/components/schemas/SaveDraft"
               }
             }
           },
@@ -19229,7 +20186,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Definition"
+                  "$ref": "#/components/schemas/WorkflowDraft"
                 }
               }
             },
@@ -20109,7 +21066,7 @@
     },
     "/api/v1/workflows/{owner}/{name}/versions/{version}": {
       "get": {
-        "description": "Read as the caller: `not_found` when there is no such version or they\nmay not read it.",
+        "description": "Its text and its values. Read as the caller: `not_found` when there is\nno such version or they may not read it.",
         "operationId": "getWorkflowVersion",
         "parameters": [
           {
@@ -20260,7 +21217,7 @@
     },
     "/api/v1/workflows/{owner}/{name}/versions/{version}/tree": {
       "get": {
-        "description": "Read as the caller, as the version itself is: anyone who may read it\nsees what it ships with, and `not_found` in the same words otherwise.\nEach file downloads at\n`/-/downloads/workflows/<owner>/<name>/versions/<version>/<path>`.",
+        "description": "Read as the caller, as the version itself is: anyone who may read it\nsees what it ships with, and `not_found` in the same words otherwise.\nEach file's `href` is where the download door serves it.",
         "operationId": "listWorkflowVersionFiles",
         "parameters": [
           {

@@ -17,6 +17,7 @@ from forge.api.submissions import SubmittedFiles as SubmittedFilesRecord
 from forge.api.types import TaskId
 
 from unicon.api.door import attachment
+from unicon.api.downloads import submitted
 from unicon.schemas.submissions import OrganisedResult, SubmittedFiles
 from unicon.schemas.submissions import Result as ResultAnswer
 
@@ -231,12 +232,14 @@ def test_numbers_are_served_as_exact_decimals_and_text_stays_text() -> None:
     assert (label["number"], label["text"]) == (None, "12.5")
 
 
-def test_a_submissions_inputs_are_read_leniently() -> None:
+def test_a_submissions_inputs_are_read_leniently_each_file_with_its_address() -> None:
+    at = "/-/downloads/acme/spring/sum/3"
     record = SubmittedFilesRecord(
         TaskId("acme/spring/sum"),
         3,
         {
-            "code": {"files": ["files/code/main.py", 7]},
+            # An address in the file itself is never served as one.
+            "code": {"files": ["files/code/main.py", 7, {"path": "x", "href": "https://x.test"}]},
             "language": {"value": "python"},
             "alpha": {"value": 0.5},
             "ratio": {"value": Decimal("0.123456789012345678901234567891")},
@@ -248,12 +251,17 @@ def test_a_submissions_inputs_are_read_leniently() -> None:
         },
     )
 
-    answer = SubmittedFiles.model_validate(record, from_attributes=True).model_dump(mode="json")
+    addressed = SubmittedFilesRecord(record.task, record.number, submitted(record.inputs, at))
+    answer = SubmittedFiles.model_validate(addressed, from_attributes=True).model_dump(mode="json")
 
     assert answer == {
         "number": 3,
         "inputs": {
-            "code": {"files": ["files/code/main.py"], "value": None, "parts": None},
+            "code": {
+                "files": [{"path": "files/code/main.py", "href": f"{at}/files/code/main.py"}],
+                "value": None,
+                "parts": None,
+            },
             "language": {"files": [], "value": "python", "parts": None},
             "alpha": {"files": [], "value": "0.5", "parts": None},
             "ratio": {"files": [], "value": "0.123456789012345678901234567891", "parts": None},
@@ -263,7 +271,12 @@ def test_a_submissions_inputs_are_read_leniently() -> None:
                 "files": [],
                 "value": None,
                 "parts": {
-                    "1": {"files": ["files/route/1/a.txt"], "value": None},
+                    "1": {
+                        "files": [
+                            {"path": "files/route/1/a.txt", "href": f"{at}/files/route/1/a.txt"}
+                        ],
+                        "value": None,
+                    },
                     "3": {"files": [], "value": "7"},
                 },
             },

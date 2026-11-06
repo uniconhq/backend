@@ -33,8 +33,9 @@ from forge.api.submissions import TextAt
 from forge.api.types import ScopeKind
 
 from unicon.api.deps import CurrentSession
+from unicon.api.downloads import INPUTS, RUNS, submitted, task_downloads
 from unicon.api.guard import PREFIX, TaskAtPath
-from unicon.api.v1.contest_home import INPUTS, RUNS, shown_files, task_downloads
+from unicon.api.v1.contest_home import shown_files
 from unicon.schemas.contest_home import ShownInputFiles
 from unicon.schemas.submissions import NUMBER_MAX, Submission, SubmitRequest, SubmittedFiles
 
@@ -117,11 +118,13 @@ async def get_my_submission(
 async def list_my_submission_files(
     session: CurrentSession, scope: TaskAtPath, number: Number
 ) -> submissions.SubmittedFiles:
-    """Each input's files by their paths in the submission, or its value,
-    and each part's the same of an input given in parts; each file
-    downloads through the download door.
+    """Each input's files by their paths in the submission and their
+    addresses at the download door, or its value, and each part's the
+    same of an input given in parts.
     """
-    return await submissions.files(session, tasks.task_id_of(scope), number)
+    found = await submissions.files(session, tasks.task_id_of(scope), number)
+    at = f"{task_downloads(scope)}/{found.number}"
+    return submissions.SubmittedFiles(found.task, found.number, submitted(found.inputs, at))
 
 
 @router.get(

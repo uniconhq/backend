@@ -88,20 +88,27 @@ async def test_a_submit_answers_with_its_queued_grading_and_reads_back(
     assert one.json() == started
 
 
-async def test_a_submission_gives_back_what_it_was_made_with(
+async def test_a_submission_gives_back_what_it_was_made_with_each_file_where_it_downloads(
     client: httpx.AsyncClient, entered: FakeForge
 ) -> None:
     await _submit(client, entered)
 
     files = await client.get(f"{SUBMISSIONS}/1/files")
 
+    href = f"{DOWNLOADS}/1/{MAIN}"
     assert files.json() == {
         "number": 1,
         "inputs": {
-            "code": {"files": [MAIN], "value": None, "parts": None},
+            "code": {"files": [{"path": MAIN, "href": href}], "value": None, "parts": None},
             "language": {"files": [], "value": "python", "parts": None},
         },
     }
+    assert (await _download(client, href)).status_code == 204
+
+
+def _file(at: str, path: str) -> dict[str, str]:
+    """A submitted file as an answer gives it, at the submission's address `at`."""
+    return {"path": path, "href": f"{at}/{path}"}
 
 
 async def _download(client: httpx.AsyncClient, address: str) -> httpx.Response:
@@ -434,7 +441,7 @@ async def test_staff_list_and_download_an_entrants_files(
     missing = await _download(client, f"{DOWNLOADS}/entrants/{entrant}/1/files/code/other.py")
 
     assert listed.status_code == 200, listed.text
-    assert listed.json()["inputs"]["code"]["files"] == [address]
+    assert listed.json()["inputs"]["code"]["files"] == [{"path": MAIN, "href": address}]
     assert opened.status_code == 204, opened.text
     door = Door(opened.headers["X-Forge-Path"], opened.headers["X-Forge-Authorization"])
     assert await entered.workspaces.fetch(door) == SOURCE
@@ -507,17 +514,21 @@ async def test_an_input_given_in_parts_is_read_back_by_part_by_its_entrant_and_s
         "files": [],
         "value": None,
         "parts": {
-            "1": {"files": ["files/input/1/1.in"], "value": None},
-            "2": {"files": ["files/input/2/2.in"], "value": None},
+            "1": {"files": [_file(DOWNLOADS + "/1", "files/input/1/1.in")], "value": None},
+            "2": {"files": [_file(DOWNLOADS + "/1", "files/input/2/2.in")], "value": None},
         },
     }
-    assert own.json()["inputs"]["code"] == {"files": [MAIN], "value": None, "parts": None}
+    assert own.json()["inputs"]["code"] == {
+        "files": [_file(DOWNLOADS + "/1", MAIN)],
+        "value": None,
+        "parts": None,
+    }
     assert own.json()["inputs"]["language"] == {"files": [], "value": "python", "parts": None}
     door = Door(opened.headers["X-Forge-Path"], opened.headers["X-Forge-Authorization"])
     assert await entered.workspaces.fetch(door) == SECOND
     assert staff.json()["inputs"]["input"]["parts"] == {
-        "1": {"files": [f"{at}/files/input/1/1.in"], "value": None},
-        "2": {"files": [f"{at}/files/input/2/2.in"], "value": None},
+        "1": {"files": [_file(at, "files/input/1/1.in")], "value": None},
+        "2": {"files": [_file(at, "files/input/2/2.in")], "value": None},
     }
     door = Door(staff_opened.headers["X-Forge-Path"], staff_opened.headers["X-Forge-Authorization"])
     assert await entered.workspaces.fetch(door) == FIRST

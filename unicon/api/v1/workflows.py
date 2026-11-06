@@ -1,5 +1,6 @@
 """Workflows for anyone signed in: making one, the ones they may read, one
-as its page shows it, its definition at a version, saving its draft,
+as its page shows it, its definition at a version, reading and saving its
+draft as values, or as text while it does not read,
 making a version, checking a definition on its own, its visibility and who
 it is shared with, copying one, a version's inputs and outputs for
 drawing it as a box, and the files a version was frozen with; and the
@@ -20,11 +21,11 @@ from typing import Annotated, Literal
 
 from fastapi import APIRouter, Path, Query, status
 from forge.api import part_uploads, uploads, workflows
-from forge.api.files import TreeEntry
 from forge.api.types import ConflictToken, Edit, VersionId
 
+from unicon.api import downloads
 from unicon.api.deps import CurrentSession
-from unicon.schemas.files import FileContent, token_of
+from unicon.schemas.files import FileContent, TreeEntry, token_of
 from unicon.schemas.uploads import (
     FinishParts,
     PartUploadRequest,
@@ -39,16 +40,16 @@ from unicon.schemas.workflows import (
     CopyWorkflow,
     CreateVersion,
     CreateWorkflow,
-    Definition,
     DefinitionProblem,
     Primitive,
     Reader,
-    SaveDefinition,
+    SaveDraft,
     SetVisibility,
     Version,
     VersionContent,
     Workflow,
     WorkflowBox,
+    WorkflowDraft,
     WorkflowItem,
     WorkflowPage,
     WorkflowSearch,
@@ -92,14 +93,21 @@ async def list_workflows(session: CurrentSession) -> list[WorkflowItem]:
     "/workflows/check", operation_id="checkWorkflow", summary="Check a definition on its own"
 )
 async def check_workflow(session: CurrentSession, body: CheckDefinition) -> Checked:
-    """Every problem a version of the definition would be refused for, each
-    at its YAML path, against the primitives its steps use as the caller
-    reads them. Nothing is written. Given `owner` and `name`, a draft that
-    would hold that workflow is refused, and the problem carries `step`.
+    """Every problem a version of the definition, given as values or as
+    text, would be refused for, each at its place in the file, against the
+    primitives its steps use as the caller reads them. Nothing is written.
+    Given `owner` and `name`, a draft that would hold that workflow is
+    refused, and the problem carries `step`.
     """
-    found = await workflows.check(
-        session, body.content, owner=body.owner, name=body.name, paths=body.paths
-    )
+    if body.values is not None:
+        found = await workflows.check_values(
+            session, body.values, owner=body.owner, name=body.name, paths=body.paths
+        )
+    else:
+        assert body.content is not None
+        found = await workflows.check(
+            session, body.content, owner=body.owner, name=body.name, paths=body.paths
+        )
     return Checked(problems=[DefinitionProblem(**problem) for problem in found])
 
 
@@ -161,32 +169,40 @@ async def copy_workflow(session: CurrentSession, body: CopyWorkflow) -> Workflow
 @router.get(WORKFLOW, operation_id="getWorkflow", summary="A workflow as its page shows it")
 async def get_workflow(session: CurrentSession, owner: Owner, name: Name) -> WorkflowPage:
     """Its visibility, versions and whether the caller may edit it; for one
-    who may, its draft with the token a save carries and who reads it.
+    who may, who reads it.
     """
     return WorkflowPage.of_view(await workflows.view(session, owner, name))
 
 
+@router.get(f"{WORKFLOW}/draft", operation_id="getWorkflowDraft", summary="The draft as values")
+async def get_workflow_draft(session: CurrentSession, owner: Owner, name: Name) -> WorkflowDraft:
+    """For the person it is named for or a manager of its org: its values
+    with the token a save carries, or why it does not read and its text.
+    """
+    return WorkflowDraft.of(await workflows.read_draft(session, owner, name))
+
+
 @router.put(f"{WORKFLOW}/draft", operation_id="saveWorkflow", summary="Save the draft")
 async def save_workflow(
-    session: CurrentSession, owner: Owner, name: Name, body: SaveDefinition
-) -> Definition:
-    """Write `workflow.yaml` and the file changes together, problems and all.
-    Each file carries its token; a conflict writes nothing.
+    session: CurrentSession, owner: Owner, name: Name, body: SaveDraft
+) -> WorkflowDraft:
+    """Write `workflow.yaml` and the file changes together, problems and all:
+    the values into the file as it is, keeping its comments, or the whole
+    text. Each file carries its token; a conflict writes nothing, and values
+    that cannot be written into the file are `invalid_definition`.
     """
     token = ConflictToken(body.token) if body.token is not None else None
-    return Definition.of(
-        await workflows.save(
-            session,
-            owner,
-            name,
-            body.content,
-            token,
-            changes={
-                change.path: Edit(change.edit_content(), token_of(change.token))
-                for change in body.changes
-            },
+    changes = {
+        change.path: Edit(change.edit_content(), token_of(change.token)) for change in body.changes
+    }
+    if body.values is not None:
+        saved = await workflows.save_values(
+            session, owner, name, body.values, token, changes=changes
         )
-    )
+    else:
+        assert body.content is not None
+        saved = await workflows.save(session, owner, name, body.content, token, changes=changes)
+    return WorkflowDraft.of(saved)
 
 
 @router.get(
@@ -194,9 +210,12 @@ async def save_workflow(
 )
 async def list_workflow_files(
     session: CurrentSession, owner: Owner, name: Name, path: str = ""
-) -> tuple[TreeEntry, ...]:
+) -> list[TreeEntry]:
     """Read as the owner or an org manager; uploads carry their size and digest."""
-    return await workflows.files(session, owner, name, path)
+    found = await workflows.files(session, owner, name, path)
+    return [
+        TreeEntry.of(entry, downloads.workflow_draft(owner, name, entry.path)) for entry in found
+    ]
 
 
 @router.get(
@@ -207,7 +226,8 @@ async def list_workflow_files(
 async def get_workflow_file(
     session: CurrentSession, owner: Owner, name: Name, path: str
 ) -> FileContent:
-    return FileContent.of(await workflows.read_file(session, owner, name, path))
+    file = await workflows.read_file(session, owner, name, path)
+    return FileContent.of(file, downloads.workflow_draft(owner, name, path))
 
 
 @router.post(
@@ -276,12 +296,10 @@ async def create_workflow_version(
 async def get_workflow_version(
     session: CurrentSession, owner: Owner, name: Name, version: str
 ) -> VersionContent:
-    """Read as the caller: `not_found` when there is no such version or they
-    may not read it.
+    """Its text and its values. Read as the caller: `not_found` when there is
+    no such version or they may not read it.
     """
-    return VersionContent(
-        content=await workflows.read_version(session, f"{owner}/{name}@{version}")
-    )
+    return VersionContent.of(await workflows.read_version(session, f"{owner}/{name}@{version}"))
 
 
 @router.get(
@@ -315,13 +333,16 @@ async def get_workflow_box(
 )
 async def list_workflow_version_files(
     session: CurrentSession, owner: Owner, name: Name, version: str, path: str = ""
-) -> tuple[TreeEntry, ...]:
+) -> list[TreeEntry]:
     """Read as the caller, as the version itself is: anyone who may read it
     sees what it ships with, and `not_found` in the same words otherwise.
-    Each file downloads at
-    `/-/downloads/workflows/<owner>/<name>/versions/<version>/<path>`.
+    Each file's `href` is where the download door serves it.
     """
-    return await workflows.version_files(session, f"{owner}/{name}@{version}", path)
+    found = await workflows.version_files(session, f"{owner}/{name}@{version}", path)
+    return [
+        TreeEntry.of(entry, downloads.workflow_version(owner, name, version, entry.path))
+        for entry in found
+    ]
 
 
 @router.put(

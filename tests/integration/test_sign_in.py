@@ -37,6 +37,10 @@ async def test_a_sign_in_round_trip(client: httpx.AsyncClient, forge: FakeForge)
         },
         "roles": [],
         "degraded": False,
+        "orgs": [],
+        "contests": [],
+        "tasks": [],
+        "workflow_owners": ["ada"],
     }
 
 

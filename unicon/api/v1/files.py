@@ -17,7 +17,9 @@ and may name, in place of content, a file the organiser uploaded for that
 path, whose pointer it writes. A rollback writes the file as it was at an
 older version back as a new change, so it answers as a write does. A file
 that is an upload is read and listed with `upload`, the size and digest of
-what it holds.
+what it holds. The settings are also read as their form's plain values, and
+a contest's saved from them, through the same write as `contest.yaml`'s; a
+task's are saved with the task's save.
 """
 
 from typing import Annotated
@@ -28,11 +30,15 @@ from forge.api.access import Organiser
 from forge.api.publications import Draft, Preparing, Published
 from forge.api.types import ContestId, Role, ScopeKind, TaskId, Uploaded, VersionId
 
+from unicon.api import downloads
 from unicon.api.guard import PREFIX, require
 from unicon.schemas.files import (
     FileContent,
     RollbackFile,
+    Settings,
+    TreeEntry,
     WriteFile,
+    WriteSettings,
     WriteTaskFile,
     Written,
     token_of,
@@ -52,8 +58,9 @@ def router_at(kind: ScopeKind) -> APIRouter:
     async def list_tree(
         organiser: Observer,
         path: Annotated[str, Query(description="The folder; the top when empty")] = "",
-    ) -> tuple[files.TreeEntry, ...]:
-        return await files.tree(organiser, _place(organiser), path)
+    ) -> list[TreeEntry]:
+        found = await files.tree(organiser, _place(organiser), path)
+        return [TreeEntry.of(entry, _href(organiser, entry.version, entry.path)) for entry in found]
 
     @router.get(
         "/files/{path:path}", operation_id=f"read{name}File", summary="One file at a version"
@@ -66,7 +73,7 @@ def router_at(kind: ScopeKind) -> APIRouter:
         file = await files.read(
             organiser, _place(organiser), path, VersionId(at) if at is not None else None
         )
-        return FileContent.of(file)
+        return FileContent.of(file, _href(organiser, file.version, path))
 
     @router.get("/history", operation_id=f"list{name}History", summary="Every change, newest first")
     async def list_history(
@@ -115,6 +122,28 @@ def router_at(kind: ScopeKind) -> APIRouter:
         ) -> Written | Published | Draft | Preparing:
             return await _write(organiser, path, body.data(), body)
 
+    @router.get("/settings", operation_id=f"read{name}Settings", summary="The settings as values")
+    async def read_settings(organiser: Observer) -> Settings:
+        return Settings.of(await files.read_values(organiser, _place(organiser)))
+
+    if kind is ScopeKind.CONTEST:
+
+        @router.put(
+            "/settings", operation_id="writeContestSettings", summary="Save the settings' values"
+        )
+        async def write_settings(organiser: Manager, body: WriteSettings) -> Written:
+            """`contest.yaml` with the values written into it as it is, saved as
+            a write of the file is."""
+            result = await files.write_contest_values(
+                organiser,
+                contests.contest_id_of(organiser.scope),
+                body.values,
+                token_of(body.token),
+                confirm=body.confirm,
+                asked=body.asked,
+            )
+            return Written(version=result.version, notes=list(result.notes))
+
     @router.post(
         "/files/{path:path}/rollback",
         operation_id=f"rollBack{name}File",
@@ -155,6 +184,13 @@ async def _write(
         keep_as_draft=body.keep_as_draft,
     )
     return _answered(result)
+
+
+def _href(organiser: Organiser, version: str | None, path: str) -> str | None:
+    """Where a task's file at `version` downloads; a contest's does not."""
+    if organiser.scope.kind is not ScopeKind.TASK:
+        return None
+    return downloads.task_file(organiser.scope, version, path)
 
 
 def _place(organiser: Organiser) -> ContestId | TaskId:

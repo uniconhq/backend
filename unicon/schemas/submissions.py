@@ -351,15 +351,22 @@ class ShowPreview(BaseModel):
     placeholders: Placeholders | None = None
 
 
+class SubmittedFile(BaseModel):
+    """One submitted file: its path in the submission and where the download
+    door serves it."""
+
+    path: str
+    href: str
+
+
 class SubmittedPart(BaseModel):
-    """What one part of an input given in parts was: the paths of its files
-    in the submission, each a download through the download door, or the
+    """What one part of an input given in parts was: its files, or the
     value given, a number as its exact decimal digits. It is read leniently
     from the submission's `submission.json`: a member of the wrong type is
     left out rather than failing the answer.
     """
 
-    files: list[str]
+    files: list[SubmittedFile]
     value: Value | None
 
     @model_validator(mode="before")
@@ -369,8 +376,7 @@ class SubmittedPart(BaseModel):
 
 
 class SubmittedFileInput(SubmittedPart):
-    """What one input of a submission was: the paths of its files in the
-    submission, each a download through the download door, or the value
+    """What one input of a submission was: its files, or the value
     given, a number as its exact decimal digits; or, for an input given
     once per tuple, its `parts` by number from "1", only the parts given,
     its own `files` empty and `value` null, and `parts` null on any other.
@@ -411,7 +417,13 @@ def _files_and_value(found: dict[str, Any]) -> dict[str, Any]:
     files = found.get("files")
     value = found.get("value")
     return {
-        "files": [path for path in files if isinstance(path, str)]
+        "files": [
+            each
+            for each in files
+            if isinstance(each, dict)
+            and isinstance(each.get("path"), str)
+            and isinstance(each.get("href"), str)
+        ]
         if isinstance(files, list)
         else [],
         "value": value if isinstance(value, Value) else _digits(value),

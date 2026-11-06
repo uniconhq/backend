@@ -8,10 +8,12 @@ What of the error reaches the client is decided per code. A refusal carries
 its detail, because the detail is the reason the person can act on. A forge
 that is down or wrongly registered, and an error this table does not know,
 are answered with a fixed sentence: their detail names hosts, paths and the
-forge's own words, which belong in the log and not in a browser. A member of
-an error's refusal never replaces a field of the document itself, such as its
-`status`; one that would is left out and logged. A refusal that says when
-to try again, `rate_limited`, says it in a `Retry-After` header too.
+forge's own words, which belong in the log and not in a browser. So is a
+refusal one of the forge's adapters raised, in its code's own sentence
+(`said`). A member of an error's refusal never replaces a field of the
+document itself, such as its `status`; one that would is left out and
+logged. A refusal that says when to try again, `rate_limited`, says it in a
+`Retry-After` header too.
 """
 
 from datetime import UTC, datetime, timedelta
@@ -22,7 +24,7 @@ from typing import Any, cast
 from fastapi import FastAPI, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from forge.api.errors import UniconError
+from forge.api.errors import UniconError, said
 from forge.api.log import get_logger
 from starlette.exceptions import HTTPException
 
@@ -174,10 +176,11 @@ def problem_for(error: UniconError) -> JSONResponse:
             code=error.code,
             members=sorted(error.extra.keys() - extra.keys()),
         )
+    detail = said(error)
+    if detail != error.detail:
+        log.warning("errors.adapter", code=error.code, detail=error.detail)
     response = problem_response(
-        Problem.of(
-            code=error.code, status=status, title=_title(status), detail=error.detail, **extra
-        )
+        Problem.of(code=error.code, status=status, title=_title(status), detail=detail, **extra)
     )
     retry_after = _retry_after(error)
     if retry_after is not None:

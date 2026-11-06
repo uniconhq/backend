@@ -43,11 +43,11 @@ async def create_org(session: CurrentSession, body: CreateOrg) -> NamedRecord:
 @router.get(
     ORG,
     operation_id="getOrg",
-    summary="The org's display name and description",
+    summary="The org's display name and description, and what the caller may do there",
 )
 async def get_org(
     organiser: Annotated[Organiser, Depends(anywhere())],
-) -> orgs.OrgProfile:
+) -> orgs.Org:
     """As they stand at the forge; `display_name` is null while the org has
     none of its own.
     """

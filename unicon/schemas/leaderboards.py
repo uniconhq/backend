@@ -116,7 +116,8 @@ class Leaderboard(BaseModel):
     to them, the keys its rows were sorted by and the sort keys `dropped`,
     hidden on a row served or not listed, its rows cut to its audience, and
     `held_from`, when the hold holds other rows from, null when it holds
-    nothing for the caller."""
+    nothing for the caller. `staff` says the caller reads it as staff, who
+    alone are told a header's bounds."""
 
     key: str
     title: str
@@ -126,6 +127,7 @@ class Leaderboard(BaseModel):
     dropped: list[str]
     held_from: datetime | None
     rows: list[LeaderboardRow]
+    staff: bool
 
 
 def header_of(header: leaderboards.Header) -> dict[str, Any]:
@@ -156,6 +158,7 @@ def leaderboard_of(leaderboard: leaderboards.LeaderboardView) -> dict[str, Any]:
         "sort": sort_of(leaderboard.sort),
         "dropped": list(leaderboard.dropped),
         "held_from": leaderboard.held_from,
+        "staff": leaderboard.staff,
         "rows": [
             {
                 "place": row.place,

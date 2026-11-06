@@ -29,7 +29,7 @@ def _held(forge: FakeForge, user_id: int) -> set[tuple[Scope, Role]]:
     return {held for held, members in forge.state.orgs["acme"].roles.items() if user_id in members}
 
 
-async def test_the_holders_at_a_task_say_where_each_holds_their_role(
+async def test_the_holders_at_a_task_say_where_each_holds_their_role_and_who_the_caller_may_change(
     client: httpx.AsyncClient, world: FakeForge
 ) -> None:
     await world.orgs.grant_role(8, SPRING, Role.MANAGER)
@@ -44,11 +44,13 @@ async def test_the_holders_at_a_task_say_where_each_holds_their_role(
             "user": {"id": 7, "username": "ada", "name": "Ada Lovelace", "avatar_url": None},
             "role": "admin",
             "at_names": {"org": "acme", "contest": None, "task": None},
+            "may_change": False,
         },
         {
             "user": {"id": 8, "username": "bob", "name": None, "avatar_url": None},
             "role": "manager",
             "at_names": {"org": "acme", "contest": "spring", "task": None},
+            "may_change": False,
         },
         {
             "user": {
@@ -59,6 +61,7 @@ async def test_the_holders_at_a_task_say_where_each_holds_their_role(
             },
             "role": "observer",
             "at_names": {"org": "acme", "contest": "spring", "task": "sum"},
+            "may_change": True,
         },
     ]
 

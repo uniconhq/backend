@@ -36,7 +36,7 @@ async def test_a_task_is_made_and_listed(
 
     assert made.status_code == 201
     assert made.json() == {"name": "sum"}
-    assert (await client.get(f"{CONTEST}/tasks")).json() == [{"name": "sum"}]
+    assert (await client.get(f"{CONTEST}/tasks")).json() == [{"name": "sum", "may_manage": True}]
     settings = (await client.get(f"{TASK}/files/task.yaml")).json()
     assert 'name: "Sum of Two"' in settings["content"]
 
@@ -52,6 +52,26 @@ async def test_a_new_task_is_an_unsaved_draft_with_nothing_wrong(
     assert (body["statement_written"], body["head_statement_written"]) == (False, False)
     assert body["head"]
     assert (await client.get(f"{TASK}/publications")).json() == []
+
+
+async def test_a_tasks_state_says_what_the_caller_may_do_and_what_a_picture_may_be(
+    client: httpx.AsyncClient, sum_task: FakeForge
+) -> None:
+    body = (await client.get(TASK)).json()
+
+    # ada is the org's admin.
+    assert body["may"] == {
+        "manage": True,
+        "edit_admin_settings": True,
+        "locked_keys": [],
+        "see_people": True,
+        "manage_people": True,
+        "give_admin": True,
+    }
+    assert body["pictures"] == {
+        "most": 10 * 1024 * 1024,
+        "endings": ["apng", "avif", "bmp", "gif", "ico", "jpeg", "jpg", "png", "svg", "webp"],
+    }
 
 
 async def test_a_task_in_a_contest_that_is_not_there_is_not_found(
@@ -136,7 +156,7 @@ async def test_settings_that_do_not_read_are_told_with_their_errors(
 
     assert (refused.status_code, refused.json()["code"]) == (422, "invalid_definition")
     assert refused.json()["detail"].startswith("There are 4 problems with the contest's settings.")
-    assert "start" in {error["path"] for error in refused.json()["errors"]}
+    assert ["start"] in [error["path"] for error in refused.json()["errors"]]
 
 
 async def test_the_workflow_form_gives_the_inputs_of_the_workflow_the_task_names(

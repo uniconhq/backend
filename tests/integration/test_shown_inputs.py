@@ -305,11 +305,11 @@ async def test_the_preview_checks_the_draft_alone_and_needs_a_publication(
 
     assert (wrong.status_code, wrong.json()["code"]) == (422, "invalid_definition")
     assert [problem["path"] for problem in wrong.json()["errors"]] == [
-        "scoring.show.always.values[0]",
-        "scoring.show.always.runs[0].of",
+        ["scoring", "show", "always", "values", 0],
+        ["scoring", "show", "always", "runs", 0, "of"],
     ]
     assert (old.status_code, old.json()["code"]) == (422, "invalid_definition")
-    assert old.json()["errors"][0]["path"].startswith("scoring.show")
+    assert old.json()["errors"][0]["path"][:2] == ["scoring", "show"]
     assert half.status_code == 422
     assert (unpublished.status_code, unpublished.json()["detail"]) == (
         404,
@@ -327,7 +327,7 @@ async def _checked(client: httpx.AsyncClient, forge: FakeForge) -> None:
         "/api/v1/workflows", json={"owner": "acme", "name": "checked"}, headers=ORIGIN
     )
     assert made.status_code == 201, made.text
-    draft = (await client.get("/api/v1/workflows/acme/checked")).json()["draft"]
+    draft = (await client.get("/api/v1/workflows/acme/checked/draft")).json()
     saved = await client.put(
         "/api/v1/workflows/acme/checked/draft",
         json={"content": CHECKED, "token": draft["token"]},

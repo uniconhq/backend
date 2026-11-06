@@ -192,6 +192,7 @@ class RegradeSummary(BaseModel):
     a result (`regraded` and `new` together); whether any is still
     `running`; and `counts`, by change. It stays until a newer regrade of
     the task replaces it or a manager of the task dismisses it.
+    `may_manage` says whether the caller may dismiss it.
     """
 
     id: uuid.UUID
@@ -206,6 +207,7 @@ class RegradeSummary(BaseModel):
     graded: int
     running: bool
     counts: RegradeCounts
+    may_manage: bool
 
     @field_validator("counts", mode="before")
     @classmethod
@@ -390,12 +392,15 @@ class FeedEntry(BaseModel):
     `entrant_name`, the name it is shown under, and the member who
     submitted it by `user_id` and `username`, both null when a reconcile
     found it at the forge, the username null when the forge did not say.
+    `may_manage` says whether the caller manages its task, so may cancel
+    or retry it.
     """
 
     grading: Grading
     task: str | None
     label: str | None
     by: Submitter
+    may_manage: bool
 
 
 class Rejudged(BaseModel):

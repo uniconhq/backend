@@ -4,8 +4,8 @@ its publications, its publications, the form of the workflow it names, and
 the save, which is how a task is published, and releasing a task's
 results or taking a release back. Creating needs the manager role
 at the contest and makes the task before it answers, and the lists the
-observer role there; taking a task out of the contest and putting a
-withdrawn one back need the manager role at the contest. The task's own
+observer role there; taking a task out of the contest and putting a withdrawn one back need the
+manager role at the contest. The task's own
 routes need the observer role at the task, the staff preview of a draft
 `show` among them, and the save, a release and a take-back the manager
 role.
@@ -14,10 +14,11 @@ caller needs only a session: it is what a contestant is told, and a contest
 hidden from the caller answers as no such task.
 """
 
+import dataclasses
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, status
-from forge.api import contests, publications, release, results, submissions, tasks
+from forge.api import contests, files, publications, release, results, submissions, tasks
 from forge.api.access import Organiser
 from forge.api.leaderboards import EntrantOwner
 from forge.api.publications import Draft, Preparing, Published
@@ -26,18 +27,20 @@ from forge.api.types import Named as NamedRecord
 
 from unicon.api.deps import CurrentSession
 from unicon.api.guard import PREFIX, TaskAtPath, require
+from unicon.api.v1.contest_home import PICTURES
 from unicon.schemas.contests import (
     CreateTask,
+    ListedTask,
     Named,
     PutBack,
     Results,
     ResultsRequest,
     TakenOut,
     TakeOutRequest,
+    TaskDetail,
     TaskStanding,
-    TaskState,
 )
-from unicon.schemas.files import token_of
+from unicon.schemas.files import DraftRuns, DraftRunsRequest, token_of
 from unicon.schemas.publications import Preparation, Publication, SaveRequest, SaveResult
 from unicon.schemas.submissions import ShowPreview, ShowPreviewRequest
 
@@ -71,10 +74,12 @@ async def create_task(organiser: ContestManager, body: CreateTask) -> NamedRecor
     f"{CONTEST}/tasks",
     operation_id="listTasks",
     summary="The contest's tasks",
-    response_model=list[Named],
+    response_model=list[ListedTask],
 )
-async def list_tasks(organiser: ContestObserver) -> tuple[NamedRecord, ...]:
-    """The tasks the forge lets the caller read, by name."""
+async def list_tasks(organiser: ContestObserver) -> tuple[tasks.ListedTask, ...]:
+    """The tasks the forge lets the caller read, by name, each with whether
+    they manage it.
+    """
     return await tasks.list_tasks(organiser, contests.contest_id_of(organiser.scope))
 
 
@@ -142,15 +147,18 @@ async def put_back_task(organiser: ContestManager, scope: TaskAtPath) -> PutBack
     TASK,
     operation_id="getTask",
     summary="Where the task's files stand",
-    response_model=TaskState,
+    response_model=TaskDetail,
 )
-async def get_task(organiser: TaskObserver) -> tasks.TaskState:
+async def get_task(organiser: TaskObserver) -> TaskDetail:
     """The head, the latest publication, and when the head is a draft, the
     errors that keep it from publishing, worked out again on every read;
-    and whether the task's results are released, with every release and
-    take-back, who and when.
+    whether the task's results are released, with every release and
+    take-back, who and when; what the caller may do there; and what a
+    statement's picture may be.
     """
-    return await tasks.state(organiser, tasks.task_id_of(organiser.scope))
+    state = await tasks.state(organiser, tasks.task_id_of(organiser.scope))
+    given = {field.name: getattr(state, field.name) for field in dataclasses.fields(state)}
+    return TaskDetail.model_validate({**given, "pictures": PICTURES}, from_attributes=True)
 
 
 @router.post(
@@ -273,6 +281,18 @@ async def save_task(organiser: TaskManager, body: SaveRequest) -> Published | Dr
         keep_as_draft=body.keep_as_draft,
         message=body.message,
     )
+
+
+@router.post(
+    f"{TASK}/draft-runs",
+    operation_id="listTaskDraftRuns",
+    summary="The runs a draft's repeat makes",
+)
+async def list_task_draft_runs(organiser: TaskObserver, body: DraftRunsRequest) -> DraftRuns:
+    """Every combination of the draft's tuples, as a save makes the runs,
+    for the task's cards while the organiser edits. Nothing is saved."""
+    found = await files.draft_runs(organiser, tasks.task_id_of(organiser.scope), body.repeat)
+    return DraftRuns.of(found)
 
 
 @router.post(
