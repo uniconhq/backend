@@ -66,7 +66,20 @@ async def test_a_visitor_reads_every_block_once_with_its_forms(
         "compiled",
     ]
     assert answer.json()["skip"] == "skip"
-    assert answer.json()["languages"] == ["c", "cpp", "java", "python", "ipynb"]
+    assert answer.json()["languages"] == [
+        "c",
+        "cpp",
+        "java",
+        "python",
+        "javascript",
+        "typescript",
+        "kotlin",
+        "csharp",
+        "rust",
+        "r",
+        "ruby",
+        "ipynb",
+    ]
     exec_inputs = found["exec"]["forms"][0]["inputs"]
     assert {name: each["kind"] for name, each in exec_inputs.items()} == {
         "program": "path",

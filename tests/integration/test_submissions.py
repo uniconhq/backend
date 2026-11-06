@@ -288,7 +288,7 @@ async def _on_tunable(client: httpx.AsyncClient, forge: FakeForge) -> None:
     )
     await forge.workflows.create_workflow_version(ada, workflow, "v1")
     current = await read(client, f"{TASK}/files/task.yaml")
-    old = "workflow: unicon/classic@v5\ninputs:\n"
+    old = "workflow: unicon/classic@v6\ninputs:\n"
     new = f"workflow: ada/tunable@v1\ninputs:\n  ratio: {{entrant: {{max: {THIRTY}}}}}\n"
     body = {"content": current["content"].replace(old, new), "token": current["token"]}
     asked = await client.put(

@@ -362,7 +362,7 @@ async def test_organisers_read_a_submission_scored_with_everything_filled_in(
     assert seen.status_code == 200, seen.text
     grading = seen.json()["grading"]
     # Carol is shown her run with no id and an empty tuple, since the task's
-    # `show` lists neither test file, and not the compile log; organisers
+    # `show` names neither input, and not the compile log; organisers
     # read every one of them, each value with when it shows and what it read.
     [mine] = own["runs"]
     [run] = grading["runs"]
