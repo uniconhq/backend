@@ -123,26 +123,35 @@ def _machines(
     """
     machines = Machines(fake, setup)
     start = fake.grading.start_pipeline
+    restart = fake.grading.restart_pipeline
 
-    async def asking(as_: Any, run: Any) -> Any:
-        made = await start(as_, run)
+    async def ask(made: Any) -> Any:
         found = fake.ci.runs[made]
         org = OrgId(found.task.split("/", 1)[0])
         answer = await runs.config(
             fake.grading.config_request(org, found.variables, now=clock.now())
         )
         steps = json.loads(answer.body)["steps"]
-        machines.started.append((found.variables["UNICON_PIPELINE"], steps))
+        # A save is the one pipeline with no submission.
+        kind = "grading" if "UNICON_SUBMISSION_COMMIT" in found.variables else "save"
+        machines.started.append((kind, steps))
         return made
 
+    async def asking(as_: Any, run: Any) -> Any:
+        return await ask(await start(as_, run))
+
+    async def asking_again(as_: Any, org: Any, run: Any) -> Any:
+        return await ask(await restart(as_, org, run))
+
     monkeypatch.setattr(fake.grading, "start_pipeline", asking)
+    monkeypatch.setattr(fake.grading, "restart_pipeline", asking_again)
     return machines
 
 
 async def run_pipelines(
     client: httpx.AsyncClient,
     verdict: str = "accepted",
-    pipelines: tuple[str, ...] = ("save", "early", "late"),
+    pipelines: tuple[str, ...] = ("save", "grading"),
 ) -> None:
     """Every pipeline of the kinds `pipelines` names started and not yet
     run, run to its report, and any of them it starts in turn: a build at

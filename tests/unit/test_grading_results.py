@@ -1,6 +1,5 @@
-"""A run task's grading as an organiser reads it: its pipeline, the early
-attempt a late one follows, and its result, version 6, each run with its
-verdict and its numbers exactly as the steps wrote them.
+"""A run task's grading as an organiser reads it: its result, version 6,
+each run with its verdict and its numbers exactly as the steps wrote them.
 """
 
 import uuid
@@ -63,13 +62,11 @@ RECORD: dict[str, Any] = {
 }
 
 
-def test_a_late_attempt_is_read_with_its_runs_and_the_early_attempt_it_follows() -> None:
-    early = uuid.UUID(int=7)
-    given = GradingRecord(**RECORD, result=RESULT, pipeline="late", early=early)
+def test_a_grading_is_read_with_its_runs() -> None:
+    given = GradingRecord(**RECORD, result=RESULT)
 
     read = TypeAdapter(Grading).validate_python(given, from_attributes=True)
 
-    assert (read.pipeline, read.early) == ("late", early)
     assert isinstance(read.result, RunsResult)
     shown = read.model_dump(mode="json")["result"]
     assert [(run["id"], run["verdict"]) for run in shown["runs"]] == [

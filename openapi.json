@@ -2065,7 +2065,7 @@
         "type": "object"
       },
       "Grading": {
-        "description": "One grading as an organiser managing its task reads it: the submission\nby its number, the publication it grades against, its attempt and\nwhether that is the submission's `latest`, the one staff cancel or\nretry, the member who submitted it, `submitted_by`, null when a\nreconcile found it at the forge, where it stands, the reason it failed,\nthe sentence staff cancelled it with, its result, its times, and whether\nthe platform made it by itself, `automatic`, retrying the attempt before\nit once that failed.\n\nOn a latest attempt that has not finished with a result, still being\ngraded, a system error or staff cancelled, `last_good` is the latest\nearlier attempt that did, the one its submission counts meanwhile on\nthe leaderboards and to its contestant; null on any other, and when no\nattempt has a result.\n\nAn attempt that is `over_limit` was made to grade a delayed submission\nagain and ended at once, run by nothing, since its entrant had no room\nleft under the task's most submissions: `limit` is that most, null on\nevery other status. On a latest attempt of a submission with no result\nthat reads as `system_error` or `over_limit`, `retry_limit` is the\ntask's most when a retry now would end over the limit, so the retry's\nconfirmation says so before it runs (\"Not graded: the entrant has\nreached the limit of 10 submissions for this task.\"); null otherwise,\nwhen a retry would grade it. `regrade` is the regrade of many the\nattempt belongs to, null for none; `change`, given only on the feed read\nby `regrade`, what that regrade did to the submission.\n\nA submission is graded by up to two pipelines, each with attempts of\nits own: `early`, the runs shown during the contest, and `late`, the\nrest, made once the early one is done, with `early` naming the early\nattempt it follows, null on an early one. Its `result` is a\n`RunsResult`.",
+        "description": "One grading as an organiser managing its task reads it: the submission\nby its number, the publication it grades against, its attempt and\nwhether that is the submission's `latest`, the one staff cancel or\nretry, the member who submitted it, `submitted_by`, null when a\nreconcile found it at the forge, where it stands, the reason it failed,\nthe sentence staff cancelled it with, its result, its times, and whether\nthe platform made it by itself, `automatic`, retrying the attempt before\nit once that failed.\n\nOn a latest attempt that has not finished with a result, still being\ngraded, a system error or staff cancelled, `last_good` is the latest\nearlier attempt that did, the one its submission counts meanwhile on\nthe leaderboards and to its contestant; null on any other, and when no\nattempt has a result.\n\nAn attempt that is `over_limit` was made to grade a delayed submission\nagain and ended at once, run by nothing, since its entrant had no room\nleft under the task's most submissions: `limit` is that most, null on\nevery other status. On a latest attempt of a submission with no result\nthat reads as `system_error` or `over_limit`, `retry_limit` is the\ntask's most when a retry now would end over the limit, so the retry's\nconfirmation says so before it runs (\"Not graded: the entrant has\nreached the limit of 10 submissions for this task.\"); null otherwise,\nwhen a retry would grade it. `regrade` is the regrade of many the\nattempt belongs to, null for none; `change`, given only on the feed read\nby `regrade`, what that regrade did to the submission. Its `result` is\na `RunsResult`.",
         "properties": {
           "attempt": {
             "title": "Attempt",
@@ -2120,18 +2120,6 @@
             ],
             "title": "Dispatched At"
           },
-          "early": {
-            "anyOf": [
-              {
-                "format": "uuid",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Early"
-          },
           "error": {
             "anyOf": [
               {
@@ -2185,14 +2173,6 @@
               }
             ],
             "title": "Limit"
-          },
-          "pipeline": {
-            "enum": [
-              "early",
-              "late"
-            ],
-            "title": "Pipeline",
-            "type": "string"
           },
           "publication": {
             "title": "Publication",
@@ -2294,9 +2274,7 @@
           "limit",
           "retry_limit",
           "regrade",
-          "change",
-          "pipeline",
-          "early"
+          "change"
         ],
         "title": "Grading",
         "type": "object"
@@ -5637,7 +5615,7 @@
         "type": "object"
       },
       "Result": {
-        "description": "The attempt of a submission's grading that counts, as its contestant\nsees it: the latest that finished with a result, as the leaderboards\ncount it, so a regrade under way, a failure or a cancel leaves the\nresult as it was, and while none has, the latest. Its id, attempt and\nstatus, in the contestant's words: `queued` until its run is started,\n`grading` while it is graded, `graded` once it has a result, `delayed`\nwhile it has none and its grading failed on the platform's side,\n`over_limit` once it was to be graded again with no room left under the\ntask's most submissions, and `cancelled` once staff end it; organisers\nread the grading's own status in the gradings routes. A `delayed` one\ncarries nothing else: it is tried again once by itself, and then waits\nfor staff, who grade it again or end it: then it is `cancelled`, with\n`reason`, the sentence they gave, which is null on every other status. A\ndelayed one is graded again only while its\nentrant's submissions with a result, those waiting that are not\ndelayed, and the delayed ones made before it are fewer than the task's\nmost, so the first ones to get a result count, and otherwise it is\n`over_limit`, with `limit`,\nthe most it reached (\"Not graded: you had reached the limit of 10\nsubmissions for this task.\"), and nothing else; `limit` is null on every\nother status.\n\n`run_values` holds each value of its scoring its entrant is shown,\nworked out on every read, and `runs` the runs its run entries show,\neach with the fields it names: those listed under `always` from the\nstart, those under `after_deadline` once the task reveals, and those\nunder `after_release` while staff have released the task's results,\nhidden again when they take the release back. The moments are\nseparate, so a release before the deadline shows `after_release`'s\nand not `after_deadline`'s. `once` holds what its steps done once\nreported, and what a batch step gives once for all its runs, that\n`outputs` lists, the compile log among them when listed; `compiled`\n1, or 0 when the entrant's code did not compile, while `outputs` lists\nit, null while its compile is still to run; and `inputs` the task's\nsettings `inputs` lists, a number or text as it is and a file or\nfolder as `{\"file\": <path>}` or `{\"folder\": <path>}`, fetched by its\nown route. A task with nothing shown during the contest is `submitted`\nuntil the reveal, which a page words \"Submitted, results after the\ncontest\". After the reveal, while its late runs are still being\ngraded, it is `grading` or `delayed`. A grading whose runs failed for\nthe platform is `delayed` with the runs it gave, a value reading one\nof its failed early runs `waiting`. `reveal_at` is when the task\nreveals, until then, as what its entrant reads changes then with no\ngrading's change to say so, so a page open on it reads it again then;\nnull once it has revealed.",
+        "description": "The attempt of a submission's grading that counts, as its contestant\nsees it: the latest that finished with a result, as the leaderboards\ncount it, so a regrade under way, a failure or a cancel leaves the\nresult as it was, and while none has, the latest. Its id, attempt and\nstatus, in the contestant's words: `queued` until its run is started,\n`grading` while it is graded, `graded` once it has a result, `delayed`\nwhile it has none and its grading failed on the platform's side,\n`over_limit` once it was to be graded again with no room left under the\ntask's most submissions, and `cancelled` once staff end it; organisers\nread the grading's own status in the gradings routes. A `delayed` one\ncarries nothing else: it is tried again once by itself, and then waits\nfor staff, who grade it again or end it: then it is `cancelled`, with\n`reason`, the sentence they gave, which is null on every other status. A\ndelayed one is graded again only while its\nentrant's submissions with a result, those waiting that are not\ndelayed, and the delayed ones made before it are fewer than the task's\nmost, so the first ones to get a result count, and otherwise it is\n`over_limit`, with `limit`,\nthe most it reached (\"Not graded: you had reached the limit of 10\nsubmissions for this task.\"), and nothing else; `limit` is null on every\nother status.\n\n`run_values` holds each value of its scoring its entrant is shown,\nworked out on every read, and `runs` the runs its run entries show,\neach with the fields it names: those listed under `always` from the\nstart, those under `after_deadline` once the task reveals, and those\nunder `after_release` while staff have released the task's results,\nhidden again when they take the release back. The moments are\nseparate, so a release before the deadline shows `after_release`'s\nand not `after_deadline`'s. `once` holds what its steps done once\nreported, and what a batch step gives once for all its runs, that\n`outputs` lists, the compile log among them when listed; `compiled`\n1, or 0 when the entrant's code did not compile, while `outputs` lists\nit, null while its compile is still to run; and `inputs` the task's\nsettings `inputs` lists, a number or text as it is and a file or\nfolder as `{\"file\": <path>}` or `{\"folder\": <path>}`, fetched by its\nown route. A task with nothing shown during the contest is `submitted`\nuntil the reveal, which a page words \"Submitted, results after the\ncontest\". A grading whose runs failed for the platform is `delayed`\nwith the runs it gave, a value reading one of them `waiting`; before\nthe reveal, one that failed only on runs its entrant is not shown is\n`graded`. `reveal_at` is when the task\nreveals, until then, as what its entrant reads changes then with no\ngrading's change to say so, so a page open on it reads it again then;\nnull once it has revealed.",
         "properties": {
           "attempt": {
             "title": "Attempt",
@@ -6187,7 +6165,7 @@
         "type": "object"
       },
       "RunValue": {
-        "description": "One value of a task's scoring as its reader sees it: its name,\nits `number`, exact, null when it is missing, waiting or text; its\n`text`, null when it is a number, missing or waiting; whether\nit is `waiting` for staff, which an entrant reads as \"being checked\",\ntold only once the runs it waits on are early or shown; and whether it\nis `self_reported`, reading a column the entrant could set. Organisers\nalso read the first moment `show` lists it under, null when never, and\nwhat it read: `runs` by id, `values` and `facts`; each is null for an\nentrant.",
+        "description": "One value of a task's scoring as its reader sees it: its name,\nits `number`, exact, null when it is missing, waiting or text; its\n`text`, null when it is a number, missing or waiting; whether\nit is `waiting` for staff, which an entrant reads as \"being checked\",\ntold only once the runs it waits on are shown; and whether it\nis `self_reported`, reading a column the entrant could set. Organisers\nalso read the first moment `show` lists it under, null when never, and\nwhat it read: `runs` by id, `values` and `facts`; each is null for an\nentrant.",
         "properties": {
           "facts": {
             "anyOf": [
@@ -6384,7 +6362,7 @@
         "type": "object"
       },
       "RunsResult": {
-        "description": "A grading's result, version 6, one per pipeline: each run\nit grades with its verdict, what the steps done once reported, what\nstaff alone see, and, when a run's verdict is `system_error`, the\nsentence for staff saying why. Where its log went stays out.",
+        "description": "A grading's result, version 6: each run\nit grades with its verdict, what the steps done once reported, what\nstaff alone see, and, when a run's verdict is `system_error`, the\nsentence for staff saying why. Where its log went stays out.",
         "properties": {
           "error": {
             "anyOf": [
@@ -14332,77 +14310,6 @@
         ]
       }
     },
-    "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/gradings/{grading}/from-scratch": {
-      "post": {
-        "description": "A new early attempt on the same publication; its measurements replace\nthis submission's stored times. The normal retry guards still apply.",
-        "operationId": "regradeFromScratch",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "grading",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Grading",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "org",
-            "required": true,
-            "schema": {
-              "title": "Org",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "contest",
-            "required": true,
-            "schema": {
-              "title": "Contest",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "task",
-            "required": true,
-            "schema": {
-              "title": "Task",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Grading"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "default": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "An error, as an RFC 9457 problem document. `code` names it."
-          }
-        },
-        "summary": "Measure a submission again without reusing its stored outputs",
-        "tags": [
-          "gradings"
-        ]
-      }
-    },
     "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/gradings/{grading}/retry": {
       "post": {
         "description": "The new attempt, queued. The old one is kept as it was, unless it reads\nas a system error only because its run is overdue or lost: then it is\nended with that reason, and its run cancelled at the CI. One that is not\nfinished is `wrong_status` with its status as `current`, and so is a\nsubmission staff cancelled, which that ended, as `cancelled`; an earlier\nattempt of a submission graded again is `conflict`, since the latest is\nthe one to retry, and so is one while another attempt of it is being\ngraded.",
@@ -16830,7 +16737,7 @@
     },
     "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/results/release": {
       "post": {
-        "description": "From now on every entrant is shown what the task's `show` lists under\n`after_release`, and gradings made from now on run those runs early. Without\n`confirm`, nothing changes and the answer is `confirmation_required`\nwith `action` `release` and, as its detail, what becomes visible, to\nwhom, and that it can be taken back. A task already released answers as\nit stands. A task with no publication is `not_found`. The answer is\nread once the release has landed.",
+        "description": "From now on every entrant is shown what the task's `show` lists under\n`after_release`, and gradings made from now on run those runs first. Without\n`confirm`, nothing changes and the answer is `confirmation_required`\nwith `action` `release` and, as its detail, what becomes visible, to\nwhom, and that it can be taken back. A task already released answers as\nit stands. A task with no publication is `not_found`. The answer is\nread once the release has landed.",
         "operationId": "releaseTaskResults",
         "parameters": [
           {

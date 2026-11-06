@@ -163,7 +163,7 @@ async def release_task_results(
     organiser: TaskManager, body: ResultsRequest
 ) -> results.ResultsState:
     """From now on every entrant is shown what the task's `show` lists under
-    `after_release`, and gradings made from now on run those runs early. Without
+    `after_release`, and gradings made from now on run those runs first. Without
     `confirm`, nothing changes and the answer is `confirmation_required`
     with `action` `release` and, as its detail, what becomes visible, to
     whom, and that it can be taken back. A task already released answers as

@@ -29,6 +29,7 @@ from tests.integration.conftest import (
     publish,
     read,
     run_contest,
+    run_pipelines,
     sign_in,
     sign_in_as,
 )
@@ -219,6 +220,8 @@ async def test_a_file_written_or_rolled_back_while_the_contest_runs_asks_and_is_
         {"encoding": "utf-8", "content": "Now add.\n", "token": statement["token"]},
     )
     assert (written.status_code, written.json()["number"]) == (200, 2), written.text
+    # #625: the publication takes over once its save's steps are run.
+    await run_pipelines(client, pipelines=("save",))
     current = await read(client, f"{TASK}/files/statement.md")
     rolled = await _written_as_asked(
         client,
@@ -315,6 +318,8 @@ async def test_a_save_removes_a_test_and_its_publication_names_the_removal(
         _change("tests/2.ans", "2\n", None),
     )
     assert added.json()["number"] == 2, added.text
+    # #625: the publication takes over once its save's steps are run.
+    await run_pipelines(client, pipelines=("save",))
 
     removed = await _save(
         client,
