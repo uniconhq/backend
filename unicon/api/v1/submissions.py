@@ -195,6 +195,6 @@ async def list_my_submission_run_input_files(
     `not_found`, the same as one that is not there.
     """
     task = tasks.task_id_of(scope)
-    found = await submissions.shown_input(session, task, number, group, place, name)
+    found = await submissions.shown_input(session, task, number, group, place, name, listing=True)
     at = f"{task_downloads(scope)}/{number}/{RUNS}/{quote(group, safe='')}/{place}"
     return shown_files(found, f"{at}/{INPUTS}/{quote(name, safe='')}")

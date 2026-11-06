@@ -128,8 +128,9 @@ def _machines(
     async def ask(made: Any) -> Any:
         found = fake.ci.runs[made]
         org = OrgId(found.task.split("/", 1)[0])
+        # As the CI does, a restart is asked about with the run it restarts.
         answer = await runs.config(
-            fake.grading.config_request(org, found.variables, now=clock.now())
+            fake.grading.config_request(org, found.variables, now=clock.now(), run=found.parent)
         )
         steps = json.loads(answer.body)["steps"]
         # A save is the one pipeline with no submission.
