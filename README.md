@@ -171,6 +171,7 @@ the one the route needs at the scope in the third column.
 | `GET <task>` | observer | task | | the task's state |
 | `GET <task>/publications` | observer | task | | the publications, oldest first, each with where its save's `check` stands |
 | `GET <task>/workflow-form` | observer | task | | the inputs of the workflow the task names, or the `problem`, and whether the task is `graded` |
+| `POST <task>/show-preview` | observer | task | `show`, `moment`, `entrant`, `number` | what an entrant would be shown at that moment under the draft `show`, below |
 | `GET <task>/release` | a session | | | whether the caller sees the task and may submit to it now, or 404 when the contest is hidden from them |
 | `GET <contest>/organise/entrants` | observer | contest | | every entrant, the earliest registered first, with its members and the invites into it |
 | `POST <contest>/organise/entrants/{entrant_id}/approve` | manager | contest | | the entrant |
@@ -497,10 +498,12 @@ in the contest they enter:
 | `POST <contest>/entrants/mine/leave` | | 204 |
 | `PUT <contest>/entrants/mine/name` | `name` | the caller's entrant |
 | `GET <contest>/home` | | the contest's home for the caller |
-| `GET <task>/page` | | a released task's statement, its submission caps and the form of its inputs |
+| `GET <task>/page` | | a released task's statement, its submission caps, the form of its inputs, and the runs and settings its `show` shows now |
 | `GET <contest>/home/announcements` | | the open announcements of the contest and of each task released to the caller |
 | `GET <task>/page/announcements` | | the open announcements of a released task |
-| `GET <task>/public/{path}` | | a file under the task's `public/` that its `show` lists, as its bytes; no session needed, below |
+| `GET <task>/public/{path}` | | a file under the task's `public/`, as its bytes; no session needed, below |
+| `GET <task>/inputs/{name}` | | the files of a setting the task shows, by their download addresses; no session needed, below |
+| `GET <task>/runs/{group}/{place}/inputs/{name}` | | the files of a run's input the task shows, the same way |
 | `POST <contest>/questions` | `title`, `body`, `task` | 201, the question, asked privately |
 | `GET <contest>/questions` | | the caller's own questions, with every message |
 | `POST <contest>/questions/{number}/comments` | `body` | the question, opened again when it was answered |
@@ -542,7 +545,13 @@ the form the submit panel is built from: each input's `id`, `type`
 task's, else its key), the `options` of an enum, the `default` a value
 takes when it is left out, `min` and `max` of a number, `max_size`, the
 most its files may total in bytes, and, on an input given once per tuple,
-its `parts`.
+its `parts`; and its `runs`, each run whose inputs its `show` shows at a
+moment that has come, by the entry's `of` and its place there, with one
+tuple per axis, its title and those inputs, and its `shown_inputs`, the
+settings `show` lists under `inputs` then, by name. A number or text is
+given as it is, and a file or folder as `{"file": <path>}` or
+`{"folder": <path>}`, fetched by its own route, below. A public
+statement carries the same `runs` and `shown_inputs`.
 For a contest the caller may not see, the home answers 404, the same as for
 one that is not there, and so does the page of a task that is not visible to
 them; the panel's `entrant` reads null wherever they are in none.
@@ -575,14 +584,14 @@ tasks; and `GET /api/v1/public/contests/{org}/{contest}/tasks/{task}`, a
 released task's statement. Anything else answers 404 there. Every
 contestant's and organiser's route answers a request with no session 401;
 the few others that need none are the sign-in's own, the server's clock, the
-health checks, the machines' doors and a task's public files, and a test
-lists them all.
+health checks, the machines' doors, a task's public files and the inputs
+it shows, and a test lists them all.
 
-A task's public files, the ones under its `public/` that its `show` lists,
-such as a statement's images, are read at `GET <task>/public/{path}`,
-`path` being the file's path under `public/`, each from the time `show`
-lists it under, as the task's latest publication holds it, never a draft
-saved after it; a file `show` does not list is `not_found`. It reads the session when there is one and answers without:
+A task's public files, the ones under its `public/`, such as a statement's
+images, are served with its statement, at `GET <task>/public/{path}`,
+`path` being the file's path under `public/`, before any submission and
+whatever its `show` lists, as the task's latest publication holds it,
+never a draft saved after it; `show` names no file. It reads the session when there is one and answers without:
 a visitor, or a caller whose session has ended, reads it where the
 statement is public; a signed-in caller where they read the task's page;
 and a caller holding a role at the task, its contest or its org, whether or
@@ -600,6 +609,20 @@ with an empty, `.` or `..` segment, a file that is not there, and a task the
 caller may not read are each `not_found`; a file larger than 10 MiB is
 `public_file_too_large`, a 409 with the `limit` in bytes.
 
+An input the task's `show` shows that is a file or a folder is read by the
+same readers, while it is shown at a moment that has come: a setting at
+`GET <task>/inputs/{name}`, and a run's own input at `GET
+<task>/runs/{group}/{place}/inputs/{name}`, the run named by the entry's
+`of`, a group or `all`, and its place there, as the page lists it. The
+answer is its `files`, the file itself or each file in the folder, by its
+`path` below the folder, null for a file, and its `download` address at
+the proxy's download door, `/-/downloads/<org>/<contest>/<task>/inputs/<name>`
+or `.../<task>/runs/<group>/<place>/inputs/<name>`, a folder's files below
+it, which serves it whole whatever its size, a visitor with no session
+included where the statement is public. Anything not shown now, a setting
+given as a number or text among them, is `not_found`, the same as one that
+is not there, so a hidden run's existence is not confirmed.
+
 ## Uploads and submissions
 
 A contestant submits to a task they are an approved contestant of, while it
@@ -614,6 +637,7 @@ a session and no role; `<task>` is the task's prefix.
 | `GET <task>/submissions` | | the caller's own, newest first |
 | `GET <task>/submissions/{number}` | | one of them |
 | `GET <task>/submissions/{number}/files` | | what it was made with |
+| `GET <task>/submissions/{number}/runs/{group}/{place}/inputs/{name}` | | the files of a run's input its result shows the caller, below |
 
 A file never passes through this process. The browser asks for a slot for
 one file of a contestant `file` or `folder` input, declaring where it goes
@@ -646,13 +670,18 @@ counts, as the leaderboards count it: the latest that finished with a result,
 so a regrade under way, a failure or a cancel leaves the result as it was,
 and while none has, the latest. It comes
 with its `id`, `attempt` and `status`, and what the task's `show` lets the
-contestant see now: `run_values`, each value of its scoring shown, worked
-out on every read; `runs`, each run shown, by the group `show` lists it in
-and its place there, with its `verdict`, `passed`, the numbers its steps
-reported and its texts; `once`, what its steps done once reported, and
-what a batch step gives once for all its runs, that `show` lists, the
-compile log among them; `compiled`; and `reveal_at`,
-when the task reveals, until then. Every number is served exactly, as a
+contestant see now, at each of its moments that has come, `always`,
+`after_deadline` and `after_release`, each showing its own list:
+`run_values`, each value it lists under `values`, worked out on every
+read; `runs`, each run a run entry shows, by the entry's `of`, a group,
+`all` or `first_not_passed`, and its place there, with only the fields
+the entry names, its inputs, `verdict`, `passed`, numbers its steps
+reported and texts, and for `first_not_passed`, the first run it did not
+pass, `labelled` by the first group holding it and its place there;
+`once`, what its steps done once reported, and what a batch step gives
+once for all its runs, that `outputs` lists, the compile log among them;
+`compiled`, when `outputs` lists it; `inputs`, the settings `inputs`
+lists; and `reveal_at`, when the task reveals, until then. Every number is served exactly, as a
 string of plain decimal digits, to 30 significant digits when it is no
 decimal, and a value that gives text gives it as `text`, so text that
 looks like a number stays text. What is not shown is null. A
@@ -690,6 +719,15 @@ process whether the caller may read it and then streams it from the forge
 as an attachment named after the file, so a file of any size passes
 through the proxy and never through this process. Another contestant's submission is not found, the same as one
 that is not there, and a number that cannot be one is `validation_error`.
+A run's input that is a file or a folder, which the caller's result shows
+them now, is read at `GET
+<task>/submissions/{number}/runs/{group}/{place}/inputs/{name}`, the run
+by the entry's `of` it is shown under and its place there,
+`first_not_passed` and 1 for that row, answered as a task's page's shown
+input is, through the same door at
+`.../<task>/<number>/runs/<group>/<place>/inputs/<name>`, for the
+submission's owner alone; anything the result does not show now is
+`not_found`.
 
 A slot or a submit the task's rules refuse answers with the rule's code:
 `task_closed`, with its `reason`, `closed` once the task has closed for
@@ -779,7 +817,7 @@ is `not_found`, in the same words as one that is not there.
 | `DELETE /workflows/{owner}/{name}/readers/{username}` | take their read away, 204 |
 | `POST /workflows/check` | every problem a version of `content` would be refused for, each with its `path`, `message` and, inside a box, `step`; given `owner` and `name`, a draft that would hold that workflow is refused; nothing is written |
 | `POST /workflow-copies` | a new private workflow under `owner` from `source`, `<owner>/<name>@<version>`, 201 |
-| `GET /workflows/{owner}/{name}/versions/{version}/box` | the version's inputs and outputs for drawing it as a box, read as the caller; `run` false for a workflow of the test format |
+| `GET /workflows/{owner}/{name}/versions/{version}/box` | the version's inputs and outputs for drawing it as a box, read as the caller; `run` false for a workflow of the test format; given a task's `repeated` inputs, whether each output is given `once` |
 | `GET /workflows/{owner}/{name}/versions/{version}/tree` | the files and folders directly under `path` that the version was frozen with, read as the caller, as the draft's tree lists them; each file downloads through the proxy's download door at `/-/downloads/workflows/<owner>/<name>/versions/<version>/<path>`, each segment quoted on its own, for anyone who may read the version |
 | `GET /primitives` | every primitive at every version, its `ref` what a step's `use:` names, with `batch`, `network`, `limits`, `limits_from` and its `inputs` and `outputs`, each port's `type`, `options`, `optional`, `runs`, `secret` and `description`, and on the `outcome` port `outcomes`, each outcome the step can report with a line saying when, null when the primitive does not say; a version the platform no longer reads has `problem` instead |
 
@@ -918,6 +956,21 @@ same code as once the task has revealed: every value and run at once, each
 value with when it shows and what it read, each run with its `id`, and
 `facts`, `seconds_late`, `seconds` and `compiled` as the values read them;
 `status` is the grading's own (`OrganisedResult`).
+
+An observer of the task previews a draft `show` with `POST
+<task>/show-preview`: the draft as `scoring.show` holds it, a `moment`,
+`always`, `after_deadline` or `after_release`, each read alone, and
+optionally a submission, by its `entrant` and `number`, both or neither.
+It reads the task's latest publication with the draft in its place, so
+nothing is saved, and answers the `moment`; the submission's `result` as
+its entrant would read it then, or with none named, `placeholders`, what
+they would be shown before any submission: the `values` and `outputs`
+by name, the `inputs`, and each run with its tuples and the names of
+the `fields` its result would fill; and `hidden`, the runs staff read that
+the entrant would not be shown, which no entrant is told. The draft is
+checked alone against the publication, a problem `invalid_definition` at
+its path under `scoring.show`, as the save words it, and a task never
+published is `not_found`, "Publish the task to preview it."
 
 Anyone holding a role at a contest or at any of its tasks reads the
 gradings of the tasks they observe as one feed, `GET <contest>/gradings`,

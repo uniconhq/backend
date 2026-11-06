@@ -19,7 +19,7 @@ from pydantic import BaseModel, field_validator, model_validator
 from unicon.schemas.entrants import MyEntry
 from unicon.schemas.exact import Exact, exactly
 from unicon.schemas.leaderboards import Leaderboard, leaderboard_of
-from unicon.schemas.submissions import Value
+from unicon.schemas.submissions import RunTuple, Value
 
 
 class ContestNames(BaseModel):
@@ -161,14 +161,31 @@ class InputField(BaseModel):
         return given
 
 
+class TaskRun(BaseModel):
+    """A run whose inputs the task's `show` shows now, before any
+    submission: the entry's `of`, a group or `all`, its place there from 1,
+    and one tuple per axis with its title and the inputs the entry names, a
+    number or text as it is and a file or folder as `{"file": <path>}` or
+    `{"folder": <path>}`.
+    """
+
+    group: str
+    place: int
+    tuples: list[RunTuple]
+
+
 class TaskPage(BaseModel):
     """A task as the caller reads it: its statement in Markdown, the caps a
     submit is counted against, the inputs a contestant gives, when it falls
     due and closes for them, and `marks`, how many of their entrant's
     submissions they may mark, null unless the contest's entry for the
     task gives `marks` or a leaderboard reads which of the task's
-    submissions an entrant marks, and their entrant is approved; and
-    nothing else the task holds.
+    submissions an entrant marks, and their entrant is approved; `runs`,
+    the runs whose inputs its `show` shows at a moment that has come, and
+    `shown_inputs`, the task's settings it shows then, by name, a number or
+    text as it is and a file or folder as `{"file": <path>}` or
+    `{"folder": <path>}`, each fetched by its own route; and nothing else
+    the task holds.
     """
 
     name: str
@@ -181,3 +198,23 @@ class TaskPage(BaseModel):
     due: datetime | None
     closes: datetime | None
     marks: int | None
+    runs: list[TaskRun] = []
+    shown_inputs: dict[str, Any] = {}
+
+
+class ShownFile(BaseModel):
+    """One file of an input `show` shows: its path below the folder, null
+    for an input that is a file, and the address the download door serves
+    it at.
+    """
+
+    path: str | None
+    download: str
+
+
+class ShownInputFiles(BaseModel):
+    """The files of an input `show` shows that is a file or a folder: the
+    file itself, or each file in the folder, in order.
+    """
+
+    files: list[ShownFile]

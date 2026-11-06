@@ -1,13 +1,14 @@
-"""A task's public files over HTTP, the files under its `public/` that its
-`show` lists, such as a statement's images. Each is answered as its bytes,
-typed by its ending, never sniffed, kept by the reader's browser alone and
-asked again each time by its tag, so a picture replaced shows at once, and
-an SVG under a policy that runs no script. A visitor reads them where the
-statement is public, a signed-in person where they read the task's page,
-and an organiser of the task before it is released; anyone else, a path
-outside `public/`, a file `show` does not list and a file that is not
-there are all not found, and a file larger than a page is served is
-refused with its limit.
+"""A task's public files over HTTP, the files under its `public/`, such as
+a statement's images, served with its statement. Each is answered as its
+bytes, typed by its ending, never sniffed, kept by the reader's browser
+alone and asked again each time by its tag, so a picture replaced shows at
+once, and an SVG under a policy that runs no script. A visitor reads them
+where the statement is public, a signed-in person where they read the
+task's page, and an organiser of the task before it is released, from its
+publication on, before any submission and whatever its `show` lists;
+anyone else, a path outside `public/` and a file that is not there are all
+not found, and a file larger than a page is served is refused with its
+limit.
 """
 
 import base64
@@ -32,9 +33,14 @@ PNG = b"\x89PNG\r\n\x1a\n not really a picture"
 SVG = '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>\n'
 PUBLIC = f"{TASK}/public"
 MOST = 10 * 1024 * 1024
-SHOWN = ("    now: [score, all, public/]\n", "    now: [score, all]\n")
-"""The starter's `show`, `public/` shown from the start, and the same without
-it."""
+STARTER_SHOW = (
+    "  show:\n"
+    "    always:\n"
+    "      values: [score]\n"
+    "      runs:\n"
+    "        - {of: all, fields: [verdict, passed]}\n"
+)
+"""The starter's `show`, which names no file: none ever does."""
 
 
 def _typed(path: str, content: str) -> dict[str, Any]:
@@ -46,28 +52,29 @@ def _binary(path: str, content: bytes) -> dict[str, Any]:
     return {"path": path, "encoding": "base64", "content": encoded, "token": None}
 
 
-async def _publish_public(client: httpx.AsyncClient, *, shown: bool = True) -> None:
-    """acme/spring/sum published with its public files, its `show` listing
-    `public/` unless not `shown`, saved by ada and confirmed, since a save
-    asks first once the contest has started, and its check run.
+async def _publish_public(client: httpx.AsyncClient, *, show: str = STARTER_SHOW) -> None:
+    """acme/spring/sum published with its public files, its `show` the
+    starter's or `show`, saved by ada and confirmed, since a save asks first
+    once the contest has started, again with what it asked when it hides
+    what entrants were shown, and its check run.
     """
     task = await read(client, f"{TASK}/files/task.yaml")
-    assert SHOWN[0] in task["content"]
-    settings = task["content"] if shown else task["content"].replace(*SHOWN)
-    saved = await client.post(
-        f"{TASK}/save",
-        json={
-            "changes": [
-                {**_typed("task.yaml", settings), "token": task["token"]},
-                _binary("public/figure.png", PNG),
-                _binary("public/Photo.JPG", PNG),
-                _typed("public/diagram.svg", SVG),
-                _typed("public/data/train.csv", "a,b\n1,2\n"),
-            ],
-            "confirm": True,
-        },
-        headers=ORIGIN,
-    )
+    assert STARTER_SHOW in task["content"]
+    settings = task["content"].replace(STARTER_SHOW, show)
+    body = {
+        "changes": [
+            {**_typed("task.yaml", settings), "token": task["token"]},
+            _binary("public/figure.png", PNG),
+            _binary("public/Photo.JPG", PNG),
+            _typed("public/diagram.svg", SVG),
+            _typed("public/data/train.csv", "a,b\n1,2\n"),
+        ],
+        "confirm": True,
+    }
+    saved = await client.post(f"{TASK}/save", json=body, headers=ORIGIN)
+    if saved.status_code == 409 and saved.json().get("hiding"):
+        asked = {**body, "asked": saved.json()["asked"]}
+        saved = await client.post(f"{TASK}/save", json=asked, headers=ORIGIN)
     saved = await prepared(client, saved)
     assert saved.status_code == 200 and "number" in saved.json(), saved.text
     await run_pipelines(client, pipelines=("save",))
@@ -157,16 +164,21 @@ async def test_a_path_outside_public_or_not_there_is_not_found_and_says_nothing_
     assert "acme" not in found.text and "forge" not in found.text.lower()
 
 
-async def test_a_file_under_public_the_task_does_not_show_is_not_found(
+async def test_a_file_under_public_is_served_with_the_statement_whatever_show_lists(
     client: httpx.AsyncClient, world: FakeForge
 ) -> None:
+    # #566: `public/` is served with the statement, so a task showing
+    # nothing at all serves its pictures before any submission. Was: a file
+    # under `public/` that `show` did not list was not found.
     await run_contest(client, visibility="everyone")
-    await _publish_public(client, shown=False)
+    await _publish_public(client, show="  show: {}\n")
     client.cookies.clear()
 
     found = await client.get(f"{PUBLIC}/figure.png")
+    page = await client.get("/api/v1/public/contests/acme/spring/tasks/sum")
 
-    assert (found.status_code, found.json()["code"]) == (404, "not_found")
+    assert (found.status_code, found.content) == (200, PNG)
+    assert (page.json()["runs"], page.json()["shown_inputs"]) == ([], {})
 
 
 async def test_a_contest_for_the_signed_in_shows_its_files_to_them_and_not_to_a_visitor(

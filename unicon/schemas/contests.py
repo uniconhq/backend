@@ -57,7 +57,7 @@ class ResultsAction(BaseModel):
 
 class Results(BaseModel):
     """Where a task's results stand: whether they are released now, showing
-    every entrant what the task's `show` lists under `on_release`, and every
+    every entrant what the task's `show` lists under `after_release`, and every
     release and take-back, oldest first.
     """
 

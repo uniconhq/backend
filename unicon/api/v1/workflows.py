@@ -290,13 +290,22 @@ async def get_workflow_version(
     summary="A version's inputs and outputs, for drawing it as a box",
 )
 async def get_workflow_box(
-    session: CurrentSession, owner: Owner, name: Name, version: str
+    session: CurrentSession,
+    owner: Owner,
+    name: Name,
+    version: str,
+    repeated: Annotated[
+        list[str] | None,
+        Query(description="The task's repeated inputs, so each output tells whether it is once"),
+    ] = None,
 ) -> WorkflowBox:
     """Read as the caller: `not_found` when there is no such version or they
     may not read it, in the same words as the version itself. A workflow of
-    the test format answers `run` false, with both lists empty.
+    the test format answers `run` false, with both lists empty. Given the
+    inputs a task repeats, each output says whether it is given `once` for
+    every run of that task; without them, only where its port says so.
     """
-    return WorkflowBox.of(await workflows.box(session, f"{owner}/{name}@{version}"))
+    return WorkflowBox.of(await workflows.box(session, f"{owner}/{name}@{version}", repeated))
 
 
 @router.get(

@@ -8,7 +8,7 @@ in a table of their own: a role at the scope or at any narrower one is
 admitted, and none there is refused naming the address. Every route under an
 org is in one of the two tables but the ones that need only a session, such
 as those a contestant calls, and the ones open to a visitor, such as a task's
-public files, so a route added there is held to the guard the day it
+public files and the inputs it shows, so a route added there is held to the guard the day it
 exists. Every route anywhere that needs no
 session at all is in a list of its own, so a route that forgets the session
 is caught the day it exists too.
@@ -57,6 +57,7 @@ MARK = {"value": "review", "mark": "5"}
 ASKER = "entrant." + "0" * 31 + "1"
 """An asker as a question names one: an entrant's desk."""
 TASK_FILE = {"path": "data/weights.bin", "size": 1, "sha256": "0" * 64}
+PREVIEW = {"show": {}, "moment": "always"}
 SESSION_ONLY = {
     "createOrg",
     "getTaskRelease",
@@ -80,6 +81,7 @@ SESSION_ONLY = {
     "getMySubmission",
     "listMySubmissionFiles",
     "readMySubmissionText",
+    "listMySubmissionRunInputFiles",
     "listContestAnnouncements",
     "listTaskAnnouncements",
     "askQuestion",
@@ -92,7 +94,7 @@ SESSION_ONLY = {
     "markSubmission",
     "unmarkSubmission",
 }
-OPEN_UNDER_ORGS = {"getTaskPublicFile"}
+OPEN_UNDER_ORGS = {"getTaskPublicFile", "listTaskShownInputFiles", "listTaskRunInputFiles"}
 """The routes under an org that need no session, since they answer a visitor
 what the contest makes public, and a signed-in caller what they may read."""
 
@@ -127,6 +129,7 @@ ROUTES: list[tuple[str, str, dict[str, Any] | None, Role, Scope]] = [
     ("GET", TASK, None, Role.OBSERVER, SUM),
     ("GET", f"{TASK}/workflow-form", None, Role.OBSERVER, SUM),
     ("GET", f"{TASK}/publications", None, Role.OBSERVER, SUM),
+    ("POST", f"{TASK}/show-preview", PREVIEW, Role.OBSERVER, SUM),
     ("POST", f"{TASK}/save", {"changes": []}, Role.MANAGER, SUM),
     ("POST", f"{TASK}/take-out", {"confirmed": "withdraw"}, Role.MANAGER, SPRING),
     ("POST", f"{TASK}/put-back", None, Role.MANAGER, SPRING),
@@ -258,9 +261,12 @@ NO_SESSION = {
     "getPublicContest",
     "getPublicStatement",
     "getTaskPublicFile",
+    "listTaskShownInputFiles",
+    "listTaskRunInputFiles",
     "listPublicLeaderboards",
     "getPublicLeaderboard",
     "listBlocks",
+    "openDownloadDoor",
 }
 
 

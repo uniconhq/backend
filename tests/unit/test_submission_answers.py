@@ -40,6 +40,7 @@ def test_a_grading_being_run_carries_its_status_alone() -> None:
         "run_values": [],
         "once": {"reports": {}, "texts": {}},
         "compiled": None,
+        "inputs": {},
     }
 
 
@@ -60,7 +61,7 @@ def test_a_grading_carries_each_run_with_exact_numbers_its_texts_and_reveal() ->
         "group": "sample_tests",
         "place": 1,
         "tuples": [
-            {"title": "Small grid", "key": {"input": "samples/1.in"}},
+            {"title": "Small grid", "key": {"input": {"file": "samples/1.in"}}},
             {"title": None, "key": {"seed": 2}},
         ],
         "verdict": "accepted",
@@ -84,8 +85,9 @@ def test_a_grading_carries_each_run_with_exact_numbers_its_texts_and_reveal() ->
             "place": 1,
             "id": None,
             "dropped": False,
+            "labelled": None,
             "tuples": [
-                {"title": "Small grid", "key": {"input": "samples/1.in"}},
+                {"title": "Small grid", "key": {"input": {"file": "samples/1.in"}}},
                 {"title": None, "key": {"seed": 2}},
             ],
             "verdict": "accepted",
@@ -99,6 +101,33 @@ def test_a_grading_carries_each_run_with_exact_numbers_its_texts_and_reveal() ->
             "message": {"output": None, "name": None},
         }
     ]
+
+
+def test_a_run_is_served_with_only_the_fields_its_entry_names() -> None:
+    # #566: a run entry names its fields, so a run may show neither its
+    # verdict nor `passed`, and `first_not_passed` tells where its run is.
+    run = {
+        "group": "first_not_passed",
+        "place": 1,
+        "labelled": {"group": "sample_tests", "place": 2},
+        "tuples": [{"title": None, "key": {"input": {"file": "samples/2.in"}}}],
+        "reports": [],
+        "texts": {},
+    }
+    result = Result(
+        GRADING,
+        1,
+        SubmissionState.GRADED,
+        runs=(run,),
+        inputs={"time_limit": 2, "header": {"file": "include/grid.h"}},
+    )
+
+    answer = ResultAnswer.model_validate(result, from_attributes=True).model_dump(mode="json")
+
+    [served] = answer["runs"]
+    assert (served["verdict"], served["passed"], served["reports"]) == (None, None, [])
+    assert served["labelled"] == {"group": "sample_tests", "place": 2}
+    assert answer["inputs"] == {"time_limit": 2, "header": {"file": "include/grid.h"}}
 
 
 def test_a_gradings_values_once_and_compiled_are_served_exactly() -> None:
@@ -119,9 +148,9 @@ def test_a_gradings_values_once_and_compiled_are_served_exactly() -> None:
         GradingStatus.DONE,
         runs=(run, {**run, "place": 2, "id": "9", "dropped": True}),
         run_values=(
-            ValueShown("score", Fraction(1, 3), False, True, "now", ("3",), ("tests",), ()),
+            ValueShown("score", Fraction(1, 3), False, True, "always", ("3",), ("tests",), ()),
             ValueShown("late", None, True, False),
-            ValueShown("first_failed", None, False, False, "now", (), (), (), "WA"),
+            ValueShown("first_failed", None, False, False, "always", (), (), (), "WA"),
         ),
         once={"reports": {"setup_ms": 40}, "texts": {"log": log}},
         compiled=1,
@@ -137,7 +166,7 @@ def test_a_gradings_values_once_and_compiled_are_served_exactly() -> None:
             "text": None,
             "waiting": False,
             "self_reported": True,
-            "show": "now",
+            "show": "always",
             "runs": ["3"],
             "values": ["tests"],
             "facts": [],
@@ -159,7 +188,7 @@ def test_a_gradings_values_once_and_compiled_are_served_exactly() -> None:
             "text": "WA",
             "waiting": False,
             "self_reported": False,
-            "show": "now",
+            "show": "always",
             "runs": [],
             "values": [],
             "facts": [],

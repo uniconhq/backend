@@ -6,8 +6,9 @@ each of its five routes, handing forge the header and the body as they
 arrived, answers a step left with nothing to do 204, keeps each body to its
 bound, and never logs the token. A submission's pipeline run through those
 doors step by step leaves the result its contestant then reads, with its
-runs and the values its scoring shows, the organisers read whole, the
-task's form then saying it has a graded submission. A source that does not
+runs and the values its scoring shows, each run with only the fields its
+entry in `show` names, the organisers read whole, the task's form then
+saying it has a graded submission. A source that does not
 compile ends every run `compile_error` with nothing run, `compiled` 0, and
 the organisers read its compile log. A run that failed on the platform's
 side is delayed to its contestant and a system error to the organisers.
@@ -33,6 +34,7 @@ from tests.integration.conftest import (
     ORIGIN,
     SOLUTION_LOG,
     TASK,
+    edit_task,
     run_pipelines,
     sign_in_as,
     upload,
@@ -40,6 +42,24 @@ from tests.integration.conftest import (
 
 SOURCE = b"print(sum(map(int, input().split())))\n"
 MIB = 1024 * 1024
+STARTER_RUNS = "      runs:\n        - {of: all, fields: [verdict, passed]}\n"
+"""The starter's run entry: each run's verdict and `passed`, and nothing
+else of it."""
+EVERY_FIELD = (
+    "      outputs: [compiled]\n"
+    "      runs:\n"
+    "        - {of: all, fields: [verdict, passed, score, time_ms, memory_kb]}\n"
+)
+"""`compiled` and every field of each run's result the classic workflow
+gives, as soon as a grading ends."""
+
+
+async def _showing_every_field(client: httpx.AsyncClient, forge: FakeForge) -> None:
+    """acme/spring/sum showing `EVERY_FIELD`, saved by ada, with carol
+    signed in again."""
+    await sign_in_as(client, forge, 7)
+    await edit_task(client, STARTER_RUNS, EVERY_FIELD)
+    await sign_in_as(client, forge, 20)
 
 
 async def _submitted(client: httpx.AsyncClient, forge: FakeForge, source: bytes = SOURCE) -> str:
@@ -138,6 +158,7 @@ async def test_a_question_past_the_bound_is_refused_before_it_is_read(
 async def test_a_pipeline_run_step_by_step_leaves_the_result_the_contestant_reads(
     client: httpx.AsyncClient, entered: FakeForge
 ) -> None:
+    await _showing_every_field(client, entered)
     grading = await _submitted(client, entered)
 
     await run_pipelines(client)
@@ -157,6 +178,28 @@ async def test_a_pipeline_run_step_by_step_leaves_the_result_the_contestant_read
     [score] = result["run_values"]
     assert (score["name"], score["number"], score["waiting"]) == ("score", "1", False)
     assert listed.json() == [detail.json()]
+
+
+async def test_a_run_shows_only_the_fields_its_entry_names(
+    client: httpx.AsyncClient, entered: FakeForge
+) -> None:
+    # #566: an entry names its fields, so the starter's shows each run's
+    # verdict and `passed` and none of the numbers its workflow gives, and
+    # `compiled` only once `outputs` lists it.
+    grading = await _submitted(client, entered)
+
+    await run_pipelines(client)
+    result = (await client.get(f"{TASK}/submissions/1")).json()["grading"]
+
+    assert (result["id"], result["status"], result["compiled"]) == (grading, "graded", None)
+    [run] = result["runs"]
+    assert (run["verdict"], run["passed"], run["reports"], run["texts"]) == (
+        "accepted",
+        1,
+        [],
+        {},
+    )
+    assert result["once"] == {"reports": {}, "texts": {}}
 
 
 async def test_the_log_told_once_is_the_solutions_and_every_step_its_outcome(
@@ -181,6 +224,7 @@ async def test_the_log_told_once_is_the_solutions_and_every_step_its_outcome(
 async def test_a_source_that_does_not_compile_ends_every_run_with_nothing_run(
     client: httpx.AsyncClient, entered: FakeForge
 ) -> None:
+    await _showing_every_field(client, entered)
     grading = await _submitted(client, entered, DOES_NOT_COMPILE)
 
     await run_pipelines(client)

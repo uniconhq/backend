@@ -39,6 +39,8 @@ async def test_a_visitor_reads_the_public_contests_and_a_released_statement(
     assert statement.json() == {
         "task": {"name": "sum", "label": "A", "title": "sum"},
         "statement": "Add two numbers.\n",
+        "runs": [],
+        "shown_inputs": {},
     }
 
 
