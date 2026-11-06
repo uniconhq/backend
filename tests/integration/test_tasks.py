@@ -147,7 +147,7 @@ async def test_the_workflow_form_gives_the_inputs_of_the_workflow_the_task_names
     assert form.status_code == 200, form.text
     body = form.json()
     assert (body["workflow"], body["problem"], body["graded"]) == (
-        "unicon/classic@v5",
+        "unicon/classic@v6",
         None,
         False,
     )
@@ -160,7 +160,20 @@ async def test_the_workflow_form_gives_the_inputs_of_the_workflow_the_task_names
         ("memory_limit", "number"),
     ]
     language = body["inputs"][1]
-    assert (language["options"], language["optional"]) == (["c", "cpp", "java", "python"], False)
+    assert language["optional"] is False
+    assert language["options"] == [
+        "c",
+        "cpp",
+        "java",
+        "kotlin",
+        "python",
+        "javascript",
+        "typescript",
+        "csharp",
+        "rust",
+        "r",
+        "ruby",
+    ]
     time_limit = body["inputs"][4]
     assert (time_limit["title"], time_limit["unit"]) == ("Time limit", "seconds")
     assert sorted(body) == [
@@ -182,7 +195,7 @@ async def test_a_task_naming_no_workflow_gets_a_form_saying_why(
     await client.put(
         f"{TASK}/files/task.yaml",
         json={
-            "content": task["content"].replace("workflow: unicon/classic@v5\n", ""),
+            "content": task["content"].replace("workflow: unicon/classic@v6\n", ""),
             "token": task["token"],
         },
         headers=ORIGIN,

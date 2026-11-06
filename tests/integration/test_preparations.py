@@ -19,7 +19,7 @@ async def test_the_saved_environment_prepares_and_publishes_through_the_task_rou
                     "path": "task.yaml",
                     "token": before["token"],
                     "content": before["content"]
-                    + '\nenvironment:\n  cpp: {version: "14"}\n  python:\n    packages: [numpy]\n',
+                    + '\nenvironment:\n  cpp: {version: "16"}\n  python:\n    packages: [numpy]\n',
                 }
             ],
             "confirm": True,
@@ -38,6 +38,6 @@ async def test_the_saved_environment_prepares_and_publishes_through_the_task_rou
 
     state = (await client.get(TASK)).json()
     assert state["toolchains"] == {
-        "cpp": {"picked": "gxx 14", "version": "14"},
-        "python": {"picked": "python 3.14", "version": None},
+        "cpp": {"picked": "gxx 16", "version": "16"},
+        "python": {"picked": "python 3.15.2", "version": None},
     }

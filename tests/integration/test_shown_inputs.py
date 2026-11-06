@@ -61,7 +61,7 @@ inputs:
   memory_limit: {type: number, title: Memory limit, unit: MB}
 steps:
   - id: solution
-    use: unicon/exec@v3
+    use: unicon/exec@v4
     with:
       source: ${{ inputs.code }}
       language: ${{ inputs.language }}
@@ -69,7 +69,7 @@ steps:
       time_limit: ${{ inputs.time_limit }}
       memory_limit: ${{ inputs.memory_limit }}
   - id: compare
-    use: unicon/exec@v3
+    use: unicon/exec@v4
     with:
       source: ${{ inputs.checker }}
       language: python
@@ -341,7 +341,7 @@ async def _checked(client: httpx.AsyncClient, forge: FakeForge) -> None:
     task = await read(client, f"{TASK}/files/task.yaml")
     content = (
         task["content"]
-        .replace("unicon/classic@v5", "acme/checked@v1")
+        .replace("unicon/classic@v6", "acme/checked@v1")
         .replace(
             "  memory_limit: 256\n",
             "  memory_limit: 256\n  checker: checker/\n  checker_manifest: checker/program.yaml\n",

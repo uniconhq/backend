@@ -791,7 +791,7 @@ username, or the name of an org where they hold the manager role or above,
 and forge decides which. The answer is 201 with the workflow's `owner` and
 `name`, never its id at the forge, which is built from an org's key. The
 workflow is private, and its first commit, a `workflow.yaml` named
-`<owner>/<name>` holding `unicon/classic@v5`'s files but its README, is
+`<owner>/<name>` holding `unicon/classic@v6`'s files but its README, is
 the caller's. An
 observer of the org, a person with no role there, an org that is not there
 and another person's username are all `forbidden`, in the same words, so the
