@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import Literal
 
 from forge.api.contest_home import State
-from forge.api.tasks import TakeOut
+from forge.api.tasks import PlaceMay, TakeOut
 from pydantic import BaseModel, ConfigDict, Field
 
 from unicon.schemas.publications import DefinitionError, Publication
@@ -18,15 +18,25 @@ class Named(BaseModel):
     name: str
 
 
+class ListedTask(BaseModel):
+    """A task in its contest's list, by name, and whether the caller manages it."""
+
+    name: str
+    may_manage: bool
+
+
 class ListedContest(BaseModel):
-    """A contest in its org's list, by name, with its state, start and end as
-    its settings say them, all three null when its settings cannot be read.
+    """A contest in its org's list or read alone, by name, with its state,
+    start and end as its settings say them, all three null when its
+    settings cannot be read. `may` is what the caller may do there, told
+    even then.
     """
 
     name: str
     state: State | None
     start: datetime | None
     end: datetime | None
+    may: PlaceMay
 
 
 class CreateContest(BaseModel):
@@ -81,6 +91,15 @@ class Toolchain(BaseModel):
     version: str | None
 
 
+class Pictures(BaseModel):
+    """What a statement's picture may be: at most `most` bytes, and a file
+    ending in one of `endings`, in lower case without the dot.
+    """
+
+    most: int
+    endings: list[str]
+
+
 class TaskState(BaseModel):
     """Where a task's files stand: the version at their head, the latest
     publication or none, and whether the head is a draft, a state no
@@ -89,7 +108,8 @@ class TaskState(BaseModel):
     it was made. `statement_written` says whether the latest publication
     holds a statement, there, not blank and not the starter's placeholder,
     false when nothing is published, and `head_statement_written` the same
-    of the head. `results` says where the task's results stand.
+    of the head. `results` says where the task's results stand, and `may`
+    what the caller may do at the task.
     """
 
     head: str
@@ -99,7 +119,15 @@ class TaskState(BaseModel):
     statement_written: bool
     head_statement_written: bool
     results: Results
+    may: PlaceMay
     toolchains: dict[str, Toolchain] = Field(default_factory=dict)
+
+
+class TaskDetail(TaskState):
+    """A task's state as its own page reads it, with `pictures`, what a
+    picture added to its statement may be."""
+
+    pictures: Pictures
 
 
 class Timeline(BaseModel):

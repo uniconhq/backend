@@ -4,8 +4,10 @@ a binary file makes the same round trip as a text one. A task's file may
 instead be a file the organiser uploaded, named by its upload, and is read
 back with `upload`, the size and digest of what it holds. The token a file
 is read with goes back with the write, and none creates the file. A
-folder's entries and the history go out as the forge's own `TreeEntry`, an
-upload's carrying the same `upload`, and `Change`.
+folder's entries go out as `TreeEntry`, an upload's carrying the same
+`upload`, and the history as the forge's own `Change`. A file that
+downloads names its address at the download door as `href`. A contest's or
+a task's settings also travel as a form's plain values (`Settings`).
 """
 
 import base64
@@ -13,8 +15,11 @@ import binascii
 import uuid
 from typing import Any, Literal, Self
 
+from forge.api.files import DraftRun as DraftRunRecord
+from forge.api.files import DraftRuns as DraftRunsRecord
+from forge.api.files import EntryKind, FormValues, UploadInfo
 from forge.api.files import File as FileRecord
-from forge.api.files import UploadInfo
+from forge.api.files import TreeEntry as TreeEntryRecord
 from forge.api.types import ConflictToken, Uploaded
 from pydantic import BaseModel, model_validator
 
@@ -90,10 +95,10 @@ class FileContent(BaseModel):
     the pointer to the bytes, never opened as text, and `upload` the size
     and SHA-256 of what it holds. A typed file has none. `version` is the
     commit holding the file as read, the latest change to it or the one it
-    was read at, which a task's file is downloaded at
-    (`/-/downloads/<org>/<contest>/<task>/versions/<version>/<path>`); null
-    when the forge names no commit and it was not read at one. A tree's
-    entries name their `version` the same way.
+    was read at; null when the forge names no commit and it was not read
+    at one. `href` is where the download door serves it: a task's file at
+    `version`, a workflow draft's as last saved; null for a contest's file
+    and a task's without a version.
     """
 
     path: str
@@ -102,9 +107,10 @@ class FileContent(BaseModel):
     token: str
     upload: UploadInfo | None
     version: str | None
+    href: str | None
 
     @classmethod
-    def of(cls, file: FileRecord) -> FileContent:
+    def of(cls, file: FileRecord, href: str | None) -> FileContent:
         encoding: Encoding
         try:
             encoding, content = "utf-8", file.content.decode("utf-8")
@@ -117,6 +123,36 @@ class FileContent(BaseModel):
             token=str(file.token),
             upload=file.upload,
             version=file.version,
+            href=href,
+        )
+
+
+class TreeEntry(BaseModel):
+    """One entry of a folder, as the forge lists it (`forge.api.files.
+    TreeEntry`), with `href`, where the download door serves a file, as
+    `FileContent` says; null for a folder.
+    """
+
+    path: str
+    kind: EntryKind
+    size: int | None
+    upload: UploadInfo | None
+    version: str | None
+    token: str | None
+    start: str | None
+    href: str | None
+
+    @classmethod
+    def of(cls, entry: TreeEntryRecord, href: str | None) -> TreeEntry:
+        return cls(
+            path=entry.path,
+            kind=entry.kind,
+            size=entry.size,
+            upload=entry.upload,
+            version=entry.version,
+            token=entry.token,
+            start=entry.start,
+            href=href if entry.kind is EntryKind.FILE else None,
         )
 
 
@@ -179,3 +215,76 @@ class Written(BaseModel):
 
     version: str
     notes: list[str]
+
+
+class Settings(BaseModel):
+    """A contest's or a task's settings as their form reads them: the
+    settings file's data as plain values, its leaderboards, their columns
+    and a task's scoring groups and values as lists of named entries, with
+    the token a save presents back. When the file does not read as
+    settings, `values` is null and `unreadable` says why; a file not there
+    yet has empty values and no token.
+    """
+
+    values: dict[str, Any] | None
+    unreadable: str | None
+    token: str | None
+    version: str | None
+
+    @classmethod
+    def of(cls, found: FormValues) -> Settings:
+        return cls(
+            values=found.values,
+            unreadable=found.unreadable,
+            token=str(found.token) if found.token is not None else None,
+            version=found.version,
+        )
+
+
+class WriteSettings(BaseModel):
+    """A contest's settings saved from its form: every value, as `Settings`
+    gives them, written into `contest.yaml` as it is, `token` being the one
+    they were read with, and `confirm` and `asked` doing what they do for a
+    file's write.
+    """
+
+    values: dict[str, Any]
+    token: str | None
+    confirm: bool = False
+    asked: str | None = None
+
+
+class DraftRunsRequest(BaseModel):
+    """A task's draft `repeat`, as its settings' values give it."""
+
+    repeat: list[Any]
+
+
+class DraftRun(BaseModel):
+    """One run of a draft: the titles of its tuples and the values the task
+    gives it, by input; a value the entrant gives is left out."""
+
+    titles: list[str]
+    cells: dict[str, Any]
+
+    @classmethod
+    def of(cls, run: DraftRunRecord) -> DraftRun:
+        return cls(titles=list(run.titles), cells=dict(run.cells))
+
+
+class DraftRuns(BaseModel):
+    """The runs a draft's `repeat` makes, the first axis outermost, none
+    when there would be more than a task may have; their `count`; and each
+    axis's own tuples as runs, in the draft's order."""
+
+    runs: list[DraftRun]
+    count: int
+    axes: list[list[DraftRun]]
+
+    @classmethod
+    def of(cls, found: DraftRunsRecord) -> DraftRuns:
+        return cls(
+            runs=[DraftRun.of(run) for run in found.runs],
+            count=found.count,
+            axes=[[DraftRun.of(run) for run in axis] for axis in found.axes],
+        )

@@ -105,6 +105,27 @@ async def test_an_organiser_downloads_a_typed_file_and_an_upload_at_the_version_
     assert upload.headers["X-Download-Disposition"] == 'attachment; filename="answer.bin"'
 
 
+async def test_a_tasks_file_and_tree_entry_name_the_address_the_door_opens_and_a_contests_none(
+    client: httpx.AsyncClient, sum_task: FakeForge
+) -> None:
+    await _write(client, "data/a b.txt", "spaced\n")
+    file = await read(client, f"{TASK}/files/data/a b.txt")
+    entries = (await client.get(f"{TASK}/tree", params={"path": "data"})).json()
+    top = (await client.get(f"{TASK}/tree")).json()
+    contest = (await client.get(f"{CONTEST}/tree")).json()
+    contest_file = await read(client, f"{CONTEST}/files/contest.yaml")
+
+    assert file["href"] == f"{DOWNLOADS}/{file['version']}/data/a%20b.txt"
+    [entry] = entries
+    assert entry["href"] == file["href"]
+    assert await sum_task.content.fetch(_door(await _download(client, entry["href"]))) == (
+        b"spaced\n"
+    )
+    assert {each["href"] for each in top if each["kind"] == "directory"} == {None}
+    assert {each["href"] for each in contest} == {None}
+    assert contest_file["href"] is None
+
+
 async def test_a_download_is_the_file_as_it_was_at_the_version_named(
     client: httpx.AsyncClient, sum_task: FakeForge
 ) -> None:

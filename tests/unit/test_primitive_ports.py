@@ -74,6 +74,10 @@ def test_a_programs_port_and_its_limits_are_listed_whole() -> None:
         "time_limit",
     ]
     assert programs["outputs"]["score"]["type"] == "number"
+    # Each program's inputs say what a wire into them may carry.
+    assert programs["inputs"]["source"]["accepts"] == ["file", "folder"]
+    assert programs["inputs"]["language"]["accepts"] == ["enum"]
+    assert programs["outputs"]["score"]["accepts"] is None
     assert (
         programs["outputs"]["score"]["better"],
         programs["outputs"]["score"]["at_least"],
@@ -115,4 +119,11 @@ def test_a_primitive_with_two_forms_lists_each_and_leaves_the_top_empty() -> Non
     assert listed["limits"] == listed["limits_from"] == listed["inputs"] == listed["outputs"] == {}
     assert listed["forms"]["several"]["description"] == "Runs several."
     assert listed["forms"]["one"]["inputs"]["program"]["type"] == "text"
+    assert listed["forms"]["one"]["inputs"]["program"]["accepts"] == [
+        "text",
+        "number",
+        "boolean",
+        "enum",
+    ]
+    assert listed["forms"]["one"]["outputs"]["outcome"]["accepts"] is None
     assert listed["forms"]["several"]["limits"]["time_ms"] == 2

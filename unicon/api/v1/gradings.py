@@ -71,8 +71,9 @@ from forge.api.errors import NotFound
 from forge.api.gradings import GradingStatus
 from forge.api.leaderboards import EntrantOwner
 from forge.api.regrades import ChangeKind
-from forge.api.types import Role, Scope, ScopeKind, TaskId
+from forge.api.types import Role, ScopeKind, TaskId
 
+from unicon.api.downloads import submitted, task_downloads
 from unicon.api.guard import PREFIX, anywhere, require
 from unicon.api.v1.submissions import (
     TEXT,
@@ -156,41 +157,16 @@ async def list_organised_submission_files(
     number: Number,
     entrant: Annotated[uuid.UUID, Query(description="The entrant whose row it is")],
 ) -> submissions.SubmittedFiles:
-    """Each input's files by the address the download door reads them at,
+    """Each input's files by their paths in the submission and the
+    addresses the download door reads them at,
     `/-/downloads/<org>/<contest>/<task>/entrants/<entrant>/<number>/<path>`,
     or the value given, and each part's the same of an input given in parts.
     A row with no such submission is `not_found`.
     """
     task = tasks.task_id_of(organiser.scope)
     found = await submissions.organised_files(organiser, task, EntrantOwner(entrant), number)
-    return _addressed(found, organiser.scope, entrant)
-
-
-def _addressed(
-    found: submissions.SubmittedFiles, scope: Scope, entrant: uuid.UUID
-) -> submissions.SubmittedFiles:
-    """The submission's files, each path rewritten to the staff download
-    address, a part's as an input's. A value is left as it is.
-    """
-    at = f"/-/downloads/{scope.org}/{scope.contest}/{scope.task}/entrants/{entrant}/{found.number}"
-    return submissions.SubmittedFiles(
-        found.task, found.number, {name: _at(at, given) for name, given in found.inputs.items()}
-    )
-
-
-def _at(at: str, given: Any) -> Any:
-    """An input or a part as `submission.json` holds it, its files' paths
-    under `at`, and each of its parts' too.
-    """
-    if not isinstance(given, dict):
-        return given
-    files, parts = given.get("files"), given.get("parts")
-    moved = dict(given)
-    if isinstance(files, list):
-        moved["files"] = [f"{at}/{path}" for path in files if isinstance(path, str)]
-    if isinstance(parts, dict):
-        moved["parts"] = {number: _at(at, part) for number, part in parts.items()}
-    return moved
+    at = f"{task_downloads(organiser.scope)}/entrants/{entrant}/{found.number}"
+    return submissions.SubmittedFiles(found.task, found.number, submitted(found.inputs, at))
 
 
 @router.get(
@@ -527,7 +503,13 @@ def _diff(leaderboard: regrades.LeaderboardDiff) -> dict[str, Any]:
 
 
 def _entry(row: gradings.FeedEntry) -> dict[str, Any]:
-    return {"grading": row.grading, "task": row.task_name, "label": row.label, "by": row.by}
+    return {
+        "grading": row.grading,
+        "task": row.task_name,
+        "label": row.label,
+        "by": row.by,
+        "may_manage": row.may_manage,
+    }
 
 
 def _summary(row: regrades.Summary) -> dict[str, Any]:
@@ -545,6 +527,7 @@ def _summary(row: regrades.Summary) -> dict[str, Any]:
         "graded": row.graded,
         "running": row.running,
         "counts": row.counts,
+        "may_manage": row.may_manage,
     }
 
 

@@ -15,7 +15,7 @@ async def test_an_owner_uploads_saves_replaces_removes_and_versions_files(
     )
     assert made.status_code == 201
     base = "/api/v1/workflows/bob/files"
-    draft = (await client.get(base)).json()["draft"]
+    draft = (await client.get(f"{base}/draft")).json()
     classic = acme.state.repos[("unicon", "classic.workflow")].files
     acme.state.commit(
         acme.state.repos[("bob", "files.workflow")],
@@ -72,7 +72,7 @@ async def test_an_owner_uploads_saves_replaces_removes_and_versions_files(
     replaced = await client.put(
         f"{base}/draft",
         json={
-            "content": saved.json()["content"],
+            "values": saved.json()["values"],
             "token": saved.json()["token"],
             "changes": [{"path": "scorer/main.py", "token": file["token"], "content": "print(43)"}],
         },
@@ -86,7 +86,7 @@ async def test_an_owner_uploads_saves_replaces_removes_and_versions_files(
     removed = await client.put(
         f"{base}/draft",
         json={
-            "content": saved.json()["content"],
+            "values": saved.json()["values"],
             "token": saved.json()["token"],
             "changes": [{"path": "scorer/main.py", "token": file["token"], "remove": True}],
         },
@@ -110,7 +110,7 @@ async def test_an_owner_uploads_saves_replaces_removes_and_versions_files(
     ).status_code == 404
 
 
-async def test_whoever_reads_a_version_lists_and_downloads_the_files_it_was_frozen_with(
+async def test_whoever_reads_a_version_lists_and_downloads_the_files_it_was_frozen_with_by_href(
     client: httpx.AsyncClient, acme: FakeForge
 ) -> None:
     from forge.api.uploads import Door
@@ -121,7 +121,7 @@ async def test_whoever_reads_a_version_lists_and_downloads_the_files_it_was_froz
     )
     assert made.status_code == 201
     base = "/api/v1/workflows/bob/shipped"
-    draft = (await client.get(base)).json()["draft"]
+    draft = (await client.get(f"{base}/draft")).json()
     classic = acme.state.repos[("unicon", "classic.workflow")].files
     acme.state.commit(
         acme.state.repos[("bob", "shipped.workflow")],
@@ -175,7 +175,7 @@ async def test_whoever_reads_a_version_lists_and_downloads_the_files_it_was_froz
     later = await client.put(
         f"{base}/draft",
         json={
-            "content": saved.json()["content"],
+            "values": saved.json()["values"],
             "token": saved.json()["token"],
             "changes": [{"path": "notes/later.txt", "token": None, "content": "draft only"}],
         },
@@ -192,7 +192,9 @@ async def test_whoever_reads_a_version_lists_and_downloads_the_files_it_was_froz
     # What v1 was frozen with, not what the draft holds since.
     notes = await client.get(f"{base}/versions/v1/tree", params={"path": "notes"})
     assert notes.status_code == 200, notes.text
-    assert [entry["path"] for entry in notes.json()] == ["notes/read me.txt"]
+    assert [(entry["path"], entry["href"]) for entry in notes.json()] == [
+        ("notes/read me.txt", "/-/downloads/workflows/bob/shipped/versions/v1/notes/read%20me.txt")
+    ]
     [scorer] = (await client.get(f"{base}/versions/v1/tree", params={"path": "scorer"})).json()
     assert scorer["upload"]["size"] == len(content)
     opened = await door_to("v1/scorer/main.py")
@@ -233,7 +235,7 @@ async def test_whoever_reads_a_version_lists_and_downloads_the_files_it_was_froz
     assert (await door_to("v1/scorer/main.py")).status_code == 204
 
 
-async def test_whoever_may_change_a_workflow_downloads_its_drafts_files(
+async def test_whoever_may_change_a_workflow_downloads_its_drafts_files_at_the_address_named(
     client: httpx.AsyncClient, acme: FakeForge
 ) -> None:
     from forge.api.uploads import Door
@@ -244,11 +246,11 @@ async def test_whoever_may_change_a_workflow_downloads_its_drafts_files(
     )
     assert made.status_code == 201
     base = "/api/v1/workflows/bob/drafted"
-    draft = (await client.get(base)).json()["draft"]
+    draft = (await client.get(f"{base}/draft")).json()
     saved = await client.put(
         f"{base}/draft",
         json={
-            "content": draft["content"],
+            "values": draft["values"],
             "token": draft["token"],
             "changes": [{"path": "notes/read me.txt", "token": None, "content": "hello"}],
         },
@@ -262,6 +264,10 @@ async def test_whoever_may_change_a_workflow_downloads_its_drafts_files(
             headers={"X-Original-URI": f"/-/downloads/workflows/bob/drafted/draft/{path}"},
         )
 
+    href = "/-/downloads/workflows/bob/drafted/draft/notes/read%20me.txt"
+    [listed] = (await client.get(f"{base}/tree", params={"path": "notes"})).json()
+    assert listed["href"] == href
+    assert (await client.get(f"{base}/files/notes/read me.txt")).json()["href"] == href
     opened = await door_to("notes/read%20me.txt")
     assert opened.status_code == 204, opened.text
     assert opened.headers["X-Download-Disposition"] == "attachment; filename*=UTF-8''read%20me.txt"

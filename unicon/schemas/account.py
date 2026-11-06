@@ -39,11 +39,20 @@ class HeldRole(BaseModel):
 class Me(BaseModel):
     """The signed-in user and their roles at every scope. `degraded` is set
     when the forge did not answer and the identity comes from the session.
+    `orgs` are the names of the orgs a role of theirs reaches, at the org or
+    inside it; `contests` the contests a role of theirs is held at or
+    inside, and `tasks` the tasks one is held at, by name only; and
+    `workflow_owners` the owners they may make a workflow under: their own
+    username first, then each org they manage.
     """
 
     user: Account
     roles: list[HeldRole]
     degraded: bool
+    orgs: list[str]
+    contests: list[ScopeNames]
+    tasks: list[ScopeNames]
+    workflow_owners: list[str]
 
 
 class SessionInfo(BaseModel):

@@ -4,6 +4,8 @@ an unauthenticated answer clears the cookie is in the integration tests,
 since the cookie's flags are forge's.
 """
 
+import json
+
 import pytest
 from fastapi import FastAPI
 from forge.api import errors
@@ -122,7 +124,7 @@ REFUSALS = [
     ),
     (
         errors.InvalidDefinition(
-            "contest.yaml", [{"path": "visibility", "message": "Not a visibility."}]
+            "contest.yaml", [{"path": ("tasks", 1, "due"), "message": "Not a date."}]
         ),
         422,
         "errors",
@@ -158,7 +160,7 @@ async def test_a_refusal_carries_its_member(error: UniconError, status: int, mem
     assert body["_status"] == status
     assert body["code"] == error.code
     assert body["detail"] == error.detail
-    assert body[member] == error.extra[member]
+    assert body[member] == json.loads(json.dumps(error.extra[member]))
 
 
 async def _answer(app: FastAPI, path: str) -> dict[str, object]:

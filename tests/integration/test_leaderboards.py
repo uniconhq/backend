@@ -99,9 +99,10 @@ async def _graded(
     await run_pipelines(client, verdict=outcome)
 
 
-def _standings(carols: str, told: bool) -> dict[str, Any]:
+def _standings(carols: str, told: bool, staff: bool = False) -> dict[str, Any]:
     """The leaderboard for everyone with carol's row alone, her one
-    submission accepted, as staff, carol and a visitor read it."""
+    submission accepted, as staff, carol and a visitor read it; staff alone
+    are told the bounds."""
     counted: list[Any] | None = [{"task": "sum", "number": 1}] if told else None
     waiting: list[Any] | None = [] if told else None
     return {
@@ -112,8 +113,8 @@ def _standings(carols: str, told: bool) -> dict[str, Any]:
             {
                 "name": "score",
                 "decimals": 1,
-                "at_least": "0",
-                "at_most": "1",
+                "at_least": "0" if staff else None,
+                "at_most": "1" if staff else None,
                 "self_reported": [],
             }
         ],
@@ -138,6 +139,7 @@ def _standings(carols: str, told: bool) -> dict[str, Any]:
                 "grading": 0 if told else None,
             }
         ],
+        "staff": staff,
     }
 
 
@@ -172,7 +174,7 @@ async def test_each_caller_reads_the_leaderboards_its_audience_lets_them(
         assert (refused.status_code, refused.json()["code"]) == (404, "not_found")
     assert staff.status_code == 200, staff.text
     standings, private = staff.json()
-    assert standings == staff_one.json() == _standings(carols, told=True)
+    assert standings == staff_one.json() == _standings(carols, told=True, staff=True)
     assert private["rows"][0]["cells"] == [
         {
             "column": "tries",
@@ -322,7 +324,7 @@ async def test_a_save_of_the_contests_settings_refuses_a_leaderboard_at_its_path
 
     assert (refused.status_code, refused.json()["code"]) == (422, "invalid_definition")
     assert [error["path"] for error in refused.json()["errors"]] == [
-        "leaderboards.standings.display[0]"
+        ["leaderboards", "standings", "display", 0]
     ]
 
 

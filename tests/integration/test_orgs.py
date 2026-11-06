@@ -77,7 +77,17 @@ async def test_an_admin_changes_the_orgs_description(
     assert (org.description, org.display_name) == ("Acme contests", "Acme Inc.")
     read = await client.get(ORG)
     assert read.status_code == 200, read.text
-    assert read.json() == {"display_name": "Acme Inc.", "description": "Acme contests"}
+    assert read.json() == {
+        "display_name": "Acme Inc.",
+        "description": "Acme contests",
+        "may": {
+            "edit": True,
+            "create_contest": True,
+            "see_people": True,
+            "manage_people": True,
+            "give_admin": True,
+        },
+    }
 
 
 async def test_an_observer_of_the_org_reads_what_it_says_about_itself(
@@ -91,7 +101,17 @@ async def test_an_observer_of_the_org_reads_what_it_says_about_itself(
     read = await client.get(ORG)
 
     assert read.status_code == 200, read.text
-    assert read.json() == {"display_name": None, "description": "Acme"}
+    assert read.json() == {
+        "display_name": None,
+        "description": "Acme",
+        "may": {
+            "edit": False,
+            "create_contest": False,
+            "see_people": True,
+            "manage_people": False,
+            "give_admin": False,
+        },
+    }
     assert forge.calls_to("update_org") == []
 
 
@@ -172,3 +192,24 @@ async def test_a_description_longer_than_255_characters_is_refused(
     assert refused.status_code == 422
     assert refused.json()["code"] == "validation_error"
     assert kept.status_code in (201, 204)
+
+
+async def test_a_display_name_longer_than_100_characters_is_refused_naming_the_limit(
+    client: httpx.AsyncClient, forge: FakeForge, held_setup: Setup
+) -> None:
+    await forge.orgs.create_org(OrgId("acme"), description="Acme")
+    await name_places(held_setup, "acme")
+    await forge.orgs.grant_role(7, ACME, Role.ADMIN)
+    await sign_in(client, forge)
+
+    refused = await client.patch(
+        ORG, json={"description": "Acme", "display_name": "A" * 101}, headers=ORIGIN
+    )
+    kept = await client.patch(
+        ORG, json={"description": "Acme", "display_name": "A" * 100}, headers=ORIGIN
+    )
+
+    assert refused.status_code == 422
+    assert refused.json()["code"] == "invalid_name"
+    assert "at most 100 characters" in refused.json()["detail"]
+    assert kept.status_code == 204

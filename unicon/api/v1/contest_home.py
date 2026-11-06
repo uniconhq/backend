@@ -34,9 +34,10 @@ from urllib.parse import quote
 from fastapi import APIRouter, Path, Request, Response
 from forge.api import contest_home, contests, landing, tasks
 from forge.api.contest_home import ShownInput
-from forge.api.types import Scope, ScopeKind
+from forge.api.types import ScopeKind
 
 from unicon.api.deps import CurrentSession, OptionalSession
+from unicon.api.downloads import INPUTS, RUNS, quoted, task_downloads
 from unicon.api.guard import PREFIX, ContestAtPath, TaskAtPath
 from unicon.schemas.contest_home import (
     ContestHome,
@@ -45,6 +46,7 @@ from unicon.schemas.contest_home import (
     ShownInputFiles,
     TaskPage,
 )
+from unicon.schemas.contests import Pictures
 from unicon.schemas.submissions import NUMBER_MAX
 
 CONTEST = PREFIX[ScopeKind.CONTEST]
@@ -65,6 +67,13 @@ IMAGE_TYPES: Final = {
 """The type a public file is served as, by its ending; any other is
 `OTHER_TYPE`."""
 OTHER_TYPE = "application/octet-stream"
+PICTURES: Final = Pictures(
+    most=contest_home.PUBLIC_MOST,
+    endings=sorted(ending.removeprefix(".") for ending in IMAGE_TYPES),
+)
+"""What a picture a statement shows may be, for an organiser's page to
+check before it saves one: a public file served as a picture, no larger
+than a page is served."""
 SVG = "image/svg+xml"
 PUBLIC_HEADERS: Final = {
     "X-Content-Type-Options": "nosniff",
@@ -75,9 +84,6 @@ tag, so a picture a save replaced shows at once, on an organiser's preview
 as on an entrant's page; one unchanged costs no bytes (304)."""
 SVG_POLICY = "default-src 'none'; style-src 'unsafe-inline'; sandbox"
 
-DOWNLOADS = "/-/downloads"
-INPUTS = "inputs"
-RUNS = "runs"
 
 router = APIRouter(tags=["contest home"])
 
@@ -181,11 +187,6 @@ async def list_task_run_input_files(
     return shown_files(found, f"{at}/{INPUTS}/{quote(name, safe='')}")
 
 
-def task_downloads(scope: Scope) -> str:
-    """Where the download door serves the task's files from."""
-    return f"{DOWNLOADS}/{scope.org}/{scope.contest}/{scope.task}"
-
-
 def shown_files(found: ShownInput, at: str) -> ShownInputFiles:
     """A shown input's files, by their addresses below `at`, the input's own
     address at the download door: a file at `at` itself, and each file of a
@@ -197,7 +198,7 @@ def shown_files(found: ShownInput, at: str) -> ShownInputFiles:
         files=[
             ShownFile(
                 path=path,
-                download=f"{at}/{'/'.join(quote(part, safe='') for part in path.split('/'))}",
+                download=f"{at}/{quoted(path)}",
             )
             for path in found.files
         ]

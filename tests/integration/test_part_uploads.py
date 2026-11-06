@@ -67,11 +67,11 @@ async def test_workflow_parts_are_stored_before_the_existing_draft_uses_them(
     upload = await _sent(client, acme, workflow + "/part-uploads", b"workflow data")
     await held_setup.settle()
     assert (await client.get(f"{workflow}/part-uploads/{upload}")).json()["status"] == "stored"
-    draft = (await client.get(workflow)).json()["draft"]
+    draft = (await client.get(workflow + "/draft")).json()
     saved = await client.put(
         workflow + "/draft",
         json={
-            "content": draft["content"],
+            "values": draft["values"],
             "token": draft["token"],
             "changes": [{"path": "data.bin", "token": None, "upload": upload}],
         },

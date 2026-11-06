@@ -36,7 +36,7 @@ from tests.integration.conftest import (
 
 MISSING = [
     {
-        "path": "repeat[0].tuples[0][1]",
+        "path": ["repeat", 0, "tuples", 0, 1],
         "message": "The task has no file tests/2.ans. Add it, or give another file.",
     }
 ]
@@ -370,7 +370,9 @@ async def test_removing_every_test_keeps_the_save_as_a_draft(
     )
 
     assert kept.status_code == 200, kept.text
-    assert kept.json()["errors"] == [{"path": "repeat[0].tuples", "message": "Give at least one."}]
+    assert kept.json()["errors"] == [
+        {"path": ["repeat", 0, "tuples"], "message": "Give at least one."}
+    ]
     assert len((await client.get(f"{TASK}/publications")).json()) == 1
 
 
@@ -461,7 +463,7 @@ async def test_a_scheduled_tasks_rollback_to_the_starter_statement_stays_a_draft
     )
     assert rolled.status_code == 200, rolled.text
     assert rolled.json()["errors"] == [
-        {"path": "statement.md", "message": "A · sum: its statement is not written yet."}
+        {"path": ["statement.md"], "message": "A · sum: its statement is not written yet."}
     ]
     assert "number" not in rolled.json()
     assert len((await client.get(f"{TASK}/publications")).json()) == 1

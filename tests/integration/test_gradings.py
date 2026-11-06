@@ -249,7 +249,7 @@ async def test_a_contest_that_says_what_a_failed_grading_counts_as_is_refused_na
     )
 
     assert (written.status_code, written.json()["code"]) == (422, "invalid_definition")
-    assert [problem["path"] for problem in written.json()["errors"]] == ["on_system_error"]
+    assert [problem["path"] for problem in written.json()["errors"]] == [["on_system_error"]]
     assert "tried again once by itself" in written.json()["errors"][0]["message"]
 
 

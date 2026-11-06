@@ -2,10 +2,11 @@
 the name and who may do what; these models say what shape each body has. A
 workflow goes out by the owner and the name a person calls it by,
 `<owner>/<name>`, and never by its id at the forge, which is built from an
-org's key. A definition travels as the text of its `workflow.yaml`, with the
-token it was read with, which a save carries back; none saves a file that
-is not there yet. A primitive goes out with its declared ports, so the
-editor's palette shows each with its type and its marks.
+org's key. A draft travels as its `workflow.yaml`'s values, or as its text
+while it does not read, with the token it was read with, which a save
+carries back; none saves a file that is not there yet. A primitive goes out
+with its declared ports, so the editor's palette shows each with its type
+and its marks.
 """
 
 from datetime import datetime
@@ -23,9 +24,11 @@ from forge.api.workflows import (
     LimitFrom,
     Port,
     PrimitiveVersion,
+    VersionDefinition,
     Visibility,
     WorkflowSummary,
     WorkflowView,
+    accepted_types,
 )
 from pydantic import BaseModel, Field, model_validator
 
@@ -103,53 +106,63 @@ class WorkflowSearch(BaseModel):
     next: int | None
 
 
-class Definition(BaseModel):
-    """A `workflow.yaml` as text, and the token a save of it carries back:
-    none for one that is not there yet. `revision` names the saved repository,
-    including its files, for publishing exactly that save.
+class WorkflowDraft(BaseModel):
+    """A workflow's draft: its `workflow.yaml` as plain values, with the
+    token a save carries back, none for a file not there yet. When the file
+    does not read as values, `values` is null, `unreadable` says why and
+    `content` is its text; otherwise `content` is null. `revision` names
+    the saved repository, including its files, for publishing exactly that
+    save.
     """
 
-    content: str
+    values: dict[str, Any] | None
+    unreadable: str | None
+    content: str | None
     token: str | None
-    revision: str | None = None
+    revision: str | None
 
     @classmethod
     def of(cls, draft: Draft) -> Self:
-        return cls(content=draft.text, token=draft.token, revision=draft.revision)
+        return cls(
+            values=draft.values,
+            unreadable=draft.unreadable,
+            content=draft.text if draft.values is None else None,
+            token=draft.token,
+            revision=draft.revision,
+        )
 
 
 class WorkflowPage(WorkflowItem):
-    """A workflow as its page shows it. For someone who may edit it, `draft`,
-    its `workflow.yaml` now, and `readers`, the usernames it is shared with;
-    for anyone else, no draft and no readers.
+    """A workflow as its page shows it. For someone who may edit it,
+    `readers`, the usernames it is shared with; for anyone else, none.
     """
 
-    draft: Definition | None
     readers: list[str]
 
     @classmethod
     def of_view(cls, view: WorkflowView) -> Self:
         item = WorkflowItem.of(view.summary)
-        return cls(
-            **item.model_dump(),
-            draft=Definition.of(view.draft) if view.draft is not None else None,
-            readers=[reader.username for reader in view.readers],
-        )
+        return cls(**item.model_dump(), readers=[reader.username for reader in view.readers])
 
 
-class SaveDefinition(BaseModel):
+class SaveDraft(BaseModel):
     """A draft to write over the one read with `token`, or to create when
-    the token is none. `changes` writes its own files in the same commit.
-    Whatever it holds saves, problems and all.
+    the token is none: `values` written into `workflow.yaml` as it is, or,
+    for a draft that does not read, `content`, its whole text; one of the
+    two. `changes` writes its own files in the same commit. Whatever it
+    holds saves, problems and all.
     """
 
-    content: str
+    values: dict[str, Any] | None = None
+    content: str | None = None
     token: str | None
 
     changes: list[FileChange] = Field(default_factory=list)
 
     @model_validator(mode="after")
-    def _one_change_per_path(self) -> Self:
+    def _one_draft_and_one_change_per_path(self) -> Self:
+        if (self.values is None) == (self.content is None):
+            raise ValueError("Give the draft's values or its content, not both.")
         paths = [change.path for change in self.changes]
         if len(set(paths)) != len(paths):
             raise ValueError("Each file can appear only once in a save.")
@@ -157,9 +170,16 @@ class SaveDefinition(BaseModel):
 
 
 class VersionContent(BaseModel):
-    """A workflow's `workflow.yaml` at one version."""
+    """A workflow's `workflow.yaml` at one version: its text, and its plain
+    values, or null with why it does not read in `unreadable`."""
 
     content: str
+    values: dict[str, Any] | None
+    unreadable: str | None
+
+    @classmethod
+    def of(cls, found: VersionDefinition) -> Self:
+        return cls(content=found.text, values=found.values, unreadable=found.unreadable)
 
 
 class CreateVersion(BaseModel):
@@ -179,27 +199,35 @@ class Version(BaseModel):
 
 
 class CheckDefinition(BaseModel):
-    """A `workflow.yaml` to check as a version would be, writing nothing.
-    `owner` and `name`, when both are given, name the workflow this text is
-    a draft of, so a draft that would hold that workflow is refused.
+    """A `workflow.yaml` to check as a version would be, writing nothing:
+    its `values`, or its text in `content`, one of the two. `owner` and
+    `name`, when both are given, name the workflow this is a draft of, so a
+    draft that would hold that workflow is refused.
     """
 
-    content: str
+    values: dict[str, Any] | None = None
+    content: str | None = None
     owner: str | None = None
     name: str | None = None
     paths: list[Annotated[str, Field(max_length=1024)]] | None = Field(
         default=None, max_length=10_000
     )
 
+    @model_validator(mode="after")
+    def _one_definition(self) -> Self:
+        if (self.values is None) == (self.content is None):
+            raise ValueError("Give the definition's values or its content, not both.")
+        return self
+
 
 class DefinitionProblem(BaseModel):
-    """One problem: its YAML path in `workflow.yaml`, `steps[1].with.binary`,
-    and what is wrong there. The path is empty for the file as a whole.
-    `step` is the flat step a problem inside a box belongs to, when the path
-    can only name the box; none otherwise.
+    """One problem: where in `workflow.yaml`, as its keys and list indices,
+    such as `["steps", 1, "with", "binary"]`, empty for the file as a whole,
+    and what is wrong there. `step` is the flat step a problem inside a box
+    belongs to, when the path can only name the box; none otherwise.
     """
 
-    path: str
+    path: list[str | int]
     message: str
     step: str | None = None
 
@@ -213,7 +241,9 @@ class Checked(BaseModel):
 
 
 class BoxInput(BaseModel):
-    """One input of a run workflow drawn as a box."""
+    """One input of a run workflow drawn as a box, with the types a wire
+    into it may carry.
+    """
 
     name: str
     type: str
@@ -221,6 +251,7 @@ class BoxInput(BaseModel):
     optional: bool
     title: str | None
     unit: str | None
+    accepts: list[str]
 
     @classmethod
     def of(cls, found: ForgeBoxInput) -> Self:
@@ -231,6 +262,7 @@ class BoxInput(BaseModel):
             optional=found.optional,
             title=found.title,
             unit=found.unit,
+            accepts=list(found.accepts),
         )
 
 
@@ -315,7 +347,8 @@ class PrimitivePort(BaseModel):
     `outcomes`: each outcome the step can report, in the declaration's
     order, with a line saying when (`accepted`: "the source compiles"), for
     the step's drawer to say what it reports; none when the primitive does
-    not say, and on every other port.
+    not say, and on every other port. An input port's `accepts` lists the
+    types a wire into it may carry; an output's is none.
     """
 
     type: str
@@ -331,9 +364,10 @@ class PrimitivePort(BaseModel):
     at_most: Exact | None = None
     inputs: dict[str, PrimitivePort] | None = None
     outputs: dict[str, PrimitivePort] | None = None
+    accepts: list[str] | None = None
 
     @classmethod
-    def of(cls, port: Port) -> Self:
+    def of(cls, port: Port, *, inbound: bool) -> Self:
         return cls(
             type=port.type.value,
             options=list(port.options) if port.options is not None else None,
@@ -346,15 +380,16 @@ class PrimitivePort(BaseModel):
             better=port.better,
             at_least=port.at_least,
             at_most=port.at_most,
-            inputs=_ports(port.inputs),
-            outputs=_ports(port.outputs),
+            inputs=_ports(port.inputs, inbound=True),
+            outputs=_ports(port.outputs, inbound=False),
+            accepts=[found.value for found in accepted_types(port)] if inbound else None,
         )
 
 
-def _ports(ports: dict[str, Port] | None) -> dict[str, PrimitivePort] | None:
+def _ports(ports: dict[str, Port] | None, *, inbound: bool) -> dict[str, PrimitivePort] | None:
     if ports is None:
         return None
-    return {name: PrimitivePort.of(port) for name, port in ports.items()}
+    return {name: PrimitivePort.of(port, inbound=inbound) for name, port in ports.items()}
 
 
 class LimitSource(BaseModel):
@@ -408,11 +443,13 @@ class PrimitiveForm(BaseModel):
                 limit: LimitSource.of(source) for limit, source in form.limits_from.items()
             },
             inputs={
-                name: PrimitivePort.of(port)
+                name: PrimitivePort.of(port, inbound=True)
                 for name, port in form.inputs.items()
                 if name not in automatic
             },
-            outputs={name: PrimitivePort.of(port) for name, port in form.outputs.items()},
+            outputs={
+                name: PrimitivePort.of(port, inbound=False) for name, port in form.outputs.items()
+            },
         )
 
 
@@ -456,11 +493,14 @@ class Primitive(BaseModel):
                 limit: LimitSource.of(source) for limit, source in declared.limits_from.items()
             }
             inputs = {
-                name: PrimitivePort.of(port)
+                name: PrimitivePort.of(port, inbound=True)
                 for name, port in declared.inputs.items()
                 if name not in found.automatic_inputs
             }
-            outputs = {name: PrimitivePort.of(port) for name, port in declared.outputs.items()}
+            outputs = {
+                name: PrimitivePort.of(port, inbound=False)
+                for name, port in declared.outputs.items()
+            }
         return cls(
             ref=found.ref,
             name=found.name,

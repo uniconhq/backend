@@ -9,7 +9,7 @@ import uuid
 from datetime import datetime
 from typing import Annotated, Any, Literal, Self
 
-from forge.api.types import Uploaded
+from forge.api.types import Uploaded, Values
 from pydantic import BaseModel, BeforeValidator, model_validator
 
 from unicon.schemas.exact import Exact
@@ -17,11 +17,12 @@ from unicon.schemas.files import Encoding, written_content
 
 
 class DefinitionError(BaseModel):
-    """One thing wrong with a definition file: its YAML path, "" for the file
-    as a whole, and a sentence a form shows beside that field.
+    """One thing wrong with a definition file: where, as its keys and list
+    indices, such as `["tasks", 1, "due"]`, empty for the file as a whole
+    and one file path for a file, and a sentence a form shows there.
     """
 
-    path: str
+    path: list[str | int]
     message: str
 
 
@@ -98,8 +99,9 @@ class Publication(BaseModel):
 
 class FileChange(BaseModel):
     """One file of a save, with the token it was read with: typed as
-    `content`, uploaded for this path as `upload`, or removed with `remove:
-    true`, exactly one of the three. The token is null for a file the save
+    `content`, uploaded for this path as `upload`, `task.yaml` given as its
+    form's `values` (as `Settings` gives them), or removed with `remove:
+    true`, exactly one of the four. The token is null for a file the save
     creates, and a removal always carries one. Removing a folder, such as a
     test, is removing each file under it, named one by one.
     """
@@ -109,22 +111,27 @@ class FileChange(BaseModel):
     encoding: Encoding = "utf-8"
     content: str | None = None
     upload: uuid.UUID | None = None
+    values: dict[str, Any] | None = None
     remove: bool = False
 
     @model_validator(mode="after")
     def _written_or_removed(self) -> Self:
         if self.remove:
-            if self.content is not None or self.upload is not None:
+            if self.content is not None or self.upload is not None or self.values is not None:
                 raise ValueError("A file being removed cannot also have content or an upload.")
             if self.token is None:
                 raise ValueError("To remove a file, say which version of it was read.")
+        if self.values is not None and (self.content is not None or self.upload is not None):
+            raise ValueError("Give the content, an upload or values, one of the three.")
         self.edit_content()
         return self
 
-    def edit_content(self) -> bytes | Uploaded | None:
+    def edit_content(self) -> bytes | Uploaded | Values | None:
         """What the save writes at the path, or none to remove the file."""
         if self.remove:
             return None
+        if self.values is not None:
+            return Values(self.values)
         return written_content(self.encoding, self.content, self.upload)
 
 

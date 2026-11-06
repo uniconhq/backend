@@ -41,7 +41,12 @@ async def test_a_tasks_top_folder_lists_its_starter_files(
         "task.yaml": "file",
         "tests": "directory",
     }
-    assert missing.status_code == 404
+    # The forge's adapter said where it looked; a person is told this instead.
+    assert (missing.status_code, missing.json()["detail"]) == (
+        404,
+        "This could not be found. It may have been removed: reload the page to see what is "
+        "there now.",
+    )
 
 
 async def test_a_tests_folder_lists_how_each_small_file_starts(
@@ -192,7 +197,7 @@ async def test_a_contest_file_that_does_not_validate_is_refused_with_its_errors(
     assert refused.status_code == 422
     assert refused.json()["code"] == "invalid_definition"
     (error,) = refused.json()["errors"]
-    assert error["path"] == "visibility"
+    assert error["path"] == ["visibility"]
     assert error["message"]
 
 
@@ -207,7 +212,7 @@ async def test_a_contest_opened_before_its_task_is_published_is_refused_at_its_s
     assert refused.status_code == 422
     assert refused.json()["code"] == "invalid_definition"
     assert refused.json()["errors"] == [
-        {"path": "state", "message": "A · sum: it is not published yet."}
+        {"path": ["state"], "message": "A · sum: it is not published yet."}
     ]
 
 

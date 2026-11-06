@@ -105,6 +105,7 @@ ROUTES: list[tuple[str, str, dict[str, Any] | None, Role, Scope]] = [
     ("DELETE", f"{ORG}/roles/20", None, Role.MANAGER, ACME),
     ("GET", f"{ORG}/contests", None, Role.OBSERVER, ACME),
     ("POST", f"{ORG}/contests", {"name": "autumn"}, Role.MANAGER, ACME),
+    ("GET", CONTEST, None, Role.OBSERVER, SPRING),
     ("GET", f"{CONTEST}/roles", None, Role.OBSERVER, SPRING),
     ("POST", f"{CONTEST}/roles", CAROL, Role.MANAGER, SPRING),
     ("DELETE", f"{CONTEST}/roles/20", None, Role.MANAGER, SPRING),
@@ -123,6 +124,8 @@ ROUTES: list[tuple[str, str, dict[str, Any] | None, Role, Scope]] = [
     ("GET", f"{CONTEST}/tree", None, Role.OBSERVER, SPRING),
     ("GET", f"{CONTEST}/files/contest.yaml", None, Role.OBSERVER, SPRING),
     ("GET", f"{CONTEST}/history", None, Role.OBSERVER, SPRING),
+    ("GET", f"{CONTEST}/settings", None, Role.OBSERVER, SPRING),
+    ("PUT", f"{CONTEST}/settings", {"values": {}, "token": None}, Role.MANAGER, SPRING),
     ("PUT", f"{CONTEST}/files/notes.md", NEW_FILE, Role.MANAGER, SPRING),
     ("POST", f"{CONTEST}/files/notes.md/rollback", ROLLBACK, Role.MANAGER, SPRING),
     ("GET", f"{CONTEST}/organise/tasks", None, Role.OBSERVER, SPRING),
@@ -130,6 +133,7 @@ ROUTES: list[tuple[str, str, dict[str, Any] | None, Role, Scope]] = [
     ("GET", f"{TASK}/workflow-form", None, Role.OBSERVER, SUM),
     ("GET", f"{TASK}/publications", None, Role.OBSERVER, SUM),
     ("POST", f"{TASK}/show-preview", PREVIEW, Role.OBSERVER, SUM),
+    ("POST", f"{TASK}/draft-runs", {"repeat": []}, Role.OBSERVER, SUM),
     ("POST", f"{TASK}/save", {"changes": []}, Role.MANAGER, SUM),
     ("POST", f"{TASK}/take-out", {"confirmed": "withdraw"}, Role.MANAGER, SPRING),
     ("POST", f"{TASK}/put-back", None, Role.MANAGER, SPRING),
@@ -139,6 +143,7 @@ ROUTES: list[tuple[str, str, dict[str, Any] | None, Role, Scope]] = [
     ("GET", f"{TASK}/tree", None, Role.OBSERVER, SUM),
     ("GET", f"{TASK}/files/task.yaml", None, Role.OBSERVER, SUM),
     ("GET", f"{TASK}/history", None, Role.OBSERVER, SUM),
+    ("GET", f"{TASK}/settings", None, Role.OBSERVER, SUM),
     ("PUT", f"{TASK}/files/tests/main/1/input", NEW_FILE, Role.MANAGER, SUM),
     ("POST", f"{TASK}/files/task.yaml/rollback", ROLLBACK, Role.MANAGER, SUM),
     ("GET", f"{TASK}/preparation", None, Role.MANAGER, SUM),
@@ -410,6 +415,20 @@ async def test_a_higher_role_at_the_org_reaches_every_scope(
 
     assert granted.status_code == 204
     assert 20 in world.state.orgs["acme"].roles[(scope, Role.OBSERVER)]
+
+
+async def test_a_role_at_a_task_alone_lists_neither_and_is_told_its_contest_and_task(
+    client: httpx.AsyncClient, world: FakeForge
+) -> None:
+    await _as_bob(client, world, Role.ADMIN, SUM)
+
+    contests = await client.get(f"{ORG}/contests")
+    tasks = await client.get(f"{CONTEST}/tasks")
+    me = (await client.get("/api/v1/me")).json()
+
+    assert (contests.status_code, tasks.status_code) == (403, 403)
+    assert me["contests"] == [{"org": "acme", "contest": "spring", "task": None}]
+    assert me["tasks"] == [{"org": "acme", "contest": "spring", "task": "sum"}]
 
 
 async def test_a_role_at_a_narrower_scope_does_not_reach_up(
