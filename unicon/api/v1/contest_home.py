@@ -154,9 +154,9 @@ async def list_task_shown_input_files(
     """
     task = tasks.task_id_of(scope)
     found = await (
-        contest_home.shown_input(session, task, name)
+        contest_home.shown_input(session, task, name, listing=True)
         if session is not None
-        else landing.shown_input(task, name)
+        else landing.shown_input(task, name, listing=True)
     )
     return shown_files(found, f"{task_downloads(scope)}/{INPUTS}/{quote(name, safe='')}")
 
@@ -179,9 +179,9 @@ async def list_task_run_input_files(
     """
     task = tasks.task_id_of(scope)
     found = await (
-        contest_home.shown_input(session, task, name, group, place)
+        contest_home.shown_input(session, task, name, group, place, listing=True)
         if session is not None
-        else landing.shown_input(task, name, group, place)
+        else landing.shown_input(task, name, group, place, listing=True)
     )
     at = f"{task_downloads(scope)}/{RUNS}/{quote(group, safe='')}/{place}"
     return shown_files(found, f"{at}/{INPUTS}/{quote(name, safe='')}")
@@ -192,7 +192,7 @@ def shown_files(found: ShownInput, at: str) -> ShownInputFiles:
     address at the download door: a file at `at` itself, and each file of a
     folder at its path below it, each segment quoted.
     """
-    if found.door is not None:
+    if found.name is not None:
         return ShownInputFiles(files=[ShownFile(path=None, download=at)])
     return ShownInputFiles(
         files=[
