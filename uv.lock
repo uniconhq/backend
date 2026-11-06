@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.14"
 resolution-markers = [
     "python_full_version >= '3.15'",
@@ -1329,7 +1329,7 @@ dev = [
 requires-dist = [
     { name = "fastapi", specifier = ">=0.141.1" },
     { name = "pydantic", specifier = ">=2.13.5" },
-    { name = "unicon-forge", url = "https://github.com/uniconhq/forge/releases/download/v0.31.0/unicon_forge-0.31.0-py3-none-any.whl" },
+    { name = "unicon-forge", directory = "../forge" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.52.4" },
 ]
 
@@ -1348,7 +1348,7 @@ dev = [
 [[package]]
 name = "unicon-forge"
 version = "0.31.0"
-source = { url = "https://github.com/uniconhq/forge/releases/download/v0.31.0/unicon_forge-0.31.0-py3-none-any.whl" }
+source = { directory = "../forge" }
 dependencies = [
     { name = "alembic" },
     { name = "boto3" },
@@ -1368,9 +1368,6 @@ dependencies = [
     { name = "ruamel-yaml" },
     { name = "sqlalchemy", extra = ["asyncio"] },
     { name = "uv" },
-]
-wheels = [
-    { url = "https://github.com/uniconhq/forge/releases/download/v0.31.0/unicon_forge-0.31.0-py3-none-any.whl", hash = "sha256:5c65b56d5d2a77ca9325b3ff09d64c676a28164d8723b1ed92299745d2d5fdbf" },
 ]
 
 [package.metadata]
@@ -1393,6 +1390,20 @@ requires-dist = [
     { name = "ruamel-yaml", specifier = ">=0.19.1" },
     { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0.52" },
     { name = "uv", specifier = ">=0.11.28" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "import-linter", specifier = ">=2.15" },
+    { name = "mypy", specifier = ">=2.3.1" },
+    { name = "pytest", specifier = ">=9.1.1" },
+    { name = "pytest-asyncio", specifier = ">=1.4.0" },
+    { name = "pytest-xdist", specifier = ">=3.8" },
+    { name = "ruff", specifier = ">=0.16.7" },
+    { name = "types-boto3", extras = ["s3"], specifier = ">=1.43.104" },
+    { name = "types-jsonschema", specifier = ">=4.26.0.20260518" },
+    { name = "types-pyyaml", specifier = ">=6.0.12.20260906" },
+    { name = "types-regex", specifier = ">=2026.9.10.20260911" },
 ]
 
 [[package]]

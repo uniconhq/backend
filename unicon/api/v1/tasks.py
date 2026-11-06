@@ -6,8 +6,9 @@ results or taking a release back. Creating needs the manager role
 at the contest and makes the task before it answers, and the lists the
 observer role there; taking a task out of the contest and putting a
 withdrawn one back need the manager role at the contest. The task's own
-routes need the observer role at the task, and the save, a release and a
-take-back the manager role.
+routes need the observer role at the task, the staff preview of a draft
+`show` among them, and the save, a release and a take-back the manager
+role.
 Whether a task is released to the
 caller needs only a session: it is what a contestant is told, and a contest
 hidden from the caller answers as no such task.
@@ -16,8 +17,9 @@ hidden from the caller answers as no such task.
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, status
-from forge.api import contests, publications, release, results, tasks
+from forge.api import contests, publications, release, results, submissions, tasks
 from forge.api.access import Organiser
+from forge.api.leaderboards import EntrantOwner
 from forge.api.publications import Draft, Preparing, Published
 from forge.api.types import Edit, Role, ScopeKind
 from forge.api.types import Named as NamedRecord
@@ -37,6 +39,7 @@ from unicon.schemas.contests import (
 )
 from unicon.schemas.files import token_of
 from unicon.schemas.publications import Preparation, Publication, SaveRequest, SaveResult
+from unicon.schemas.submissions import ShowPreview, ShowPreviewRequest
 
 CREATED = status.HTTP_201_CREATED
 CONTEST = PREFIX[ScopeKind.CONTEST]
@@ -160,7 +163,7 @@ async def release_task_results(
     organiser: TaskManager, body: ResultsRequest
 ) -> results.ResultsState:
     """From now on every entrant is shown what the task's `show` lists under
-    `on_release`, and gradings made from now on run those runs early. Without
+    `after_release`, and gradings made from now on run those runs early. Without
     `confirm`, nothing changes and the answer is `confirmation_required`
     with `action` `release` and, as its detail, what becomes visible, to
     whom, and that it can be taken back. A task already released answers as
@@ -180,7 +183,7 @@ async def release_task_results(
 )
 async def hide_task_results(organiser: TaskManager, body: ResultsRequest) -> results.ResultsState:
     """From now on the task works as if it had never been released: what
-    `on_release` lists is hidden again, gradings made from now on keep its
+    `after_release` lists is hidden again, gradings made from now on keep its
     runs late, and an extension is allowed again. Without `confirm`, nothing
     changes and the answer is `confirmation_required` with `action`
     `hide_again` and the warning as its detail: "Entrants may already have
@@ -269,6 +272,36 @@ async def save_task(organiser: TaskManager, body: SaveRequest) -> Published | Dr
         asked=body.asked,
         keep_as_draft=body.keep_as_draft,
         message=body.message,
+    )
+
+
+@router.post(
+    f"{TASK}/show-preview",
+    operation_id="previewTaskShow",
+    summary="What an entrant would be shown at a moment under a draft show",
+    response_model=ShowPreview,
+)
+async def preview_task_show(
+    organiser: TaskObserver, body: ShowPreviewRequest
+) -> submissions.ShowPreview:
+    """The task's latest publication with the draft's `show` in its place,
+    read at the moment picked as its entrant would read it then: the
+    submission named, or with none, what they would be shown before any,
+    with `hidden` the runs staff read that the entrant would not be shown.
+    The draft is checked alone against the publication, and a problem is
+    `invalid_definition` at its path in `task.yaml`, under `scoring.show`,
+    as the save words it. Nothing is saved. A task never published is
+    `not_found`, "Publish the task to preview it.", and so is an entrant
+    with no submission of that number.
+    """
+    owner = None if body.entrant is None else EntrantOwner(body.entrant)
+    return await submissions.preview(
+        organiser,
+        tasks.task_id_of(organiser.scope),
+        body.show,
+        body.moment,
+        owner,
+        body.number,
     )
 
 

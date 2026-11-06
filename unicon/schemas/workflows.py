@@ -237,7 +237,10 @@ class BoxInput(BaseModel):
 class BoxOutput(BaseModel):
     """One output of a run workflow drawn as a box. `type` and a number's
     meaning are null while the port is not known. A port carries no title
-    and no unit.
+    and no unit. `once` is whether it is given once for every run, which
+    `show` lists under `outputs`, rather than for each run, which a run
+    entry lists: null when its port does not say and the task's repeated
+    inputs were not given.
     """
 
     name: str
@@ -247,6 +250,7 @@ class BoxOutput(BaseModel):
     better: Better | None
     at_least: Exact | None
     at_most: Exact | None
+    once: bool | None = None
 
     @classmethod
     def of(cls, found: ForgeBoxOutput) -> Self:
@@ -258,6 +262,7 @@ class BoxOutput(BaseModel):
             better=found.better,
             at_least=found.at_least,
             at_most=found.at_most,
+            once=found.once,
         )
 
 

@@ -452,7 +452,7 @@
         "type": "object"
       },
       "BoxOutput": {
-        "description": "One output of a run workflow drawn as a box. `type` and a number's\nmeaning are null while the port is not known. A port carries no title\nand no unit.",
+        "description": "One output of a run workflow drawn as a box. `type` and a number's\nmeaning are null while the port is not known. A port carries no title\nand no unit. `once` is whether it is given once for every run, which\n`show` lists under `outputs`, rather than for each run, which a run\nentry lists: null when its port does not say and the task's repeated\ninputs were not given.",
         "properties": {
           "at_least": {
             "anyOf": [
@@ -498,6 +498,17 @@
             "title": "Name",
             "type": "string"
           },
+          "once": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Once"
+          },
           "title": {
             "anyOf": [
               {
@@ -539,7 +550,8 @@
           "unit",
           "better",
           "at_least",
-          "at_most"
+          "at_most",
+          "once"
         ],
         "title": "BoxOutput",
         "type": "object"
@@ -3760,7 +3772,7 @@
         "type": "object"
       },
       "OnceShown": {
-        "description": "What a grading's steps done once reported, and what a batch step\ngives once for all its runs, as its reader is shown it: numbers,\nexactly, and texts, the compile log among them; for an entrant, only\nthe reports `show` lists, by name.",
+        "description": "What a grading's steps done once reported, and what a batch step\ngives once for all its runs, as its reader is shown it: numbers,\nexactly, and texts, the compile log among them; for an entrant, only\nthe reports `show` lists under `outputs`, by name.",
         "properties": {
           "reports": {
             "additionalProperties": {
@@ -3998,7 +4010,7 @@
         "type": "object"
       },
       "OrganisedResult": {
-        "description": "A submission's grading as organisers read it beside the grading\nitself: the payload its contestant reads, with everything filled in as\nonce the task has revealed. `status` is the grading's own, as in the\ngradings routes. Every value and run is there at once, each value with\nwhen it shows and what it read, and `facts` holds `seconds_late`,\n`seconds` and `compiled` as the values read them.",
+        "description": "A submission's grading as organisers read it beside the grading\nitself: the payload its contestant reads, with everything filled in as\nonce the task has revealed. `status` is the grading's own, as in the\ngradings routes. Every value, run, field and setting is there at once,\neach value with the first moment it shows at and what it read, and\n`facts` holds `seconds_late`,\n`seconds` and `compiled` as the values read them.",
         "properties": {
           "attempt": {
             "title": "Attempt",
@@ -4031,6 +4043,12 @@
             "format": "uuid",
             "title": "Id",
             "type": "string"
+          },
+          "inputs": {
+            "additionalProperties": true,
+            "default": {},
+            "title": "Inputs",
+            "type": "object"
           },
           "limit": {
             "anyOf": [
@@ -4090,6 +4108,7 @@
           "run_values",
           "once",
           "compiled",
+          "inputs",
           "status",
           "facts"
         ],
@@ -4219,6 +4238,80 @@
           "avatar_url"
         ],
         "title": "Person",
+        "type": "object"
+      },
+      "PlaceholderRun": {
+        "description": "A run an entrant would be shown before there is a submission: the\nentry's `of` and its place there, one tuple per axis with the inputs\nit shows, and the names of the fields its result would fill.\n`first_not_passed` is one row with no tuples, since which run it picks\nis not known.",
+        "properties": {
+          "fields": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Fields",
+            "type": "array"
+          },
+          "group": {
+            "title": "Group",
+            "type": "string"
+          },
+          "place": {
+            "title": "Place",
+            "type": "integer"
+          },
+          "tuples": {
+            "items": {
+              "$ref": "#/components/schemas/RunTuple"
+            },
+            "title": "Tuples",
+            "type": "array"
+          }
+        },
+        "required": [
+          "group",
+          "place",
+          "tuples",
+          "fields"
+        ],
+        "title": "PlaceholderRun",
+        "type": "object"
+      },
+      "Placeholders": {
+        "description": "What an entrant would be shown of a submission at a moment, before\nthere is one: the values and the outputs given once by name, the\nshared inputs, as a result shows them, and each run shown.",
+        "properties": {
+          "inputs": {
+            "additionalProperties": true,
+            "title": "Inputs",
+            "type": "object"
+          },
+          "outputs": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Outputs",
+            "type": "array"
+          },
+          "runs": {
+            "items": {
+              "$ref": "#/components/schemas/PlaceholderRun"
+            },
+            "title": "Runs",
+            "type": "array"
+          },
+          "values": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Values",
+            "type": "array"
+          }
+        },
+        "required": [
+          "values",
+          "outputs",
+          "inputs",
+          "runs"
+        ],
+        "title": "Placeholders",
         "type": "object"
       },
       "Preparation": {
@@ -4823,8 +4916,22 @@
         "type": "object"
       },
       "PublicStatement": {
-        "description": "A released task of a public contest with its statement in Markdown.",
+        "description": "A released task of a public contest with its statement in Markdown,\nand the runs and settings its `show` shows now, as a task's page has\nthem.",
         "properties": {
+          "runs": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/TaskRun"
+            },
+            "title": "Runs",
+            "type": "array"
+          },
+          "shown_inputs": {
+            "additionalProperties": true,
+            "default": {},
+            "title": "Shown Inputs",
+            "type": "object"
+          },
           "statement": {
             "title": "Statement",
             "type": "string"
@@ -4835,7 +4942,9 @@
         },
         "required": [
           "task",
-          "statement"
+          "statement",
+          "runs",
+          "shown_inputs"
         ],
         "title": "PublicStatement",
         "type": "object"
@@ -5528,7 +5637,7 @@
         "type": "object"
       },
       "Result": {
-        "description": "The attempt of a submission's grading that counts, as its contestant\nsees it: the latest that finished with a result, as the leaderboards\ncount it, so a regrade under way, a failure or a cancel leaves the\nresult as it was, and while none has, the latest. Its id, attempt and\nstatus, in the contestant's words: `queued` until its run is started,\n`grading` while it is graded, `graded` once it has a result, `delayed`\nwhile it has none and its grading failed on the platform's side,\n`over_limit` once it was to be graded again with no room left under the\ntask's most submissions, and `cancelled` once staff end it; organisers\nread the grading's own status in the gradings routes. A `delayed` one\ncarries nothing else: it is tried again once by itself, and then waits\nfor staff, who grade it again or end it: then it is `cancelled`, with\n`reason`, the sentence they gave, which is null on every other status. A\ndelayed one is graded again only while its\nentrant's submissions with a result, those waiting that are not\ndelayed, and the delayed ones made before it are fewer than the task's\nmost, so the first ones to get a result count, and otherwise it is\n`over_limit`, with `limit`,\nthe most it reached (\"Not graded: you had reached the limit of 10\nsubmissions for this task.\"), and nothing else; `limit` is null on every\nother status.\n\n`run_values` holds each value of its scoring its entrant is shown,\nworked out on every read, and `runs` the runs, those listed under `now` from the start,\nthose under `after_close` once the task reveals, and those under\n`on_release` while staff have released the task's results, hidden\nagain when they take the release back. `once` holds what its steps\ndone once reported, and what a batch step gives once for all its runs,\nthat `show` lists, the compile log among them when listed, once a run\nis shown; and `compiled` 1, or 0 when the entrant's code did not\ncompile, from the time `show` lists it or once a run is shown, null\nwhile its compile is still to run. A task with\nnothing shown during the contest is `submitted` until the reveal, which\na page words \"Submitted, results after the contest\". After the reveal,\nwhile its late runs are still being graded, it is `grading` or\n`delayed`. A grading whose runs failed for the platform is `delayed`\nwith the runs it gave, a value reading one of its failed early runs\n`waiting`. `reveal_at` is when the task reveals, until then, as what its\nentrant reads changes then with no grading's change to say so, so a page\nopen on it reads it again then; null once it has revealed.",
+        "description": "The attempt of a submission's grading that counts, as its contestant\nsees it: the latest that finished with a result, as the leaderboards\ncount it, so a regrade under way, a failure or a cancel leaves the\nresult as it was, and while none has, the latest. Its id, attempt and\nstatus, in the contestant's words: `queued` until its run is started,\n`grading` while it is graded, `graded` once it has a result, `delayed`\nwhile it has none and its grading failed on the platform's side,\n`over_limit` once it was to be graded again with no room left under the\ntask's most submissions, and `cancelled` once staff end it; organisers\nread the grading's own status in the gradings routes. A `delayed` one\ncarries nothing else: it is tried again once by itself, and then waits\nfor staff, who grade it again or end it: then it is `cancelled`, with\n`reason`, the sentence they gave, which is null on every other status. A\ndelayed one is graded again only while its\nentrant's submissions with a result, those waiting that are not\ndelayed, and the delayed ones made before it are fewer than the task's\nmost, so the first ones to get a result count, and otherwise it is\n`over_limit`, with `limit`,\nthe most it reached (\"Not graded: you had reached the limit of 10\nsubmissions for this task.\"), and nothing else; `limit` is null on every\nother status.\n\n`run_values` holds each value of its scoring its entrant is shown,\nworked out on every read, and `runs` the runs its run entries show,\neach with the fields it names: those listed under `always` from the\nstart, those under `after_deadline` once the task reveals, and those\nunder `after_release` while staff have released the task's results,\nhidden again when they take the release back. The moments are\nseparate, so a release before the deadline shows `after_release`'s\nand not `after_deadline`'s. `once` holds what its steps done once\nreported, and what a batch step gives once for all its runs, that\n`outputs` lists, the compile log among them when listed; `compiled`\n1, or 0 when the entrant's code did not compile, while `outputs` lists\nit, null while its compile is still to run; and `inputs` the task's\nsettings `inputs` lists, a number or text as it is and a file or\nfolder as `{\"file\": <path>}` or `{\"folder\": <path>}`, fetched by its\nown route. A task with nothing shown during the contest is `submitted`\nuntil the reveal, which a page words \"Submitted, results after the\ncontest\". After the reveal, while its late runs are still being\ngraded, it is `grading` or `delayed`. A grading whose runs failed for\nthe platform is `delayed` with the runs it gave, a value reading one\nof its failed early runs `waiting`. `reveal_at` is when the task\nreveals, until then, as what its entrant reads changes then with no\ngrading's change to say so, so a page open on it reads it again then;\nnull once it has revealed.",
         "properties": {
           "attempt": {
             "title": "Attempt",
@@ -5549,6 +5658,12 @@
             "format": "uuid",
             "title": "Id",
             "type": "string"
+          },
+          "inputs": {
+            "additionalProperties": true,
+            "default": {},
+            "title": "Inputs",
+            "type": "object"
           },
           "limit": {
             "anyOf": [
@@ -5620,6 +5735,7 @@
           "run_values",
           "once",
           "compiled",
+          "inputs",
           "status",
           "reveal_at"
         ],
@@ -5627,7 +5743,7 @@
         "type": "object"
       },
       "Results": {
-        "description": "Where a task's results stand: whether they are released now, showing\nevery entrant what the task's `show` lists under `on_release`, and every\nrelease and take-back, oldest first.",
+        "description": "Where a task's results stand: whether they are released now, showing\nevery entrant what the task's `show` lists under `after_release`, and every\nrelease and take-back, oldest first.",
         "properties": {
           "history": {
             "items": {
@@ -5821,6 +5937,25 @@
         "title": "RowDiff",
         "type": "object"
       },
+      "RunPlace": {
+        "description": "Where a run is told: a group of the task's, or `all`, and its place\nthere from 1.",
+        "properties": {
+          "group": {
+            "title": "Group",
+            "type": "string"
+          },
+          "place": {
+            "title": "Place",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "group",
+          "place"
+        ],
+        "title": "RunPlace",
+        "type": "object"
+      },
       "RunRegradeSummary": {
         "description": "A regrade by what it changed: its `id`, what started it,\nthe publication it grades against, how many submissions it took,\n`total`, how many are still `running`, how many ended with no\nresult, `failed`, and how many it cannot compare, `unread`, since\nthe publication their result counted under no longer reads;\n`changed`, each submission whose values or verdicts it changed, old\nto new, in the order they were made, at most 100, with `more_changed`\ncounting the rest, an attempt compared with the one that counted when\nthe regrade began, both worked out as organisers read them, the\nextensions and marks as they stand now; and `leaderboards`, each leaderboard that reads the\ntask before and after, given to a manager or admin of the contest\nalone, null for anyone else.",
         "properties": {
@@ -5894,7 +6029,7 @@
         "type": "object"
       },
       "RunShown": {
-        "description": "One run of a grading as its entrant sees it: the group\n`show` lists that shows it, its place in that group from 1 (\"Test 3\"),\none tuple per axis, its verdict, `passed`, 1 when that is `accepted`,\nthe numbers its steps reported, each by its title and unit, exactly,\nand its texts, with the `label` and `message` shown with its verdict,\nnull when no step wrote one. A run in two groups shown is shown in\neach; a run no group shown holds is never shown, even when a value\nshown reads it. Organisers read every run, under `all` in the task's\norder, with its `id`, which counts every run of the task; `id` is null\nfor an entrant. A run a row holds that the task's latest publication no\nlonger has is `dropped`, listed to organisers after the rest; never to\nan entrant.",
+        "description": "One run of a grading as its entrant sees it: the entry of `show`\nthat shows it, by its `of`, a group, `all` or `first_not_passed`, its\nplace there from 1 (\"Test 3\"), one tuple per axis with the inputs the\nentry names, and of its result only the fields the entry names: its\nverdict, `passed`, 1 when that is `accepted`, the numbers its steps\nreported, each by its title and unit, exactly, and its texts, with the\n`label` and `message`, null when not named or no step wrote one. A run\ntwo entries show is shown under each; a run no entry shows is never\nshown, even when a value shown reads it. `first_not_passed` shows, at\nplace 1, the first run in the task's order whose `passed` is not 1,\nand none when every run passed, told by `labelled`, the first group\nholding it and its place there, or its place in `all`. Organisers read\nevery run, under `all` in the task's order, with its `id`, which counts\nevery run of the task, and every field; `id` is null for an entrant. A\nrun a row holds that the task's latest publication no longer has is\n`dropped`, listed to organisers after the rest; never to an entrant.",
         "properties": {
           "dropped": {
             "default": false,
@@ -5926,6 +6061,16 @@
               }
             ]
           },
+          "labelled": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RunPlace"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "message": {
             "anyOf": [
               {
@@ -5937,14 +6082,22 @@
             ]
           },
           "passed": {
-            "title": "Passed",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Passed"
           },
           "place": {
             "title": "Place",
             "type": "integer"
           },
           "reports": {
+            "default": [],
             "items": {
               "$ref": "#/components/schemas/ShownOutput"
             },
@@ -5967,19 +6120,26 @@
             "type": "array"
           },
           "verdict": {
-            "enum": [
-              "accepted",
-              "wrong_answer",
-              "time_limit",
-              "memory_limit",
-              "output_limit",
-              "runtime_error",
-              "compile_error",
-              "skipped",
-              "system_error"
+            "anyOf": [
+              {
+                "enum": [
+                  "accepted",
+                  "wrong_answer",
+                  "time_limit",
+                  "memory_limit",
+                  "output_limit",
+                  "runtime_error",
+                  "compile_error",
+                  "skipped",
+                  "system_error"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
             ],
-            "title": "Verdict",
-            "type": "string"
+            "title": "Verdict"
           }
         },
         "required": [
@@ -5987,6 +6147,7 @@
           "place",
           "id",
           "dropped",
+          "labelled",
           "tuples",
           "verdict",
           "passed",
@@ -5999,7 +6160,7 @@
         "type": "object"
       },
       "RunTuple": {
-        "description": "One axis of a run: its title, null when that tuple has none, and the\ncolumns of that axis the reader is shown, a file left out until `show`\nlists it.",
+        "description": "One axis of a run: its title, null when that tuple has none, and the\ncolumns of that axis the reader is shown, each only when the run's\nentry in `show` names it among its fields, a file as `{\"file\": <path>}`.",
         "properties": {
           "key": {
             "additionalProperties": true,
@@ -6026,7 +6187,7 @@
         "type": "object"
       },
       "RunValue": {
-        "description": "One value of a task's scoring as its reader sees it: its name,\nits `number`, exact, null when it is missing, waiting or text; its\n`text`, null when it is a number, missing or waiting; whether\nit is `waiting` for staff, which an entrant reads as \"being checked\",\ntold only once the runs it waits on are early or shown; and whether it\nis `self_reported`, reading a column the entrant could set. Organisers\nalso read the time `show` lists it under, null when never, and what it\nread: `runs` by id, `values` and `facts`; each is null for an entrant.",
+        "description": "One value of a task's scoring as its reader sees it: its name,\nits `number`, exact, null when it is missing, waiting or text; its\n`text`, null when it is a number, missing or waiting; whether\nit is `waiting` for staff, which an entrant reads as \"being checked\",\ntold only once the runs it waits on are early or shown; and whether it\nis `self_reported`, reading a column the entrant could set. Organisers\nalso read the first moment `show` lists it under, null when never, and\nwhat it read: `runs` by id, `values` and `facts`; each is null for an\nentrant.",
         "properties": {
           "facts": {
             "anyOf": [
@@ -6083,9 +6244,9 @@
             "anyOf": [
               {
                 "enum": [
-                  "now",
-                  "after_close",
-                  "on_release"
+                  "always",
+                  "after_deadline",
+                  "after_release"
                 ],
                 "type": "string"
               },
@@ -6518,6 +6679,145 @@
           "visibility"
         ],
         "title": "SetVisibility",
+        "type": "object"
+      },
+      "ShowPreview": {
+        "description": "What an entrant would be shown at `moment` under a draft `show`: the\nsubmission named as its entrant would read it then (`result`), or with\nnone named, what they would be shown before any submission\n(`placeholders`); the other is null. `hidden` counts the runs staff\nread that the entrant would not be shown, which no entrant is told.",
+        "properties": {
+          "hidden": {
+            "title": "Hidden",
+            "type": "integer"
+          },
+          "moment": {
+            "enum": [
+              "always",
+              "after_deadline",
+              "after_release"
+            ],
+            "title": "Moment",
+            "type": "string"
+          },
+          "placeholders": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Placeholders"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "result": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Result"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "moment",
+          "hidden",
+          "result",
+          "placeholders"
+        ],
+        "title": "ShowPreview",
+        "type": "object"
+      },
+      "ShowPreviewRequest": {
+        "description": "A staff preview of a draft `show`: the draft, as `scoring.show` in\n`task.yaml` holds it, the moment to read it at, and optionally a\nsubmission, by its entrant and its number among the entrant's, both\nor neither.",
+        "properties": {
+          "entrant": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Entrant"
+          },
+          "moment": {
+            "enum": [
+              "always",
+              "after_deadline",
+              "after_release"
+            ],
+            "title": "Moment",
+            "type": "string"
+          },
+          "number": {
+            "anyOf": [
+              {
+                "maximum": 2147483647.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Number"
+          },
+          "show": {
+            "additionalProperties": true,
+            "title": "Show",
+            "type": "object"
+          }
+        },
+        "required": [
+          "show",
+          "moment"
+        ],
+        "title": "ShowPreviewRequest",
+        "type": "object"
+      },
+      "ShownFile": {
+        "description": "One file of an input `show` shows: its path below the folder, null\nfor an input that is a file, and the address the download door serves\nit at.",
+        "properties": {
+          "download": {
+            "title": "Download",
+            "type": "string"
+          },
+          "path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Path"
+          }
+        },
+        "required": [
+          "path",
+          "download"
+        ],
+        "title": "ShownFile",
+        "type": "object"
+      },
+      "ShownInputFiles": {
+        "description": "The files of an input `show` shows that is a file or a folder: the\nfile itself, or each file in the folder, in order.",
+        "properties": {
+          "files": {
+            "items": {
+              "$ref": "#/components/schemas/ShownFile"
+            },
+            "title": "Files",
+            "type": "array"
+          }
+        },
+        "required": [
+          "files"
+        ],
+        "title": "ShownInputFiles",
         "type": "object"
       },
       "ShownOutput": {
@@ -7142,7 +7442,7 @@
         "type": "object"
       },
       "TaskPage": {
-        "description": "A task as the caller reads it: its statement in Markdown, the caps a\nsubmit is counted against, the inputs a contestant gives, when it falls\ndue and closes for them, and `marks`, how many of their entrant's\nsubmissions they may mark, null unless the contest's entry for the\ntask gives `marks` or a leaderboard reads which of the task's\nsubmissions an entrant marks, and their entrant is approved; and\nnothing else the task holds.",
+        "description": "A task as the caller reads it: its statement in Markdown, the caps a\nsubmit is counted against, the inputs a contestant gives, when it falls\ndue and closes for them, and `marks`, how many of their entrant's\nsubmissions they may mark, null unless the contest's entry for the\ntask gives `marks` or a leaderboard reads which of the task's\nsubmissions an entrant marks, and their entrant is approved; `runs`,\nthe runs whose inputs its `show` shows at a moment that has come, and\n`shown_inputs`, the task's settings it shows then, by name, a number or\ntext as it is and a file or folder as `{\"file\": <path>}` or\n`{\"folder\": <path>}`, each fetched by its own route; and nothing else\nthe task holds.",
         "properties": {
           "closes": {
             "anyOf": [
@@ -7197,6 +7497,20 @@
           "release": {
             "$ref": "#/components/schemas/TaskRelease"
           },
+          "runs": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/TaskRun"
+            },
+            "title": "Runs",
+            "type": "array"
+          },
+          "shown_inputs": {
+            "additionalProperties": true,
+            "default": {},
+            "title": "Shown Inputs",
+            "type": "object"
+          },
           "statement": {
             "title": "Statement",
             "type": "string"
@@ -7219,7 +7533,9 @@
           "release",
           "due",
           "closes",
-          "marks"
+          "marks",
+          "runs",
+          "shown_inputs"
         ],
         "title": "TaskPage",
         "type": "object"
@@ -7257,6 +7573,33 @@
           "closed"
         ],
         "title": "TaskRelease",
+        "type": "object"
+      },
+      "TaskRun": {
+        "description": "A run whose inputs the task's `show` shows now, before any\nsubmission: the entry's `of`, a group or `all`, its place there from 1,\nand one tuple per axis with its title and the inputs the entry names, a\nnumber or text as it is and a file or folder as `{\"file\": <path>}` or\n`{\"folder\": <path>}`.",
+        "properties": {
+          "group": {
+            "title": "Group",
+            "type": "string"
+          },
+          "place": {
+            "title": "Place",
+            "type": "integer"
+          },
+          "tuples": {
+            "items": {
+              "$ref": "#/components/schemas/RunTuple"
+            },
+            "title": "Tuples",
+            "type": "array"
+          }
+        },
+        "required": [
+          "group",
+          "place",
+          "tuples"
+        ],
+        "title": "TaskRun",
         "type": "object"
       },
       "TaskStanding": {
@@ -14213,6 +14556,79 @@
         ]
       }
     },
+    "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/inputs/{name}": {
+      "get": {
+        "description": "A setting the task's `show` lists under `inputs` now that is a file or\na folder, read with exactly the rights the statement is read with: the\nfile, or each file in the folder, by its address at the download door.\nA setting not shown now, one given as a number or text, or one that is\nnot there is `not_found`.",
+        "operationId": "listTaskShownInputFiles",
+        "parameters": [
+          {
+            "description": "The input's name",
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "description": "The input's name",
+              "maxLength": 255,
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "task",
+            "required": true,
+            "schema": {
+              "title": "Task",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShownInputFiles"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "The files of a setting the task shows",
+        "tags": [
+          "contest home"
+        ]
+      }
+    },
     "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/invites": {
       "get": {
         "description": "Newest first, whatever became of each.",
@@ -15651,7 +16067,7 @@
     },
     "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/page": {
       "get": {
-        "description": "The statement, the caps a submit is counted against, the form of the\ninputs a contestant gives, and when it falls due and closes for the\ncaller.",
+        "description": "The statement, the caps a submit is counted against, the form of the\ninputs a contestant gives, when it falls due and closes for the\ncaller, and the runs and settings its `show` shows now.",
         "operationId": "getTaskPage",
         "parameters": [
           {
@@ -15837,7 +16253,7 @@
     },
     "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/public/{path}": {
       "get": {
-        "description": "`path` is the file's path under `public/`, which the task's `show`\nlists, or a folder it is in, from its time on. Read with exactly the\nrights the statement is read with, as the task's latest publication\nholds it, and, for a signed-in caller holding a role reaching the task,\nwhether or not it is released, as the task's head holds it, the draft\nthe statement's preview draws, any file its `show` lists at any time.\nEach answer carries an `ETag` of its bytes and is asked again each time;\n`If-None-Match` with that tag is answered 304 while the bytes are the\nsame. A path with an empty, `.` or `..` segment, a file that is not\nthere, or one the task does not show the caller, is `not_found`, the\nsame as a task the caller may not read; one larger than a page is\nserved is `public_file_too_large`, with the `limit` in bytes.",
+        "description": "`path` is the file's path under `public/`, served with the statement:\nread with exactly the rights the statement is read with, as the task's\nlatest publication holds it, and, for a signed-in caller holding a role\nreaching the task, whether or not it is released, as the task's head\nholds it, the draft the statement's preview draws. Each answer carries\nan `ETag` of its bytes and is asked again each time; `If-None-Match`\nwith that tag is answered 304 while the bytes are the same. A path with\nan empty, `.` or `..` segment, or a file that is not there, is\n`not_found`, the same as a task the caller may not read; one larger\nthan a page is served is `public_file_too_large`, with the `limit` in\nbytes.",
         "operationId": "getTaskPublicFile",
         "parameters": [
           {
@@ -15954,7 +16370,7 @@
             "description": "An error, as an RFC 9457 problem document. `code` names it."
           }
         },
-        "summary": "A file under a task's public/ that it shows, such as a statement's image",
+        "summary": "A file under a task's public/, such as a statement's image",
         "tags": [
           "contest home"
         ]
@@ -16343,7 +16759,7 @@
     },
     "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/results/hide": {
       "post": {
-        "description": "From now on the task works as if it had never been released: what\n`on_release` lists is hidden again, gradings made from now on keep its\nruns late, and an extension is allowed again. Without `confirm`, nothing\nchanges and the answer is `confirmation_required` with `action`\n`hide_again` and the warning as its detail: \"Entrants may already have\nseen these results; hiding them again won't undo that.\" A task not\nreleased answers as it stands. The answer is read once the take-back\nhas landed.",
+        "description": "From now on the task works as if it had never been released: what\n`after_release` lists is hidden again, gradings made from now on keep its\nruns late, and an extension is allowed again. Without `confirm`, nothing\nchanges and the answer is `confirmation_required` with `action`\n`hide_again` and the warning as its detail: \"Entrants may already have\nseen these results; hiding them again won't undo that.\" A task not\nreleased answers as it stands. The answer is read once the take-back\nhas landed.",
         "operationId": "hideTaskResults",
         "parameters": [
           {
@@ -16414,7 +16830,7 @@
     },
     "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/results/release": {
       "post": {
-        "description": "From now on every entrant is shown what the task's `show` lists under\n`on_release`, and gradings made from now on run those runs early. Without\n`confirm`, nothing changes and the answer is `confirmation_required`\nwith `action` `release` and, as its detail, what becomes visible, to\nwhom, and that it can be taken back. A task already released answers as\nit stands. A task with no publication is `not_found`. The answer is\nread once the release has landed.",
+        "description": "From now on every entrant is shown what the task's `show` lists under\n`after_release`, and gradings made from now on run those runs early. Without\n`confirm`, nothing changes and the answer is `confirmation_required`\nwith `action` `release` and, as its detail, what becomes visible, to\nwhom, and that it can be taken back. A task already released answers as\nit stands. A task with no publication is `not_found`. The answer is\nread once the release has landed.",
         "operationId": "releaseTaskResults",
         "parameters": [
           {
@@ -16673,6 +17089,104 @@
         ]
       }
     },
+    "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/runs/{group}/{place}/inputs/{name}": {
+      "get": {
+        "description": "A run's own input that is a file or a folder, which a run entry of\nthe task's `show` names at a moment that has come, the run named by the\nentry's `of` and its place there as the task's page lists it, read with\nexactly the rights the statement is read with: the file, or each file\nin the folder, by its address at the download door. A run or an input\nnot shown now is `not_found`, the same as one that is not there.",
+        "operationId": "listTaskRunInputFiles",
+        "parameters": [
+          {
+            "description": "The run entry's `of`: a group or `all`",
+            "in": "path",
+            "name": "group",
+            "required": true,
+            "schema": {
+              "description": "The run entry's `of`: a group or `all`",
+              "maxLength": 255,
+              "title": "Group",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The run's place under that entry, from 1",
+            "in": "path",
+            "name": "place",
+            "required": true,
+            "schema": {
+              "description": "The run's place under that entry, from 1",
+              "maximum": 2147483647,
+              "minimum": 1,
+              "title": "Place",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "The input's name",
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "description": "The input's name",
+              "maxLength": 255,
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "task",
+            "required": true,
+            "schema": {
+              "title": "Task",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShownInputFiles"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "The files of a run's input the task shows",
+        "tags": [
+          "contest home"
+        ]
+      }
+    },
     "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/save": {
       "post": {
         "description": "A valid save publishes and one that is not is kept as a draft with its\nerrors. Once the contest has started, until it is archived, every save\nthat would publish something new is refused as `confirmation_required`\nunless it is confirmed or kept as a draft, with `changes`, what would\nchange how the task grades, `regrades`, how many submissions it would\ngrade again, and what the save does, as a published save's `effect`\ngives it: `results_change`, `summary`, `runs_again`, `scores` and\n`reading`, and `asked`, the head and latest publication it was worked\nout from. A confirmation sent with that `asked` is asked again when\neither has moved since, so a change someone made after the question is\nnever published unread. A change naming an upload writes the pointer to\nthe file the caller uploaded for that path; one that is not theirs for this task and\npath is `invalid_inputs`, and one whose bytes have not arrived\n`upload_not_ready`. A change with `remove: true` removes the file it\nnames, with the token it was read with, a moved one being `conflict` as\nan edit's is; the state left is checked as any other, so removing a\ngroup's last test or a file an input names keeps the save as a draft.",
@@ -16750,6 +17264,77 @@
           }
         },
         "summary": "Save the task's files, publishing them when they are valid",
+        "tags": [
+          "tasks"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/show-preview": {
+      "post": {
+        "description": "The task's latest publication with the draft's `show` in its place,\nread at the moment picked as its entrant would read it then: the\nsubmission named, or with none, what they would be shown before any,\nwith `hidden` the runs staff read that the entrant would not be shown.\nThe draft is checked alone against the publication, and a problem is\n`invalid_definition` at its path in `task.yaml`, under `scoring.show`,\nas the save words it. Nothing is saved. A task never published is\n`not_found`, \"Publish the task to preview it.\", and so is an entrant\nwith no submission of that number.",
+        "operationId": "previewTaskShow",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "task",
+            "required": true,
+            "schema": {
+              "title": "Task",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShowPreviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShowPreview"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "What an entrant would be shown at a moment under a draft show",
         "tags": [
           "tasks"
         ]
@@ -17031,6 +17616,117 @@
           }
         },
         "summary": "What one of the caller's own submissions was made with",
+        "tags": [
+          "submissions"
+        ]
+      }
+    },
+    "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/submissions/{number}/runs/{group}/{place}/inputs/{name}": {
+      "get": {
+        "description": "A run's own input that is a file or a folder, which the submission's\nresult shows the caller now, the run named by the entry's `of` it is\nshown under and its place there, `first_not_passed` and 1 for that\nrow: the file, or each file in the folder, by its address at the\ndownload door. A run or an input the result does not show now is\n`not_found`, the same as one that is not there.",
+        "operationId": "listMySubmissionRunInputFiles",
+        "parameters": [
+          {
+            "description": "The submission's number",
+            "in": "path",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "description": "The submission's number",
+              "maximum": 2147483647,
+              "minimum": 1,
+              "title": "Number",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "The run entry's `of`: a group, `all` or `first_not_passed`",
+            "in": "path",
+            "name": "group",
+            "required": true,
+            "schema": {
+              "description": "The run entry's `of`: a group, `all` or `first_not_passed`",
+              "maxLength": 255,
+              "title": "Group",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The run's place under that entry, from 1",
+            "in": "path",
+            "name": "place",
+            "required": true,
+            "schema": {
+              "description": "The run's place under that entry, from 1",
+              "maximum": 2147483647,
+              "minimum": 1,
+              "title": "Place",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "The input's name",
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "description": "The input's name",
+              "maxLength": 255,
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "task",
+            "required": true,
+            "schema": {
+              "title": "Task",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShownInputFiles"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "The files of a run's input one of the caller's own submissions shows them",
         "tags": [
           "submissions"
         ]
@@ -19571,7 +20267,7 @@
     },
     "/api/v1/workflows/{owner}/{name}/versions/{version}/box": {
       "get": {
-        "description": "Read as the caller: `not_found` when there is no such version or they\nmay not read it, in the same words as the version itself. A workflow of\nthe test format answers `run` false, with both lists empty.",
+        "description": "Read as the caller: `not_found` when there is no such version or they\nmay not read it, in the same words as the version itself. A workflow of\nthe test format answers `run` false, with both lists empty. Given the\ninputs a task repeats, each output says whether it is given `once` for\nevery run of that task; without them, only where its port says so.",
         "operationId": "getWorkflowBox",
         "parameters": [
           {
@@ -19603,6 +20299,27 @@
             "schema": {
               "title": "Version",
               "type": "string"
+            }
+          },
+          {
+            "description": "The task's repeated inputs, so each output tells whether it is once",
+            "in": "query",
+            "name": "repeated",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The task's repeated inputs, so each output tells whether it is once",
+              "title": "Repeated"
             }
           }
         ],

@@ -244,14 +244,13 @@ async def test_a_change_to_the_statement_or_what_is_shown_while_the_contest_runs
     assert asked.json()["runs_again"] == [
         "No submission runs again: the tests and how they run are the same."
     ]
-    shown = await _edit(client, "task.yaml", "now: [score, all, public/]\n", SHOWN)
+    shown = await _edit(client, "task.yaml", STARTER_RUNS, f"{STARTER_RUNS}{SHOWN}")
     assert (await _save(client, shown)).json()["reading"] == [
-        "Entrants can read tests/ from the reveal."
+        "Entrants now read input of all after the deadline.",
+        "Entrants now read answer of all after the deadline.",
     ]
     # Saved as the latest publication holds it, nothing new: no question.
-    same = await _edit(
-        client, "task.yaml", "now: [score, all, public/]", "now: [score, all, public/]"
-    )
+    same = await _edit(client, "task.yaml", STARTER_RUNS, STARTER_RUNS)
     assert (await _save(client, same)).status_code == 200
 
 
@@ -296,8 +295,11 @@ async def _token(client: httpx.AsyncClient, path: str) -> str:
     return token
 
 
-SHOWN = "now: [score, all, public/]\n    after_close: [tests/]\n"
-"""The starter's `show` with its tests shown once the task closes."""
+STARTER_RUNS = "      runs:\n        - {of: all, fields: [verdict, passed]}\n"
+"""The starter's run entry, the last lines of its `show`."""
+SHOWN = "    after_deadline:\n      runs:\n        - {of: all, fields: [input, answer]}\n"
+"""The starter's `show` with each run's input and answer shown once the task
+closes."""
 TUPLES = "      - [tests/1.in, tests/1.ans]\n"
 """The starter's one test, as its `repeat` lists it."""
 

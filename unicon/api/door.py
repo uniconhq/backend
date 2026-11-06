@@ -23,7 +23,18 @@ for one of the files it was frozen with at
 whoever may change a workflow, for one of its draft's files at
 `/-/downloads/workflows/<owner>/<name>/draft/<path>`. A workflow's version
 is `v` and a number and a task's a commit's id, so the two never name the
-same address. nginx asks here the same way, and the answer is
+same address. An input the task's `show` shows that is a file, or a file of
+a folder it shows, is served the same way, to whoever reads the task's
+page while it is shown, a visitor with no session included where the
+statement is public: a setting at
+`/-/downloads/<org>/<contest>/<task>/inputs/<name>[/<path>]` and a run's
+own input at
+`/-/downloads/<org>/<contest>/<task>/runs/<group>/<place>/inputs/<name>[/<path>]`,
+the run by the entry's `of` and its place there; and, to the
+submission's own contestant alone, a run's input their result shows them,
+at `/-/downloads/<org>/<contest>/<task>/<number>/runs/<group>/<place>/inputs/<name>[/<path>]`,
+`first_not_passed` and 1 for that row. `<path>` names a file below a
+folder. nginx asks here the same way, and the answer is
 where at the forge that file is read whole, what credential to present
 there, and how the download is named. nginx streams the forge's answer to
 the browser, so a file of any size passes through the proxy and never
@@ -34,7 +45,8 @@ Three things keep these routes to themselves. The proxy never routes them
 from outside, they are left out of the OpenAPI document, and the only thing
 they answer to is a session cookie for the upload's own owner, the
 submission's own contestant, an organiser of the task, or a reader of the
-workflow. Everything else is 403 with no reason.
+workflow, or for a shown input whoever may read the task's statement.
+Everything else is 403 with no reason.
 """
 
 import re
@@ -43,15 +55,25 @@ from dataclasses import dataclass
 from typing import Annotated
 from urllib.parse import quote, unquote
 
-from fastapi import APIRouter, Header, Response, status
-from forge.api import access, files, names, submissions, tasks, uploads, workflows
+from fastapi import APIRouter, Header, Request, Response, status
+from forge.api import (
+    access,
+    contest_home,
+    files,
+    landing,
+    names,
+    submissions,
+    tasks,
+    uploads,
+    workflows,
+)
 from forge.api.errors import Forbidden, InvalidName, InvalidPath, NotFound
 from forge.api.leaderboards import EntrantOwner
 from forge.api.types import Role, Session, VersionId
 from forge.api.uploads import Door
 
-from unicon.api.deps import CurrentSession
-from unicon.api.v1.submissions import NUMBER_MAX
+from unicon.api.deps import CurrentSession, current_session, optional_session
+from unicon.schemas.submissions import NUMBER_MAX
 
 PATH = "/-/uploads/door"
 DOWNLOAD_PATH = "/-/downloads/door"
@@ -59,6 +81,8 @@ DOWNLOADS = "/-/downloads/"
 VERSIONS = "versions"
 DRAFT = "draft"
 WORKFLOWS = "workflows"
+INPUTS = "inputs"
+RUNS = "runs"
 WORKFLOW_VERSION = re.compile(r"v[1-9][0-9]*")
 PATH_HEADER = "X-Forge-Path"
 AUTHORIZATION_HEADER = "X-Forge-Authorization"
@@ -82,15 +106,30 @@ async def upload_door(
     response.headers[AUTHORIZATION_HEADER] = door.authorization
 
 
-@router.get(DOWNLOAD_PATH, status_code=status.HTTP_204_NO_CONTENT)
+@router.get(DOWNLOAD_PATH, operation_id="openDownloadDoor", status_code=status.HTTP_204_NO_CONTENT)
 async def download_door(
-    session: CurrentSession,
+    request: Request,
     response: Response,
     original_uri: Annotated[str, Header(alias="X-Original-URI")] = "",
 ) -> None:
     """Whether this file may be downloaded by the caller, and if so where it
-    is read from and what it is called.
+    is read from and what it is called. Only a shown input of the task's
+    page is read with no session.
     """
+    shown = _input_download_of(original_uri)
+    if shown is not None:
+        reader = await (
+            optional_session(request) if shown.number is None else current_session(request)
+        )
+        try:
+            door, name = await _shown_input(reader, shown)
+        except NotFound, InvalidPath:
+            raise Forbidden(DOWNLOAD_REFUSED) from None
+        response.headers[PATH_HEADER] = door.path
+        response.headers[AUTHORIZATION_HEADER] = door.authorization
+        response.headers[DISPOSITION_HEADER] = attachment(name)
+        return
+    session = await current_session(request)
     workflow = _workflow_download_of(original_uri)
     if workflow is not None:
         try:
@@ -128,6 +167,30 @@ async def _submitted(session: Session, asked: Download) -> Door:
     assert asked.number is not None
     scope = await names.scope_at(asked.org, asked.contest, asked.task)
     return await submissions.download(session, tasks.task_id_of(scope), asked.number, asked.path)
+
+
+async def _shown_input(session: Session | None, asked: InputDownload) -> tuple[Door, str]:
+    """The door to a file of an input the task shows, with the file's own
+    name to save it under: to whoever reads the task's page, signed in or
+    not, or of a run the caller's own submission shows them. A folder asked
+    for whole is no file.
+    """
+    scope = await names.scope_at(asked.org, asked.contest, asked.task)
+    task = tasks.task_id_of(scope)
+    if asked.number is not None:
+        assert session is not None and asked.group is not None and asked.place is not None
+        found = await submissions.shown_input(
+            session, task, asked.number, asked.group, asked.place, asked.name, asked.path
+        )
+    elif session is not None:
+        found = await contest_home.shown_input(
+            session, task, asked.name, asked.group, asked.place, asked.path
+        )
+    else:
+        found = await landing.shown_input(task, asked.name, asked.group, asked.place, asked.path)
+    if found.door is None or found.name is None:
+        raise NotFound(DOWNLOAD_REFUSED)
+    return found.door, found.name
 
 
 async def _task_file(session: Session, asked: Download) -> Door:
@@ -291,6 +354,62 @@ def _workflow_download_of(original_uri: str) -> WorkflowDownload | None:
     except UnicodeDecodeError:
         raise Forbidden(DOWNLOAD_REFUSED) from None
     return WorkflowDownload(owner, name, version, path)
+
+
+@dataclass(frozen=True, slots=True)
+class InputDownload:
+    """What a download of a shown input names: the org, contest and task
+    names, the submission's number for a run its result shows, the run's
+    entry and place for a run's input, none for a setting, the input's
+    name and the file's path below a folder.
+    """
+
+    org: str
+    contest: str
+    task: str
+    number: int | None
+    group: str | None
+    place: int | None
+    name: str
+    path: str | None
+
+
+def _input_download_of(original_uri: str) -> InputDownload | None:
+    """The shown input the browser's request names, after the task at
+    `inputs/<name>[/<path>]` or `runs/<group>/<place>/inputs/<name>[/<path>]`,
+    the latter also after a submission's number, or none when the address
+    is not of those shapes, which no other download's is: a submission's
+    file is under `files/`, and a task's own under `versions/`. Each
+    segment is decoded on its own, as every download's is.
+    """
+    raw = original_uri.split("?", 1)[0]
+    if not raw.startswith(DOWNLOADS):
+        return None
+    parts = raw.removeprefix(DOWNLOADS).split("/")
+    number: int | None = None
+    rest = parts[3:]
+    if rest and _number(rest[0]) and rest[1:2] == [RUNS]:
+        number, rest = int(rest[0]), rest[1:]
+    if rest[:1] == [INPUTS] and len(rest) >= 2:
+        group, place, named = None, None, rest[1:]
+    elif rest[:1] == [RUNS] and len(rest) >= 5 and rest[3] == INPUTS:
+        if not _number(rest[2]):
+            raise Forbidden(DOWNLOAD_REFUSED)
+        group, place, named = rest[1], int(rest[2]), rest[4:]
+    elif number is None:
+        return None
+    else:
+        raise Forbidden(DOWNLOAD_REFUSED)
+    try:
+        org, contest, task = (_segment(part) for part in parts[:3])
+        decoded = [_segment(part) for part in named]
+        group = None if group is None else _segment(group)
+    except UnicodeDecodeError:
+        raise Forbidden(DOWNLOAD_REFUSED) from None
+    if not all(decoded):
+        raise Forbidden(DOWNLOAD_REFUSED)
+    path = "/".join(decoded[1:]) or None
+    return InputDownload(org, contest, task, number, group, place, decoded[0], path)
 
 
 def _staff_download(parts: list[str]) -> Download:

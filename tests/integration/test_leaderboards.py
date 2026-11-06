@@ -374,13 +374,16 @@ async def test_organisers_read_a_submission_scored_with_everything_filled_in(
     )
     assert (grading["status"], run["id"], run["verdict"]) == ("done", "r1", "accepted")
     assert run["tuples"] == [
-        {"title": None, "key": {"input": "tests/1.in", "answer": "tests/1.ans"}}
+        {
+            "title": None,
+            "key": {"input": {"file": "tests/1.in"}, "answer": {"file": "tests/1.ans"}},
+        }
     ]
     by_title = {report["title"]: report for report in run["reports"]}
     assert by_title["Run time"] == {"title": "Run time", "unit": "ms", "number": "12"}
     assert list(grading["once"]["texts"]) == ["log"]
     [score] = grading["run_values"]
-    assert (score["number"], score["show"], score["runs"]) == ("1", "now", ["r1"])
+    assert (score["number"], score["show"], score["runs"]) == ("1", "always", ["r1"])
     assert grading["facts"] == {"seconds_late": "0", "seconds": "7200", "compiled": "1"}
 
 

@@ -4,10 +4,11 @@ holds.
 """
 
 from datetime import datetime
+from typing import Any
 
 from pydantic import BaseModel
 
-from unicon.schemas.contest_home import ContestNames
+from unicon.schemas.contest_home import ContestNames, TaskRun
 
 
 class PublicTask(BaseModel):
@@ -35,7 +36,12 @@ class PublicContest(BaseModel):
 
 
 class PublicStatement(BaseModel):
-    """A released task of a public contest with its statement in Markdown."""
+    """A released task of a public contest with its statement in Markdown,
+    and the runs and settings its `show` shows now, as a task's page has
+    them.
+    """
 
     task: PublicTask
     statement: str
+    runs: list[TaskRun] = []
+    shown_inputs: dict[str, Any] = {}

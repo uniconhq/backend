@@ -567,6 +567,10 @@ async def test_a_box_answers_a_workflow_version_and_one_unread(
 
     face = await client.get("/api/v1/workflows/bob/held/versions/v1/box")
     classic = await client.get("/api/v1/workflows/unicon/classic/versions/v5/box")
+    repeated = await client.get(
+        "/api/v1/workflows/unicon/classic/versions/v5/box",
+        params={"repeated": ["input", "answer"]},
+    )
 
     assert face.status_code == 200, face.text
     assert face.json() == {
@@ -598,6 +602,7 @@ async def test_a_box_answers_a_workflow_version_and_one_unread(
                 "better": "lower",
                 "at_least": "0",
                 "at_most": None,
+                "once": None,
             }
         ],
         "newer_version": "v2",
@@ -618,6 +623,21 @@ async def test_a_box_answers_a_workflow_version_and_one_unread(
         "memory_kb",
         "log",
     ]
+    # Given the inputs a task repeats, each output says whether it is given
+    # once, which `show` lists under `outputs`, or for each run; without
+    # them, only an output whose port says so is known to be once.
+    assert {each["name"]: each["once"] for each in classic.json()["outputs"]} == {
+        "score": None,
+        "time_ms": None,
+        "memory_kb": None,
+        "log": True,
+    }
+    assert {each["name"]: each["once"] for each in repeated.json()["outputs"]} == {
+        "score": False,
+        "time_ms": False,
+        "memory_kb": False,
+        "log": True,
+    }
 
     await sign_in_as(client, acme, 7)
     refused = await client.get("/api/v1/workflows/bob/held/versions/v1/box")
