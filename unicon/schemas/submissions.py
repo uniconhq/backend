@@ -158,7 +158,7 @@ class RunValue(BaseModel):
     its `number`, exact, null when it is missing, waiting or text; its
     `text`, null when it is a number, missing or waiting; whether
     it is `waiting` for staff, which an entrant reads as "being checked",
-    told only once the runs it waits on are early or shown; and whether it
+    told only once the runs it waits on are shown; and whether it
     is `self_reported`, reading a column the entrant could set. Organisers
     also read the first moment `show` lists it under, null when never, and
     what it read: `runs` by id, `values` and `facts`; each is null for an
@@ -241,10 +241,10 @@ class Result(Scored):
     folder as `{"file": <path>}` or `{"folder": <path>}`, fetched by its
     own route. A task with nothing shown during the contest is `submitted`
     until the reveal, which a page words "Submitted, results after the
-    contest". After the reveal, while its late runs are still being
-    graded, it is `grading` or `delayed`. A grading whose runs failed for
-    the platform is `delayed` with the runs it gave, a value reading one
-    of its failed early runs `waiting`. `reveal_at` is when the task
+    contest". A grading whose runs failed for the platform is `delayed`
+    with the runs it gave, a value reading one of them `waiting`; before
+    the reveal, one that failed only on runs its entrant is not shown is
+    `graded`. `reveal_at` is when the task
     reveals, until then, as what its entrant reads changes then with no
     grading's change to say so, so a page open on it reads it again then;
     null once it has revealed.

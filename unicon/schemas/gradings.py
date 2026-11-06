@@ -71,7 +71,7 @@ class StaffNote(BaseModel):
 
 
 class RunsResult(BaseModel):
-    """A grading's result, version 6, one per pipeline: each run
+    """A grading's result, version 6: each run
     it grades with its verdict, what the steps done once reported, what
     staff alone see, and, when a run's verdict is `system_error`, the
     sentence for staff saying why. Where its log went stays out.
@@ -353,13 +353,8 @@ class Grading(BaseModel):
     reached the limit of 10 submissions for this task."); null otherwise,
     when a retry would grade it. `regrade` is the regrade of many the
     attempt belongs to, null for none; `change`, given only on the feed read
-    by `regrade`, what that regrade did to the submission.
-
-    A submission is graded by up to two pipelines, each with attempts of
-    its own: `early`, the runs shown during the contest, and `late`, the
-    rest, made once the early one is done, with `early` naming the early
-    attempt it follows, null on an early one. Its `result` is a
-    `RunsResult`.
+    by `regrade`, what that regrade did to the submission. Its `result` is
+    a `RunsResult`.
     """
 
     id: uuid.UUID
@@ -384,8 +379,6 @@ class Grading(BaseModel):
     retry_limit: int | None
     regrade: uuid.UUID | None
     change: RegradeChange | None
-    pipeline: Literal["early", "late"]
-    early: uuid.UUID | None
 
 
 class FeedEntry(BaseModel):

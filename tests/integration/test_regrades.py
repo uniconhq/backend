@@ -66,6 +66,8 @@ async def test_a_rejudge_is_summed_up_and_its_gradings_read_with_what_it_changed
     await sign_in_as(client, entered, 7)
 
     rejudged = await client.post(f"{TASK}/rejudge", headers=ORIGIN)
+    # #625: the new attempt reuses nothing, so it runs every step.
+    await run_pipelines(client)
     summed = await client.get(REGRADES)
     regrade = rejudged.json()["regrade"]
     regraded = await client.get(FEED, params={"regrade": regrade, "change": "regraded"})
@@ -80,8 +82,6 @@ async def test_a_rejudge_is_summed_up_and_its_gradings_read_with_what_it_changed
     assert (summary["task"], summary["label"], summary["cause"]) == ("sum", "A", "rejudge")
     assert summary["publication"] == rejudged.json()["publication"]
     assert (summary["started_by"], summary["started_by_name"]) == (7, "ada")
-    # Nothing it grades with changed, so every step's output is reused and
-    # the new attempt finishes at once.
     assert (summary["total"], summary["graded"], summary["running"]) == (1, 1, False)
     assert summary["counts"] == {
         "regraded": 1,

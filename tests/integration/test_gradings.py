@@ -3,8 +3,8 @@ the list, newest first with each one's reason, who submitted it and whether
 it is its submission's latest attempt, to an observer; cancelling a grading
 that reads as a system error with a sentence its contestant then reads, and
 refusing one that is not, a sentence that is not one and an earlier
-attempt; retrying a finished one as a new attempt, which reuses what its
-steps did and finishes at once, and refusing one still being graded, an
+attempt; retrying a finished one as a new attempt, which runs every step
+again (#625), and refusing one still being graded, an
 earlier attempt and a submission staff cancelled; a failed or cancelled
 later attempt leaving the submission at its last result, one with none
 read as delayed, and a contest that says otherwise refused; a rejudge
@@ -162,32 +162,25 @@ async def _regrading(client: httpx.AsyncClient, forge: FakeForge, setup: Setup) 
     return second
 
 
-async def test_a_retry_of_a_graded_submission_reuses_what_its_steps_did(
+async def test_a_retry_of_a_graded_submission_runs_every_step_again(
     client: httpx.AsyncClient, entered: FakeForge
 ) -> None:
+    # #625: no grading reuses another's outputs, so the retry is queued
+    # and runs every step before it is done.
     first = await _graded(client, entered)
     await sign_in_as(client, entered, 7)
 
     retried = await client.post(f"{TASK}/gradings/{first}/retry", headers=ORIGIN)
+    await run_pipelines(client)
     listed = await client.get(f"{TASK}/gradings")
 
     assert retried.status_code == 200, retried.text
+    assert retried.json()["status"] == "queued"
     rows = [entry["grading"] for entry in listed.json()]
     assert [(row["attempt"], row["status"], row["latest"]) for row in rows] == [
         (2, "done", True),
         (1, "done", False),
     ]
-
-
-async def test_from_scratch_starts_a_new_measurement_instead_of_reusing_the_finished_one(
-    client: httpx.AsyncClient, entered: FakeForge
-) -> None:
-    first = await _graded(client, entered)
-    await sign_in_as(client, entered, 7)
-    retried = await client.post(f"{TASK}/gradings/{first}/from-scratch", headers=ORIGIN)
-    assert retried.status_code == 200, retried.text
-    assert retried.json()["attempt"] == 2
-    assert retried.json()["status"] == "queued"
 
 
 async def test_a_failed_later_attempt_leaves_the_submission_at_its_last_result_and_says_which(
@@ -380,7 +373,7 @@ async def test_a_contestant_is_refused_every_control(
     [Scope("acme", "spring", "product"), Scope("acme", "spring")],
     ids=["managing the other task alone", "managing both tasks"],
 )
-@pytest.mark.parametrize("control", ["cancel", "retry", "from-scratch"])
+@pytest.mark.parametrize("control", ["cancel", "retry"])
 async def test_a_grading_named_under_another_task_is_no_such_grading(
     client: httpx.AsyncClient, entered: FakeForge, held_setup: Setup, scope: Scope, control: str
 ) -> None:

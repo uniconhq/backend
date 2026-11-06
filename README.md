@@ -910,11 +910,10 @@ checks the role again at the grading's own task. A grading carries its
 `id`, the `submission_number` and `submitted_at`, the `publication`,
 `attempt`, `latest`, whether that is its submission's latest attempt, the
 one staff cancel or retry, worked out over every attempt of it, `status`, `error`, the line for staff, `cancel_reason`, the
-sentence staff cancelled it with, the `result` (its pipeline's `runs`, each
+sentence staff cancelled it with, the `result` (its `runs`, each
 with its verdict and reports, what the steps done once reported and what a
 batch step gives once for all its runs, what staff
-alone see and the `error` for staff), its `pipeline`, `early` or `late`,
-and its times. A cancel takes a body, `reason`, the
+alone see and the `error` for staff), and its times. A cancel takes a body, `reason`, the
 sentence the contestant reads, trimmed, of 1 to 500 characters
 (`invalid_reason` otherwise), and cancels the latest attempt of a
 submission that reads as `system_error`, stored or because its run is
@@ -929,8 +928,8 @@ retried once by the platform itself, started by whatever finds it so, the
 CI's report or any read that finds it overdue or lost (one whose run could
 not be started waits a minute, for the first read after); that attempt is
 `automatic`, and a failure of it waits for staff, who retry as often as
-they like. A retry or a rejudge against the same publication reuses what
-the steps of the attempt before it did, so it may end at once. Of a submission's attempts the latest that finished with a
+they like. A retry or a rejudge runs every step again, reusing nothing
+the attempt before it did (#625). Of a submission's attempts the latest that finished with a
 result counts, on the leaderboards, to its contestant and against the task's
 `max`, until a newer attempt finishes with one: a failure or a cancel never
 takes a result away, and a cancel voids only a submission that never had

@@ -261,7 +261,6 @@ async def test_the_organisers_read_the_result_whole(
 
     row = entry["grading"]
     assert (row["id"], row["status"], row["latest"]) == (grading, "done", True)
-    assert row["pipeline"] == "early"
     assert "log" not in row and "progress" not in row
     by = entry["by"]
     assert (by["entrant_name"], by["user_id"], by["username"]) == ("carol", 20, "carol")
