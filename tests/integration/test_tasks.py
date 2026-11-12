@@ -199,6 +199,7 @@ async def test_the_workflow_form_gives_the_inputs_of_the_workflow_the_task_names
     assert sorted(body) == [
         "graded",
         "inputs",
+        "limits",
         "newer",
         "problem",
         "text_values",

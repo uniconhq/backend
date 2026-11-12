@@ -22,8 +22,8 @@ async def test_a_visitor_reads_every_block_once_with_its_forms(
     assert {"add", "if", "min", "max", "sum", "count"} <= set(found)
     assert not {"min_runs", "max_runs", "sum_runs", "count_runs"} & set(found)
     assert found["min"]["words"] == (
-        "the least of its inputs, of a column over a group's runs, or of a value over a task's "
-        "results"
+        "the least of `of`; or, given a group's runs or a task's results in `over`, the least "
+        "`of` of those `where` keeps, `missing` saying what a missing one counts as"
     )
     assert [(form["given"], form["scope"]) for form in found["min"]["forms"]] == [
         ("numbers", "both"),

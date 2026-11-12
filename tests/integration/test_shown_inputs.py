@@ -7,9 +7,9 @@ the address of each file it holds, by whoever reads the page, a visitor
 included where the statement is public, and anything not shown now is not
 found. The owner of a submission fetches the input of the first run it did
 not pass, and nobody else does. The preview answers what an entrant would
-read at a moment under the draft, checked alone against the publication,
-with the runs it hides counted, for an observer of the task alone, and a
-task never published is asked to be published first.
+read at a moment of a made-up graded submission under the draft, with the
+runs it hides counted, for an observer of the task alone, and needs nothing
+published.
 """
 
 import base64
@@ -26,7 +26,6 @@ from tests.integration.conftest import (
     add_task,
     edit_task,
     enter,
-    entrant_of,
     prepared,
     read,
     run_pipelines,
@@ -137,7 +136,7 @@ async def test_the_task_page_lists_the_runs_and_settings_shown_and_serves_their_
         {
             "group": "all",
             "place": 1,
-            "tuples": [{"title": None, "key": {"input": {"file": "tests/1.in"}}}],
+            "tuples": [{"title": None, "key": {"input": {"file": "1.in"}}}],
         }
     ]
     address = f"{DOWNLOADS}/runs/all/1/inputs/input"
@@ -234,11 +233,9 @@ async def _preview(client: httpx.AsyncClient, **body: Any) -> httpx.Response:
     return await client.post(PREVIEW, json=body, headers=ORIGIN)
 
 
-async def test_the_preview_answers_what_an_entrant_would_read_at_a_moment(
+async def test_the_preview_answers_what_an_entrant_would_read_of_a_made_up_submission(
     client: httpx.AsyncClient, entered: FakeForge
 ) -> None:
-    await _submitted(client, entered, DOES_NOT_COMPILE)
-    carols = await entrant_of(client)
     refused = await _preview(client, show={}, moment="always")
     await sign_in_as(client, entered, 7)
     draft = {
@@ -246,47 +243,34 @@ async def test_the_preview_answers_what_an_entrant_would_read_at_a_moment(
         "after_deadline": {"runs": [{"of": "all", "fields": ["input", "verdict"]}]},
     }
 
-    before = await _preview(client, show=draft, moment="always", entrant=carols, number=1)
-    after = await _preview(client, show=draft, moment="after_deadline", entrant=carols, number=1)
-    empty = await _preview(client, show=draft, moment="after_deadline")
+    before = await _preview(client, show=draft, moment="always")
+    after = await _preview(client, show=draft, moment="after_deadline")
 
     assert (refused.status_code, refused.json()["code"]) == (403, "forbidden")
     assert before.status_code == 200, before.text
     assert (before.json()["moment"], before.json()["hidden"]) == ("always", 1)
-    assert before.json()["placeholders"] is None
     result = before.json()["result"]
-    assert ([value["name"] for value in result["run_values"]], result["runs"]) == (["score"], [])
+    assert result["status"] == "graded"
+    assert [(value["name"], value["number"]) for value in result["run_values"]] == [("score", "1")]
+    assert result["runs"] == []
     # The deadline's list alone, the values listed always beside it.
     [run] = after.json()["result"]["runs"]
     assert after.json()["hidden"] == 0
     assert (run["group"], run["place"], run["verdict"], run["passed"]) == (
         "all",
         1,
-        "compile_error",
+        "accepted",
         None,
     )
-    assert run["tuples"] == [{"title": None, "key": {"input": {"file": "tests/1.in"}}}]
-    # With no submission named, what an entrant would be shown before one.
-    assert empty.json()["result"] is None
-    assert empty.json()["placeholders"] == {
-        "values": ["score"],
-        "outputs": [],
-        "inputs": {},
-        "runs": [
-            {
-                "group": "all",
-                "place": 1,
-                "tuples": [{"title": None, "key": {"input": {"file": "tests/1.in"}}}],
-                "fields": ["verdict"],
-            }
-        ],
-    }
+    assert run["tuples"] == [{"title": None, "key": {"input": {"file": "1.in"}}}]
+    # The made-up result of each run, by field name.
+    [sample] = before.json()["sample"]
+    assert (sample["verdict"], sample["passed"]) == ("accepted", "1")
 
 
-async def test_the_preview_checks_the_draft_alone_and_needs_a_publication(
+async def test_the_preview_checks_the_draft_alone_and_needs_no_publication(
     client: httpx.AsyncClient, entered: FakeForge
 ) -> None:
-    carols = await entrant_of(client)
     await sign_in_as(client, entered, 7)
 
     wrong = await _preview(
@@ -295,13 +279,10 @@ async def test_the_preview_checks_the_draft_alone_and_needs_a_publication(
         moment="always",
     )
     old = await _preview(client, show={"now": ["score"]}, moment="always")
-    half = await _preview(client, show={}, moment="always", number=1)
     later = await add_task(client, "later")
     unpublished = await client.post(
         f"{later}/show-preview", json={"show": {}, "moment": "always"}, headers=ORIGIN
     )
-    # carol has made no submission.
-    missing = await _preview(client, show={}, moment="always", entrant=carols, number=1)
 
     assert (wrong.status_code, wrong.json()["code"]) == (422, "invalid_definition")
     assert [problem["path"] for problem in wrong.json()["errors"]] == [
@@ -310,12 +291,7 @@ async def test_the_preview_checks_the_draft_alone_and_needs_a_publication(
     ]
     assert (old.status_code, old.json()["code"]) == (422, "invalid_definition")
     assert old.json()["errors"][0]["path"][:2] == ["scoring", "show"]
-    assert half.status_code == 422
-    assert (unpublished.status_code, unpublished.json()["detail"]) == (
-        404,
-        "Publish the task to preview it.",
-    )
-    assert missing.status_code == 404
+    assert unpublished.status_code == 200, unpublished.text
 
 
 async def _checked(client: httpx.AsyncClient, forge: FakeForge) -> None:

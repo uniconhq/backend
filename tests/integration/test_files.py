@@ -37,9 +37,10 @@ async def test_a_tasks_top_folder_lists_its_starter_files(
     assert listed.status_code == 200
     entries = {entry["path"]: entry["kind"] for entry in listed.json()}
     assert entries == {
+        "1.ans": "file",
+        "1.in": "file",
         "statement.md": "file",
         "task.yaml": "file",
-        "tests": "directory",
     }
     # The forge's adapter said where it looked; a person is told this instead.
     assert (missing.status_code, missing.json()["detail"]) == (
@@ -49,19 +50,19 @@ async def test_a_tasks_top_folder_lists_its_starter_files(
     )
 
 
-async def test_a_tests_folder_lists_how_each_small_file_starts(
+async def test_a_folder_lists_how_each_small_file_starts(
     client: httpx.AsyncClient, sum_task: FakeForge
 ) -> None:
-    listed = await client.get(f"{TASK}/tree", params={"path": "tests"})
+    listed = await client.get(f"{TASK}/tree")
 
     assert listed.status_code == 200
     entries = {entry["path"]: entry for entry in listed.json()}
-    assert {path: entry["start"] for path, entry in entries.items()} == {
-        "tests/1.ans": "3\n",
-        "tests/1.in": "1 2\n",
+    assert {path: entries[path]["start"] for path in ("1.ans", "1.in")} == {
+        "1.ans": "3\n",
+        "1.in": "1 2\n",
     }
-    answer = await read(client, f"{TASK}/files/tests/1.ans")
-    assert entries["tests/1.ans"]["token"] == answer["token"]
+    answer = await read(client, f"{TASK}/files/1.ans")
+    assert entries["1.ans"]["token"] == answer["token"]
 
 
 async def test_a_contest_write_answers_its_version_and_shows_in_the_history(
@@ -161,9 +162,9 @@ async def test_a_rollback_writes_the_older_file_back_as_a_new_change(
 async def test_a_task_write_is_a_save_and_answers_as_one(
     client: httpx.AsyncClient, sum_task: FakeForge
 ) -> None:
-    example = await read(client, f"{TASK}/files/tests/1.in")
+    example = await read(client, f"{TASK}/files/1.in")
 
-    written = await _put(client, f"{TASK}/files/tests/1.in", "1 2\n", example["token"])
+    written = await _put(client, f"{TASK}/files/1.in", "1 2\n", example["token"])
 
     assert written.status_code == 200
     assert written.json()["number"] == 1

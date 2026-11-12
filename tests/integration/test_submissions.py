@@ -462,10 +462,10 @@ async def test_staff_list_and_download_an_entrants_files(
 
 
 IN_PARTS = (
-    "  - inputs: [input, answer]\n    tuples:\n      - [tests/1.in, tests/1.ans]\n",
+    "  - inputs: [input, answer]\n    tuples:\n      - [1.in, 1.ans]\n",
     "  - inputs: [input, answer]\n    tuples:\n"
-    "      - [entrant, tests/1.ans]\n"
-    "      - [entrant, tests/1.ans]\n",
+    "      - [entrant, 1.ans]\n"
+    "      - [entrant, 1.ans]\n",
 )
 """The starter with its `input` the entrant's, given once per test, in two
 parts. The code stays given once: a step that compiles it once is never

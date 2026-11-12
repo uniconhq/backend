@@ -378,7 +378,7 @@ async def test_organisers_read_a_submission_scored_with_everything_filled_in(
     assert run["tuples"] == [
         {
             "title": None,
-            "key": {"input": {"file": "tests/1.in"}, "answer": {"file": "tests/1.ans"}},
+            "key": {"input": {"file": "1.in"}, "answer": {"file": "1.ans"}},
         }
     ]
     by_title = {report["title"]: report for report in run["reports"]}

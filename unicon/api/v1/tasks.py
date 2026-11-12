@@ -20,7 +20,6 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, status
 from forge.api import contests, files, publications, release, results, submissions, tasks
 from forge.api.access import Organiser
-from forge.api.leaderboards import EntrantOwner
 from forge.api.publications import Draft, Preparing, Published
 from forge.api.types import Edit, Role, ScopeKind
 from forge.api.types import Named as NamedRecord
@@ -298,30 +297,22 @@ async def list_task_draft_runs(organiser: TaskObserver, body: DraftRunsRequest) 
 @router.post(
     f"{TASK}/show-preview",
     operation_id="previewTaskShow",
-    summary="What an entrant would be shown at a moment under a draft show",
+    summary="What an entrant would be shown of a made-up submission under a draft show",
     response_model=ShowPreview,
 )
 async def preview_task_show(
     organiser: TaskObserver, body: ShowPreviewRequest
 ) -> submissions.ShowPreview:
-    """The task's latest publication with the draft's `show` in its place,
-    read at the moment picked as its entrant would read it then: the
-    submission named, or with none, what they would be shown before any,
-    with `hidden` the runs staff read that the entrant would not be shown.
-    The draft is checked alone against the publication, and a problem is
-    `invalid_definition` at its path in `task.yaml`, under `scoring.show`,
-    as the save words it. Nothing is saved. A task never published is
-    `not_found`, "Publish the task to preview it.", and so is an entrant
-    with no submission of that number.
+    """A made-up graded submission of the task as saved, with the draft's
+    `show` in its place, read at the moment picked as its entrant would read
+    it then, with `hidden` the runs staff read that the entrant would not be
+    shown, and each run's made-up result. Nothing needs publishing: the saved
+    task is checked as its save checks it, and the draft `show` alone, and a
+    problem is `invalid_definition` at its path, as the save words it.
+    Nothing is saved.
     """
-    owner = None if body.entrant is None else EntrantOwner(body.entrant)
     return await submissions.preview(
-        organiser,
-        tasks.task_id_of(organiser.scope),
-        body.show,
-        body.moment,
-        owner,
-        body.number,
+        organiser, tasks.task_id_of(organiser.scope), body.show, body.moment
     )
 
 

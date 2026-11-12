@@ -100,7 +100,7 @@ async def test_the_organiser_path_from_an_org_to_a_publication(
 
     broken = await _save(
         client,
-        await _edit(client, "task.yaml", "[tests/1.in, tests/1.ans]", "[tests/1.in, tests/2.ans]"),
+        await _edit(client, "task.yaml", "[1.in, 1.ans]", "[1.in, tests/2.ans]"),
     )
     assert broken.status_code == 200
     draft = broken.json()
@@ -303,7 +303,7 @@ STARTER_RUNS = "      runs:\n        - {of: all, fields: [verdict, passed]}\n"
 SHOWN = "    after_deadline:\n      runs:\n        - {of: all, fields: [input, answer]}\n"
 """The starter's `show` with each run's input and answer shown once the task
 closes."""
-TUPLES = "      - [tests/1.in, tests/1.ans]\n"
+TUPLES = "      - [1.in, 1.ans]\n"
 """The starter's one test, as its `repeat` lists it."""
 
 
@@ -347,8 +347,8 @@ async def test_a_test_is_replaced_by_one_with_other_file_names(
     replaced = await _save(
         client,
         await _edit(client, "task.yaml", TUPLES, "      - [tests/1.txt, tests/1.out]\n"),
-        _removal("tests/1.in", await _token(client, "tests/1.in")),
-        _removal("tests/1.ans", await _token(client, "tests/1.ans")),
+        _removal("1.in", await _token(client, "1.in")),
+        _removal("1.ans", await _token(client, "1.ans")),
         _change("tests/1.txt", "4 5\n", None),
         _change("tests/1.out", "9\n", None),
     )
@@ -365,8 +365,8 @@ async def test_removing_every_test_keeps_the_save_as_a_draft(
     kept = await _save(
         client,
         await _edit(client, "task.yaml", f"    tuples:\n{TUPLES}", "    tuples: []\n"),
-        _removal("tests/1.in", await _token(client, "tests/1.in")),
-        _removal("tests/1.ans", await _token(client, "tests/1.ans")),
+        _removal("1.in", await _token(client, "1.in")),
+        _removal("1.ans", await _token(client, "1.ans")),
     )
 
     assert kept.status_code == 200, kept.text

@@ -11,10 +11,10 @@ contestant see now. What is not shown is null.
 import uuid
 from datetime import datetime
 from decimal import Decimal
-from typing import Any, Literal, Self
+from typing import Any, Literal
 
 from forge.api.submissions import GradingStatus, SubmissionState, SubmittedInput
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, field_validator, model_validator
 
 from unicon.schemas.exact import Exact, exactly
 
@@ -294,61 +294,24 @@ class OrganisedSubmission(Numbered):
 
 class ShowPreviewRequest(BaseModel):
     """A staff preview of a draft `show`: the draft, as `scoring.show` in
-    `task.yaml` holds it, the moment to read it at, and optionally a
-    submission, by its entrant and its number among the entrant's, both
-    or neither.
-    """
+    `task.yaml` holds it, and the moment to read it at."""
 
     show: dict[str, Any]
     moment: Moment
-    entrant: uuid.UUID | None = None
-    number: int | None = Field(default=None, ge=1, le=NUMBER_MAX)
-
-    @model_validator(mode="after")
-    def _both_or_neither(self) -> Self:
-        if (self.entrant is None) != (self.number is None):
-            raise ValueError("Name a submission by both its entrant and its number, or neither.")
-        return self
-
-
-class PlaceholderRun(BaseModel):
-    """A run an entrant would be shown before there is a submission: the
-    entry's `of` and its place there, one tuple per axis with the inputs
-    it shows, and the names of the fields its result would fill.
-    `first_not_passed` is one row with no tuples, since which run it picks
-    is not known.
-    """
-
-    group: str
-    place: int
-    tuples: list[RunTuple]
-    fields: list[str]
-
-
-class Placeholders(BaseModel):
-    """What an entrant would be shown of a submission at a moment, before
-    there is one: the values and the outputs given once by name, the
-    shared inputs, as a result shows them, and each run shown.
-    """
-
-    values: list[str]
-    outputs: list[str]
-    inputs: dict[str, Any]
-    runs: list[PlaceholderRun]
 
 
 class ShowPreview(BaseModel):
-    """What an entrant would be shown at `moment` under a draft `show`: the
-    submission named as its entrant would read it then (`result`), or with
-    none named, what they would be shown before any submission
-    (`placeholders`); the other is null. `hidden` counts the runs staff
+    """What an entrant would be shown at `moment` of a made-up graded
+    submission under the draft (`result`). `hidden` counts the runs staff
     read that the entrant would not be shown, which no entrant is told.
+    `sample` is each run's made-up result in the task's order, by field
+    name: `verdict`, `passed` and each output, a number exactly or a text.
     """
 
     moment: Moment
     hidden: int
-    result: Result | None = None
-    placeholders: Placeholders | None = None
+    result: Result
+    sample: list[dict[str, Exact | str]]
 
 
 class SubmittedFile(BaseModel):

@@ -1419,6 +1419,33 @@
         "title": "DeclaredInput",
         "type": "object"
       },
+      "DefaultLimits": {
+        "description": "The submission limits a task has when its `task.yaml` sets none: at\nmost `max` in all, and at most `count` in any `per` seconds.",
+        "properties": {
+          "count": {
+            "default": 1,
+            "title": "Count",
+            "type": "integer"
+          },
+          "max": {
+            "default": 50,
+            "title": "Max",
+            "type": "integer"
+          },
+          "per": {
+            "default": 30,
+            "title": "Per",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "max",
+          "count",
+          "per"
+        ],
+        "title": "DefaultLimits",
+        "type": "object"
+      },
       "DefinitionError": {
         "description": "One thing wrong with a definition file: where, as its keys and list\nindices, such as `[\"tasks\", 1, \"due\"]`, empty for the file as a whole\nand one file path for a file, and a sentence a form shows there.",
         "properties": {
@@ -4501,80 +4528,6 @@
         "title": "PlaceMay",
         "type": "object"
       },
-      "PlaceholderRun": {
-        "description": "A run an entrant would be shown before there is a submission: the\nentry's `of` and its place there, one tuple per axis with the inputs\nit shows, and the names of the fields its result would fill.\n`first_not_passed` is one row with no tuples, since which run it picks\nis not known.",
-        "properties": {
-          "fields": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Fields",
-            "type": "array"
-          },
-          "group": {
-            "title": "Group",
-            "type": "string"
-          },
-          "place": {
-            "title": "Place",
-            "type": "integer"
-          },
-          "tuples": {
-            "items": {
-              "$ref": "#/components/schemas/RunTuple"
-            },
-            "title": "Tuples",
-            "type": "array"
-          }
-        },
-        "required": [
-          "group",
-          "place",
-          "tuples",
-          "fields"
-        ],
-        "title": "PlaceholderRun",
-        "type": "object"
-      },
-      "Placeholders": {
-        "description": "What an entrant would be shown of a submission at a moment, before\nthere is one: the values and the outputs given once by name, the\nshared inputs, as a result shows them, and each run shown.",
-        "properties": {
-          "inputs": {
-            "additionalProperties": true,
-            "title": "Inputs",
-            "type": "object"
-          },
-          "outputs": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Outputs",
-            "type": "array"
-          },
-          "runs": {
-            "items": {
-              "$ref": "#/components/schemas/PlaceholderRun"
-            },
-            "title": "Runs",
-            "type": "array"
-          },
-          "values": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Values",
-            "type": "array"
-          }
-        },
-        "required": [
-          "values",
-          "outputs",
-          "inputs",
-          "runs"
-        ],
-        "title": "Placeholders",
-        "type": "object"
-      },
       "Preparation": {
         "properties": {
           "deadline_at": {
@@ -7039,7 +6992,7 @@
         "type": "object"
       },
       "ShowPreview": {
-        "description": "What an entrant would be shown at `moment` under a draft `show`: the\nsubmission named as its entrant would read it then (`result`), or with\nnone named, what they would be shown before any submission\n(`placeholders`); the other is null. `hidden` counts the runs staff\nread that the entrant would not be shown, which no entrant is told.",
+        "description": "What an entrant would be shown at `moment` of a made-up graded\nsubmission under the draft (`result`). `hidden` counts the runs staff\nread that the entrant would not be shown, which no entrant is told.\n`sample` is each run's made-up result in the task's order, by field\nname: `verdict`, `passed` and each output, a number exactly or a text.",
         "properties": {
           "hidden": {
             "title": "Hidden",
@@ -7054,51 +7007,43 @@
             "title": "Moment",
             "type": "string"
           },
-          "placeholders": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/Placeholders"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
           "result": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/Result"
+            "$ref": "#/components/schemas/Result"
+          },
+          "sample": {
+            "items": {
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "examples": [
+                      "82.5"
+                    ],
+                    "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "string"
+                  }
+                ]
               },
-              {
-                "type": "null"
-              }
-            ]
+              "type": "object"
+            },
+            "title": "Sample",
+            "type": "array"
           }
         },
         "required": [
           "moment",
           "hidden",
           "result",
-          "placeholders"
+          "sample"
         ],
         "title": "ShowPreview",
         "type": "object"
       },
       "ShowPreviewRequest": {
-        "description": "A staff preview of a draft `show`: the draft, as `scoring.show` in\n`task.yaml` holds it, the moment to read it at, and optionally a\nsubmission, by its entrant and its number among the entrant's, both\nor neither.",
+        "description": "A staff preview of a draft `show`: the draft, as `scoring.show` in\n`task.yaml` holds it, and the moment to read it at.",
         "properties": {
-          "entrant": {
-            "anyOf": [
-              {
-                "format": "uuid",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Entrant"
-          },
           "moment": {
             "enum": [
               "always",
@@ -7107,19 +7052,6 @@
             ],
             "title": "Moment",
             "type": "string"
-          },
-          "number": {
-            "anyOf": [
-              {
-                "maximum": 2147483647.0,
-                "minimum": 1.0,
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Number"
           },
           "show": {
             "additionalProperties": true,
@@ -8909,7 +8841,7 @@
         "type": "object"
       },
       "WorkflowForm": {
-        "description": "What the task form is built from: the workflow the task's `task.yaml`\nnames, as written, and the inputs it declares, in the order the\nworkflow gives them, or `problem`, the reason there are none: no\n`task.yaml` or one that does not read as YAML, no workflow named, or one\nthat cannot be read or is in an old form; `graded`, whether the task has\na graded submission; and `newer`, the workflow's latest version when it\ncomes after the one the task names, which the task keeps until someone\nsaves it naming another (Task 10.6.5). `text_values` names the values\nthat give text, in the file's order, none when the settings cannot be\nread; a workflow output stays a number.",
+        "description": "What the task form is built from: the workflow the task's `task.yaml`\nnames, as written, and the inputs it declares, in the order the\nworkflow gives them, or `problem`, the reason there are none: no\n`task.yaml` or one that does not read as YAML, no workflow named, or one\nthat cannot be read or is in an old form; `graded`, whether the task has\na graded submission; and `newer`, the workflow's latest version when it\ncomes after the one the task names, which the task keeps until someone\nsaves it naming another (Task 10.6.5). `text_values` names the values\nthat give text, in the file's order, none when the settings cannot be\nread; a workflow output stays a number. `limits` are what a task\nallows when its `task.yaml` sets none, for the form to show.",
         "properties": {
           "graded": {
             "default": false,
@@ -8923,6 +8855,14 @@
             },
             "title": "Inputs",
             "type": "array"
+          },
+          "limits": {
+            "$ref": "#/components/schemas/DefaultLimits",
+            "default": {
+              "count": 1,
+              "max": 50,
+              "per": 30
+            }
           },
           "newer": {
             "anyOf": [
@@ -8989,7 +8929,8 @@
           "graded",
           "newer",
           "text_values",
-          "yanked"
+          "yanked",
+          "limits"
         ],
         "title": "WorkflowForm",
         "type": "object"
@@ -18081,7 +18022,7 @@
     },
     "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/show-preview": {
       "post": {
-        "description": "The task's latest publication with the draft's `show` in its place,\nread at the moment picked as its entrant would read it then: the\nsubmission named, or with none, what they would be shown before any,\nwith `hidden` the runs staff read that the entrant would not be shown.\nThe draft is checked alone against the publication, and a problem is\n`invalid_definition` at its path in `task.yaml`, under `scoring.show`,\nas the save words it. Nothing is saved. A task never published is\n`not_found`, \"Publish the task to preview it.\", and so is an entrant\nwith no submission of that number.",
+        "description": "A made-up graded submission of the task as saved, with the draft's\n`show` in its place, read at the moment picked as its entrant would read\nit then, with `hidden` the runs staff read that the entrant would not be\nshown, and each run's made-up result. Nothing needs publishing: the saved\ntask is checked as its save checks it, and the draft `show` alone, and a\nproblem is `invalid_definition` at its path, as the save words it.\nNothing is saved.",
         "operationId": "previewTaskShow",
         "parameters": [
           {
@@ -18144,7 +18085,7 @@
             "description": "An error, as an RFC 9457 problem document. `code` names it."
           }
         },
-        "summary": "What an entrant would be shown at a moment under a draft show",
+        "summary": "What an entrant would be shown of a made-up submission under a draft show",
         "tags": [
           "tasks"
         ]
