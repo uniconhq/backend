@@ -1518,77 +1518,6 @@
         "title": "Draft",
         "type": "object"
       },
-      "DraftRun": {
-        "description": "One run of a draft: the titles of its tuples and the values the task\ngives it, by input; a value the entrant gives is left out.",
-        "properties": {
-          "cells": {
-            "additionalProperties": true,
-            "title": "Cells",
-            "type": "object"
-          },
-          "titles": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Titles",
-            "type": "array"
-          }
-        },
-        "required": [
-          "titles",
-          "cells"
-        ],
-        "title": "DraftRun",
-        "type": "object"
-      },
-      "DraftRuns": {
-        "description": "The runs a draft's `repeat` makes, the first axis outermost, none\nwhen there would be more than a task may have; their `count`; and each\naxis's own tuples as runs, in the draft's order.",
-        "properties": {
-          "axes": {
-            "items": {
-              "items": {
-                "$ref": "#/components/schemas/DraftRun"
-              },
-              "type": "array"
-            },
-            "title": "Axes",
-            "type": "array"
-          },
-          "count": {
-            "title": "Count",
-            "type": "integer"
-          },
-          "runs": {
-            "items": {
-              "$ref": "#/components/schemas/DraftRun"
-            },
-            "title": "Runs",
-            "type": "array"
-          }
-        },
-        "required": [
-          "runs",
-          "count",
-          "axes"
-        ],
-        "title": "DraftRuns",
-        "type": "object"
-      },
-      "DraftRunsRequest": {
-        "description": "A task's draft `repeat`, as its settings' values give it.",
-        "properties": {
-          "repeat": {
-            "items": {},
-            "title": "Repeat",
-            "type": "array"
-          }
-        },
-        "required": [
-          "repeat"
-        ],
-        "title": "DraftRunsRequest",
-        "type": "object"
-      },
       "EnterMarkRequest": {
         "description": "A mark for one of a submission's values that reads an `entered`\nblock: the value's name, and the mark written out as a plain decimal,\nsuch as `7.5`, as text so it stays exact. Null or \"\" clears the mark.\nThe forge checks a mark against the bounds the task's live version\ngives, and does not read them when the mark is cleared.",
         "properties": {
@@ -2625,7 +2554,7 @@
         "type": "object"
       },
       "InputField": {
-        "description": "One input the contestant gives, with what its form shows: its\n`type`, its `label`, the task's, else its key, the `options` of an enum,\nthe `default` a value takes when it is left out, `min` and `max` of a\nnumber, exactly, `max_size`, the most its files may total in bytes, and\n`parts`, on an input given once per tuple. A number input's default is\nserved as its exact digits, as its bounds are. The submit panel shows\none field or drop zone per input.",
+        "description": "One input the contestant gives, with what its form shows: its\n`type`, its `label`, the task's, else its key, the `options` of an enum,\nthe `default` a value takes when it is left out, `min` and `max` of a\nnumber, exactly, `max_size`, the most its files may total in bytes, and\n`parts`, on an input given in parts. A number input's default is\nserved as its exact digits, as its bounds are. The submit panel shows\none field or drop zone per input.",
         "properties": {
           "default": {
             "anyOf": [
@@ -2739,7 +2668,7 @@
         "type": "object"
       },
       "InputPart": {
-        "description": "One part of an input given once per tuple: the tuple's title, and the\nmost that part may hold, in bytes.",
+        "description": "One part of an input given in parts: the title on its form, and the\nmost that part may hold, in bytes.",
         "properties": {
           "max_size": {
             "title": "Max Size",
@@ -6216,7 +6145,7 @@
         "type": "object"
       },
       "RunShown": {
-        "description": "One run of a grading as its entrant sees it: the entry of `show`\nthat shows it, by its `of`, a group, `all` or `first_not_passed`, its\nplace there from 1 (\"Test 3\"), one tuple per axis with the inputs the\nentry names, and of its result only the fields the entry names: its\nverdict, `passed`, 1 when that is `accepted`, the numbers its steps\nreported, each by its title and unit, exactly, and its texts, with the\n`label` and `message`, null when not named or no step wrote one. A run\ntwo entries show is shown under each; a run no entry shows is never\nshown, even when a value shown reads it. `first_not_passed` shows, at\nplace 1, the first run in the task's order whose `passed` is not 1,\nand none when every run passed, told by `labelled`, the first group\nholding it and its place there, or its place in `all`. Organisers read\nevery run, under `all` in the task's order, with its `id`, which counts\nevery run of the task, and every field; `id` is null for an entrant. A\nrun a row holds that the task's latest publication no longer has is\n`dropped`, listed to organisers after the rest; never to an entrant.",
+        "description": "One run of a grading as its entrant sees it: the entry of `show`\nthat shows it, by its `of`, a group, `all` or `first_not_passed`, its\nplace there from 1 (\"Test 3\"), its `key`, the inputs of its test the\nentry names, a file as `{\"file\": <path>}`, and of its result only the\nfields the entry names: its verdict, `passed`, 1 when that is\n`accepted`, the numbers its steps reported, each by its title and unit,\nexactly, and its texts, with the `label` and `message`, null when not\nnamed or no step wrote one. A run\ntwo entries show is shown under each; a run no entry shows is never\nshown, even when a value shown reads it. `first_not_passed` shows, at\nplace 1, the first run in the task's order whose `passed` is not 1,\nand none when every run passed, told by `labelled`, the first group\nholding it and its place there, or its place in `all`. Organisers read\nevery run, under `all` in the task's order, with its `id`, which counts\nevery run of the task, and every field; `id` is null for an entrant. A\nrun a row holds that the task's latest publication no longer has is\n`dropped`, listed to organisers after the rest; never to an entrant.",
         "properties": {
           "dropped": {
             "default": false,
@@ -6237,6 +6166,11 @@
               }
             ],
             "title": "Id"
+          },
+          "key": {
+            "additionalProperties": true,
+            "title": "Key",
+            "type": "object"
           },
           "label": {
             "anyOf": [
@@ -6299,13 +6233,6 @@
             "title": "Texts",
             "type": "object"
           },
-          "tuples": {
-            "items": {
-              "$ref": "#/components/schemas/RunTuple"
-            },
-            "title": "Tuples",
-            "type": "array"
-          },
           "verdict": {
             "anyOf": [
               {
@@ -6335,7 +6262,7 @@
           "id",
           "dropped",
           "labelled",
-          "tuples",
+          "key",
           "verdict",
           "passed",
           "reports",
@@ -6344,33 +6271,6 @@
           "message"
         ],
         "title": "RunShown",
-        "type": "object"
-      },
-      "RunTuple": {
-        "description": "One axis of a run: its title, null when that tuple has none, and the\ncolumns of that axis the reader is shown, each only when the run's\nentry in `show` names it among its fields, a file as `{\"file\": <path>}`.",
-        "properties": {
-          "key": {
-            "additionalProperties": true,
-            "title": "Key",
-            "type": "object"
-          },
-          "title": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Title"
-          }
-        },
-        "required": [
-          "title",
-          "key"
-        ],
-        "title": "RunTuple",
         "type": "object"
       },
       "RunValue": {
@@ -7370,7 +7270,7 @@
         "type": "object"
       },
       "SubmittedFileInput": {
-        "description": "What one input of a submission was: its files, or the value\ngiven, a number as its exact decimal digits; or, for an input given\nonce per tuple, its `parts` by number from \"1\", only the parts given,\nits own `files` empty and `value` null, and `parts` null on any other.\nIt is read leniently from the submission's `submission.json`: a member\nof the wrong type is left out rather than failing the answer.",
+        "description": "What one input of a submission was: its files, or the value\ngiven, a number as its exact decimal digits; or, for an input given\nin parts, its `parts` by number from \"1\", only the parts given,\nits own `files` empty and `value` null, and `parts` null on any other.\nIt is read leniently from the submission's `submission.json`: a member\nof the wrong type is left out rather than failing the answer.",
         "properties": {
           "files": {
             "items": {
@@ -7910,28 +7810,26 @@
         "type": "object"
       },
       "TaskRun": {
-        "description": "A run whose inputs the task's `show` shows now, before any\nsubmission: the entry's `of`, a group or `all`, its place there from 1,\nand one tuple per axis with its title and the inputs the entry names, a\nnumber or text as it is and a file or folder as `{\"file\": <path>}` or\n`{\"folder\": <path>}`.",
+        "description": "A run whose inputs the task's `show` shows now, before any\nsubmission: the entry's `of`, a group or `all`, its place there from 1,\nand its `key`, the inputs of its test the entry names, a\nnumber or text as it is and a file or folder as `{\"file\": <path>}` or\n`{\"folder\": <path>}`.",
         "properties": {
           "group": {
             "title": "Group",
             "type": "string"
           },
+          "key": {
+            "additionalProperties": true,
+            "title": "Key",
+            "type": "object"
+          },
           "place": {
             "title": "Place",
             "type": "integer"
-          },
-          "tuples": {
-            "items": {
-              "$ref": "#/components/schemas/RunTuple"
-            },
-            "title": "Tuples",
-            "type": "array"
           }
         },
         "required": [
           "group",
           "place",
-          "tuples"
+          "key"
         ],
         "title": "TaskRun",
         "type": "object"
@@ -14086,77 +13984,6 @@
         ]
       }
     },
-    "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/draft-runs": {
-      "post": {
-        "description": "Every combination of the draft's tuples, as a save makes the runs,\nfor the task's cards while the organiser edits. Nothing is saved.",
-        "operationId": "listTaskDraftRuns",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "org",
-            "required": true,
-            "schema": {
-              "title": "Org",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "contest",
-            "required": true,
-            "schema": {
-              "title": "Contest",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "task",
-            "required": true,
-            "schema": {
-              "title": "Task",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/DraftRunsRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DraftRuns"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "default": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "An error, as an RFC 9457 problem document. `code` names it."
-          }
-        },
-        "summary": "The runs a draft's repeat makes",
-        "tags": [
-          "tasks"
-        ]
-      }
-    },
     "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/files/{path}": {
       "get": {
         "operationId": "readTaskFile",
@@ -16847,7 +16674,7 @@
     },
     "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/request": {
       "get": {
-        "description": "Read back from `task.yaml` alone, with the token a save of it\ncarries.",
+        "description": "Read back from `task.yaml` and `grade.yml`, with the token a save\nof them carries.",
         "operationId": "getTaskRequest",
         "parameters": [
           {
@@ -16979,7 +16806,7 @@
     },
     "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/results/release": {
       "post": {
-        "description": "From now on every entrant is shown what the task's `show` lists under\n`after_release`, and gradings made from now on run those runs first. Without\n`confirm`, nothing changes and the answer is `confirmation_required`\nwith `action` `release` and, as its detail, what becomes visible, to\nwhom, and that it can be taken back. A task already released answers as\nit stands. A task with no publication is `not_found`. The answer is\nread once the release has landed.",
+        "description": "From now on every entrant is shown what the task's `show` lists under\n`after_release`. Without `confirm`, nothing changes and the answer is `confirmation_required`\nwith `action` `release` and, as its detail, what becomes visible, to\nwhom, and that it can be taken back. A task already released answers as\nit stands. A task with no publication is `not_found`. The answer is\nread once the release has landed.",
         "operationId": "releaseTaskResults",
         "parameters": [
           {

@@ -414,7 +414,7 @@ async def test_the_primitives_are_listed_with_their_ports(
     }
     assert build["inputs"]["entry"]["optional"] is True
     assert build["outputs"]["outcome"]["accepts"] is None
-    assert build["limits"]["memory_mb"] == 1600
+    assert build["limits"]["memory_mb"] == 1728
     # The outcome port says what each outcome the step reports means, in
     # the declaration's order, for the step's drawer.
     assert build["outputs"]["outcome"]["outcomes"] == {
@@ -433,7 +433,7 @@ async def test_the_primitives_are_listed_with_their_ports(
         "scale": "2000",
         "add": "3000",
     }
-    assert one["limits"]["memory_mb"] == 1600
+    assert one["limits"]["memory_mb"] == 1728
 
 
 async def test_a_retired_primitive_left_at_the_forge_is_listed_with_why(

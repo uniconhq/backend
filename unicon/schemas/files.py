@@ -15,8 +15,6 @@ import binascii
 import uuid
 from typing import Any, Literal, Self
 
-from forge.api.files import DraftRun as DraftRunRecord
-from forge.api.files import DraftRuns as DraftRunsRecord
 from forge.api.files import EntryKind, FormValues, UploadInfo
 from forge.api.files import File as FileRecord
 from forge.api.files import TreeEntry as TreeEntryRecord
@@ -255,39 +253,3 @@ class WriteSettings(BaseModel):
     token: str | None
     confirm: bool = False
     asked: str | None = None
-
-
-class DraftRunsRequest(BaseModel):
-    """A task's draft `repeat`, as its settings' values give it."""
-
-    repeat: list[Any]
-
-
-class DraftRun(BaseModel):
-    """One run of a draft: the titles of its tuples and the values the task
-    gives it, by input; a value the entrant gives is left out."""
-
-    titles: list[str]
-    cells: dict[str, Any]
-
-    @classmethod
-    def of(cls, run: DraftRunRecord) -> DraftRun:
-        return cls(titles=list(run.titles), cells=dict(run.cells))
-
-
-class DraftRuns(BaseModel):
-    """The runs a draft's `repeat` makes, the first axis outermost, none
-    when there would be more than a task may have; their `count`; and each
-    axis's own tuples as runs, in the draft's order."""
-
-    runs: list[DraftRun]
-    count: int
-    axes: list[list[DraftRun]]
-
-    @classmethod
-    def of(cls, found: DraftRunsRecord) -> DraftRuns:
-        return cls(
-            runs=[DraftRun.of(run) for run in found.runs],
-            count=found.count,
-            axes=[[DraftRun.of(run) for run in axis] for axis in found.axes],
-        )

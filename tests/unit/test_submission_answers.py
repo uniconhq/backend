@@ -61,10 +61,7 @@ def test_a_grading_carries_each_run_with_exact_numbers_its_texts_and_reveal() ->
     run = {
         "group": "sample_tests",
         "place": 1,
-        "tuples": [
-            {"title": "Small grid", "key": {"input": {"file": "samples/1.in"}}},
-            {"title": None, "key": {"seed": 2}},
-        ],
+        "key": {"input": {"file": "samples/1.in"}, "seed": 2},
         "verdict": "accepted",
         "passed": 1,
         "reports": [
@@ -87,10 +84,7 @@ def test_a_grading_carries_each_run_with_exact_numbers_its_texts_and_reveal() ->
             "id": None,
             "dropped": False,
             "labelled": None,
-            "tuples": [
-                {"title": "Small grid", "key": {"input": {"file": "samples/1.in"}}},
-                {"title": None, "key": {"seed": 2}},
-            ],
+            "key": {"input": {"file": "samples/1.in"}, "seed": 2},
             "verdict": "accepted",
             "passed": 1,
             "reports": [
@@ -111,7 +105,7 @@ def test_a_run_is_served_with_only_the_fields_its_entry_names() -> None:
         "group": "first_not_passed",
         "place": 1,
         "labelled": {"group": "sample_tests", "place": 2},
-        "tuples": [{"title": None, "key": {"input": {"file": "samples/2.in"}}}],
+        "key": {"input": {"file": "samples/2.in"}},
         "reports": [],
         "texts": {},
     }
@@ -137,7 +131,7 @@ def test_a_gradings_values_once_and_compiled_are_served_exactly() -> None:
         "group": "all",
         "place": 1,
         "id": "3",
-        "tuples": [{"title": "Big grid", "key": {}}],
+        "key": {},
         "verdict": "accepted",
         "passed": 1,
         "reports": [],
@@ -196,7 +190,7 @@ def test_a_gradings_values_once_and_compiled_are_served_exactly() -> None:
         },
     ]
     assert answer["runs"][0]["label"] == log
-    assert answer["runs"][0]["tuples"] == [{"title": "Big grid", "key": {}}]
+    assert answer["runs"][0]["key"] == {}
     assert [each["dropped"] for each in answer["runs"]] == [False, True]
     assert answer["once"] == {"reports": {"setup_ms": "40"}, "texts": {"log": log}}
     assert (answer["compiled"], answer["facts"]) == (1, {"seconds_late": "1800", "compiled": "1"})
@@ -206,7 +200,7 @@ def test_numbers_are_served_as_exact_decimals_and_text_stays_text() -> None:
     run = {
         "group": "all",
         "place": 1,
-        "tuples": [{"title": None, "key": {}}],
+        "key": {},
         "verdict": "accepted",
         "passed": 1,
         "reports": [

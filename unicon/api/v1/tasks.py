@@ -18,7 +18,7 @@ import dataclasses
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, status
-from forge.api import contests, files, publications, release, results, submissions, tasks
+from forge.api import contests, publications, release, results, submissions, tasks
 from forge.api.access import Organiser
 from forge.api.publications import Draft, Preparing, Published
 from forge.api.types import ConflictToken, Edit, Role, ScopeKind
@@ -39,7 +39,7 @@ from unicon.schemas.contests import (
     TaskDetail,
     TaskStanding,
 )
-from unicon.schemas.files import DraftRuns, DraftRunsRequest, token_of
+from unicon.schemas.files import token_of
 from unicon.schemas.publications import (
     Preparation,
     Publication,
@@ -176,8 +176,7 @@ async def release_task_results(
     organiser: TaskManager, body: ResultsRequest
 ) -> results.ResultsState:
     """From now on every entrant is shown what the task's `show` lists under
-    `after_release`, and gradings made from now on run those runs first. Without
-    `confirm`, nothing changes and the answer is `confirmation_required`
+    `after_release`. Without `confirm`, nothing changes and the answer is `confirmation_required`
     with `action` `release` and, as its detail, what becomes visible, to
     whom, and that it can be taken back. A task already released answers as
     it stands. A task with no publication is `not_found`. The answer is
@@ -255,8 +254,8 @@ async def get_task_workflow_form(organiser: TaskObserver) -> publications.Workfl
     response_model=TaskRequest,
 )
 async def get_task_request(organiser: TaskObserver) -> TaskRequest:
-    """Read back from `task.yaml` alone, with the token a save of it
-    carries."""
+    """Read back from `task.yaml` and `grade.yml`, with the token a save
+    of them carries."""
     return TaskRequest.of(
         await publications.read_request(organiser, tasks.task_id_of(organiser.scope))
     )
@@ -304,18 +303,6 @@ async def save_task(organiser: TaskManager, body: SaveRequest) -> Published | Dr
         keep_as_draft=body.keep_as_draft,
         message=body.message,
     )
-
-
-@router.post(
-    f"{TASK}/draft-runs",
-    operation_id="listTaskDraftRuns",
-    summary="The runs a draft's repeat makes",
-)
-async def list_task_draft_runs(organiser: TaskObserver, body: DraftRunsRequest) -> DraftRuns:
-    """Every combination of the draft's tuples, as a save makes the runs,
-    for the task's cards while the organiser edits. Nothing is saved."""
-    found = await files.draft_runs(organiser, tasks.task_id_of(organiser.scope), body.repeat)
-    return DraftRuns.of(found)
 
 
 @router.post(

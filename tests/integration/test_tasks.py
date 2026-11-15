@@ -126,7 +126,7 @@ async def test_a_tasks_entry_sets_its_timeline_and_a_failed_save_shows_its_error
         headers=ORIGIN,
     )
     task = await read(client, f"{TASK}/request")
-    task["request"]["repeat"][0]["tuples"][0][1] = "tests/2.ans"
+    task["request"]["tests"][0]["answer"] = "tests/2.ans"
     broken = await client.post(
         f"{TASK}/save",
         json={"request": {"request": task["request"], "token": task["token"]}},

@@ -1,7 +1,7 @@
 """What the submission routes take and answer with. A submit names, for each of
 the task's contestant inputs, the uploads of its files, or the value of a
-text, number, true-or-false or enum input, or, for an input given once per
-tuple, its parts, each the same, as the forge's own `SubmittedInput`: a
+text, number, true-or-false or enum input, or, for an input given in
+parts, its parts, each the same, as the forge's own `SubmittedInput`: a
 number as the text of its plain decimal digits, `2.5`, the form every number
 is served in, never a JSON number. A submission comes back with the latest
 attempt of its grading, carrying only what the task's `show` lets its
@@ -90,16 +90,6 @@ class TextRef(BaseModel):
     name: str | None = None
 
 
-class RunTuple(BaseModel):
-    """One axis of a run: its title, null when that tuple has none, and the
-    columns of that axis the reader is shown, each only when the run's
-    entry in `show` names it among its fields, a file as `{"file": <path>}`.
-    """
-
-    title: str | None = None
-    key: dict[str, Any]
-
-
 class ShownOutput(BaseModel):
     """One number a run reported, named by the title its workflow gives it,
     or by its own name, with its unit, null when it has none, and the
@@ -123,11 +113,12 @@ class RunPlace(BaseModel):
 class RunShown(BaseModel):
     """One run of a grading as its entrant sees it: the entry of `show`
     that shows it, by its `of`, a group, `all` or `first_not_passed`, its
-    place there from 1 ("Test 3"), one tuple per axis with the inputs the
-    entry names, and of its result only the fields the entry names: its
-    verdict, `passed`, 1 when that is `accepted`, the numbers its steps
-    reported, each by its title and unit, exactly, and its texts, with the
-    `label` and `message`, null when not named or no step wrote one. A run
+    place there from 1 ("Test 3"), its `key`, the inputs of its test the
+    entry names, a file as `{"file": <path>}`, and of its result only the
+    fields the entry names: its verdict, `passed`, 1 when that is
+    `accepted`, the numbers its steps reported, each by its title and unit,
+    exactly, and its texts, with the `label` and `message`, null when not
+    named or no step wrote one. A run
     two entries show is shown under each; a run no entry shows is never
     shown, even when a value shown reads it. `first_not_passed` shows, at
     place 1, the first run in the task's order whose `passed` is not 1,
@@ -144,7 +135,7 @@ class RunShown(BaseModel):
     id: str | None = None
     dropped: bool = False
     labelled: RunPlace | None = None
-    tuples: list[RunTuple]
+    key: dict[str, Any]
     verdict: Outcome | None = None
     passed: int | None = None
     reports: list[ShownOutput] = []
@@ -341,7 +332,7 @@ class SubmittedPart(BaseModel):
 class SubmittedFileInput(SubmittedPart):
     """What one input of a submission was: its files, or the value
     given, a number as its exact decimal digits; or, for an input given
-    once per tuple, its `parts` by number from "1", only the parts given,
+    in parts, its `parts` by number from "1", only the parts given,
     its own `files` empty and `value` null, and `parts` null on any other.
     It is read leniently from the submission's `submission.json`: a member
     of the wrong type is left out rather than failing the answer.

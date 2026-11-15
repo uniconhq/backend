@@ -38,7 +38,7 @@ from tests.integration.conftest import (
 
 MISSING = [
     {
-        "path": ["repeat", 0, "tuples", 0, 1],
+        "path": ["tests", 0, "answer"],
         "message": "The task has no file tests/2.ans. Add it, or give another file.",
     }
 ]
@@ -111,7 +111,9 @@ async def test_the_organiser_path_from_an_org_to_a_publication(
     statement = await _save(client, await _edit(client, "statement.md", "Write", "Add. Write"))
     assert (statement.json()["number"], statement.json()["grading_changed"]) == (2, False)
 
-    broken = await _save(client, request=await _request(client, "- 1.ans", "- tests/2.ans"))
+    broken = await _save(
+        client, request=await _request(client, "answer: 1.ans", "answer: tests/2.ans")
+    )
     assert broken.status_code == 200
     draft = broken.json()
     assert (draft["errors"], draft["held_back"]) == (MISSING, [])
@@ -331,9 +333,9 @@ SHOWN = (
 )
 """The starter's `show` with each run's input and answer shown once the task
 closes."""
-TUPLES = "  - - 1.in\n    - 1.ans\n"
-SECOND = "  - - tests/2.in\n    - tests/2.ans\n"
-"""The starter's one test, as its `repeat` lists it."""
+TESTS = "tests:\n- input: 1.in\n  answer: 1.ans\n"
+SECOND = "- input: tests/2.in\n  answer: tests/2.ans\n"
+"""The starter's one test, as its `tests` lists it."""
 
 
 async def test_a_save_removes_a_test_and_its_publication_names_the_removal(
@@ -344,7 +346,7 @@ async def test_a_save_removes_a_test_and_its_publication_names_the_removal(
         client,
         _change("tests/2.in", "1 1\n", None),
         _change("tests/2.ans", "2\n", None),
-        request=await _request(client, TUPLES, f"{TUPLES}{SECOND}"),
+        request=await _request(client, TESTS, f"{TESTS}{SECOND}"),
     )
     assert added.json()["number"] == 2, added.text
     # #625: the publication takes over once its save's steps are run.
@@ -377,7 +379,9 @@ async def test_a_test_is_replaced_by_one_with_other_file_names(
         _removal("1.ans", await _token(client, "1.ans")),
         _change("tests/1.txt", "4 5\n", None),
         _change("tests/1.out", "9\n", None),
-        request=await _request(client, TUPLES, "  - [tests/1.txt, tests/1.out]\n"),
+        request=await _request(
+            client, TESTS, "tests:\n- {input: tests/1.txt, answer: tests/1.out}\n"
+        ),
     )
 
     assert replaced.status_code == 200, replaced.text
@@ -393,12 +397,13 @@ async def test_removing_every_test_keeps_the_save_as_a_draft(
         client,
         _removal("1.in", await _token(client, "1.in")),
         _removal("1.ans", await _token(client, "1.ans")),
-        request=await _request(client, f"  tuples:\n{TUPLES}", "  tuples: []\n"),
+        request=await _request(client, TESTS, "tests: []\n"),
     )
 
     assert kept.status_code == 200, kept.text
-    assert kept.json()["errors"] == [
-        {"path": ["repeat", 0, "tuples"], "message": "Give at least one."}
+    assert [error["path"] for error in kept.json()["errors"]] == [
+        ["inputs", "input"],
+        ["inputs", "answer"],
     ]
     assert len((await client.get(f"{TASK}/publications")).json()) == 1
 

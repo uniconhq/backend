@@ -140,7 +140,7 @@ async def test_the_task_page_lists_the_runs_and_settings_shown_and_serves_their_
         {
             "group": "all",
             "place": 1,
-            "tuples": [{"title": None, "key": {"input": {"file": "1.in"}}}],
+            "key": {"input": {"file": "1.in"}},
         }
     ]
     address = f"{DOWNLOADS}/runs/all/1/inputs/input"
@@ -266,7 +266,7 @@ async def test_the_preview_answers_what_an_entrant_would_read_of_a_made_up_submi
         "accepted",
         None,
     )
-    assert run["tuples"] == [{"title": None, "key": {"input": {"file": "1.in"}}}]
+    assert run["key"] == {"input": {"file": "1.in"}}
     # The made-up result of each run, by field name.
     [sample] = before.json()["sample"]
     assert (sample["verdict"], sample["passed"]) == ("accepted", "1")

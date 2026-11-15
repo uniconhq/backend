@@ -2,8 +2,7 @@
 task's as its request: read by an observer, a contest's saved by a manager
 with every comment of the file kept, a task's saved with the task, and the
 refusals a save meets: a stale token, an admin-only key changed by a manager, two
-entries with one name, and an observer's save; and the runs a task's draft
-makes.
+entries with one name, and an observer's save.
 """
 
 from typing import Any
@@ -138,21 +137,3 @@ async def test_reading_the_settings_needs_a_role_there(
     refused = await client.get(f"{CONTEST}/settings")
 
     assert refused.status_code in (403, 404)
-
-
-async def test_a_drafts_runs_cross_its_axes(client: httpx.AsyncClient, sum_task: FakeForge) -> None:
-    repeat = [
-        {"inputs": ["input", "answer"], "tuples": [["a.in", "a.ans"], ["b.in", "b.ans"]]},
-        {"inputs": ["seed"], "tuples": [{"title": "One", "seed": 1}]},
-    ]
-
-    answer = await client.post(f"{TASK}/draft-runs", json={"repeat": repeat}, headers=ORIGIN)
-
-    assert answer.status_code == 200
-    body = answer.json()
-    assert body["count"] == 2
-    assert body["runs"] == [
-        {"titles": ["One"], "cells": {"input": "a.in", "answer": "a.ans", "seed": 1}},
-        {"titles": ["One"], "cells": {"input": "b.in", "answer": "b.ans", "seed": 1}},
-    ]
-    assert [len(axis) for axis in body["axes"]] == [2, 1]

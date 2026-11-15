@@ -19,7 +19,7 @@ from pydantic import BaseModel, field_validator, model_validator
 from unicon.schemas.entrants import MyEntry
 from unicon.schemas.exact import Exact, exactly
 from unicon.schemas.leaderboards import Leaderboard, leaderboard_of
-from unicon.schemas.submissions import RunTuple, Value
+from unicon.schemas.submissions import Value
 
 
 class ContestNames(BaseModel):
@@ -110,7 +110,7 @@ InputType = Literal["text", "number", "boolean", "enum", "file", "folder"]
 
 
 class InputPart(BaseModel):
-    """One part of an input given once per tuple: the tuple's title, and the
+    """One part of an input given in parts: the title on its form, and the
     most that part may hold, in bytes.
     """
 
@@ -130,7 +130,7 @@ class InputField(BaseModel):
     `type`, its `label`, the task's, else its key, the `options` of an enum,
     the `default` a value takes when it is left out, `min` and `max` of a
     number, exactly, `max_size`, the most its files may total in bytes, and
-    `parts`, on an input given once per tuple. A number input's default is
+    `parts`, on an input given in parts. A number input's default is
     served as its exact digits, as its bounds are. The submit panel shows
     one field or drop zone per input.
     """
@@ -164,14 +164,14 @@ class InputField(BaseModel):
 class TaskRun(BaseModel):
     """A run whose inputs the task's `show` shows now, before any
     submission: the entry's `of`, a group or `all`, its place there from 1,
-    and one tuple per axis with its title and the inputs the entry names, a
+    and its `key`, the inputs of its test the entry names, a
     number or text as it is and a file or folder as `{"file": <path>}` or
     `{"folder": <path>}`.
     """
 
     group: str
     place: int
-    tuples: list[RunTuple]
+    key: dict[str, Any]
 
 
 class TaskPage(BaseModel):
