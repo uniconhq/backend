@@ -38,7 +38,7 @@ from tests.integration.conftest import (
 
 MISSING = [
     {
-        "path": ["tests", 0, "answer"],
+        "path": ["runs", 0, "answer"],
         "message": "The task has no file tests/2.ans. Add it, or give another file.",
     }
 ]
@@ -270,7 +270,7 @@ async def test_a_change_to_the_statement_or_what_is_shown_while_the_contest_runs
         ["The statement changes."],
     )
     assert asked.json()["runs_again"] == [
-        "No submission runs again: the tests and how they run are the same."
+        "No submission runs again: what runs, and how, is the same."
     ]
     shown = await _request(client, STARTER_RUNS, f"{STARTER_RUNS}{SHOWN}")
     assert (await _save(client, request=shown)).json()["reading"] == [
@@ -333,9 +333,9 @@ SHOWN = (
 )
 """The starter's `show` with each run's input and answer shown once the task
 closes."""
-TESTS = "tests:\n- input: 1.in\n  answer: 1.ans\n"
+RUNS = "runs:\n- input: 1.in\n  answer: 1.ans\n"
 SECOND = "- input: tests/2.in\n  answer: tests/2.ans\n"
-"""The starter's one test, as its `tests` lists it."""
+"""The starter's one run, as its `runs` lists it."""
 
 
 async def test_a_save_removes_a_test_and_its_publication_names_the_removal(
@@ -346,7 +346,7 @@ async def test_a_save_removes_a_test_and_its_publication_names_the_removal(
         client,
         _change("tests/2.in", "1 1\n", None),
         _change("tests/2.ans", "2\n", None),
-        request=await _request(client, TESTS, f"{TESTS}{SECOND}"),
+        request=await _request(client, RUNS, f"{RUNS}{SECOND}"),
     )
     assert added.json()["number"] == 2, added.text
     # #625: the publication takes over once its save's steps are run.
@@ -380,7 +380,7 @@ async def test_a_test_is_replaced_by_one_with_other_file_names(
         _change("tests/1.txt", "4 5\n", None),
         _change("tests/1.out", "9\n", None),
         request=await _request(
-            client, TESTS, "tests:\n- {input: tests/1.txt, answer: tests/1.out}\n"
+            client, RUNS, "runs:\n- {input: tests/1.txt, answer: tests/1.out}\n"
         ),
     )
 
@@ -388,7 +388,7 @@ async def test_a_test_is_replaced_by_one_with_other_file_names(
     assert replaced.json()["number"] == 2
 
 
-async def test_removing_every_test_keeps_the_save_as_a_draft(
+async def test_removing_every_run_keeps_the_save_as_a_draft(
     client: httpx.AsyncClient, sum_task: FakeForge
 ) -> None:
     await publish(client)
@@ -397,7 +397,7 @@ async def test_removing_every_test_keeps_the_save_as_a_draft(
         client,
         _removal("1.in", await _token(client, "1.in")),
         _removal("1.ans", await _token(client, "1.ans")),
-        request=await _request(client, TESTS, "tests: []\n"),
+        request=await _request(client, RUNS, "runs: []\n"),
     )
 
     assert kept.status_code == 200, kept.text

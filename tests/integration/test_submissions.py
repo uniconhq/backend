@@ -469,11 +469,11 @@ async def test_staff_list_and_download_an_entrants_files(
 
 
 IN_PARTS = (
-    "tests:\n- input: 1.in\n  answer: 1.ans\n",
+    "runs:\n- input: 1.in\n  answer: 1.ans\n",
     "  input: {entrant: {parts: [{}, {}]}}\n"
-    "tests:\n- {input: 1, answer: 1.ans}\n- {input: 2, answer: 1.ans}\n",
+    "runs:\n- {input: 1, answer: 1.ans}\n- {input: 2, answer: 1.ans}\n",
 )
-"""The starter with its `input` the entrant's, in two parts, one per test.
+"""The starter with its `input` the entrant's, in two parts, one per run.
 The code stays given once: a step that compiles it once is never given a
 source that differs by run."""
 FIRST = b"1 2\n"

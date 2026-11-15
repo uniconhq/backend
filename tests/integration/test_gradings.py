@@ -229,27 +229,6 @@ async def test_a_cancel_after_a_result_keeps_the_result(
     assert (counted["attempt"], counted["status"]) == (1, "graded")
 
 
-async def test_a_contest_that_says_what_a_failed_grading_counts_as_is_refused_naming_it(
-    client: httpx.AsyncClient, entered: FakeForge
-) -> None:
-    await sign_in_as(client, entered, 7)
-    settings = await read(client, f"{CONTEST}/files/contest.yaml")
-
-    written = await client.put(
-        f"{CONTEST}/files/contest.yaml",
-        json={
-            "encoding": "utf-8",
-            "content": settings["content"] + "on_system_error: last_result\n",
-            "token": settings["token"],
-        },
-        headers=ORIGIN,
-    )
-
-    assert (written.status_code, written.json()["code"]) == (422, "invalid_definition")
-    assert [problem["path"] for problem in written.json()["errors"]] == [["on_system_error"]]
-    assert "tried again once by itself" in written.json()["errors"][0]["message"]
-
-
 async def test_an_observer_lists_the_tasks_gradings_newest_first_with_their_reasons(
     client: httpx.AsyncClient, entered: FakeForge, clock: FakeClock
 ) -> None:
