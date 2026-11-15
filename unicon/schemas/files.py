@@ -6,8 +6,8 @@ back with `upload`, the size and digest of what it holds. The token a file
 is read with goes back with the write, and none creates the file. A
 folder's entries go out as `TreeEntry`, an upload's carrying the same
 `upload`, and the history as the forge's own `Change`. A file that
-downloads names its address at the download door as `href`. A contest's or
-a task's settings also travel as a form's plain values (`Settings`).
+downloads names its address at the download door as `href`. A contest's
+settings also travel as a form's plain values (`Settings`).
 """
 
 import base64
@@ -22,6 +22,8 @@ from forge.api.files import File as FileRecord
 from forge.api.files import TreeEntry as TreeEntryRecord
 from forge.api.types import ConflictToken, Uploaded
 from pydantic import BaseModel, model_validator
+
+from unicon.schemas.exact import Values
 
 Encoding = Literal["utf-8", "base64"]
 
@@ -130,7 +132,8 @@ class FileContent(BaseModel):
 class TreeEntry(BaseModel):
     """One entry of a folder, as the forge lists it (`forge.api.files.
     TreeEntry`), with `href`, where the download door serves a file, as
-    `FileContent` says; null for a folder.
+    `FileContent` says; null for a folder. `forge` marks a file or folder
+    forge writes itself, which is read but never changed or removed.
     """
 
     path: str
@@ -140,6 +143,7 @@ class TreeEntry(BaseModel):
     version: str | None
     token: str | None
     start: str | None
+    forge: bool
     href: str | None
 
     @classmethod
@@ -152,6 +156,7 @@ class TreeEntry(BaseModel):
             version=entry.version,
             token=entry.token,
             start=entry.start,
+            forge=entry.forge,
             href=href if entry.kind is EntryKind.FILE else None,
         )
 
@@ -193,9 +198,9 @@ class WriteTaskFile(EncodedOrUploaded):
 
 
 class RollbackFile(BaseModel):
-    """Write the file as it was at `version` back as a new change, `token`
-    being the one of the file as it is now, and, for a task, `confirm`,
-    `asked` and `keep_as_draft` doing what they do for a save.
+    """Write a contest's file as it was at `version` back as a new change,
+    `token` being the one of the file as it is now, and `confirm` and
+    `asked` doing what they do for a write.
     """
 
     version: str
@@ -203,7 +208,6 @@ class RollbackFile(BaseModel):
     message: str | None = None
     confirm: bool = False
     asked: str | None = None
-    keep_as_draft: bool = False
 
 
 class Written(BaseModel):
@@ -218,15 +222,14 @@ class Written(BaseModel):
 
 
 class Settings(BaseModel):
-    """A contest's or a task's settings as their form reads them: the
-    settings file's data as plain values, its leaderboards, their columns
-    and a task's scoring groups and values as lists of named entries, with
-    the token a save presents back. When the file does not read as
+    """A contest's settings as their form reads them: `contest.yaml`'s data
+    as plain values, its leaderboards and their columns as lists of named
+    entries, with the token a save presents back. When the file does not read as
     settings, `values` is null and `unreadable` says why; a file not there
     yet has empty values and no token.
     """
 
-    values: dict[str, Any] | None
+    values: Values | None
     unreadable: str | None
     token: str | None
     version: str | None
@@ -248,7 +251,7 @@ class WriteSettings(BaseModel):
     file's write.
     """
 
-    values: dict[str, Any]
+    values: Values
     token: str | None
     confirm: bool = False
     asked: str | None = None

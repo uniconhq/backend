@@ -35,7 +35,7 @@ CASES = [
     (errors.Misconfigured, 502),
     (errors.SoleAdmin, 409),
     (errors.ContestantConflict, 409),
-    (errors.SharedWorkflowOwner, 409),
+    (errors.WorkflowOwner, 409),
     (errors.AdminOnly, 403),
     (errors.ReservedPath, 403),
     (errors.ConfirmationRequired, 409),
@@ -60,10 +60,6 @@ CASES = [
     (errors.UploadNotReady, 409),
     (errors.InvalidInputs, 422),
     (errors.InvalidIdempotencyKey, 422),
-    (errors.CiRequestRefused, 403),
-    (errors.InvalidToken, 401),
-    (errors.GradingClosed, 410),
-    (errors.InvalidCallback, 422),
     (PayloadTooLarge, 413),
 ]
 
@@ -116,9 +112,9 @@ async def test_a_typed_error_becomes_a_problem_document() -> None:
 REFUSALS = [
     (errors.ContestantConflict("bob is a contestant.", contests=["acme/spring"]), 409, "contests"),
     (errors.AdminOnly("Only an admin may.", keys=["name", "statement.md"]), 403, "keys"),
-    (errors.ReservedPath("Only the compiler.", paths=["plans/default.json"]), 403, "paths"),
+    (errors.ReservedPath("Unicon writes it.", paths=["task.yaml"]), 403, "paths"),
     (
-        errors.ConfirmationRequired("Confirm it.", changes=["plans/default.json changed"]),
+        errors.ConfirmationRequired("Confirm it.", changes=["statement.md changed"]),
         409,
         "changes",
     ),

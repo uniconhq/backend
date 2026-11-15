@@ -564,19 +564,6 @@
         "title": "BoxOutput",
         "type": "object"
       },
-      "CallbackAnswer": {
-        "description": "Where the grading stands once its run's report is taken.",
-        "properties": {
-          "status": {
-            "$ref": "#/components/schemas/GradingStatus"
-          }
-        },
-        "required": [
-          "status"
-        ],
-        "title": "CallbackAnswer",
-        "type": "object"
-      },
       "CancelRequest": {
         "description": "Why staff end the submission, a sentence its contestant reads.",
         "properties": {
@@ -793,19 +780,8 @@
         "type": "string"
       },
       "CheckDefinition": {
-        "description": "A `workflow.yaml` to check as a version would be, writing nothing:\nits `values`, or its text in `content`, one of the two. `owner` and\n`name`, when both are given, name the workflow this is a draft of, so a\ndraft that would hold that workflow is refused.",
+        "description": "A workflow request to check as a version would be, writing nothing.\n`owner` and `name`, when both are given, name the workflow this is a\ndraft of, so a draft that would hold that workflow is refused.",
         "properties": {
-          "content": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Content"
-          },
           "name": {
             "anyOf": [
               {
@@ -844,19 +820,15 @@
             ],
             "title": "Paths"
           },
-          "values": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Values"
+          "request": {
+            "additionalProperties": true,
+            "title": "Request",
+            "type": "object"
           }
         },
+        "required": [
+          "request"
+        ],
         "title": "CheckDefinition",
         "type": "object"
       },
@@ -1476,7 +1448,7 @@
         "type": "object"
       },
       "DefinitionProblem": {
-        "description": "One problem: where in `workflow.yaml`, as its keys and list indices,\nsuch as `[\"steps\", 1, \"with\", \"binary\"]`, empty for the file as a whole,\nand what is wrong there. `step` is the flat step a problem inside a box\nbelongs to, when the path can only name the box; none otherwise.",
+        "description": "One problem: where in the request, as its keys and list indices,\nsuch as `[\"steps\", 1, \"with\", \"binary\"]`, empty for the file as a whole,\nand what is wrong there. `step` is the flat step a problem inside a box\nbelongs to, when the path can only name the box; none otherwise.",
         "properties": {
           "message": {
             "title": "Message",
@@ -2006,7 +1978,7 @@
         "type": "object"
       },
       "FileChange": {
-        "description": "One file of a save, with the token it was read with: typed as\n`content`, uploaded for this path as `upload`, `task.yaml` given as its\nform's `values` (as `Settings` gives them), or removed with `remove:\ntrue`, exactly one of the four. The token is null for a file the save\ncreates, and a removal always carries one. Removing a folder, such as a\ntest, is removing each file under it, named one by one.",
+        "description": "One file of a save, with the token it was read with: typed as\n`content`, uploaded for this path as `upload`, or removed with `remove:\ntrue`, exactly one of the three. The token is null for a file the save\ncreates, and a removal always carries one. Removing a folder, such as a\ntest, is removing each file under it, named one by one.",
         "properties": {
           "content": {
             "anyOf": [
@@ -2059,18 +2031,6 @@
               }
             ],
             "title": "Upload"
-          },
-          "values": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Values"
           }
         },
         "required": [
@@ -2234,18 +2194,6 @@
               }
             ]
           },
-          "deadline_at": {
-            "anyOf": [
-              {
-                "format": "date-time",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Deadline At"
-          },
           "dispatched_at": {
             "anyOf": [
               {
@@ -2406,7 +2354,6 @@
           "dispatched_at",
           "started_at",
           "finished_at",
-          "deadline_at",
           "automatic",
           "last_good",
           "limit",
@@ -2418,7 +2365,7 @@
         "type": "object"
       },
       "GradingStatus": {
-        "description": "Where one grading stands. `queued` waits for its run to be started,\nwhich happens as soon as the request that made it commits; `dispatched`\nis held by the CI, waiting for a machine or checking out; `running` has\nhad a step ask for its job. It ends `done` with a result,\n`system_error`, a grading that failed for a reason of the platform's,\nnever a grade: its run could not be started, or did not report before\nits deadline; `cancelled`, by staff ending one in `system_error`, or\nby a rejudge replacing one still being graded; or `over_limit`, made to\ngrade a delayed submission again and ended at once, run by nothing,\nsince its entrant had no room left under the task's `submissions.max`.",
+        "description": "Where one grading stands. `queued` waits for its run to be started,\nwhich happens as soon as the request that made it commits; `dispatched`\nis held by the CI, waiting for a machine; `running` has had a job of its\nrun taken by a machine. It ends `done` with a result, `system_error`, a\ngrading that failed for a reason of the platform's, never a grade: its\nrun could not be started, never began, is gone, or a step of it gave\nnothing or what it gave did not read;\n`cancelled`, by staff ending one in `system_error`, or\nby a rejudge replacing one still being graded; or `over_limit`, made to\ngrade a delayed submission again and ended at once, run by nothing,\nsince its entrant had no room left under the task's `submissions.max`.",
         "enum": [
           "queued",
           "dispatched",
@@ -5268,7 +5215,7 @@
         "type": "object"
       },
       "Published": {
-        "description": "A save that published: the new publication's number among the task's,\nwhether it changed how the task grades, and what, the notes the save\nmakes of the task beside publishing it, how many submissions it\n`regraded`, queued to be graded again against it, and what it did,\n`effect`, in the words the question before a save in a running contest\nuses. `check` is `checking` while the new publication is checked before\nit takes over, as is a save of the same files that checks a refused one\nagain. `regrade` is the regrade the save started, whose summary the\ntask's regrades read, null when it started none now: a task checked\nfirst starts its regrade once the check passes.",
+        "description": "A save that published: the new publication's number among the task's,\nwhether it changed how the task grades, and what, the notes the save\nmakes of the task beside publishing it, how many submissions it\n`regraded`, queued to be graded again against it, and `rescored`,\nscored again without grading, and what it did,\n`effect`, in the words the question before a save in a running contest\nuses. `check` is `checking` while the new publication is checked before\nit takes over, as is a save of the same files that checks a refused one\nagain. `regrade` is the regrade the save started, whose summary the\ntask's regrades read, null when it started none now: a task checked\nfirst starts its regrade once the check passes.",
         "properties": {
           "changes": {
             "items": {
@@ -5327,6 +5274,10 @@
           "regraded": {
             "title": "Regraded",
             "type": "integer"
+          },
+          "rescored": {
+            "title": "Rescored",
+            "type": "integer"
           }
         },
         "required": [
@@ -5335,6 +5286,7 @@
           "changes",
           "notes",
           "regraded",
+          "rescored",
           "effect",
           "check",
           "regrade"
@@ -5517,20 +5469,6 @@
           "per"
         ],
         "title": "Rate",
-        "type": "object"
-      },
-      "Reader": {
-        "description": "Someone a workflow is shared with, by their username.",
-        "properties": {
-          "username": {
-            "title": "Username",
-            "type": "string"
-          }
-        },
-        "required": [
-          "username"
-        ],
-        "title": "Reader",
         "type": "object"
       },
       "Ready": {
@@ -5870,6 +5808,26 @@
         "title": "Rejudged",
         "type": "object"
       },
+      "RequestChange": {
+        "description": "The whole task request a save writes, with the token it was read with.",
+        "properties": {
+          "request": {
+            "additionalProperties": true,
+            "title": "Request",
+            "type": "object"
+          },
+          "token": {
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "request",
+          "token"
+        ],
+        "title": "RequestChange",
+        "type": "object"
+      },
       "Result": {
         "description": "The attempt of a submission's grading that counts, as its contestant\nsees it: the latest that finished with a result, as the leaderboards\ncount it, so a regrade under way, a failure or a cancel leaves the\nresult as it was, and while none has, the latest. Its id, attempt and\nstatus, in the contestant's words: `queued` until its run is started,\n`grading` while it is graded, `graded` once it has a result, `delayed`\nwhile it has none and its grading failed on the platform's side,\n`over_limit` once it was to be graded again with no room left under the\ntask's most submissions, and `cancelled` once staff end it; organisers\nread the grading's own status in the gradings routes. A `delayed` one\ncarries nothing else: it is tried again once by itself, and then waits\nfor staff, who grade it again or end it: then it is `cancelled`, with\n`reason`, the sentence they gave, which is null on every other status. A\ndelayed one is graded again only while its\nentrant's submissions with a result, those waiting that are not\ndelayed, and the delayed ones made before it are fewer than the task's\nmost, so the first ones to get a result count, and otherwise it is\n`over_limit`, with `limit`,\nthe most it reached (\"Not graded: you had reached the limit of 10\nsubmissions for this task.\"), and nothing else; `limit` is null on every\nother status.\n\n`run_values` holds each value of its scoring its entrant is shown,\nworked out on every read, and `runs` the runs its run entries show,\neach with the fields it names: those listed under `always` from the\nstart, those under `after_deadline` once the task reveals, and those\nunder `after_release` while staff have released the task's results,\nhidden again when they take the release back. The moments are\nseparate, so a release before the deadline shows `after_release`'s\nand not `after_deadline`'s. `once` holds what its steps done once\nreported, and what a batch step gives once for all its runs, that\n`outputs` lists, the compile log among them when listed; `compiled`\n1, or 0 when the entrant's code did not compile, while `outputs` lists\nit, null while its compile is still to run; and `inputs` the task's\nsettings `inputs` lists, a number or text as it is and a file or\nfolder as `{\"file\": <path>}` or `{\"folder\": <path>}`, fetched by its\nown route. A task with nothing shown during the contest is `submitted`\nuntil the reveal, which a page words \"Submitted, results after the\ncontest\". A grading whose runs failed for the platform is `delayed`\nwith the runs it gave, a value reading one of them `waiting`; before\nthe reveal, one that failed only on runs its entrant is not shown is\n`graded`. `reveal_at` is when the task\nreveals, until then, as what its entrant reads changes then with no\ngrading's change to say so, so a page open on it reads it again then;\nnull once it has revealed.",
         "properties": {
@@ -6061,7 +6019,7 @@
         "type": "string"
       },
       "RollbackFile": {
-        "description": "Write the file as it was at `version` back as a new change, `token`\nbeing the one of the file as it is now, and, for a task, `confirm`,\n`asked` and `keep_as_draft` doing what they do for a save.",
+        "description": "Write a contest's file as it was at `version` back as a new change,\n`token` being the one of the file as it is now, and `confirm` and\n`asked` doing what they do for a write.",
         "properties": {
           "asked": {
             "anyOf": [
@@ -6077,11 +6035,6 @@
           "confirm": {
             "default": false,
             "title": "Confirm",
-            "type": "boolean"
-          },
-          "keep_as_draft": {
-            "default": false,
-            "title": "Keep As Draft",
             "type": "boolean"
           },
           "message": {
@@ -6665,7 +6618,7 @@
         "type": "object"
       },
       "SaveDraft": {
-        "description": "A draft to write over the one read with `token`, or to create when\nthe token is none: `values` written into `workflow.yaml` as it is, or,\nfor a draft that does not read, `content`, its whole text; one of the\ntwo. `changes` writes its own files in the same commit. Whatever it\nholds saves, problems and all.",
+        "description": "A draft to write over the one read with `token`, or to create when\nthe token is none: the whole request, which forge builds `main.yml` and\n`values.yaml` from. `changes` writes its own files in the same commit.\nWhatever it holds saves, problems and all, but for a name `main.yml`\ncan't hold.",
         "properties": {
           "changes": {
             "items": {
@@ -6674,16 +6627,10 @@
             "title": "Changes",
             "type": "array"
           },
-          "content": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Content"
+          "request": {
+            "additionalProperties": true,
+            "title": "Request",
+            "type": "object"
           },
           "token": {
             "anyOf": [
@@ -6695,21 +6642,10 @@
               }
             ],
             "title": "Token"
-          },
-          "values": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Values"
           }
         },
         "required": [
+          "request",
           "token"
         ],
         "title": "SaveDraft",
@@ -6759,7 +6695,7 @@
         "type": "object"
       },
       "SaveRequest": {
-        "description": "The files a save writes, several at once. `keep_as_draft` writes them\nas a draft that says what it held back and publishes nothing, on any\nsave. Otherwise, while the task's contest runs, `confirm` publishes a\nsave, which every save that would publish something new needs then; an\nempty save with `confirm` publishes a draft kept earlier. `asked` is the\n`confirmation_required`'s own: with it, the confirmation stands only\nwhile the head and the latest publication are the ones asked about.",
+        "description": "The files a save writes, several at once, and the task `request`\nwhen it changes. `keep_as_draft` writes them\nas a draft that says what it held back and publishes nothing, on any\nsave. Otherwise, while the task's contest runs, `confirm` publishes a\nsave, which every save that would publish something new needs then; an\nempty save with `confirm` publishes a draft kept earlier. `asked` is the\n`confirmation_required`'s own: with it, the confirmation stands only\nwhile the head and the latest publication are the ones asked about.",
         "properties": {
           "asked": {
             "anyOf": [
@@ -6800,6 +6736,16 @@
               }
             ],
             "title": "Message"
+          },
+          "request": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RequestChange"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "title": "SaveRequest",
@@ -6920,21 +6866,8 @@
         "title": "SessionInfo",
         "type": "object"
       },
-      "SetVisibility": {
-        "description": "Private, shared or public. Private and public empty the list of\nreaders; shared keeps it.",
-        "properties": {
-          "visibility": {
-            "$ref": "#/components/schemas/Visibility"
-          }
-        },
-        "required": [
-          "visibility"
-        ],
-        "title": "SetVisibility",
-        "type": "object"
-      },
       "Settings": {
-        "description": "A contest's or a task's settings as their form reads them: the\nsettings file's data as plain values, its leaderboards, their columns\nand a task's scoring groups and values as lists of named entries, with\nthe token a save presents back. When the file does not read as\nsettings, `values` is null and `unreadable` says why; a file not there\nyet has empty values and no token.",
+        "description": "A contest's settings as their form reads them: `contest.yaml`'s data\nas plain values, its leaderboards and their columns as lists of named\nentries, with the token a save presents back. When the file does not read as\nsettings, `values` is null and `unreadable` says why; a file not there\nyet has empty values and no token.",
         "properties": {
           "token": {
             "anyOf": [
@@ -7951,6 +7884,31 @@
         "title": "TaskRelease",
         "type": "object"
       },
+      "TaskRequest": {
+        "description": "The task request at the head, which forge builds the task's\nForgejo files and `task.yaml` from, with the token a save carries back\nand the version it was read at.",
+        "properties": {
+          "request": {
+            "additionalProperties": true,
+            "title": "Request",
+            "type": "object"
+          },
+          "token": {
+            "title": "Token",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "request",
+          "token",
+          "version"
+        ],
+        "title": "TaskRequest",
+        "type": "object"
+      },
       "TaskRun": {
         "description": "A run whose inputs the task's `show` shows now, before any\nsubmission: the entry's `of`, a group or `all`, its place there from 1,\nand one tuple per axis with its title and the inputs the entry names, a\nnumber or text as it is and a file or folder as `{\"file\": <path>}` or\n`{\"folder\": <path>}`.",
         "properties": {
@@ -8255,8 +8213,12 @@
         "type": "object"
       },
       "TreeEntry": {
-        "description": "One entry of a folder, as the forge lists it (`forge.api.files.\nTreeEntry`), with `href`, where the download door serves a file, as\n`FileContent` says; null for a folder.",
+        "description": "One entry of a folder, as the forge lists it (`forge.api.files.\nTreeEntry`), with `href`, where the download door serves a file, as\n`FileContent` says; null for a folder. `forge` marks a file or folder\nforge writes itself, which is read but never changed or removed.",
         "properties": {
+          "forge": {
+            "title": "Forge",
+            "type": "boolean"
+          },
           "href": {
             "anyOf": [
               {
@@ -8338,6 +8300,7 @@
           "version",
           "token",
           "start",
+          "forge",
           "href"
         ],
         "title": "TreeEntry",
@@ -8640,52 +8603,19 @@
         "type": "object"
       },
       "VersionContent": {
-        "description": "A workflow's `workflow.yaml` at one version: its text, and its plain\nvalues, or null with why it does not read in `unreadable`.",
+        "description": "A workflow's request at one version, read back from its `main.yml`\nand `values.yaml`.",
         "properties": {
-          "content": {
-            "title": "Content",
-            "type": "string"
-          },
-          "unreadable": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Unreadable"
-          },
-          "values": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Values"
+          "request": {
+            "additionalProperties": true,
+            "title": "Request",
+            "type": "object"
           }
         },
         "required": [
-          "content",
-          "values",
-          "unreadable"
+          "request"
         ],
         "title": "VersionContent",
         "type": "object"
-      },
-      "Visibility": {
-        "enum": [
-          "private",
-          "shared",
-          "public"
-        ],
-        "title": "Visibility",
-        "type": "string"
       },
       "WayKind": {
         "description": "How a member came into their entrant: by the contest's invite way, by\none of its sign-ups, or put there by an organiser.",
@@ -8771,18 +8701,12 @@
         "type": "object"
       },
       "WorkflowDraft": {
-        "description": "A workflow's draft: its `workflow.yaml` as plain values, with the\ntoken a save carries back, none for a file not there yet. When the file\ndoes not read as values, `values` is null, `unreadable` says why and\n`content` is its text; otherwise `content` is null. `revision` names\nthe saved repository, including its files, for publishing exactly that\nsave.",
+        "description": "A workflow's draft: its request as its `main.yml` and `values.yaml`\nhold it, with the token a save carries back, one for both, none for a\nworkflow not saved yet.\n`revision` names the saved repository, including its files, for\npublishing exactly that save.",
         "properties": {
-          "content": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Content"
+          "request": {
+            "additionalProperties": true,
+            "title": "Request",
+            "type": "object"
           },
           "revision": {
             "anyOf": [
@@ -8805,35 +8729,10 @@
               }
             ],
             "title": "Token"
-          },
-          "unreadable": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Unreadable"
-          },
-          "values": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Values"
           }
         },
         "required": [
-          "values",
-          "unreadable",
-          "content",
+          "request",
           "token",
           "revision"
         ],
@@ -8841,7 +8740,7 @@
         "type": "object"
       },
       "WorkflowForm": {
-        "description": "What the task form is built from: the workflow the task's `task.yaml`\nnames, as written, and the inputs it declares, in the order the\nworkflow gives them, or `problem`, the reason there are none: no\n`task.yaml` or one that does not read as YAML, no workflow named, or one\nthat cannot be read or is in an old form; `graded`, whether the task has\na graded submission; and `newer`, the workflow's latest version when it\ncomes after the one the task names, which the task keeps until someone\nsaves it naming another (Task 10.6.5). `text_values` names the values\nthat give text, in the file's order, none when the settings cannot be\nread; a workflow output stays a number. `limits` are what a task\nallows when its `task.yaml` sets none, for the form to show.",
+        "description": "What the task form is built from: the workflow the task's `task.yaml`\nnames, as written, and the inputs it declares, in the order the\nworkflow gives them, or `problem`, the reason there are none: no\nworkflow named, or one that cannot be read or is in an old form;\n`graded`, whether the task has\na graded submission; and `newer`, the workflow's latest version when it\ncomes after the one the task names, which the task keeps until someone\nsaves it naming another (Task 10.6.5). `text_values` names the values\nthat give text, in the file's order; a workflow output stays a number. `limits` are what a task\nallows when its `task.yaml` sets none, for the form to show.",
         "properties": {
           "graded": {
             "default": false,
@@ -8887,18 +8786,12 @@
             "title": "Problem"
           },
           "text_values": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "string"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Text Values"
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Text Values",
+            "type": "array"
           },
           "workflow": {
             "anyOf": [
@@ -8936,7 +8829,7 @@
         "type": "object"
       },
       "WorkflowItem": {
-        "description": "A workflow a person may read: its visibility, its versions in natural\norder, and whether they may edit it.",
+        "description": "A workflow a person may read: its versions in natural order, and\nwhether they may edit it.",
         "properties": {
           "description": {
             "default": "",
@@ -8962,9 +8855,6 @@
             "title": "Versions",
             "type": "array"
           },
-          "visibility": {
-            "$ref": "#/components/schemas/Visibility"
-          },
           "yanked": {
             "additionalProperties": {
               "$ref": "#/components/schemas/YankMark"
@@ -8976,71 +8866,12 @@
         "required": [
           "owner",
           "name",
-          "visibility",
           "versions",
           "editable",
           "description",
           "yanked"
         ],
         "title": "WorkflowItem",
-        "type": "object"
-      },
-      "WorkflowPage": {
-        "description": "A workflow as its page shows it. For someone who may edit it,\n`readers`, the usernames it is shared with; for anyone else, none.",
-        "properties": {
-          "description": {
-            "default": "",
-            "title": "Description",
-            "type": "string"
-          },
-          "editable": {
-            "title": "Editable",
-            "type": "boolean"
-          },
-          "name": {
-            "title": "Name",
-            "type": "string"
-          },
-          "owner": {
-            "title": "Owner",
-            "type": "string"
-          },
-          "readers": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Readers",
-            "type": "array"
-          },
-          "versions": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Versions",
-            "type": "array"
-          },
-          "visibility": {
-            "$ref": "#/components/schemas/Visibility"
-          },
-          "yanked": {
-            "additionalProperties": {
-              "$ref": "#/components/schemas/YankMark"
-            },
-            "title": "Yanked",
-            "type": "object"
-          }
-        },
-        "required": [
-          "owner",
-          "name",
-          "visibility",
-          "versions",
-          "editable",
-          "description",
-          "yanked",
-          "readers"
-        ],
-        "title": "WorkflowPage",
         "type": "object"
       },
       "WorkflowSearch": {
@@ -9586,49 +9417,6 @@
         ]
       }
     },
-    "/api/v1/ci/config": {
-      "post": {
-        "description": "Signed by the CI with its key; a request that does not verify, names\nno grading, or names one not being started with these variables is\n`ci_request_refused`, never an empty answer.",
-        "operationId": "answerCiConfig",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object"
-              }
-            }
-          },
-          "description": "The CI's question, signed over these exact bytes.",
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            },
-            "description": "The run's configuration, in the media type forge gives."
-          },
-          "default": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "An error, as an RFC 9457 problem document. `code` names it."
-          }
-        },
-        "summary": "The CI asks what a grading run's steps are",
-        "tags": [
-          "runs"
-        ]
-      }
-    },
     "/api/v1/contests": {
       "get": {
         "description": "Newest start first, each with the status of the caller's entrant. An\norganiser finds their own contests from their orgs.",
@@ -9698,307 +9486,6 @@
         "summary": "An event the forge pushes for an org",
         "tags": [
           "events"
-        ]
-      }
-    },
-    "/api/v1/gradings/{grading}/steps/{step}": {
-      "get": {
-        "description": "Under `Authorization: Bearer <token>`, the step's own token: the\nstep's job, or 204 when every run of it is left out, which its wrapper\nends on with success. A missing or wrong token, or one that no longer\nworks, is `invalid_token`, and a grading that has finished\n`grading_closed`. The job carries presigned links, so it is never\nstored on the way.",
-        "operationId": "getStepJob",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "grading",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Grading",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "step",
-            "required": true,
-            "schema": {
-              "title": "Step",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            },
-            "description": "The runner's `job.schema.json`."
-          },
-          "204": {
-            "description": "Nothing is left for the step to do."
-          },
-          "default": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "An error, as an RFC 9457 problem document. `code` names it."
-          }
-        },
-        "summary": "A step asks for its job",
-        "tags": [
-          "runs"
-        ]
-      },
-      "post": {
-        "description": "Under the report step's token: the result built from what the steps\nkept and the grading finished, every token of it ended; answered the\nsame when said again. A step other than the report is `not_found`.",
-        "operationId": "reportStepPipeline",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "grading",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Grading",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "step",
-            "required": true,
-            "schema": {
-              "title": "Step",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object"
-              }
-            }
-          },
-          "description": "`{}`, from the pipeline's report step.",
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CallbackAnswer"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "default": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "An error, as an RFC 9457 problem document. `code` names it."
-          }
-        },
-        "summary": "A pipeline reports that it has ended",
-        "tags": [
-          "runs"
-        ]
-      }
-    },
-    "/api/v1/gradings/{grading}/steps/{step}/done": {
-      "post": {
-        "description": "Under the step's token: what it uploaded read and kept, or its fault\nnoted, and its token ended. Said again, it is answered the same.",
-        "operationId": "sayStepDone",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "grading",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Grading",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "step",
-            "required": true,
-            "schema": {
-              "title": "Step",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object"
-              }
-            }
-          },
-          "description": "`{}`.",
-          "required": true
-        },
-        "responses": {
-          "204": {
-            "description": "Successful Response"
-          },
-          "default": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "An error, as an RFC 9457 problem document. `code` names it."
-          }
-        },
-        "summary": "A step says its uploads are in",
-        "tags": [
-          "runs"
-        ]
-      }
-    },
-    "/api/v1/gradings/{grading}/steps/{step}/files/{sha256}": {
-      "get": {
-        "description": "Under the step's token: a file its job names that the forge serves\nitself, by its SHA-256; one its job does not name is `not_found`.",
-        "operationId": "getStepFile",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "grading",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Grading",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "step",
-            "required": true,
-            "schema": {
-              "title": "Step",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "sha256",
-            "required": true,
-            "schema": {
-              "title": "Sha256",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/octet-stream": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "description": "The file, by its SHA-256."
-          },
-          "default": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "An error, as an RFC 9457 problem document. `code` names it."
-          }
-        },
-        "summary": "A file the forge serves a step",
-        "tags": [
-          "runs"
-        ]
-      }
-    },
-    "/api/v1/gradings/{grading}/steps/{step}/uploads": {
-      "post": {
-        "description": "Under the step's token: `{\"files\": {<path>: <link>}}`, each link\nsigned for the SHA-256 listed. A list naming a path the step may not\nwrite, over what it may write, or sent before its job is\n`invalid_callback`. The token is checked before the list is read,\nsince the list can be large and the token is not over it.",
-        "operationId": "listStepUploads",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "grading",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Grading",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "step",
-            "required": true,
-            "schema": {
-              "title": "Step",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object"
-              }
-            }
-          },
-          "description": "`{\"files\": [{\"path\", \"sha256\", \"size\"}]}`.",
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            },
-            "description": "A presigned PUT for each file listed."
-          },
-          "default": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "An error, as an RFC 9457 problem document. `code` names it."
-          }
-        },
-        "summary": "A step lists what it will upload",
-        "tags": [
-          "runs"
         ]
       }
     },
@@ -14846,99 +14333,9 @@
         ]
       }
     },
-    "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/files/{path}/rollback": {
-      "post": {
-        "operationId": "rollBackTaskFile",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "path",
-            "required": true,
-            "schema": {
-              "title": "Path",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "org",
-            "required": true,
-            "schema": {
-              "title": "Org",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "contest",
-            "required": true,
-            "schema": {
-              "title": "Contest",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "task",
-            "required": true,
-            "schema": {
-              "title": "Task",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RollbackFile"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "anyOf": [
-                    {
-                      "$ref": "#/components/schemas/Published"
-                    },
-                    {
-                      "$ref": "#/components/schemas/Draft"
-                    },
-                    {
-                      "$ref": "#/components/schemas/Preparing"
-                    }
-                  ],
-                  "title": "Response Rollbacktaskfile"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "default": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "An error, as an RFC 9457 problem document. `code` names it."
-          }
-        },
-        "summary": "Write a file back as it was at an older version",
-        "tags": [
-          "files"
-        ]
-      }
-    },
     "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/gradings": {
       "get": {
-        "description": "At most `limit` of the task's gradings, newest first, each as the feed\ngives it, with who submitted it. One whose run did not begin, did not\nreport by its deadline, or was lost by the CI reads as `system_error`\nwith the reason in `error`, whatever its row still says.",
+        "description": "At most `limit` of the task's gradings, newest first, each as the feed\ngives it, with who submitted it. One that ended with no result reads as\n`system_error` with the reason in `error`.",
         "operationId": "listGradings",
         "parameters": [
           {
@@ -17448,6 +16845,67 @@
         ]
       }
     },
+    "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/request": {
+      "get": {
+        "description": "Read back from `task.yaml` alone, with the token a save of it\ncarries.",
+        "operationId": "getTaskRequest",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contest",
+            "required": true,
+            "schema": {
+              "title": "Contest",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "task",
+            "required": true,
+            "schema": {
+              "title": "Task",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskRequest"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An error, as an RFC 9457 problem document. `code` names it."
+          }
+        },
+        "summary": "The task request at the head",
+        "tags": [
+          "tasks"
+        ]
+      }
+    },
     "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/results/hide": {
       "post": {
         "description": "From now on the task works as if it had never been released: what\n`after_release` lists is hidden again, gradings made from now on keep its\nruns late, and an extension is allowed again. Without `confirm`, nothing\nchanges and the answer is `confirmation_required` with `action`\n`hide_again` and the warning as its detail: \"Entrants may already have\nseen these results; hiding them again won't undo that.\" A task not\nreleased answers as it stands. The answer is read once the take-back\nhas landed.",
@@ -17957,66 +17415,6 @@
         "summary": "Save the task's files, publishing them when they are valid",
         "tags": [
           "tasks"
-        ]
-      }
-    },
-    "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/settings": {
-      "get": {
-        "operationId": "readTaskSettings",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "org",
-            "required": true,
-            "schema": {
-              "title": "Org",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "contest",
-            "required": true,
-            "schema": {
-              "title": "Contest",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "task",
-            "required": true,
-            "schema": {
-              "title": "Task",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Settings"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "default": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "An error, as an RFC 9457 problem document. `code` names it."
-          }
-        },
-        "summary": "The settings as values",
-        "tags": [
-          "files"
         ]
       }
     },
@@ -18923,7 +18321,7 @@
     },
     "/api/v1/orgs/{org}/contests/{contest}/tasks/{task}/workflow-form": {
       "get": {
-        "description": "The workflow `task.yaml` names as it is saved now, a draft included,\nwith each input it declares, in the workflow's order. A workflow\ndeclares no defaults; an entrant input's `default` is the task's own. A\n`task.yaml` that is missing or does not read, names no workflow or one\nthat cannot be read answers with `problem`, the reason, and no inputs,\nso the form can mend it. Either way `graded` says whether the task has a\ngraded submission, and `newer` names the workflow's latest version when\nit comes after the one the task names, which the task keeps until it is\nsaved naming another. `text_values` names the values that give text, in\nthe file's order, null when the settings cannot be read; a workflow\noutput stays a number.",
+        "description": "The workflow the task request names as it is saved now, a draft\nincluded, with each input it declares, in the workflow's order. A\nworkflow declares no defaults; an entrant input's `default` is the\ntask's own. A request that names no workflow or one that cannot be\nread answers with `problem`, the reason, and no inputs,\nso the form can mend it. Either way `graded` says whether the task has a\ngraded submission, and `newer` names the workflow's latest version when\nit comes after the one the task names, which the task keeps until it is\nsaved naming another. `text_values` names the values that give text, in\nthe file's order; a workflow output stays a number.",
         "operationId": "getTaskWorkflowForm",
         "parameters": [
           {
@@ -19788,8 +19186,7 @@
                 {
                   "enum": [
                     "mine",
-                    "orgs",
-                    "public"
+                    "orgs"
                   ],
                   "type": "string"
                 },
@@ -19858,7 +19255,7 @@
     },
     "/api/v1/workflows": {
       "get": {
-        "description": "The caller's own, their orgs', those shared with them and the public\nones, by owner and then name, each saying whether they may edit it.",
+        "description": "The caller's own, their orgs' and the platform's, by owner and then\nname, each saying whether they may edit it.",
         "operationId": "listWorkflows",
         "responses": {
           "200": {
@@ -19934,7 +19331,7 @@
     },
     "/api/v1/workflows/check": {
       "post": {
-        "description": "Every problem a version of the definition, given as values or as\ntext, would be refused for, each at its place in the file, against the\nprimitives its steps use as the caller reads them. Nothing is written.\nGiven `owner` and `name`, a draft that would hold that workflow is\nrefused, and the problem carries `step`.",
+        "description": "Every problem a version of the request would be refused for, each\nat its place in the request, against the primitives its steps use as\nthe caller reads them. Nothing is written. Given `owner` and `name`, a\ndraft that would hold that workflow is refused, and the problem carries\n`step`.",
         "operationId": "checkWorkflow",
         "requestBody": {
           "content": {
@@ -19968,7 +19365,7 @@
             "description": "An error, as an RFC 9457 problem document. `code` names it."
           }
         },
-        "summary": "Check a definition on its own",
+        "summary": "Check a request on its own",
         "tags": [
           "workflows"
         ]
@@ -19976,7 +19373,7 @@
     },
     "/api/v1/workflows/{owner}/{name}": {
       "get": {
-        "description": "Its visibility, versions and whether the caller may edit it; for one\nwho may, who reads it.",
+        "description": "Its versions and whether the caller may edit it.",
         "operationId": "getWorkflow",
         "parameters": [
           {
@@ -20007,7 +19404,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/WorkflowPage"
+                  "$ref": "#/components/schemas/WorkflowItem"
                 }
               }
             },
@@ -20032,7 +19429,7 @@
     },
     "/api/v1/workflows/{owner}/{name}/draft": {
       "get": {
-        "description": "For the person it is named for or a manager of its org: its values\nwith the token a save carries, or why it does not read and its text.",
+        "description": "Its request, read back from `main.yml` and `values.yaml`, with the\ntoken a save carries, which covers both.",
         "operationId": "getWorkflowDraft",
         "parameters": [
           {
@@ -20080,13 +19477,13 @@
             "description": "An error, as an RFC 9457 problem document. `code` names it."
           }
         },
-        "summary": "The draft as values",
+        "summary": "The draft's request",
         "tags": [
           "workflows"
         ]
       },
       "put": {
-        "description": "Write `workflow.yaml` and the file changes together, problems and all:\nthe values into the file as it is, keeping its comments, or the whole\ntext. Each file carries its token; a conflict writes nothing, and values\nthat cannot be written into the file are `invalid_definition`.",
+        "description": "Build `main.yml` and `values.yaml` from the request and write them\nwith the file changes together, problems and all. A step id, `use`,\nport or file name, or output name `main.yml` can't hold is\n`invalid_definition` at its path, and a change to `values.yaml` is\n`invalid_inputs`. Each carries its token; a conflict or a refusal\nwrites nothing.",
         "operationId": "saveWorkflow",
         "parameters": [
           {
@@ -20618,126 +20015,6 @@
         ]
       }
     },
-    "/api/v1/workflows/{owner}/{name}/readers/{username}": {
-      "delete": {
-        "operationId": "unshareWorkflow",
-        "parameters": [
-          {
-            "description": "An org's name or a person's username",
-            "in": "path",
-            "name": "owner",
-            "required": true,
-            "schema": {
-              "description": "An org's name or a person's username",
-              "title": "Owner",
-              "type": "string"
-            }
-          },
-          {
-            "description": "The workflow's name under its owner",
-            "in": "path",
-            "name": "name",
-            "required": true,
-            "schema": {
-              "description": "The workflow's name under its owner",
-              "title": "Name",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "username",
-            "required": true,
-            "schema": {
-              "title": "Username",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Successful Response"
-          },
-          "default": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "An error, as an RFC 9457 problem document. `code` names it."
-          }
-        },
-        "summary": "Take a person's read away",
-        "tags": [
-          "workflows"
-        ]
-      },
-      "put": {
-        "description": "`conflict` while the workflow is public, which everyone reads.",
-        "operationId": "shareWorkflow",
-        "parameters": [
-          {
-            "description": "An org's name or a person's username",
-            "in": "path",
-            "name": "owner",
-            "required": true,
-            "schema": {
-              "description": "An org's name or a person's username",
-              "title": "Owner",
-              "type": "string"
-            }
-          },
-          {
-            "description": "The workflow's name under its owner",
-            "in": "path",
-            "name": "name",
-            "required": true,
-            "schema": {
-              "description": "The workflow's name under its owner",
-              "title": "Name",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "username",
-            "required": true,
-            "schema": {
-              "title": "Username",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Reader"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "default": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "An error, as an RFC 9457 problem document. `code` names it."
-          }
-        },
-        "summary": "Share it with a person",
-        "tags": [
-          "workflows"
-        ]
-      }
-    },
     "/api/v1/workflows/{owner}/{name}/tree": {
       "get": {
         "description": "Read as the owner or an org manager; uploads carry their size and digest.",
@@ -21007,7 +20284,7 @@
     },
     "/api/v1/workflows/{owner}/{name}/versions/{version}": {
       "get": {
-        "description": "Its text and its values. Read as the caller: `not_found` when there is\nno such version or they may not read it.",
+        "description": "Its request, read back from `main.yml` and `values.yaml`. Read as\nthe caller: `not_found` when there is no such version or they may not\nread it.",
         "operationId": "getWorkflowVersion",
         "parameters": [
           {
@@ -21064,7 +20341,7 @@
             "description": "An error, as an RFC 9457 problem document. `code` names it."
           }
         },
-        "summary": "The definition at a version",
+        "summary": "The request at a version",
         "tags": [
           "workflows"
         ]
@@ -21352,64 +20629,6 @@
           }
         },
         "summary": "Stop new use of a workflow version",
-        "tags": [
-          "workflows"
-        ]
-      }
-    },
-    "/api/v1/workflows/{owner}/{name}/visibility": {
-      "put": {
-        "operationId": "setWorkflowVisibility",
-        "parameters": [
-          {
-            "description": "An org's name or a person's username",
-            "in": "path",
-            "name": "owner",
-            "required": true,
-            "schema": {
-              "description": "An org's name or a person's username",
-              "title": "Owner",
-              "type": "string"
-            }
-          },
-          {
-            "description": "The workflow's name under its owner",
-            "in": "path",
-            "name": "name",
-            "required": true,
-            "schema": {
-              "description": "The workflow's name under its owner",
-              "title": "Name",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SetVisibility"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "204": {
-            "description": "Successful Response"
-          },
-          "default": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "An error, as an RFC 9457 problem document. `code` names it."
-          }
-        },
-        "summary": "Make it private, shared or public",
         "tags": [
           "workflows"
         ]

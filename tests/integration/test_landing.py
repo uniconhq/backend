@@ -68,7 +68,7 @@ async def test_a_task_not_released_yet_is_not_found(
 ) -> None:
     # A task made once the contest is open, not published yet.
     await run_contest(client, visibility="everyone")
-    await add_task(client, "product")
+    await add_task(client, sum_task, "product")
     client.cookies.clear()
 
     unpublished = await client.get(f"{PUBLIC}/acme/spring/tasks/product")

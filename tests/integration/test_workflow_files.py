@@ -1,9 +1,9 @@
 import hashlib
 
 import httpx
-from forge.testing import FakeForge
+from forge.testing import CLASSIC_REQUEST, FakeForge
 
-from tests.integration.conftest import ORIGIN, sign_in_as
+from tests.integration.conftest import BUILT_FILES, ORIGIN, sign_in_as
 
 
 async def test_an_owner_uploads_saves_replaces_removes_and_versions_files(
@@ -19,7 +19,7 @@ async def test_an_owner_uploads_saves_replaces_removes_and_versions_files(
     classic = acme.state.repos[("unicon", "classic.workflow")].files
     acme.state.commit(
         acme.state.repos[("bob", "files.workflow")],
-        {path: data for path, data in classic.items() if path != "workflow.yaml"},
+        {path: data for path, data in classic.items() if path not in BUILT_FILES},
         "Write workflow files",
         8,
     )
@@ -51,7 +51,7 @@ async def test_an_owner_uploads_saves_replaces_removes_and_versions_files(
     saved = await client.put(
         f"{base}/draft",
         json={
-            "content": classic["workflow.yaml"].decode(),
+            "request": CLASSIC_REQUEST,
             "token": draft["token"],
             "changes": [{"path": "scorer/main.py", "token": None, "upload": upload}],
         },
@@ -62,7 +62,9 @@ async def test_an_owner_uploads_saves_replaces_removes_and_versions_files(
     tree = await client.get(f"{base}/tree", params={"path": "scorer"})
     assert tree.status_code == 200
     [file] = tree.json()
-    assert file["path"] == "scorer/main.py"
+    assert (file["path"], file["forge"]) == ("scorer/main.py", False)
+    top = (await client.get(f"{base}/tree")).json()
+    assert {entry["path"] for entry in top if entry["forge"]} == {".forgejo", "values.yaml"}
     frozen = await client.post(
         f"{base}/versions",
         json={"version": "v1", "token": saved.json()["token"], "revision": revision},
@@ -72,7 +74,7 @@ async def test_an_owner_uploads_saves_replaces_removes_and_versions_files(
     replaced = await client.put(
         f"{base}/draft",
         json={
-            "values": saved.json()["values"],
+            "request": saved.json()["request"],
             "token": saved.json()["token"],
             "changes": [{"path": "scorer/main.py", "token": file["token"], "content": "print(43)"}],
         },
@@ -86,7 +88,7 @@ async def test_an_owner_uploads_saves_replaces_removes_and_versions_files(
     removed = await client.put(
         f"{base}/draft",
         json={
-            "values": saved.json()["values"],
+            "request": saved.json()["request"],
             "token": saved.json()["token"],
             "changes": [{"path": "scorer/main.py", "token": file["token"], "remove": True}],
         },
@@ -104,7 +106,7 @@ async def test_an_owner_uploads_saves_replaces_removes_and_versions_files(
         )
     ).status_code == 409
     await sign_in_as(client, acme, 7)
-    assert (await client.get(f"{base}/tree")).status_code == 404
+    assert (await client.get(f"{base}/tree")).status_code == 403
     assert (
         await client.post(f"{base}/uploads/{upload}/complete", headers=ORIGIN)
     ).status_code == 404
@@ -125,7 +127,7 @@ async def test_whoever_reads_a_version_lists_and_downloads_the_files_it_was_froz
     classic = acme.state.repos[("unicon", "classic.workflow")].files
     acme.state.commit(
         acme.state.repos[("bob", "shipped.workflow")],
-        {path: data for path, data in classic.items() if path != "workflow.yaml"},
+        {path: data for path, data in classic.items() if path not in BUILT_FILES},
         "Write workflow files",
         8,
     )
@@ -152,7 +154,7 @@ async def test_whoever_reads_a_version_lists_and_downloads_the_files_it_was_froz
     saved = await client.put(
         f"{base}/draft",
         json={
-            "content": classic["workflow.yaml"].decode(),
+            "request": CLASSIC_REQUEST,
             "token": draft["token"],
             "changes": [
                 {"path": "scorer/main.py", "token": None, "upload": upload},
@@ -175,7 +177,7 @@ async def test_whoever_reads_a_version_lists_and_downloads_the_files_it_was_froz
     later = await client.put(
         f"{base}/draft",
         json={
-            "values": saved.json()["values"],
+            "request": saved.json()["request"],
             "token": saved.json()["token"],
             "changes": [{"path": "notes/later.txt", "token": None, "content": "draft only"}],
         },
@@ -222,12 +224,6 @@ async def test_whoever_reads_a_version_lists_and_downloads_the_files_it_was_froz
         assert (await door_to(refused)).status_code == 403, refused
 
     await sign_in_as(client, acme, 7)
-    assert (await client.get(f"{base}/versions/v1/tree")).status_code == 404
-    assert (await door_to("v1/scorer/main.py")).status_code == 403
-    await sign_in_as(client, acme, 8)
-    shared = await client.put(f"{base}/visibility", json={"visibility": "public"}, headers=ORIGIN)
-    assert shared.status_code == 204, shared.text
-    await sign_in_as(client, acme, 7)
     assert [
         entry["path"]
         for entry in (await client.get(f"{base}/versions/v1/tree", params={"path": "notes"})).json()
@@ -250,7 +246,7 @@ async def test_whoever_may_change_a_workflow_downloads_its_drafts_files_at_the_a
     saved = await client.put(
         f"{base}/draft",
         json={
-            "values": draft["values"],
+            "request": draft["request"],
             "token": draft["token"],
             "changes": [{"path": "notes/read me.txt", "token": None, "content": "hello"}],
         },
@@ -276,10 +272,8 @@ async def test_whoever_may_change_a_workflow_downloads_its_drafts_files_at_the_a
     for refused in ("notes%2Fread%20me.txt", "..%2F..%2Fsecret", ""):
         assert (await door_to(refused)).status_code == 403, refused
 
-    # Its draft is its writers', though a public workflow is read by anyone,
-    # and the refusal names no role.
-    shared = await client.put(f"{base}/visibility", json={"visibility": "public"}, headers=ORIGIN)
-    assert shared.status_code == 204, shared.text
+    # Its draft is its writers', though anyone reads the workflow, and the
+    # refusal names no role.
     await sign_in_as(client, acme, 7)
     stranger = await door_to("notes/read%20me.txt")
     assert stranger.status_code == 403

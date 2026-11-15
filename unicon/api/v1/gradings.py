@@ -122,9 +122,8 @@ async def list_gradings(
     organiser: TaskObserver, limit: Annotated[int, Query(ge=1, le=LIST_MOST)] = 100
 ) -> list[dict[str, Any]]:
     """At most `limit` of the task's gradings, newest first, each as the feed
-    gives it, with who submitted it. One whose run did not begin, did not
-    report by its deadline, or was lost by the CI reads as `system_error`
-    with the reason in `error`, whatever its row still says.
+    gives it, with who submitted it. One that ended with no result reads as
+    `system_error` with the reason in `error`.
     """
     rows = await gradings.list_gradings(organiser, tasks.task_id_of(organiser.scope), limit=limit)
     return [_entry(row) for row in rows]

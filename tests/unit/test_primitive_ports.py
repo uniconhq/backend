@@ -11,6 +11,7 @@ from unicon.schemas.workflows import Primitive
 PROGRAMS = {
     "schema_version": 6,
     "image": "ghcr.io/uniconhq/primitive-exec@sha256:" + "0" * 64,
+    "command": ["run"],
     "batch": True,
     "outputs_from": "programs",
     "limits": {
@@ -98,6 +99,7 @@ def test_a_primitive_with_two_forms_lists_each_and_leaves_the_top_empty() -> Non
         {
             "schema_version": 6,
             "image": "ghcr.io/uniconhq/primitive-two@sha256:" + "0" * 64,
+            "command": ["run"],
             "forms": {
                 "one": {
                     "limits": limits,

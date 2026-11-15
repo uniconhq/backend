@@ -37,6 +37,7 @@ async def test_a_tasks_top_folder_lists_its_starter_files(
     assert listed.status_code == 200
     entries = {entry["path"]: entry["kind"] for entry in listed.json()}
     assert entries == {
+        ".forgejo": "directory",
         "1.ans": "file",
         "1.in": "file",
         "statement.md": "file",

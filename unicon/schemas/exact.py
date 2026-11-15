@@ -10,7 +10,7 @@ from fractions import Fraction
 from typing import Annotated, Any
 
 from forge.api.leaderboards import written
-from pydantic import BeforeValidator, Field
+from pydantic import AfterValidator, BeforeValidator, Field, PlainSerializer
 
 EXACT_PATTERN = r"^-?[0-9]+(\.[0-9]+)?$"
 
@@ -40,3 +40,33 @@ Exact = Annotated[
     Field(pattern=EXACT_PATTERN, examples=["82.5"]),
 ]
 """An exact number, as its plain decimal digits."""
+
+
+def _decimals(value: Any) -> Any:
+    if isinstance(value, float):
+        return Decimal(repr(value))
+    if isinstance(value, dict):
+        return {key: _decimals(each) for key, each in value.items()}
+    if isinstance(value, list):
+        return [_decimals(each) for each in value]
+    return value
+
+
+def _numbers(value: Any) -> Any:
+    if isinstance(value, Decimal):
+        return float(value)
+    if isinstance(value, dict):
+        return {key: _numbers(each) for key, each in value.items()}
+    if isinstance(value, list | tuple):
+        return [_numbers(each) for each in value]
+    return value
+
+
+Values = Annotated[
+    dict[str, Any],
+    AfterValidator(_decimals),
+    PlainSerializer(_numbers, return_type=dict[str, Any], when_used="json"),
+]
+"""A mapping forge reads or writes as a file, such as a request: a number
+that is not whole goes in as a decimal, as forge reads a file, and out as a
+JSON number, so it reads back as it was saved."""

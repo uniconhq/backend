@@ -4,43 +4,57 @@
 forge a second time.
 
 The organiser path starts from `acme`, the org made the operator's way with
-ada (7) its admin and the built-in workflow `unicon/classic@v6` public at the
-fake as bootstrap makes it, and `sum_task`, the contest acme/spring and the
-task acme/spring/sum in it made through the routes, with ada
-signed in. `world` adds carol (20), who holds nothing. `ORG`, `CONTEST` and
-`TASK` are the three scopes' URLs, and `ACME`, `SPRING` and `SUM` the scopes
+ada (7) its admin and the workflow `unicon/classic@v6` public at the fake,
+and `sum_task`, the contest acme/spring and the task acme/spring/sum in it
+made through the routes and started as a classic task, with ada signed in.
+`world` adds carol (20), who holds nothing. `ORG`, `CONTEST` and `TASK` are
+the three scopes' URLs, and `ACME`, `SPRING` and `SUM` the scopes
 themselves. `run_contest` and `publish` are the two writes a test of a
-running contest starts with, `add_task` makes another task, and `edit_task`
-changes the task's settings.
+running contest starts with, `add_task` makes another classic task, and `edit_task`
+changes the task's request.
 `entered` adds carol alone in an approved entrant of the task's contest, and
 `enter` makes anyone else one, answering with the entrant's id; `upload`
 sends a file the way the browser does.
 
-The fake CI asks what each pipeline it starts is while the start is under
-way, as the real CI does, and the client's machines keep the answer.
-`run_pipelines` then runs each pipeline kept, step by step through the step
-doors as the runner's wrapper runs it: its job, what the step wrote put by
-the links the door gives and its done said, and the pipeline's report.
-`publish` and `edit_task` run the save's pipeline alone, so the publication
-its check passes takes over and any regrade it starts waits for the test.
+The client's machines play each run the fake CI starts: `run_pipelines`
+works out what each of its steps writes, from the plan at its publication,
+and `end_run` uploads each step's artifact, ends the run and sweeps, so
+forge reads it. `publish` and `edit_task` run the save's run alone,
+so the publication its check passes takes over and any regrade it starts
+waits for the test.
 """
 
 import asyncio
 import hashlib
+import io
 import json
 import re
+import zipfile
 from collections.abc import AsyncIterator, Awaitable, Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass
+from datetime import timedelta
 from typing import Any
 from urllib.parse import parse_qs, urlsplit
 from weakref import WeakKeyDictionary
 
 import httpx
 import pytest
+import yaml
 from fastapi import FastAPI
-from forge.api import orgs, runs
+from forge.api import gradings, orgs
 from forge.api.types import Scope
-from forge.testing import APP_URL, FakeClock, FakeForge, OrgId, Setup, seed_classic
+from forge.testing import (
+    APP_URL,
+    FakeClock,
+    FakeForge,
+    MachineStep,
+    RunId,
+    Setup,
+    machine_steps,
+    request_text,
+    seed_classic,
+    start_classic,
+)
 
 from unicon.cli import main
 from unicon.main import create_app
@@ -52,19 +66,16 @@ TASK = f"{CONTEST}/tasks/sum"
 ACME = Scope("acme")
 SPRING = Scope("acme", "spring")
 SUM = Scope("acme", "spring", "sum")
+BUILT_FILES = frozenset({".forgejo/workflows/main.yml", "values.yaml"})
+"""The files forge builds from a workflow's request."""
 
-DOES_NOT_COMPILE = b"print(\n"
-"""A source file the fake CI's exec does not compile."""
 COMPILE_LOG = "SyntaxError: '(' was never closed"
-"""The log of a source holding `DOES_NOT_COMPILE`."""
+"""The log of a source that does not compile."""
 SOLUTION_LOG = "built the solution"
 """The log of an entrant's source that compiles."""
 CHECKER_LOG = "built the checker"
 """The log of a source that compiles given a manifest or built at the save:
 the classic workflow's compare."""
-BUILT = frozenset({"source", "language", "entry", "environment"})
-"""The inputs of exec's `build` form: an item given only these compiles
-its source and runs nothing."""
 
 Command = Callable[[list[str]], Awaitable[int]]
 
@@ -86,15 +97,23 @@ def app(held_setup: object, built_app: FastAPI) -> FastAPI:
 
 @dataclass
 class Machines:
-    """What runs the pipelines the test's forge starts: the forge, whose
-    store takes what a step writes, and each pipeline's steps as the
-    platform answered the CI, in the order they were started, until they
-    are run.
+    """What plays the machines for the runs the test's forge starts: the
+    forge, whose CI holds each run, and the setup the plans are read
+    through.
     """
 
     forge: FakeForge
     setup: Setup
-    started: list[tuple[str, list[dict[str, Any]]]] = field(default_factory=list)
+
+    def waiting(self, pipelines: tuple[str, ...]) -> list[RunId]:
+        """The runs of the kinds `pipelines` names not yet begun, in the
+        order they were started; a save's is the one with no submission."""
+        return [
+            run
+            for run, found in self.forge.ci.runs.items()
+            if found.started is None
+            and ("grading" if found.dispatch.submission else "save") in pipelines
+        ]
 
 
 MACHINES: WeakKeyDictionary[httpx.AsyncClient, Machines] = WeakKeyDictionary()
@@ -103,50 +122,16 @@ MACHINES: WeakKeyDictionary[httpx.AsyncClient, Machines] = WeakKeyDictionary()
 
 @pytest.fixture
 async def client(
-    app: FastAPI,
-    fake: FakeForge,
-    clock: FakeClock,
-    monkeypatch: pytest.MonkeyPatch,
-    held_setup: Setup,
+    app: FastAPI, fake: FakeForge, held_setup: Setup
 ) -> AsyncIterator[httpx.AsyncClient]:
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url=APP_URL) as client:
-        MACHINES[client] = _machines(fake, clock, monkeypatch, held_setup)
+        MACHINES[client] = Machines(fake, held_setup)
         yield client
 
 
-def _machines(
-    fake: FakeForge, clock: FakeClock, monkeypatch: pytest.MonkeyPatch, setup: Setup
-) -> Machines:
-    """The fake CI asking what each pipeline is as it starts it, and the
-    steps it is answered with kept.
-    """
-    machines = Machines(fake, setup)
-    start = fake.grading.start_pipeline
-    restart = fake.grading.restart_pipeline
-
-    async def ask(made: Any) -> Any:
-        found = fake.ci.runs[made]
-        org = OrgId(found.task.split("/", 1)[0])
-        # As the CI does, a restart is asked about with the run it restarts.
-        answer = await runs.config(
-            fake.grading.config_request(org, found.variables, now=clock.now(), run=found.parent)
-        )
-        steps = json.loads(answer.body)["steps"]
-        # A save is the one pipeline with no submission.
-        kind = "grading" if "UNICON_SUBMISSION_COMMIT" in found.variables else "save"
-        machines.started.append((kind, steps))
-        return made
-
-    async def asking(as_: Any, run: Any) -> Any:
-        return await ask(await start(as_, run))
-
-    async def asking_again(as_: Any, org: Any, run: Any) -> Any:
-        return await ask(await restart(as_, org, run))
-
-    monkeypatch.setattr(fake.grading, "start_pipeline", asking)
-    monkeypatch.setattr(fake.grading, "restart_pipeline", asking_again)
-    return machines
+Written = dict[str, bytes]
+"""What a step's artifact holds: its `outputs.json` and its files, by path."""
 
 
 async def run_pipelines(
@@ -154,116 +139,91 @@ async def run_pipelines(
     verdict: str = "accepted",
     pipelines: tuple[str, ...] = ("save", "grading"),
 ) -> None:
-    """Every pipeline of the kinds `pipelines` names started and not yet
-    run, run to its report, and any of them it starts in turn: a build at
-    the save accepted; each run of the entrant's program ending `verdict`,
-    writing its output, its time and its memory when accepted; and each run
-    of a program given a manifest, the classic workflow's compare, accepted
-    with a score of 1. Every exec step gives its compile's `log`, and one
-    whose source holds `DOES_NOT_COMPILE` ends every run `compile_error`.
-    A step that fails on what is not accepted (`fail_on_non_accepted`)
-    and is not, stops its pipeline but for the report, as the runner's
-    wrapper and Woodpecker do.
+    """Every run of the kinds `pipelines` names started and not yet
+    begun, run to its end, and any run that starts in turn. A step
+    done once, a build at the save, is accepted; each run of the step that
+    compiles the entrant's code ends `verdict`, writing its output, its time
+    and its memory when accepted, and every run of it `compile_error` with
+    its log when `verdict` is that; each run of a later step, the classic
+    workflow's compare, is accepted with a score of 1. A later step does
+    only the runs every earlier step accepted, and one left with none is
+    skipped, as the step helper skips it.
     """
     machines = MACHINES[client]
-    while found := [each for each in machines.started if each[0] in pipelines]:
-        machines.started.remove(found[0])
-        stopped = False
-        for step in found[0][1]:
-            if not stopped or step["settings"].get("mode") == "report":
-                stopped = await _run_step(client, machines.forge, step, verdict) or stopped
+    while waiting := machines.waiting(pipelines):
+        run = waiting[0]
+        await end_run(client, run, await _written(machines, run, verdict))
 
 
-async def _run_step(
-    client: httpx.AsyncClient, forge: FakeForge, step: dict[str, Any], verdict: str
-) -> bool:
-    """Run `step` through the door; whether it stops its pipeline."""
-    settings = step["settings"]
-    door = urlsplit(settings["data_url"]).path
-    headers = {"Authorization": f"Bearer {settings['data_token']}"}
-    if settings.get("mode") == "report":
-        reported = await client.post(door, content=b"{}", headers=headers)
-        assert reported.status_code == 200, reported.text
-        return False
-    asked = await client.get(door, headers=headers, params={"platform": "linux-64"})
-    assert asked.status_code in (200, 204), asked.text
-    if asked.status_code == 204:
-        return False
-    job = asked.json()
-    written = _written(job, verdict)
-    listed = [
-        {"path": path, "sha256": hashlib.sha256(content).hexdigest(), "size": len(content)}
-        for path, content in written.items()
-    ]
-    links = await client.post(
-        f"{door}/uploads", content=json.dumps({"files": listed}).encode(), headers=headers
-    )
-    assert links.status_code == 200, links.text
-    for path, link in links.json()["files"].items():
-        forge.objects.put(link, written[path])
-    done = await client.post(f"{door}/done", content=b"{}", headers=headers)
-    assert done.status_code == 204, done.text
-    answered = json.loads(written["outputs.json"])
-    items = [entry["outputs"] for entry in answered.get("batch", [])] or [answered["outputs"]]
-    return job["fail_on_non_accepted"] and any(item["outcome"] != "accepted" for item in items)
+async def _written(machines: Machines, run: RunId, verdict: str) -> dict[str, Written]:
+    """What each step of the run writes to its artifact."""
+    written: dict[str, Written] = {}
+    accepted: set[str] | None = None
+    for step in await machine_steps(machines.setup, machines.forge.ci.runs[run].dispatch.grading):
+        if step.runs is None:
+            outputs = {"outcome": "accepted", "log": CHECKER_LOG}
+            written[step.step] = _outputs({"schema_version": 6, "outputs": outputs})
+            continue
+        runs = [each for each in step.runs if accepted is None or each in accepted]
+        if not runs:
+            written[step.step] = {"skipped": b""}
+            continue
+        files: dict[str, bytes] = {}
+        batch: list[dict[str, Any]] = [
+            {"run": each, "outputs": _item(step, each, verdict, files)} for each in runs
+        ]
+        written[step.step] = _outputs({"schema_version": 6, "batch": batch}) | files
+        accepted = {entry["run"] for entry in batch if entry["outputs"]["outcome"] == "accepted"}
+    return written
 
 
-def _written(job: dict[str, Any], verdict: str) -> dict[str, bytes]:
-    """What an exec step writes for `job`: its `outputs.json` and the files
-    it names. Every item gives the compile's `log`; as exec does, a source
-    of any item holding `DOES_NOT_COMPILE` ends every item `compile_error`
-    with nothing run. Only a file the job lists with its `sha256`, one
-    uploaded, can be marked so. Inputs given alone, a build's at the save,
-    are one item answered with `outputs`.
-    """
-    given = job["inputs"]
-    broken = [
-        file["path"]
-        for file in job["files"]
-        if file.get("sha256") == hashlib.sha256(DOES_NOT_COMPILE).hexdigest()
-    ]
-    items = [given["inputs"]] if "batch" not in given else [e["inputs"] for e in given["batch"]]
-    failed = any(
-        path.startswith(f"{inputs['source']['folder']}/") for inputs in items for path in broken
-    )
-    files: dict[str, bytes] = {}
-    if "batch" not in given:
-        outputs = _item(given["inputs"], "alone", verdict, failed, files)
-        document: dict[str, Any] = {"schema_version": 6, "outputs": outputs}
-        return {"outputs.json": json.dumps(document).encode(), **files}
-    batch = [
-        {
-            "run": entry["run"],
-            "outputs": _item(entry["inputs"], entry["run"], verdict, failed, files),
-        }
-        for entry in given["batch"]
-    ]
-    document = {"schema_version": 6, "batch": batch}
-    return {"outputs.json": json.dumps(document).encode(), **files}
-
-
-def _item(
-    inputs: dict[str, Any], run: str, verdict: str, failed: bool, files: dict[str, bytes]
-) -> dict[str, Any]:
-    """One item's outputs, its files added to `files`: `compile_error` and
-    its log when its batch `failed`; a build's outcome and log alone; or a
-    run ending `verdict`, writing its output, its time and its memory when
-    accepted, and a program given a manifest, the classic workflow's
-    compare, accepted with a score of 1.
-    """
-    if failed:
+def _item(step: MachineStep, run: str, verdict: str, files: dict[str, bytes]) -> dict[str, Any]:
+    """One run's outputs, its files added to `files`."""
+    if step.compiles and verdict == "compile_error":
         return {"outcome": "compile_error", "log": COMPILE_LOG}
-    compare = "manifest" in inputs
-    if set(inputs) <= BUILT:
-        return {"outcome": "accepted", "log": CHECKER_LOG}
-    log = CHECKER_LOG if compare else SOLUTION_LOG
-    assert inputs["time_limit"], "exec runs a program under a time limit"
-    ran: dict[str, Any] = {"outcome": "accepted" if compare else verdict, "log": log}
-    if ran["outcome"] == "accepted":
+    outcome = verdict if step.compiles else "accepted"
+    ran: dict[str, Any] = {
+        "outcome": outcome,
+        "log": SOLUTION_LOG if step.compiles else CHECKER_LOG,
+    }
+    if outcome == "accepted":
         ran |= {"output": {"file": f"out/{run}/output"}, "time_ms": 12, "memory_kb": 2048}
-        ran |= {"score": 1} if compare else {}
+        ran |= {} if step.compiles else {"score": 1}
         files[f"out/{run}/output"] = b"3\n"
     return ran
+
+
+def _outputs(document: object) -> Written:
+    return {"outputs.json": json.dumps(document).encode()}
+
+
+async def end_run(client: httpx.AsyncClient, run: RunId, steps: dict[str, Written]) -> None:
+    """The run begun, each step's files uploaded as its artifact, the run
+    ended, and the sweep run, which reads it."""
+    ci = MACHINES[client].forge.ci
+    ci.begin(run)
+    for step, files in steps.items():
+        archive = io.BytesIO()
+        with zipfile.ZipFile(archive, "w") as zipped:
+            for path, content in files.items():
+                zipped.writestr(path, content)
+        # An artifact's name may not hold `/`.
+        ci.upload(run, f"out-{step.replace('/', '.')}", archive.getvalue())
+    ci.end(run)
+    await gradings.sweep()
+    await MACHINES[client].setup.settle()
+
+
+STUCK = timedelta(hours=2)
+"""Past every clock a grading waiting for its run keeps."""
+
+
+async def stuck(client: httpx.AsyncClient, clock: FakeClock) -> None:
+    """The clock moved past every clock a grading waits by, and the sweep
+    run, with whatever it starts."""
+    clock.advance(STUCK)
+    await gradings.sweep()
+    await MACHINES[client].setup.settle()
 
 
 @pytest.fixture
@@ -312,7 +272,7 @@ async def sign_in_as(client: httpx.AsyncClient, forge: FakeForge, user_id: int) 
 
 @pytest.fixture
 async def acme(forge: FakeForge, held_setup: Setup) -> FakeForge:
-    """acme, made the operator's way with ada its admin, and the built-in
+    """acme, made the operator's way with ada its admin, and the classic
     workflow public at the fake.
     """
     await orgs.create_by_operator("acme", description="Acme", admin_username="ada")
@@ -324,13 +284,14 @@ async def acme(forge: FakeForge, held_setup: Setup) -> FakeForge:
 @pytest.fixture
 async def sum_task(client: httpx.AsyncClient, acme: FakeForge, held_setup: Setup) -> FakeForge:
     """acme/spring and acme/spring/sum made through the routes, with ada signed
-    in and the task not yet saved.
+    in and the task a classic one, not yet saved.
     """
     await sign_in(client, acme)
     made = await client.post(f"{ORG}/contests", json={"name": "spring"}, headers=ORIGIN)
     assert made.status_code == 201, made.text
     made = await client.post(f"{CONTEST}/tasks", json={"name": "sum"}, headers=ORIGIN)
     assert made.status_code == 201, made.text
+    await start_classic(acme, "acme/spring/sum", "sum")
     acme.reset_calls()
     return acme
 
@@ -401,25 +362,29 @@ async def publish(client: httpx.AsyncClient, task: str = TASK) -> None:
     await run_pipelines(client, pipelines=("save",))
 
 
-async def add_task(client: httpx.AsyncClient, name: str) -> str:
-    """A new unpublished task, held at the contest's end until scheduled."""
+async def add_task(client: httpx.AsyncClient, forge: FakeForge, name: str) -> str:
+    """A new unpublished classic task, held at the contest's end until
+    scheduled."""
     made = await client.post(f"{CONTEST}/tasks", json={"name": name}, headers=ORIGIN)
     assert made.status_code == 201, made.text
+    await start_classic(forge, f"acme/spring/{name}", name)
     return f"{CONTEST}/tasks/{name}"
 
 
 async def edit_task(client: httpx.AsyncClient, old: str, new: str) -> None:
-    """acme/spring/sum's `task.yaml` with `old` replaced by `new`, saved,
-    confirmed and published by the signed-in organiser.
+    """acme/spring/sum's request, as YAML text, with `old` replaced by
+    `new`, saved, confirmed and published by the signed-in organiser.
     """
-    current = await read(client, f"{TASK}/files/task.yaml")
-    assert old in current["content"]
-    saved = await client.put(
-        f"{TASK}/files/task.yaml",
+    current = await read(client, f"{TASK}/request")
+    text = request_text(current["request"]).decode()
+    assert old in text
+    saved = await client.post(
+        f"{TASK}/save",
         json={
-            "encoding": "utf-8",
-            "content": current["content"].replace(old, new),
-            "token": current["token"],
+            "request": {
+                "request": yaml.safe_load(text.replace(old, new)),
+                "token": current["token"],
+            },
             "confirm": True,
         },
         headers=ORIGIN,

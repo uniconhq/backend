@@ -2,9 +2,8 @@
 the name and who may do what; these models say what shape each body has. A
 workflow goes out by the owner and the name a person calls it by,
 `<owner>/<name>`, and never by its id at the forge, which is built from an
-org's key. A draft travels as its `workflow.yaml`'s values, or as its text
-while it does not read, with the token it was read with, which a save
-carries back; none saves a file that is not there yet. A primitive goes out
+org's key. A draft travels as its request, with the token it was read
+with, which a save carries back; none saves a workflow not saved yet. A primitive goes out
 with its declared ports, so the editor's palette shows each with its type
 and its marks.
 """
@@ -25,14 +24,12 @@ from forge.api.workflows import (
     Port,
     PrimitiveVersion,
     VersionDefinition,
-    Visibility,
     WorkflowSummary,
-    WorkflowView,
     accepted_types,
 )
 from pydantic import BaseModel, Field, model_validator
 
-from unicon.schemas.exact import Exact
+from unicon.schemas.exact import Exact, Values
 from unicon.schemas.publications import FileChange
 
 
@@ -63,13 +60,12 @@ class CopyWorkflow(BaseModel):
 
 
 class WorkflowItem(BaseModel):
-    """A workflow a person may read: its visibility, its versions in natural
-    order, and whether they may edit it.
+    """A workflow a person may read: its versions in natural order, and
+    whether they may edit it.
     """
 
     owner: str
     name: str
-    visibility: Visibility
     versions: list[str]
     editable: bool
     description: str = ""
@@ -80,7 +76,6 @@ class WorkflowItem(BaseModel):
         return cls(
             owner=summary.owner,
             name=summary.name,
-            visibility=summary.visibility,
             versions=list(summary.versions),
             editable=summary.editable,
             description=summary.description,
@@ -107,62 +102,37 @@ class WorkflowSearch(BaseModel):
 
 
 class WorkflowDraft(BaseModel):
-    """A workflow's draft: its `workflow.yaml` as plain values, with the
-    token a save carries back, none for a file not there yet. When the file
-    does not read as values, `values` is null, `unreadable` says why and
-    `content` is its text; otherwise `content` is null. `revision` names
-    the saved repository, including its files, for publishing exactly that
-    save.
+    """A workflow's draft: its request as its `main.yml` and `values.yaml`
+    hold it, with the token a save carries back, one for both, none for a
+    workflow not saved yet.
+    `revision` names the saved repository, including its files, for
+    publishing exactly that save.
     """
 
-    values: dict[str, Any] | None
-    unreadable: str | None
-    content: str | None
+    request: Values
     token: str | None
     revision: str | None
 
     @classmethod
     def of(cls, draft: Draft) -> Self:
-        return cls(
-            values=draft.values,
-            unreadable=draft.unreadable,
-            content=draft.text if draft.values is None else None,
-            token=draft.token,
-            revision=draft.revision,
-        )
-
-
-class WorkflowPage(WorkflowItem):
-    """A workflow as its page shows it. For someone who may edit it,
-    `readers`, the usernames it is shared with; for anyone else, none.
-    """
-
-    readers: list[str]
-
-    @classmethod
-    def of_view(cls, view: WorkflowView) -> Self:
-        item = WorkflowItem.of(view.summary)
-        return cls(**item.model_dump(), readers=[reader.username for reader in view.readers])
+        return cls(request=draft.request, token=draft.token, revision=draft.revision)
 
 
 class SaveDraft(BaseModel):
     """A draft to write over the one read with `token`, or to create when
-    the token is none: `values` written into `workflow.yaml` as it is, or,
-    for a draft that does not read, `content`, its whole text; one of the
-    two. `changes` writes its own files in the same commit. Whatever it
-    holds saves, problems and all.
+    the token is none: the whole request, which forge builds `main.yml` and
+    `values.yaml` from. `changes` writes its own files in the same commit.
+    Whatever it holds saves, problems and all, but for a name `main.yml`
+    can't hold.
     """
 
-    values: dict[str, Any] | None = None
-    content: str | None = None
+    request: Values
     token: str | None
 
     changes: list[FileChange] = Field(default_factory=list)
 
     @model_validator(mode="after")
-    def _one_draft_and_one_change_per_path(self) -> Self:
-        if (self.values is None) == (self.content is None):
-            raise ValueError("Give the draft's values or its content, not both.")
+    def _one_change_per_path(self) -> Self:
         paths = [change.path for change in self.changes]
         if len(set(paths)) != len(paths):
             raise ValueError("Each file can appear only once in a save.")
@@ -170,16 +140,14 @@ class SaveDraft(BaseModel):
 
 
 class VersionContent(BaseModel):
-    """A workflow's `workflow.yaml` at one version: its text, and its plain
-    values, or null with why it does not read in `unreadable`."""
+    """A workflow's request at one version, read back from its `main.yml`
+    and `values.yaml`."""
 
-    content: str
-    values: dict[str, Any] | None
-    unreadable: str | None
+    request: Values
 
     @classmethod
     def of(cls, found: VersionDefinition) -> Self:
-        return cls(content=found.text, values=found.values, unreadable=found.unreadable)
+        return cls(request=found.request)
 
 
 class CreateVersion(BaseModel):
@@ -199,29 +167,21 @@ class Version(BaseModel):
 
 
 class CheckDefinition(BaseModel):
-    """A `workflow.yaml` to check as a version would be, writing nothing:
-    its `values`, or its text in `content`, one of the two. `owner` and
-    `name`, when both are given, name the workflow this is a draft of, so a
-    draft that would hold that workflow is refused.
+    """A workflow request to check as a version would be, writing nothing.
+    `owner` and `name`, when both are given, name the workflow this is a
+    draft of, so a draft that would hold that workflow is refused.
     """
 
-    values: dict[str, Any] | None = None
-    content: str | None = None
+    request: Values
     owner: str | None = None
     name: str | None = None
     paths: list[Annotated[str, Field(max_length=1024)]] | None = Field(
         default=None, max_length=10_000
     )
 
-    @model_validator(mode="after")
-    def _one_definition(self) -> Self:
-        if (self.values is None) == (self.content is None):
-            raise ValueError("Give the definition's values or its content, not both.")
-        return self
-
 
 class DefinitionProblem(BaseModel):
-    """One problem: where in `workflow.yaml`, as its keys and list indices,
+    """One problem: where in the request, as its keys and list indices,
     such as `["steps", 1, "with", "binary"]`, empty for the file as a whole,
     and what is wrong there. `step` is the flat step a problem inside a box
     belongs to, when the path can only name the box; none otherwise.
@@ -319,20 +279,6 @@ class WorkflowBox(BaseModel):
             newer_version=found.newer_version,
             description=found.description,
         )
-
-
-class SetVisibility(BaseModel):
-    """Private, shared or public. Private and public empty the list of
-    readers; shared keeps it.
-    """
-
-    visibility: Visibility
-
-
-class Reader(BaseModel):
-    """Someone a workflow is shared with, by their username."""
-
-    username: str
 
 
 class PrimitivePort(BaseModel):

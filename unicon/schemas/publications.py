@@ -9,10 +9,11 @@ import uuid
 from datetime import datetime
 from typing import Annotated, Any, Literal, Self
 
-from forge.api.types import Uploaded, Values
+from forge.api.publications import TaskRequest as ForgeTaskRequest
+from forge.api.types import Uploaded
 from pydantic import BaseModel, BeforeValidator, model_validator
 
-from unicon.schemas.exact import Exact
+from unicon.schemas.exact import Exact, Values
 from unicon.schemas.files import Encoding, written_content
 
 
@@ -99,9 +100,8 @@ class Publication(BaseModel):
 
 class FileChange(BaseModel):
     """One file of a save, with the token it was read with: typed as
-    `content`, uploaded for this path as `upload`, `task.yaml` given as its
-    form's `values` (as `Settings` gives them), or removed with `remove:
-    true`, exactly one of the four. The token is null for a file the save
+    `content`, uploaded for this path as `upload`, or removed with `remove:
+    true`, exactly one of the three. The token is null for a file the save
     creates, and a removal always carries one. Removing a folder, such as a
     test, is removing each file under it, named one by one.
     """
@@ -111,32 +111,49 @@ class FileChange(BaseModel):
     encoding: Encoding = "utf-8"
     content: str | None = None
     upload: uuid.UUID | None = None
-    values: dict[str, Any] | None = None
     remove: bool = False
 
     @model_validator(mode="after")
     def _written_or_removed(self) -> Self:
         if self.remove:
-            if self.content is not None or self.upload is not None or self.values is not None:
+            if self.content is not None or self.upload is not None:
                 raise ValueError("A file being removed cannot also have content or an upload.")
             if self.token is None:
                 raise ValueError("To remove a file, say which version of it was read.")
-        if self.values is not None and (self.content is not None or self.upload is not None):
-            raise ValueError("Give the content, an upload or values, one of the three.")
         self.edit_content()
         return self
 
-    def edit_content(self) -> bytes | Uploaded | Values | None:
+    def edit_content(self) -> bytes | Uploaded | None:
         """What the save writes at the path, or none to remove the file."""
         if self.remove:
             return None
-        if self.values is not None:
-            return Values(self.values)
         return written_content(self.encoding, self.content, self.upload)
 
 
+class TaskRequest(BaseModel):
+    """The task request at the head, which forge builds the task's
+    Forgejo files and `task.yaml` from, with the token a save carries back
+    and the version it was read at."""
+
+    request: Values
+    token: str
+    version: str
+
+    @classmethod
+    def of(cls, found: ForgeTaskRequest) -> Self:
+        return cls(request=found.request, token=found.token, version=found.version)
+
+
+class RequestChange(BaseModel):
+    """The whole task request a save writes, with the token it was read with."""
+
+    request: Values
+    token: str
+
+
 class SaveRequest(BaseModel):
-    """The files a save writes, several at once. `keep_as_draft` writes them
+    """The files a save writes, several at once, and the task `request`
+    when it changes. `keep_as_draft` writes them
     as a draft that says what it held back and publishes nothing, on any
     save. Otherwise, while the task's contest runs, `confirm` publishes a
     save, which every save that would publish something new needs then; an
@@ -146,6 +163,7 @@ class SaveRequest(BaseModel):
     """
 
     changes: list[FileChange] = []
+    request: RequestChange | None = None
     confirm: bool = False
     asked: str | None = None
     keep_as_draft: bool = False
@@ -178,7 +196,8 @@ class Published(BaseModel):
     """A save that published: the new publication's number among the task's,
     whether it changed how the task grades, and what, the notes the save
     makes of the task beside publishing it, how many submissions it
-    `regraded`, queued to be graded again against it, and what it did,
+    `regraded`, queued to be graded again against it, and `rescored`,
+    scored again without grading, and what it did,
     `effect`, in the words the question before a save in a running contest
     uses. `check` is `checking` while the new publication is checked before
     it takes over, as is a save of the same files that checks a refused one
@@ -192,6 +211,7 @@ class Published(BaseModel):
     changes: list[str]
     notes: list[str]
     regraded: int
+    rescored: int
     effect: SaveEffect
     check: Check | None = None
     regrade: uuid.UUID | None = None

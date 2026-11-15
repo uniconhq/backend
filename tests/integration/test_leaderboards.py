@@ -26,6 +26,7 @@ from tests.integration.conftest import (
     sign_in_as,
     upload,
 )
+from tests.integration.test_runs import STARTER_RUN
 
 PUBLIC = "/api/v1/public/contests/acme/spring/leaderboards"
 LEADERBOARDS = f"{CONTEST}/leaderboards"
@@ -374,7 +375,7 @@ async def test_organisers_read_a_submission_scored_with_everything_filled_in(
         [{"title": None, "key": {}}],
         {},
     )
-    assert (grading["status"], run["id"], run["verdict"]) == ("done", "r1", "accepted")
+    assert (grading["status"], run["id"], run["verdict"]) == ("done", STARTER_RUN, "accepted")
     assert run["tuples"] == [
         {
             "title": None,
@@ -385,7 +386,7 @@ async def test_organisers_read_a_submission_scored_with_everything_filled_in(
     assert by_title["Run time"] == {"title": "Run time", "unit": "ms", "number": "12"}
     assert list(grading["once"]["texts"]) == ["log"]
     [score] = grading["run_values"]
-    assert (score["number"], score["show"], score["runs"]) == ("1", "always", ["r1"])
+    assert (score["number"], score["show"], score["runs"]) == ("1", "always", [STARTER_RUN])
     assert grading["facts"] == {"seconds_late": "0", "seconds": "7200", "compiled": "1"}
 
 

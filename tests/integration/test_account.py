@@ -7,7 +7,7 @@ from datetime import timedelta
 import httpx
 from fastapi import FastAPI
 from forge.api.types import Role, Scope
-from forge.testing import AsUser, FakeClock, FakeForge, OrgId, Setup, Visibility, name_places
+from forge.testing import AsUser, FakeClock, FakeForge, OrgId, Setup, name_places
 
 from tests.integration.conftest import ORIGIN, sign_in
 from unicon.api.cookies import SESSION_COOKIE
@@ -116,17 +116,15 @@ async def test_a_delete_refusal_names_the_scopes(
     assert 7 in forge.users
 
 
-async def test_a_delete_refusal_names_the_shared_workflow(
+async def test_a_delete_refusal_names_the_workflows_owned(
     client: httpx.AsyncClient, forge: FakeForge
 ) -> None:
-    ada = AsUser(7, forge.mint(7))
-    workflow = await forge.workflows.create_workflow(ada, "ada", "classic", {}, Visibility.PRIVATE)
-    await forge.workflows.share_workflow(ada, workflow, 8)
+    await forge.workflows.create_workflow(AsUser(7, forge.mint(7)), "ada", "classic", {})
     await sign_in(client, forge)
 
     refused = await client.delete("/api/v1/me", headers=ORIGIN)
 
-    assert refused.json()["code"] == "shared_workflow_owner"
+    assert refused.json()["code"] == "workflow_owner"
     assert refused.json()["workflows"] == ["ada/classic"]
 
 

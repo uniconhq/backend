@@ -26,6 +26,7 @@ dev = [
     "httpx>=0.28.1",
     "psycopg[binary]>=3.3.5",
     "pytest-xdist>=3.8",
+    "types-pyyaml>=6.0.12.20260906",
 ]
 
 [tool.uv.sources]

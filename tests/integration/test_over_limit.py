@@ -4,17 +4,12 @@ organisers' list says beforehand, the retry answers, and its contestant
 reads with the most they reached.
 """
 
-from datetime import timedelta
-
 import httpx
 from forge.testing import FakeClock, FakeForge
 
-from tests.integration.conftest import ORIGIN, TASK, edit_task, sign_in_as, upload
+from tests.integration.conftest import ORIGIN, TASK, edit_task, sign_in_as, stuck, upload
 
 SOURCE = b"print(sum(map(int, input().split())))\n"
-STUCK = timedelta(hours=2)
-"""How long a dispatched grading waits for a machine before it reads as a
-system error."""
 
 
 async def _submit(client: httpx.AsyncClient, forge: FakeForge, key: str) -> str:
@@ -43,7 +38,7 @@ async def test_a_delayed_submission_retried_without_room_ends_over_the_limit(
     await edit_task(client, "scoring:", "submissions: {max: 1}\nscoring:")
     await sign_in_as(client, entered, 20)
     first = await _submit(client, entered, "key-0001-aaaa")
-    clock.advance(STUCK)
+    await stuck(client, clock)
     # Delayed, the first uses up nothing, so a second is taken, and waits.
     await _submit(client, entered, "key-0002-bbbb")
     await sign_in_as(client, entered, 7)

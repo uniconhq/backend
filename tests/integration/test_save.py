@@ -2,7 +2,7 @@
 organiser path from an org through the poller to a publication number; a
 save of the statement that does not change how the task grades; a save
 that does not check, kept as a draft with its errors, which the task then
-shows; the refusals, a path inside `plans/`, a manager's change to an
+shows; the refusals, `task.yaml` written as a file, a manager's change to an
 admin-only file and a grading change while the contest runs, which the same
 save confirmed publishes; a change kept as a draft and published by an
 empty confirmed save; a stale token answered as a conflict; and a removal,
@@ -11,13 +11,15 @@ run or replaces them by files of other names, is checked as any other
 state, and is refused as an edit is.
 """
 
+import re
 import uuid
 from typing import Any
 
 import httpx
 import pytest
+import yaml
 from forge.api.types import Role
-from forge.testing import FakeForge, Setup, seed_classic
+from forge.testing import FakeForge, Setup, classic_task, request_text, seed_classic
 
 from tests.integration.conftest import (
     CONTEST,
@@ -53,7 +55,7 @@ def _change(path: str, content: str, token: str | None) -> dict[str, Any]:
 
 
 async def _save(
-    client: httpx.AsyncClient, *changes: dict[str, Any], **options: bool | str
+    client: httpx.AsyncClient, *changes: dict[str, Any], **options: Any
 ) -> httpx.Response:
     response = await client.post(
         f"{TASK}/save", json={"changes": list(changes), **options}, headers=ORIGIN
@@ -68,6 +70,17 @@ async def _edit(client: httpx.AsyncClient, path: str, old: str, new: str) -> dic
     return _change(path, file["content"].replace(old, new), file["token"])
 
 
+async def _request(client: httpx.AsyncClient, old: str, new: str) -> dict[str, Any]:
+    """The task request as read, its YAML text with `old` replaced by `new`."""
+    read_back = await read(client, f"{TASK}/request")
+    text = request_text(read_back["request"]).decode()
+    assert old in text
+    return {
+        "request": yaml.safe_load(text.replace(old, new)),
+        "token": read_back["token"],
+    }
+
+
 async def test_the_organiser_path_from_an_org_to_a_publication(
     client: httpx.AsyncClient, forge: FakeForge, held_setup: Setup
 ) -> None:
@@ -76,14 +89,14 @@ async def test_the_organiser_path_from_an_org_to_a_publication(
     assert (await client.post("/api/v1/orgs", json={"name": "acme"}, headers=ORIGIN)).is_success
     await client.post(f"{ORG}/contests", json={"name": "spring"}, headers=ORIGIN)
     await client.post(f"{CONTEST}/tasks", json={"name": "sum"}, headers=ORIGIN)
+    request, files = classic_task("sum")
+    token = (await read(client, f"{TASK}/request"))["token"]
 
-    task_yaml = await read(client, f"{TASK}/files/task.yaml")
-    written = await client.put(
-        f"{TASK}/files/task.yaml",
+    written = await client.post(
+        f"{TASK}/save",
         json={
-            "encoding": "utf-8",
-            "content": task_yaml["content"].replace("time_limit: 2", "time_limit: 3"),
-            "token": task_yaml["token"],
+            "request": {"request": yaml.safe_load(request_text(request)), "token": token},
+            "changes": [_change(path, files[path].decode(), None) for path in ("1.in", "1.ans")],
         },
         headers=ORIGIN,
     )
@@ -98,10 +111,7 @@ async def test_the_organiser_path_from_an_org_to_a_publication(
     statement = await _save(client, await _edit(client, "statement.md", "Write", "Add. Write"))
     assert (statement.json()["number"], statement.json()["grading_changed"]) == (2, False)
 
-    broken = await _save(
-        client,
-        await _edit(client, "task.yaml", "[1.in, 1.ans]", "[1.in, tests/2.ans]"),
-    )
+    broken = await _save(client, request=await _request(client, "- 1.ans", "- tests/2.ans"))
     assert broken.status_code == 200
     draft = broken.json()
     assert (draft["errors"], draft["held_back"]) == (MISSING, [])
@@ -118,14 +128,38 @@ async def test_the_organiser_path_from_an_org_to_a_publication(
     assert all("id" not in entry for entry in published)
 
 
-async def test_a_save_inside_plans_is_refused_naming_the_path(
+async def test_a_decimal_in_the_request_reads_back_as_a_number_and_stays_one(
     client: httpx.AsyncClient, sum_task: FakeForge
 ) -> None:
-    refused = await _save(client, _change("plans/plan.json", "{}", None))
+    half = await _request(client, "time_limit: 2", "time_limit: 1.5")
+    assert (await _save(client, request=half, keep_as_draft=True)).status_code == 200
+    first = await read(client, f"{TASK}/request")
+    assert first["request"]["inputs"]["time_limit"] == 1.5
+
+    again = {"request": first["request"], "token": first["token"]}
+    assert (await _save(client, request=again, keep_as_draft=True)).status_code == 200
+    assert (await read(client, f"{TASK}/request"))["request"]["inputs"]["time_limit"] == 1.5
+
+
+async def test_task_yaml_written_as_a_file_is_refused_naming_the_path(
+    client: httpx.AsyncClient, sum_task: FakeForge
+) -> None:
+    refused = await _save(client, await _edit(client, "task.yaml", "sum", "Sum"))
 
     assert refused.status_code == 403
     assert refused.json()["code"] == "reserved_path"
-    assert refused.json()["paths"] == ["plans/plan.json"]
+    assert refused.json()["paths"] == ["task.yaml"]
+    assert sum_task.calls_to("save_files") == []
+
+
+async def test_a_file_where_the_ci_reads_workflows_is_refused(
+    client: httpx.AsyncClient, sum_task: FakeForge
+) -> None:
+    refused = await _save(client, _change(".forgejo/workflows/run.yml", "on: push\n", None))
+
+    assert refused.status_code == 422
+    assert refused.json()["code"] == "invalid_path"
+    assert sum_task.calls_to("save_files") == []
 
 
 async def test_a_managers_change_to_the_statement_is_refused(
@@ -152,9 +186,9 @@ async def running(client: httpx.AsyncClient, sum_task: FakeForge) -> FakeForge:
 async def test_a_grading_change_while_the_contest_runs_asks_first(
     client: httpx.AsyncClient, running: FakeForge
 ) -> None:
-    faster = await _edit(client, "task.yaml", "time_limit: 2", "time_limit: 1")
+    faster = await _request(client, "time_limit: 2", "time_limit: 1")
 
-    asked = await _save(client, faster)
+    asked = await _save(client, request=faster)
 
     assert asked.status_code == 409
     assert asked.json()["code"] == "confirmation_required"
@@ -172,7 +206,7 @@ async def test_a_grading_change_while_the_contest_runs_asks_first(
     }
     assert len((await client.get(f"{TASK}/publications")).json()) == 1
 
-    confirmed = await _save(client, faster, confirm=True, asked=asked.json()["asked"])
+    confirmed = await _save(client, request=faster, confirm=True, asked=asked.json()["asked"])
 
     assert confirmed.status_code == 200
     assert (confirmed.json()["number"], confirmed.json()["grading_changed"]) == (2, True)
@@ -185,8 +219,8 @@ async def test_a_confirmation_asked_about_another_head_is_asked_again(
 ) -> None:
     statement = await _edit(client, "statement.md", "Add", "Now add")
     asked = await _save(client, statement)
-    faster = await _edit(client, "task.yaml", "time_limit: 2", "time_limit: 1")
-    assert (await _save(client, faster, keep_as_draft=True)).status_code == 200
+    faster = await _request(client, "time_limit: 2", "time_limit: 1")
+    assert (await _save(client, request=faster, keep_as_draft=True)).status_code == 200
 
     again = await _save(client, statement, confirm=True, asked=asked.json()["asked"])
 
@@ -207,11 +241,10 @@ async def _written_as_asked(
     return await client.request(method, url, json=confirmed, headers=ORIGIN)
 
 
-async def test_a_file_written_or_rolled_back_while_the_contest_runs_asks_and_is_confirmed(
+async def test_a_file_written_while_the_contest_runs_asks_and_is_confirmed(
     client: httpx.AsyncClient, running: FakeForge
 ) -> None:
     statement = await read(client, f"{TASK}/files/statement.md")
-    [first, *_] = (await client.get(f"{TASK}/history", params={"path": "statement.md"})).json()
 
     written = await _written_as_asked(
         client,
@@ -220,16 +253,6 @@ async def test_a_file_written_or_rolled_back_while_the_contest_runs_asks_and_is_
         {"encoding": "utf-8", "content": "Now add.\n", "token": statement["token"]},
     )
     assert (written.status_code, written.json()["number"]) == (200, 2), written.text
-    # #625: the publication takes over once its save's steps are run.
-    await run_pipelines(client, pipelines=("save",))
-    current = await read(client, f"{TASK}/files/statement.md")
-    rolled = await _written_as_asked(
-        client,
-        "POST",
-        f"{TASK}/files/statement.md/rollback",
-        {"version": first["version"], "token": current["token"]},
-    )
-    assert (rolled.status_code, rolled.json()["number"]) == (200, 3), rolled.text
 
 
 async def test_a_change_to_the_statement_or_what_is_shown_while_the_contest_runs_asks_first(
@@ -247,22 +270,22 @@ async def test_a_change_to_the_statement_or_what_is_shown_while_the_contest_runs
     assert asked.json()["runs_again"] == [
         "No submission runs again: the tests and how they run are the same."
     ]
-    shown = await _edit(client, "task.yaml", STARTER_RUNS, f"{STARTER_RUNS}{SHOWN}")
-    assert (await _save(client, shown)).json()["reading"] == [
+    shown = await _request(client, STARTER_RUNS, f"{STARTER_RUNS}{SHOWN}")
+    assert (await _save(client, request=shown)).json()["reading"] == [
         "Entrants now read input of all after the deadline.",
         "Entrants now read answer of all after the deadline.",
     ]
     # Saved as the latest publication holds it, nothing new: no question.
-    same = await _edit(client, "task.yaml", STARTER_RUNS, STARTER_RUNS)
-    assert (await _save(client, same)).status_code == 200
+    same = await _request(client, STARTER_RUNS, STARTER_RUNS)
+    assert (await _save(client, request=same)).status_code == 200
 
 
 async def test_a_change_kept_as_a_draft_is_published_by_an_empty_confirmed_save(
     client: httpx.AsyncClient, running: FakeForge
 ) -> None:
-    faster = await _edit(client, "task.yaml", "time_limit: 2", "time_limit: 1")
+    faster = await _request(client, "time_limit: 2", "time_limit: 1")
 
-    kept = await _save(client, faster, keep_as_draft=True)
+    kept = await _save(client, request=faster, keep_as_draft=True)
 
     assert kept.json() == {
         "version": kept.json()["version"],
@@ -298,12 +321,18 @@ async def _token(client: httpx.AsyncClient, path: str) -> str:
     return token
 
 
-STARTER_RUNS = "      runs:\n        - {of: all, fields: [verdict, passed]}\n"
+STARTER_RUNS = (
+    "      runs:\n      - of: all\n        fields:\n        - verdict\n        - passed\n"
+)
 """The starter's run entry, the last lines of its `show`."""
-SHOWN = "    after_deadline:\n      runs:\n        - {of: all, fields: [input, answer]}\n"
+SHOWN = (
+    "    after_deadline:\n      runs:\n        - of: all\n          fields:\n"
+    "            - input\n            - answer\n"
+)
 """The starter's `show` with each run's input and answer shown once the task
 closes."""
-TUPLES = "      - [1.in, 1.ans]\n"
+TUPLES = "  - - 1.in\n    - 1.ans\n"
+SECOND = "  - - tests/2.in\n    - tests/2.ans\n"
 """The starter's one test, as its `repeat` lists it."""
 
 
@@ -313,9 +342,9 @@ async def test_a_save_removes_a_test_and_its_publication_names_the_removal(
     await publish(client)
     added = await _save(
         client,
-        await _edit(client, "task.yaml", TUPLES, f"{TUPLES}      - [tests/2.in, tests/2.ans]\n"),
         _change("tests/2.in", "1 1\n", None),
         _change("tests/2.ans", "2\n", None),
+        request=await _request(client, TUPLES, f"{TUPLES}{SECOND}"),
     )
     assert added.json()["number"] == 2, added.text
     # #625: the publication takes over once its save's steps are run.
@@ -323,18 +352,16 @@ async def test_a_save_removes_a_test_and_its_publication_names_the_removal(
 
     removed = await _save(
         client,
-        await _edit(client, "task.yaml", "      - [tests/2.in, tests/2.ans]\n", ""),
         _removal("tests/2.in", await _token(client, "tests/2.in")),
         _removal("tests/2.ans", await _token(client, "tests/2.ans")),
+        request=await _request(client, SECOND, ""),
     )
 
     assert removed.status_code == 200, removed.text
     assert (removed.json()["number"], removed.json()["grading_changed"]) == (3, True)
-    assert removed.json()["changes"] == [
-        "The run r2 was removed.",
-        "The file tests/2.ans was removed.",
-        "The file tests/2.in was removed.",
-    ]
+    run, *files = removed.json()["changes"]
+    assert re.fullmatch(r"The run [0-9a-f]{12} was removed\.", run)
+    assert files == ["The file tests/2.ans was removed.", "The file tests/2.in was removed."]
     gone = await client.get(f"{TASK}/files/tests/2.in")
     assert gone.status_code == 404
 
@@ -346,11 +373,11 @@ async def test_a_test_is_replaced_by_one_with_other_file_names(
 
     replaced = await _save(
         client,
-        await _edit(client, "task.yaml", TUPLES, "      - [tests/1.txt, tests/1.out]\n"),
         _removal("1.in", await _token(client, "1.in")),
         _removal("1.ans", await _token(client, "1.ans")),
         _change("tests/1.txt", "4 5\n", None),
         _change("tests/1.out", "9\n", None),
+        request=await _request(client, TUPLES, "  - [tests/1.txt, tests/1.out]\n"),
     )
 
     assert replaced.status_code == 200, replaced.text
@@ -364,9 +391,9 @@ async def test_removing_every_test_keeps_the_save_as_a_draft(
 
     kept = await _save(
         client,
-        await _edit(client, "task.yaml", f"    tuples:\n{TUPLES}", "    tuples: []\n"),
         _removal("1.in", await _token(client, "1.in")),
         _removal("1.ans", await _token(client, "1.ans")),
+        request=await _request(client, f"  tuples:\n{TUPLES}", "  tuples: []\n"),
     )
 
     assert kept.status_code == 200, kept.text
@@ -432,38 +459,3 @@ async def test_a_path_named_twice_in_one_save_is_a_validation_error(
 
     assert refused.status_code == 422
     assert refused.json()["code"] == "validation_error"
-
-
-async def test_a_task_rollback_is_a_save(client: httpx.AsyncClient, sum_task: FakeForge) -> None:
-    await publish(client)
-    first = (await client.get(f"{TASK}/history", params={"path": "statement.md"})).json()
-    current = await read(client, f"{TASK}/files/statement.md")
-
-    rolled = await client.post(
-        f"{TASK}/files/statement.md/rollback",
-        json={"version": first[-1]["version"], "token": current["token"]},
-        headers=ORIGIN,
-    )
-
-    assert rolled.status_code == 200, rolled.text
-    assert rolled.json()["number"] == 2
-    back = await read(client, f"{TASK}/files/statement.md")
-    assert back["content"] == "Write the statement entrants read here.\n"
-
-
-async def test_a_scheduled_tasks_rollback_to_the_starter_statement_stays_a_draft(
-    client: httpx.AsyncClient, running: FakeForge
-) -> None:
-    statement = await read(client, f"{TASK}/files/statement.md")
-    [*_, starter] = (await client.get(f"{TASK}/history", params={"path": "statement.md"})).json()
-    rolled = await client.post(
-        f"{TASK}/files/statement.md/rollback",
-        json={"version": starter["version"], "token": statement["token"], "confirm": True},
-        headers=ORIGIN,
-    )
-    assert rolled.status_code == 200, rolled.text
-    assert rolled.json()["errors"] == [
-        {"path": ["statement.md"], "message": "A · sum: its statement is not written yet."}
-    ]
-    assert "number" not in rolled.json()
-    assert len((await client.get(f"{TASK}/publications")).json()) == 1
