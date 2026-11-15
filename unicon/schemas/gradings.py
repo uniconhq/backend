@@ -3,11 +3,10 @@ cancelled with, a mark entered for a submission's value and what was
 kept, a task's grading queue, a grading as an organiser reads it, one
 among a task's or a contest's with its task and who submitted it, what a
 rejudge did, a task's latest regrade of many summed up and what it did to
-one submission, a regrade by the values and verdicts it
-changed, and where a grading stands after its run reports. Who submitted
-and a contest's queue depth go out as the forge's own `Submitter` and
-`QueueDepth`. A username the feed is narrowed by keeps the forge's rule
-for one.
+one submission, and a regrade by the values and verdicts it changed. Who
+submitted and a contest's queue depth go out as the forge's own
+`Submitter` and `QueueDepth`. A username the feed is narrowed by keeps the
+forge's rule for one.
 """
 
 import uuid
@@ -374,7 +373,6 @@ class Grading(BaseModel):
     dispatched_at: datetime | None
     started_at: datetime | None
     finished_at: datetime | None
-    deadline_at: datetime | None
     automatic: bool
     last_good: int | None
     limit: int | None
@@ -418,9 +416,3 @@ class Rejudged(BaseModel):
     left_running: int
     over_limit: int
     regrade: uuid.UUID | None
-
-
-class CallbackAnswer(BaseModel):
-    """Where the grading stands once its run's report is taken."""
-
-    status: GradingStatus

@@ -58,7 +58,6 @@ RECORD: dict[str, Any] = {
     "dispatched_at": AT,
     "started_at": AT,
     "finished_at": AT,
-    "deadline_at": AT,
 }
 
 

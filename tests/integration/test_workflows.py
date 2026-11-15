@@ -6,12 +6,14 @@ an org that is not there and another person's name are refused alike as
 owner has already is `conflict`.
 """
 
+from typing import Any
+
 import httpx
 import pytest
 from forge.api.types import Role
-from forge.testing import FakeForge
+from forge.testing import CLASSIC_REQUEST, FakeForge
 
-from tests.integration.conftest import ACME, ORIGIN, sign_in, sign_in_as
+from tests.integration.conftest import ACME, BUILT_FILES, ORIGIN, sign_in, sign_in_as
 
 
 async def test_a_person_makes_a_workflow_under_their_own_name(
@@ -26,8 +28,8 @@ async def test_a_person_makes_a_workflow_under_their_own_name(
     assert made.status_code == 201, made.text
     assert made.json() == {"owner": "bob", "name": "tuned"}
     repo = acme.state.repos[("bob", "tuned.workflow")]
-    assert repo.private is True
-    assert repo.files["workflow.yaml"].startswith(b"# bob/tuned, a workflow.")
+    assert (repo.private, repo.platform_only, repo.reserved) == (False, True, {""})
+    assert repo.files.keys() >= BUILT_FILES
 
 
 async def test_an_empty_new_workflow_has_no_version_and_one_problem(
@@ -38,9 +40,9 @@ async def test_an_empty_new_workflow_has_no_version_and_one_problem(
     page = (await client.get("/api/v1/workflows/bob/empty")).json()
     draft = (await client.get("/api/v1/workflows/bob/empty/draft")).json()
     assert page["versions"] == []
-    assert (draft["values"], draft["unreadable"], draft["content"]) == ({"steps": []}, None, None)
+    assert draft["request"]["steps"] == []
     checked = await client.post(
-        "/api/v1/workflows/check", json={"values": draft["values"]}, headers=ORIGIN
+        "/api/v1/workflows/check", json={"request": draft["request"]}, headers=ORIGIN
     )
     assert checked.json()["problems"] == [
         {
@@ -173,34 +175,26 @@ async def test_the_owner_reads_saves_and_versions_a_workflow(
     page = await client.get("/api/v1/workflows/bob/tuned")
     assert page.status_code == 200, page.text
     body = page.json()
-    assert (body["owner"], body["name"], body["visibility"], body["editable"]) == (
-        "bob",
-        "tuned",
-        "private",
-        True,
-    )
-    assert (body["versions"], body["readers"]) == ([], [])
+    assert (body["owner"], body["name"], body["editable"]) == ("bob", "tuned", True)
+    assert body["versions"] == []
     draft = (await client.get("/api/v1/workflows/bob/tuned/draft")).json()
-    values = draft["values"]
-    values["steps"][1]["with"]["time_limit"] = 4
+    request = draft["request"]
+    request["steps"][1]["with"]["time_limit"] = 4
     saved = await client.put(
         "/api/v1/workflows/bob/tuned/draft",
-        json={"values": values, "token": draft["token"]},
+        json={"request": request, "token": draft["token"]},
         headers=ORIGIN,
     )
     assert saved.status_code == 200, saved.text
-    assert (saved.json()["values"], saved.json()["content"]) == (values, None)
+    assert saved.json()["request"] == request
     assert (await client.get("/api/v1/workflows/bob/tuned/draft")).json() == saved.json()
-    edited = acme.state.repos[("bob", "tuned.workflow")].files["workflow.yaml"].decode()
-    assert "      time_limit: 4\n" in edited
-    for stale_body in ({"values": values}, {"content": "x"}):
-        stale = await client.put(
-            "/api/v1/workflows/bob/tuned/draft",
-            json={**stale_body, "token": draft["token"]},
-            headers=ORIGIN,
-        )
-        assert stale.status_code == 409
-        assert stale.json()["code"] == "conflict"
+    stale = await client.put(
+        "/api/v1/workflows/bob/tuned/draft",
+        json={"request": request, "token": draft["token"]},
+        headers=ORIGIN,
+    )
+    assert stale.status_code == 409
+    assert stale.json()["code"] == "conflict"
 
     made = await client.post(
         "/api/v1/workflows/bob/tuned/versions", json={"version": "v1"}, headers=ORIGIN
@@ -208,63 +202,21 @@ async def test_the_owner_reads_saves_and_versions_a_workflow(
     assert made.status_code == 201, made.text
     assert made.json() == {"version": "v1"}
     read = await client.get("/api/v1/workflows/bob/tuned/versions/v1")
-    assert read.json() == {"content": edited, "values": values, "unreadable": None}
+    assert read.json() == {"request": request}
 
 
-async def test_a_draft_that_does_not_read_answers_why_and_its_text_and_mends_as_text(
-    client: httpx.AsyncClient, acme: FakeForge
-) -> None:
-    await _own(client, acme)
-    draft = (await client.get("/api/v1/workflows/bob/tuned/draft")).json()
-
-    broken = await client.put(
-        "/api/v1/workflows/bob/tuned/draft",
-        json={"content": "steps: [\n", "token": draft["token"]},
-        headers=ORIGIN,
-    )
-    read = (await client.get("/api/v1/workflows/bob/tuned/draft")).json()
-    over = await client.put(
-        "/api/v1/workflows/bob/tuned/draft",
-        json={"values": {"steps": []}, "token": read["token"]},
-        headers=ORIGIN,
-    )
-    both = await client.put(
-        "/api/v1/workflows/bob/tuned/draft",
-        json={"values": {"steps": []}, "content": "steps: []\n", "token": read["token"]},
-        headers=ORIGIN,
-    )
-    mended = await client.put(
-        "/api/v1/workflows/bob/tuned/draft",
-        json={"content": "steps: []\n", "token": read["token"]},
-        headers=ORIGIN,
-    )
-
-    assert broken.status_code == 200, broken.text
-    assert (read["values"], read["content"]) == (None, "steps: [\n")
-    assert read["unreadable"]
-    assert read == broken.json()
-    assert over.status_code == 422
-    assert over.json()["code"] == "invalid_definition"
-    assert [error["path"] for error in over.json()["errors"]] == [[]]
-    assert both.status_code == 422
-    assert (mended.json()["values"], mended.json()["unreadable"]) == ({"steps": []}, None)
-
-
-async def test_a_check_takes_a_definitions_values_or_its_text_and_not_both(
+async def test_a_check_takes_the_request_and_answers_each_problem_at_its_path(
     client: httpx.AsyncClient, acme: FakeForge
 ) -> None:
     await sign_in_as(client, acme, 8)
     named = {"inputs": {"Bad": {"type": "number"}}, "steps": [{"id": "a", "use": "unicon/exec@v4"}]}
 
-    checked = await client.post("/api/v1/workflows/check", json={"values": named}, headers=ORIGIN)
+    checked = await client.post("/api/v1/workflows/check", json={"request": named}, headers=ORIGIN)
     neither = await client.post("/api/v1/workflows/check", json={}, headers=ORIGIN)
-    both = await client.post(
-        "/api/v1/workflows/check", json={"values": named, "content": "x"}, headers=ORIGIN
-    )
 
     assert checked.status_code == 200, checked.text
     assert [problem["path"] for problem in checked.json()["problems"]] == [["inputs", "Bad"]]
-    assert (neither.status_code, both.status_code) == (422, 422)
+    assert neither.status_code == 422
 
 
 async def test_a_version_named_other_than_v_and_a_whole_number_is_refused_at_its_name(
@@ -288,16 +240,45 @@ async def test_a_version_named_other_than_v_and_a_whole_number_is_refused_at_its
     assert made.status_code == 201, made.text
 
 
+async def test_a_draft_main_yml_cannot_hold_or_a_change_to_values_yaml_is_refused(
+    client: httpx.AsyncClient, acme: FakeForge
+) -> None:
+    await _own(client, acme)
+    draft = (await client.get("/api/v1/workflows/bob/tuned/draft")).json()
+    request = draft["request"]
+    renamed = {**request, "steps": [{**request["steps"][0], "id": "Solver"}, *request["steps"][1:]]}
+
+    named = await client.put(
+        "/api/v1/workflows/bob/tuned/draft",
+        json={"request": renamed, "token": draft["token"]},
+        headers=ORIGIN,
+    )
+    values = await client.put(
+        "/api/v1/workflows/bob/tuned/draft",
+        json={
+            "request": request,
+            "token": draft["token"],
+            "changes": [{"path": "values.yaml", "token": None, "content": "steps: {}\n"}],
+        },
+        headers=ORIGIN,
+    )
+
+    assert (named.status_code, named.json()["code"]) == (422, "invalid_definition")
+    assert [error["path"] for error in named.json()["errors"]] == [["steps", 0, "id"]]
+    assert (values.status_code, values.json()["code"]) == (422, "invalid_inputs")
+    assert (await client.get("/api/v1/workflows/bob/tuned/draft")).json() == draft
+
+
 async def test_a_version_of_a_draft_with_problems_is_refused_with_each_path(
     client: httpx.AsyncClient, acme: FakeForge
 ) -> None:
     await _own(client, acme)
     draft = (await client.get("/api/v1/workflows/bob/tuned/draft")).json()
-    broken = draft["values"]
+    broken = draft["request"]
     broken["steps"][1]["with"]["files"]["output"] = "${{ steps.solver.output }}"
     saved = await client.put(
         "/api/v1/workflows/bob/tuned/draft",
-        json={"values": broken, "token": draft["token"]},
+        json={"request": broken, "token": draft["token"]},
         headers=ORIGIN,
     )
     assert saved.status_code == 200, saved.text
@@ -320,11 +301,15 @@ async def test_check_answers_every_problem_at_its_path_and_writes_nothing(
     client: httpx.AsyncClient, acme: FakeForge
 ) -> None:
     await sign_in_as(client, acme, 8)
-    classic = acme.state.repos[("unicon", "classic.workflow")].files["workflow.yaml"].decode()
-    unknown = classic.replace("unicon/exec@v4", "unicon/exec@v9")
+    unknown = {
+        **CLASSIC_REQUEST,
+        "steps": [{**step, "use": "unicon/exec@v9"} for step in CLASSIC_REQUEST["steps"]],
+    }
 
-    good = await client.post("/api/v1/workflows/check", json={"content": classic}, headers=ORIGIN)
-    bad = await client.post("/api/v1/workflows/check", json={"content": unknown}, headers=ORIGIN)
+    good = await client.post(
+        "/api/v1/workflows/check", json={"request": CLASSIC_REQUEST}, headers=ORIGIN
+    )
+    bad = await client.post("/api/v1/workflows/check", json={"request": unknown}, headers=ORIGIN)
 
     assert good.json() == {"problems": []}
     assert bad.status_code == 200, bad.text
@@ -335,40 +320,24 @@ async def test_check_answers_every_problem_at_its_path_and_writes_nothing(
     assert "cannot open unicon/exec@v9" in bad.json()["problems"][0]["message"]
 
 
-async def test_a_workflow_is_shared_with_a_person_who_then_reads_it(
+async def test_anyone_signed_in_reads_a_workflow_and_only_its_owner_changes_it(
     client: httpx.AsyncClient, acme: FakeForge
 ) -> None:
     await _own(client, acme)
     await client.post(
         "/api/v1/workflows/bob/tuned/versions", json={"version": "v1"}, headers=ORIGIN
     )
-    visible = await client.put(
-        "/api/v1/workflows/bob/tuned/visibility", json={"visibility": "shared"}, headers=ORIGIN
-    )
-    assert visible.status_code == 204, visible.text
-    shared = await client.put("/api/v1/workflows/bob/tuned/readers/ada", headers=ORIGIN)
-    assert shared.json() == {"username": "ada"}
-    page = (await client.get("/api/v1/workflows/bob/tuned")).json()
-    assert (page["visibility"], page["readers"]) == ("shared", ["ada"])
 
     await sign_in_as(client, acme, 7)
     as_ada = await client.get("/api/v1/workflows/bob/tuned")
     assert as_ada.status_code == 200
-    assert (as_ada.json()["editable"], as_ada.json()["readers"]) == (False, [])
+    assert as_ada.json()["editable"] is False
     assert (await client.get("/api/v1/workflows/bob/tuned/draft")).status_code == 403
     assert (await client.get("/api/v1/workflows/bob/tuned/versions/v1")).status_code == 200
     refused = await client.put(
-        "/api/v1/workflows/bob/tuned/draft", json={"content": "x", "token": None}, headers=ORIGIN
+        "/api/v1/workflows/bob/tuned/draft", json={"request": {}, "token": None}, headers=ORIGIN
     )
     assert refused.status_code == 403
-
-    await sign_in_as(client, acme, 8)
-    gone = await client.delete("/api/v1/workflows/bob/tuned/readers/ada", headers=ORIGIN)
-    assert gone.status_code == 204
-    await sign_in_as(client, acme, 7)
-    hidden = await client.get("/api/v1/workflows/bob/tuned/versions/v1")
-    assert hidden.status_code == 404
-    assert hidden.json()["detail"] == "There is no workflow bob/tuned@v1 that you can read."
 
 
 async def test_a_person_lists_what_they_may_read(
@@ -381,11 +350,10 @@ async def test_a_person_lists_what_they_may_read(
     assert listed.status_code == 200
     assert [(item["owner"], item["name"], item["editable"]) for item in listed.json()] == [
         ("bob", "tuned", True),
-        ("unicon", "classic", False),
     ]
 
 
-async def test_a_copy_is_a_new_private_workflow(client: httpx.AsyncClient, acme: FakeForge) -> None:
+async def test_a_copy_is_a_new_workflow(client: httpx.AsyncClient, acme: FakeForge) -> None:
     await sign_in_as(client, acme, 8)
 
     copied = await client.post(
@@ -401,7 +369,7 @@ async def test_a_copy_is_a_new_private_workflow(client: httpx.AsyncClient, acme:
 
     assert copied.status_code == 201, copied.text
     assert copied.json() == {"owner": "bob", "name": "mine"}
-    assert acme.state.repos[("bob", "mine.workflow")].private is True
+    assert acme.state.repos[("bob", "mine.workflow")].private is False
     assert gone.status_code == 404
 
 
@@ -446,7 +414,7 @@ async def test_the_primitives_are_listed_with_their_ports(
     }
     assert build["inputs"]["entry"]["optional"] is True
     assert build["outputs"]["outcome"]["accepts"] is None
-    assert build["limits"]["memory_mb"] == 1648
+    assert build["limits"]["memory_mb"] == 1728
     # The outcome port says what each outcome the step reports means, in
     # the declaration's order, for the step's drawer.
     assert build["outputs"]["outcome"]["outcomes"] == {
@@ -465,7 +433,7 @@ async def test_the_primitives_are_listed_with_their_ports(
         "scale": "2000",
         "add": "3000",
     }
-    assert one["limits"]["memory_mb"] == 1648
+    assert one["limits"]["memory_mb"] == 1728
 
 
 async def test_a_retired_primitive_left_at_the_forge_is_listed_with_why(
@@ -494,13 +462,10 @@ async def test_a_retired_primitive_left_at_the_forge_is_listed_with_why(
     [
         ("GET", "/api/v1/workflows", None),
         ("GET", "/api/v1/workflows/bob/tuned", None),
-        ("PUT", "/api/v1/workflows/bob/tuned/draft", {"content": "x", "token": None}),
+        ("PUT", "/api/v1/workflows/bob/tuned/draft", {"request": {}, "token": None}),
         ("POST", "/api/v1/workflows/bob/tuned/versions", {"version": "v1"}),
         ("GET", "/api/v1/workflows/bob/tuned/versions/v1", None),
-        ("PUT", "/api/v1/workflows/bob/tuned/visibility", {"visibility": "public"}),
-        ("PUT", "/api/v1/workflows/bob/tuned/readers/ada", None),
-        ("DELETE", "/api/v1/workflows/bob/tuned/readers/ada", None),
-        ("POST", "/api/v1/workflows/check", {"content": "x"}),
+        ("POST", "/api/v1/workflows/check", {"request": {}}),
         ("POST", "/api/v1/workflow-copies", {"source": "a/b@v1", "owner": "bob", "name": "c"}),
         ("GET", "/api/v1/workflows/bob/tuned/versions/v1/box", None),
         ("GET", "/api/v1/primitives", None),
@@ -520,16 +485,16 @@ async def test_a_version_of_a_save_someone_has_saved_over_is_a_conflict(
 ) -> None:
     await _own(client, acme)
     draft = (await client.get("/api/v1/workflows/bob/tuned/draft")).json()
-    draft["values"]["description"] = "One."
+    draft["request"]["description"] = "One."
     first = await client.put(
         "/api/v1/workflows/bob/tuned/draft",
-        json={"values": draft["values"], "token": draft["token"]},
+        json={"request": draft["request"], "token": draft["token"]},
         headers=ORIGIN,
     )
-    draft["values"]["description"] = "Two."
+    draft["request"]["description"] = "Two."
     await client.put(
         "/api/v1/workflows/bob/tuned/draft",
-        json={"values": draft["values"], "token": first.json()["token"]},
+        json={"request": draft["request"], "token": first.json()["token"]},
         headers=ORIGIN,
     )
 
@@ -546,11 +511,8 @@ async def test_a_version_of_a_save_someone_has_saved_over_is_a_conflict(
 @pytest.mark.parametrize(
     ("method", "path", "body"),
     [
-        ("PUT", "/api/v1/workflows/bob/tuned/draft", {"content": "x", "token": None}),
+        ("PUT", "/api/v1/workflows/bob/tuned/draft", {"request": {}, "token": None}),
         ("POST", "/api/v1/workflows/bob/tuned/versions", {"version": "v1"}),
-        ("PUT", "/api/v1/workflows/bob/tuned/visibility", {"visibility": "public"}),
-        ("PUT", "/api/v1/workflows/bob/tuned/readers/ada", None),
-        ("DELETE", "/api/v1/workflows/bob/tuned/readers/ada", None),
         (
             "POST",
             "/api/v1/workflow-copies",
@@ -572,6 +534,7 @@ async def test_someone_else_may_not_change_a_persons_workflow(
 
 _NOOP = (
     "image: ghcr.io/uniconhq/primitive-noop@sha256:" + ("0" * 64) + "\n"
+    "command: [run]\n"
     "schema_version: 6\n"
     "limits: {time_ms: 1, cpu_ms: 1, memory_mb: 1, pids: 1, output_mb: 1, gpus: 0}\n"
     "inputs:\n"
@@ -580,25 +543,23 @@ _NOOP = (
     "  outcome: outcome\n"
     "  time_ms: {type: number, better: lower, at_least: 0}\n"
 )
-_HELD = """\
-description: Holds a run until its limit.
-inputs:
-  cap: {type: number, title: Limit, unit: seconds}
-  note: {type: text, optional: true, title: Note}
-steps:
-  - id: run
-    use: unicon/noop@v1
-    with:
-      note: ${{ inputs.note }}
-outputs:
-  time_ms: ${{ steps.run.time_ms }}
-"""
+_HELD: dict[str, Any] = {
+    "description": "Holds a run until its limit.",
+    "inputs": {
+        "cap": {"type": "number", "title": "Limit", "unit": "seconds"},
+        "note": {"type": "text", "optional": True, "title": "Note"},
+    },
+    "steps": [{"id": "run", "use": "unicon/noop@v1", "with": {"note": "${{ inputs.note }}"}}],
+    "outputs": {"time_ms": "${{ steps.run.time_ms }}"},
+}
 
 
-async def _save(client: httpx.AsyncClient, name: str, content: str, token: str | None) -> str:
+async def _save(
+    client: httpx.AsyncClient, name: str, request: dict[str, Any], token: str | None
+) -> str:
     saved = await client.put(
         f"/api/v1/workflows/bob/{name}/draft",
-        json={"content": content, "token": token},
+        json={"request": request, "token": token},
         headers=ORIGIN,
     )
     assert saved.status_code == 200, saved.text
@@ -607,7 +568,7 @@ async def _save(client: httpx.AsyncClient, name: str, content: str, token: str |
     return token
 
 
-async def test_a_box_answers_a_workflow_version_and_one_unread(
+async def test_a_box_answers_a_workflow_version_and_one_not_there(
     client: httpx.AsyncClient, acme: FakeForge
 ) -> None:
     acme.primitives.add("noop", {"v1": _NOOP.encode()})
@@ -624,7 +585,7 @@ async def test_a_box_answers_a_workflow_version_and_one_unread(
         headers=ORIGIN,
     )
     assert version.status_code == 201, version.text
-    token = await _save(client, "held", _HELD + "\n", token)
+    token = await _save(client, "held", {**_HELD, "description": "Holds a run, again."}, token)
     again = await client.post(
         "/api/v1/workflows/bob/held/versions",
         json={"version": "v2", "token": token},
@@ -710,7 +671,8 @@ async def test_a_box_answers_a_workflow_version_and_one_unread(
     }
 
     await sign_in_as(client, acme, 7)
-    refused = await client.get("/api/v1/workflows/bob/held/versions/v1/box")
+    assert (await client.get("/api/v1/workflows/bob/held/versions/v1/box")).status_code == 200
+    refused = await client.get("/api/v1/workflows/bob/held/versions/v3/box")
     assert refused.status_code == 404
     assert refused.json()["code"] == "not_found"
 
@@ -729,12 +691,12 @@ async def test_checking_a_draft_that_holds_its_own_workflow_names_the_step(
         headers=ORIGIN,
     )
     assert made.status_code == 201, made.text
-    closing = "steps:\n  - id: again\n    use: bob/held@v1\n"
+    closing = {"steps": [{"id": "again", "use": "bob/held@v1"}]}
     token = await _save(client, "held", closing, token)
 
     checked = await client.post(
         "/api/v1/workflows/check",
-        json={"content": closing, "owner": "bob", "name": "held"},
+        json={"request": closing, "owner": "bob", "name": "held"},
         headers=ORIGIN,
     )
     refused = await client.post(
@@ -811,12 +773,13 @@ async def test_check_uses_the_saved_and_staged_path_list(
 ) -> None:
     await sign_in_as(client, acme, 8)
     files = acme.state.repos[("unicon", "classic.workflow")].files
-    content = files["workflow.yaml"].decode()
     missing = await client.post(
-        "/api/v1/workflows/check", json={"content": content, "paths": []}, headers=ORIGIN
+        "/api/v1/workflows/check", json={"request": CLASSIC_REQUEST, "paths": []}, headers=ORIGIN
     )
     staged = await client.post(
-        "/api/v1/workflows/check", json={"content": content, "paths": list(files)}, headers=ORIGIN
+        "/api/v1/workflows/check",
+        json={"request": CLASSIC_REQUEST, "paths": list(files)},
+        headers=ORIGIN,
     )
     assert missing.status_code == 200, missing.text
     assert any("diff/" in problem["message"] for problem in missing.json()["problems"])
@@ -830,7 +793,7 @@ async def test_check_refuses_excessive_path_lists_before_reading_workflows(
     await sign_in_as(client, acme, 8)
     response = await client.post(
         "/api/v1/workflows/check",
-        json={"content": "steps: []", "paths": paths},
+        json={"request": {"steps": []}, "paths": paths},
         headers=ORIGIN,
     )
     assert response.status_code == 422
@@ -840,5 +803,5 @@ async def test_check_refuses_excessive_path_lists_before_reading_workflows(
 def test_check_path_limits_accept_the_boundary() -> None:
     from unicon.schemas.workflows import CheckDefinition
 
-    assert len(CheckDefinition(content="", paths=["x" * 1024] * 10_000).paths or []) == 10_000
-    assert CheckDefinition(content="").paths is None
+    assert len(CheckDefinition(request={}, paths=["x" * 1024] * 10_000).paths or []) == 10_000
+    assert CheckDefinition(request={}).paths is None

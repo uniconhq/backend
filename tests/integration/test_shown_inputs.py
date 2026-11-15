@@ -16,11 +16,11 @@ import base64
 from typing import Any
 
 import httpx
+import yaml
 from forge.api.uploads import Door
-from forge.testing import FakeForge, Setup
+from forge.testing import FakeForge, Setup, request_text
 
 from tests.integration.conftest import (
-    DOES_NOT_COMPILE,
     ORIGIN,
     TASK,
     add_task,
@@ -35,7 +35,10 @@ from tests.integration.conftest import (
 
 DOOR = "/-/downloads/door"
 DOWNLOADS = "/-/downloads/acme/spring/sum"
-STARTER_RUNS = "      runs:\n        - {of: all, fields: [verdict, passed]}\n"
+SOURCE = b"print(sum(map(int, input().split())))\n"
+STARTER_RUNS = (
+    "      runs:\n      - of: all\n        fields:\n        - verdict\n        - passed\n"
+)
 """The starter's run entry, the last lines of its `show`."""
 INPUTS_SHOWN = (
     "      inputs: [time_limit]\n"
@@ -44,7 +47,7 @@ INPUTS_SHOWN = (
 )
 """The task's time limit, and each run's input, verdict and `passed`, shown as soon
 as a grading ends, and so on the task's page from the start."""
-FIRST_NOT_PASSED = f"{STARTER_RUNS}        - {{of: first_not_passed, fields: [input, verdict]}}\n"
+FIRST_NOT_PASSED = f"{STARTER_RUNS}      - {{of: first_not_passed, fields: [input, verdict]}}\n"
 """The starter's run entry, and of each submission the input and verdict of
 the first run it did not pass."""
 PREVIEW = f"{TASK}/show-preview"
@@ -98,9 +101,10 @@ async def _showing(client: httpx.AsyncClient, forge: FakeForge, runs: str) -> No
     await sign_in_as(client, forge, 20)
 
 
-async def _submitted(client: httpx.AsyncClient, forge: FakeForge, source: bytes) -> None:
-    """carol's first submission of acme/spring/sum, of `source`, graded."""
-    made = await upload(client, forge, source)
+async def _submitted(client: httpx.AsyncClient, forge: FakeForge, verdict: str) -> None:
+    """carol's first submission of acme/spring/sum, graded, each run ending
+    `verdict`."""
+    made = await upload(client, forge, SOURCE)
     submitted = await client.post(
         f"{TASK}/submissions",
         json={
@@ -110,7 +114,7 @@ async def _submitted(client: httpx.AsyncClient, forge: FakeForge, source: bytes)
         headers=ORIGIN,
     )
     assert submitted.status_code == 201, submitted.text
-    await run_pipelines(client)
+    await run_pipelines(client, verdict)
 
 
 async def _opened(client: httpx.AsyncClient, address: str) -> httpx.Response:
@@ -136,7 +140,7 @@ async def test_the_task_page_lists_the_runs_and_settings_shown_and_serves_their_
         {
             "group": "all",
             "place": 1,
-            "tuples": [{"title": None, "key": {"input": {"file": "1.in"}}}],
+            "key": {"input": {"file": "1.in"}},
         }
     ]
     address = f"{DOWNLOADS}/runs/all/1/inputs/input"
@@ -203,7 +207,7 @@ async def test_the_owner_fetches_the_input_of_the_first_run_their_submission_did
     client: httpx.AsyncClient, entered: FakeForge, held_setup: Setup
 ) -> None:
     await _showing(client, entered, FIRST_NOT_PASSED)
-    await _submitted(client, entered, DOES_NOT_COMPILE)
+    await _submitted(client, entered, "compile_error")
 
     _, run = (await client.get(f"{TASK}/submissions/1")).json()["grading"]["runs"]
     listed = await client.get(f"{TASK}/submissions/1/runs/first_not_passed/1/inputs/input")
@@ -262,7 +266,7 @@ async def test_the_preview_answers_what_an_entrant_would_read_of_a_made_up_submi
         "accepted",
         None,
     )
-    assert run["tuples"] == [{"title": None, "key": {"input": {"file": "1.in"}}}]
+    assert run["key"] == {"input": {"file": "1.in"}}
     # The made-up result of each run, by field name.
     [sample] = before.json()["sample"]
     assert (sample["verdict"], sample["passed"]) == ("accepted", "1")
@@ -279,7 +283,7 @@ async def test_the_preview_checks_the_draft_alone_and_needs_no_publication(
         moment="always",
     )
     old = await _preview(client, show={"now": ["score"]}, moment="always")
-    later = await add_task(client, "later")
+    later = await add_task(client, entered, "later")
     unpublished = await client.post(
         f"{later}/show-preview", json={"show": {}, "moment": "always"}, headers=ORIGIN
     )
@@ -306,7 +310,7 @@ async def _checked(client: httpx.AsyncClient, forge: FakeForge) -> None:
     draft = (await client.get("/api/v1/workflows/acme/checked/draft")).json()
     saved = await client.put(
         "/api/v1/workflows/acme/checked/draft",
-        json={"content": CHECKED, "token": draft["token"]},
+        json={"request": yaml.safe_load(CHECKED), "token": draft["token"]},
         headers=ORIGIN,
     )
     assert saved.status_code == 200, saved.text
@@ -314,9 +318,10 @@ async def _checked(client: httpx.AsyncClient, forge: FakeForge) -> None:
         "/api/v1/workflows/acme/checked/versions", json={"version": "v1"}, headers=ORIGIN
     )
     assert made.status_code == 201, made.text
-    task = await read(client, f"{TASK}/files/task.yaml")
+    task = await read(client, f"{TASK}/request")
     content = (
-        task["content"]
+        request_text(task["request"])
+        .decode()
         .replace("unicon/classic@v6", "acme/checked@v1")
         .replace(
             "  memory_limit: 256\n",
@@ -325,8 +330,8 @@ async def _checked(client: httpx.AsyncClient, forge: FakeForge) -> None:
         .replace(STARTER_RUNS, f"      inputs: [checker]\n{STARTER_RUNS}")
     )
     body = {
+        "request": {"request": yaml.safe_load(content), "token": task["token"]},
         "changes": [
-            {"path": "task.yaml", "encoding": "utf-8", "content": content, "token": task["token"]},
             *(
                 {
                     "path": path,

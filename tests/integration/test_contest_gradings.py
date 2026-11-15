@@ -2,7 +2,7 @@
 newest first, each row the grading, whether it is its submission's latest
 attempt, its task by name and letter, its entrant and the member who
 submitted it, narrowed by task, by username, by entrant, by status and to
-each submission's latest attempt, a stuck grading read as `system_error`
+each submission's latest attempt, a grading the sweep settled read as `system_error`
 and one staff cancelled with their sentence; a username or an entrant that
 cannot be one a validation error; and the queue depth, counted by status,
 with the failed gradings that wait, the ones the feed gives filtered to the
@@ -10,8 +10,6 @@ latest attempts in system error. Someone holding a role at some of its
 tasks alone reads both over those tasks, a contestant is refused both, and
 both need a session.
 """
-
-from datetime import timedelta
 
 import httpx
 from forge.api.types import Role, Scope
@@ -25,13 +23,13 @@ from tests.integration.conftest import (
     enter,
     entrant_of,
     sign_in_as,
+    stuck,
     upload,
 )
 
 SOURCE = b"print(sum(map(int, input().split())))\n"
 FEED = f"{CONTEST}/gradings"
 QUEUE = f"{CONTEST}/gradings/queue"
-STUCK = timedelta(hours=2)
 
 
 async def _submit(client: httpx.AsyncClient, forge: FakeForge) -> str:
@@ -120,19 +118,19 @@ async def test_the_feed_narrows_by_task_user_entrant_and_status(
     assert await ids(limit=1) == [bobs]
 
 
-async def test_a_stuck_grading_reads_as_a_system_error_and_a_cancelled_one_says_why(
+async def test_a_settled_grading_reads_as_a_system_error_and_a_cancelled_one_says_why(
     client: httpx.AsyncClient, entered: FakeForge, held_setup: Setup, clock: FakeClock
 ) -> None:
     carols, bobs = await _two(client, entered, held_setup)
-    clock.advance(STUCK)
+    await stuck(client, clock)
     reason = "The checker crashed on this one; it is not counted."
     await client.post(f"{TASK}/gradings/{carols}/cancel", json={"reason": reason}, headers=ORIGIN)
 
-    stuck = await client.get(FEED, params={"status": "system_error"})
+    failed = await client.get(FEED, params={"status": "system_error"})
     cancelled = await client.get(FEED, params={"status": "cancelled"})
 
-    assert [row["grading"]["id"] for row in stuck.json()] == [bobs]
-    assert stuck.json()[0]["grading"]["error"]
+    assert [row["grading"]["id"] for row in failed.json()] == [bobs]
+    assert failed.json()[0]["grading"]["error"]
     assert [row["grading"]["id"] for row in cancelled.json()] == [carols]
     assert cancelled.json()[0]["grading"]["cancel_reason"] == reason
 
@@ -169,20 +167,20 @@ async def test_the_queue_depth_counts_the_gradings_waiting_by_status(
     await _two(client, entered, held_setup)
 
     waiting = await client.get(QUEUE)
-    clock.advance(STUCK)
-    stuck = await client.get(QUEUE)
+    await stuck(client, clock)
+    failed = await client.get(QUEUE)
 
     assert empty.status_code == 200, empty.text
     assert empty.json() == {"queued": 0, "dispatched": 0, "failed": 0}
     assert waiting.json() == {"queued": 0, "dispatched": 2, "failed": 0}
-    assert stuck.json() == {"queued": 0, "dispatched": 0, "failed": 2}
+    assert failed.json() == {"queued": 0, "dispatched": 0, "failed": 2}
 
 
 async def test_the_failed_count_links_to_the_feed_filtered_to_the_failed_gradings(
     client: httpx.AsyncClient, entered: FakeForge, held_setup: Setup, clock: FakeClock
 ) -> None:
     carols, bobs = await _two(client, entered, held_setup)
-    clock.advance(STUCK)
+    await stuck(client, clock)
     retried = await client.post(f"{TASK}/gradings/{carols}/retry", headers=ORIGIN)
     assert retried.status_code == 200, retried.text
 

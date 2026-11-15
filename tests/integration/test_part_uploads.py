@@ -71,7 +71,7 @@ async def test_workflow_parts_are_stored_before_the_existing_draft_uses_them(
     saved = await client.put(
         workflow + "/draft",
         json={
-            "values": draft["values"],
+            "request": draft["request"],
             "token": draft["token"],
             "changes": [{"path": "data.bin", "token": None, "upload": upload}],
         },

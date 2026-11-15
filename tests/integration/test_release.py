@@ -25,7 +25,7 @@ async def test_a_task_is_released_to_a_person_once_it_is_published_scheduled_and
 ) -> None:
     # A task made once the contest is open, then published.
     await run_contest(client)
-    product = await add_task(client, "product")
+    product = await add_task(client, sum_task, "product")
     await sign_in_as(client, sum_task, 8)
     before = await client.get(f"{product}/release")
 

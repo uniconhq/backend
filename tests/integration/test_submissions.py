@@ -19,9 +19,18 @@ from typing import Any
 import httpx
 import pytest
 from forge.api.uploads import Door
-from forge.testing import CLASSIC, AsUser, FakeClock, FakeForge, Setup, Visibility
+from forge.testing import (
+    CLASSIC,
+    CLASSIC_REQUEST,
+    AsUser,
+    FakeClock,
+    FakeForge,
+    Setup,
+    workflow_files,
+)
 
 from tests.integration.conftest import (
+    BUILT_FILES,
     ORIGIN,
     TASK,
     edit_task,
@@ -274,39 +283,37 @@ async def test_inputs_that_do_not_fit_the_task_are_refused_at_their_input(
 
 
 THIRTY = "0.123456789012345678901234567891"
-"""A bound and a value of 30 significant digits, past what a float holds."""
-TUNABLE = {
-    **CLASSIC,
-    "workflow.yaml": CLASSIC["workflow.yaml"].replace(
-        b"\nsteps:\n", b"  ratio: {type: number, title: Ratio}\n\nsteps:\n"
-    ),
-}
+"""A value of 30 significant digits, past what a float holds."""
+OVER = "0.5" + "0" * 28 + "1"
+"""Just over the bound, 0.5, by the 30th digit."""
+TUNABLE = workflow_files(
+    {
+        **CLASSIC_REQUEST,
+        "inputs": {**CLASSIC_REQUEST["inputs"], "ratio": {"type": "number", "title": "Ratio"}},
+    },
+    **{path: data for path, data in CLASSIC.items() if path not in BUILT_FILES},
+)
 """Classic with one more number input, which the task makes the entrant's."""
 
 
 async def _on_tunable(client: httpx.AsyncClient, forge: FakeForge) -> None:
     """acme/spring/sum moved onto ada's workflow with a number input,
-    `ratio`, the entrant's to give, at most `THIRTY`; carol signed in again.
+    `ratio`, the entrant's to give, at most 0.5; carol signed in again.
     """
     await sign_in_as(client, forge, 7)
     ada = AsUser(7, forge.mint(7))
-    workflow = await forge.workflows.create_workflow(
-        ada, "ada", "tunable", TUNABLE, Visibility.PUBLIC
-    )
+    workflow = await forge.workflows.create_workflow(ada, "ada", "tunable", TUNABLE)
     await forge.workflows.create_workflow_version(ada, workflow, "v1")
-    current = await read(client, f"{TASK}/files/task.yaml")
-    old = "workflow: unicon/classic@v6\ninputs:\n"
-    new = f"workflow: ada/tunable@v1\ninputs:\n  ratio: {{entrant: {{max: {THIRTY}}}}}\n"
-    body = {"content": current["content"].replace(old, new), "token": current["token"]}
-    asked = await client.put(
-        f"{TASK}/files/task.yaml", json={**body, "confirm": True}, headers=ORIGIN
-    )
+    current = await read(client, f"{TASK}/request")
+    request = current["request"]
+    request["workflow"] = "ada/tunable@v1"
+    request["inputs"]["ratio"] = {"entrant": {"max": 0.5}}
+    body = {"request": {"request": request, "token": current["token"]}, "confirm": True}
+    asked = await client.post(f"{TASK}/save", json=body, headers=ORIGIN)
     # A save naming another workflow asks again, naming what it pins.
     assert asked.json()["code"] == "confirmation_required", asked.text
-    saved = await client.put(
-        f"{TASK}/files/task.yaml",
-        json={**body, "confirm": True, "asked": asked.json()["asked"]},
-        headers=ORIGIN,
+    saved = await client.post(
+        f"{TASK}/save", json={**body, "asked": asked.json()["asked"]}, headers=ORIGIN
     )
     assert "number" in saved.json(), saved.text
     await run_pipelines(client, pipelines=("save",))
@@ -340,7 +347,7 @@ async def test_a_number_given_as_its_digits_reaches_submission_json_to_the_digit
     assert files.json()["inputs"]["ratio"] == {"files": [], "value": THIRTY, "parts": None}
 
 
-@pytest.mark.parametrize("ratio", ["1e3", "0x10", "NaN", "", THIRTY[:-1] + "2"])
+@pytest.mark.parametrize("ratio", ["1e3", "0x10", "NaN", "", OVER])
 async def test_a_number_that_is_not_plain_digits_within_the_bounds_is_refused_at_its_input(
     client: httpx.AsyncClient, entered: FakeForge, ratio: str
 ) -> None:
@@ -462,14 +469,13 @@ async def test_staff_list_and_download_an_entrants_files(
 
 
 IN_PARTS = (
-    "  - inputs: [input, answer]\n    tuples:\n      - [1.in, 1.ans]\n",
-    "  - inputs: [input, answer]\n    tuples:\n"
-    "      - [entrant, 1.ans]\n"
-    "      - [entrant, 1.ans]\n",
+    "runs:\n- input: 1.in\n  answer: 1.ans\n",
+    "  input: {entrant: {parts: [{}, {}]}}\n"
+    "runs:\n- {input: 1, answer: 1.ans}\n- {input: 2, answer: 1.ans}\n",
 )
-"""The starter with its `input` the entrant's, given once per test, in two
-parts. The code stays given once: a step that compiles it once is never
-given a source that differs by run."""
+"""The starter with its `input` the entrant's, in two parts, one per run.
+The code stays given once: a step that compiles it once is never given a
+source that differs by run."""
 FIRST = b"1 2\n"
 SECOND = b"2 1\n"
 
@@ -478,10 +484,7 @@ async def test_an_input_given_in_parts_is_read_back_by_part_by_its_entrant_and_s
     client: httpx.AsyncClient, entered: FakeForge
 ) -> None:
     await sign_in_as(client, entered, 7)
-    current = await read(client, f"{TASK}/files/task.yaml")
-    old, new = IN_PARTS
-    assert old in current["content"]
-    await edit_task(client, old, new)
+    await edit_task(client, *IN_PARTS)
     await sign_in_as(client, entered, 20)
     code = await upload(client, entered, SOURCE)
     first = await upload(client, entered, FIRST, input="input", filename="1.in", part=1)

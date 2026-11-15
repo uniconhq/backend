@@ -89,8 +89,8 @@ async def test_an_input_the_task_gives_no_label_reads_as_its_key(
     await sign_in_as(client, world, 7)
     await edit_task(
         client,
-        "code: {entrant: {label: Your solution}}",
-        "code: {entrant: {}}",
+        "  code:\n    entrant:\n      label: Your solution\n",
+        "  code:\n    entrant: {}\n",
     )
     await sign_in_as(client, world, 20)
 
@@ -122,7 +122,7 @@ async def test_a_hidden_contest_and_an_unreleased_task_are_not_found(
 ) -> None:
     # A task made once the contest is open, not published yet.
     await run_contest(client, visibility="signed-in")
-    product = await add_task(client, "product")
+    product = await add_task(client, world, "product")
     await sign_in_as(client, world, 20)
     unreleased = await client.get(f"{product}/page")
 

@@ -1,8 +1,8 @@
 """A contest's or a task's files, read as the organiser and written by the
 platform with the organiser as each change's author: a folder's entries,
-one file at a version, the history, a write and a rollback. The same five
-routes are served under the contest and the task prefixes, made by
-`router_at`, so each kind gets its own operation names.
+one file at a version, the history and a write, and a contest's rollback.
+The same four routes are served under the contest and the task prefixes,
+made by `router_at`, so each kind gets its own operation names.
 Reading needs the observer role at the place and writing the manager role.
 The history names each change's `author` by username beside `author_id`,
 whether or not they still hold a role there, so a page names every author
@@ -14,12 +14,13 @@ file answers with the version it made and, for `contest.yaml`, the notes its
 leaderboards report, as a task's save answers its own. A write to a task's file is a save
 of the task and answers as the save does, with a publication or a draft,
 and may name, in place of content, a file the organiser uploaded for that
-path, whose pointer it writes. A rollback writes the file as it was at an
-older version back as a new change, so it answers as a write does. A file
+path, whose pointer it writes. A contest's rollback writes the file as it
+was at an older version back as a new change, so it answers as a write
+does. A folder's entries mark each file forge writes itself. A file
 that is an upload is read and listed with `upload`, the size and digest of
-what it holds. The settings are also read as their form's plain values, and
-a contest's saved from them, through the same write as `contest.yaml`'s; a
-task's are saved with the task's save.
+what it holds. A contest's settings are also read as their form's plain
+values and saved from them, through the same write as `contest.yaml`'s; a
+task's are its request, read and saved with the task's routes.
 """
 
 from typing import Annotated
@@ -122,11 +123,15 @@ def router_at(kind: ScopeKind) -> APIRouter:
         ) -> Written | Published | Draft | Preparing:
             return await _write(organiser, path, body.data(), body)
 
-    @router.get("/settings", operation_id=f"read{name}Settings", summary="The settings as values")
-    async def read_settings(organiser: Observer) -> Settings:
-        return Settings.of(await files.read_values(organiser, _place(organiser)))
-
     if kind is ScopeKind.CONTEST:
+
+        @router.get(
+            "/settings", operation_id="readContestSettings", summary="The settings as values"
+        )
+        async def read_settings(organiser: Observer) -> Settings:
+            return Settings.of(
+                await files.read_values(organiser, contests.contest_id_of(organiser.scope))
+            )
 
         @router.put(
             "/settings", operation_id="writeContestSettings", summary="Save the settings' values"
@@ -144,27 +149,23 @@ def router_at(kind: ScopeKind) -> APIRouter:
             )
             return Written(version=result.version, notes=list(result.notes))
 
-    @router.post(
-        "/files/{path:path}/rollback",
-        operation_id=f"rollBack{name}File",
-        summary="Write a file back as it was at an older version",
-        response_model=answer,
-    )
-    async def roll_back_file(
-        organiser: Manager, path: str, body: RollbackFile
-    ) -> Written | Published | Draft | Preparing:
-        result = await files.rollback(
-            organiser,
-            _place(organiser),
-            path,
-            VersionId(body.version),
-            token_of(body.token),
-            message=body.message,
-            confirm=body.confirm,
-            asked=body.asked,
-            keep_as_draft=body.keep_as_draft,
+        @router.post(
+            "/files/{path:path}/rollback",
+            operation_id="rollBackContestFile",
+            summary="Write a file back as it was at an older version",
         )
-        return _answered(result)
+        async def roll_back_file(organiser: Manager, path: str, body: RollbackFile) -> Written:
+            result = await files.rollback(
+                organiser,
+                contests.contest_id_of(organiser.scope),
+                path,
+                VersionId(body.version),
+                token_of(body.token),
+                message=body.message,
+                confirm=body.confirm,
+                asked=body.asked,
+            )
+            return Written(version=result.version, notes=list(result.notes))
 
     return router
 

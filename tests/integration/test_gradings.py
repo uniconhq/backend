@@ -1,7 +1,7 @@
 """An organiser's view of and controls over a task's gradings, over HTTP:
 the list, newest first with each one's reason, who submitted it and whether
 it is its submission's latest attempt, to an observer; cancelling a grading
-that reads as a system error with a sentence its contestant then reads, and
+the sweep settled as a system error with a sentence its contestant then reads, and
 refusing one that is not, a sentence that is not one and an earlier
 attempt; retrying a finished one as a new attempt, which runs every step
 again (#625), and refusing one still being graded, an
@@ -16,7 +16,6 @@ manager role itself is held to the guard's table.
 """
 
 import uuid
-from datetime import timedelta
 
 import httpx
 import pytest
@@ -31,14 +30,12 @@ from tests.integration.conftest import (
     read,
     run_pipelines,
     sign_in_as,
+    stuck,
     upload,
 )
 
 SOURCE = b"print(sum(map(int, input().split())))\n"
 REASON = {"reason": "The checker crashed on this one; it is not counted."}
-STUCK = timedelta(hours=2)
-"""How long a dispatched grading waits for a machine before it reads as a
-system error."""
 
 
 async def _grading(client: httpx.AsyncClient, forge: FakeForge) -> str:
@@ -67,7 +64,7 @@ async def test_a_manager_cancels_a_grading_in_system_error_saying_why(
     cancel = f"{TASK}/gradings/{grading}/cancel"
 
     waiting = await client.post(cancel, json=REASON, headers=ORIGIN)
-    clock.advance(STUCK)
+    await stuck(client, clock)
     unsaid = await client.post(cancel, json={"reason": "  "}, headers=ORIGIN)
     no_body = await client.post(cancel, headers=ORIGIN)
     cancelled = await client.post(cancel, json=REASON, headers=ORIGIN)
@@ -121,7 +118,7 @@ async def test_a_manager_retries_a_stuck_grading_and_acts_only_on_the_latest_att
     await sign_in_as(client, entered, 7)
 
     retried_early = await client.post(f"{TASK}/gradings/{grading}/retry", headers=ORIGIN)
-    clock.advance(STUCK)
+    await stuck(client, clock)
     retried = await client.post(f"{TASK}/gradings/{grading}/retry", headers=ORIGIN)
     earlier = await client.post(f"{TASK}/gradings/{grading}/cancel", json=REASON, headers=ORIGIN)
     retried_earlier = await client.post(f"{TASK}/gradings/{grading}/retry", headers=ORIGIN)
@@ -187,7 +184,7 @@ async def test_a_failed_later_attempt_leaves_the_submission_at_its_last_result_a
     client: httpx.AsyncClient, entered: FakeForge, clock: FakeClock, held_setup: Setup
 ) -> None:
     second = await _regrading(client, entered, held_setup)
-    clock.advance(STUCK)
+    await stuck(client, clock)
 
     listed = await client.get(f"{TASK}/gradings")
     gone = await client.put(f"{TASK}/gradings/{second}/fallback", headers=ORIGIN)
@@ -207,7 +204,7 @@ async def test_a_submission_with_no_result_whose_grading_failed_reads_as_delayed
     client: httpx.AsyncClient, entered: FakeForge, clock: FakeClock
 ) -> None:
     await _grading(client, entered)
-    clock.advance(STUCK)
+    await stuck(client, clock)
 
     mine = (await client.get(f"{TASK}/submissions/1")).json()["grading"]
     await sign_in_as(client, entered, 7)
@@ -221,7 +218,7 @@ async def test_a_cancel_after_a_result_keeps_the_result(
     client: httpx.AsyncClient, entered: FakeForge, clock: FakeClock, held_setup: Setup
 ) -> None:
     second = await _regrading(client, entered, held_setup)
-    clock.advance(STUCK)
+    await stuck(client, clock)
 
     cancelled = await client.post(f"{TASK}/gradings/{second}/cancel", json=REASON, headers=ORIGIN)
     await sign_in_as(client, entered, 20)
@@ -232,33 +229,12 @@ async def test_a_cancel_after_a_result_keeps_the_result(
     assert (counted["attempt"], counted["status"]) == (1, "graded")
 
 
-async def test_a_contest_that_says_what_a_failed_grading_counts_as_is_refused_naming_it(
-    client: httpx.AsyncClient, entered: FakeForge
-) -> None:
-    await sign_in_as(client, entered, 7)
-    settings = await read(client, f"{CONTEST}/files/contest.yaml")
-
-    written = await client.put(
-        f"{CONTEST}/files/contest.yaml",
-        json={
-            "encoding": "utf-8",
-            "content": settings["content"] + "on_system_error: last_result\n",
-            "token": settings["token"],
-        },
-        headers=ORIGIN,
-    )
-
-    assert (written.status_code, written.json()["code"]) == (422, "invalid_definition")
-    assert [problem["path"] for problem in written.json()["errors"]] == [["on_system_error"]]
-    assert "tried again once by itself" in written.json()["errors"][0]["message"]
-
-
 async def test_an_observer_lists_the_tasks_gradings_newest_first_with_their_reasons(
     client: httpx.AsyncClient, entered: FakeForge, clock: FakeClock
 ) -> None:
     grading = await _grading(client, entered)
     await sign_in_as(client, entered, 7)
-    clock.advance(STUCK)
+    await stuck(client, clock)
     retried = await client.post(f"{TASK}/gradings/{grading}/retry", headers=ORIGIN)
 
     listed = await client.get(f"{TASK}/gradings")
@@ -285,7 +261,7 @@ async def test_a_rejudge_grades_every_submission_again(
 ) -> None:
     grading = await _grading(client, entered)
     await sign_in_as(client, entered, 7)
-    clock.advance(STUCK)
+    await stuck(client, clock)
 
     rejudged = await client.post(f"{TASK}/rejudge", headers=ORIGIN)
     listed = await client.get(f"{TASK}/gradings")
@@ -317,13 +293,18 @@ async def test_a_save_that_changes_how_the_task_grades_regrades_once_its_check_p
 ) -> None:
     await _grading(client, entered)
     await sign_in_as(client, entered, 7)
-    task = await read(client, f"{TASK}/files/task.yaml")
+    task = await read(client, f"{TASK}/request")
 
-    saved = await client.put(
-        f"{TASK}/files/task.yaml",
+    saved = await client.post(
+        f"{TASK}/save",
         json={
-            "content": task["content"].replace("time_limit: 2", "time_limit: 1"),
-            "token": task["token"],
+            "request": {
+                "request": {
+                    **task["request"],
+                    "inputs": {**task["request"]["inputs"], "time_limit": 1},
+                },
+                "token": task["token"],
+            },
             "confirm": True,
         },
         headers=ORIGIN,

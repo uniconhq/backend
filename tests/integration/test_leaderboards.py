@@ -26,6 +26,7 @@ from tests.integration.conftest import (
     sign_in_as,
     upload,
 )
+from tests.integration.test_runs import STARTER_RUN
 
 PUBLIC = "/api/v1/public/contests/acme/spring/leaderboards"
 LEADERBOARDS = f"{CONTEST}/leaderboards"
@@ -363,29 +364,24 @@ async def test_organisers_read_a_submission_scored_with_everything_filled_in(
     assert (refused.status_code, refused.json()["code"]) == (403, "forbidden")
     assert seen.status_code == 200, seen.text
     grading = seen.json()["grading"]
-    # Carol is shown her run with no id and an empty tuple, since the task's
+    # Carol is shown her run with no id and an empty key, since the task's
     # `show` names neither input, and not the compile log; organisers
     # read every one of them, each value with when it shows and what it read.
     [mine] = own["runs"]
     [run] = grading["runs"]
-    assert (own["status"], mine["id"], mine["tuples"], own["once"]["texts"]) == (
+    assert (own["status"], mine["id"], mine["key"], own["once"]["texts"]) == (
         "graded",
         None,
-        [{"title": None, "key": {}}],
+        {},
         {},
     )
-    assert (grading["status"], run["id"], run["verdict"]) == ("done", "r1", "accepted")
-    assert run["tuples"] == [
-        {
-            "title": None,
-            "key": {"input": {"file": "1.in"}, "answer": {"file": "1.ans"}},
-        }
-    ]
+    assert (grading["status"], run["id"], run["verdict"]) == ("done", STARTER_RUN, "accepted")
+    assert run["key"] == {"input": {"file": "1.in"}, "answer": {"file": "1.ans"}}
     by_title = {report["title"]: report for report in run["reports"]}
     assert by_title["Run time"] == {"title": "Run time", "unit": "ms", "number": "12"}
     assert list(grading["once"]["texts"]) == ["log"]
     [score] = grading["run_values"]
-    assert (score["number"], score["show"], score["runs"]) == ("1", "always", ["r1"])
+    assert (score["number"], score["show"], score["runs"]) == ("1", "always", [STARTER_RUN])
     assert grading["facts"] == {"seconds_late": "0", "seconds": "7200", "compiled": "1"}
 
 

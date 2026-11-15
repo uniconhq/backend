@@ -28,6 +28,7 @@ from tests.integration.conftest import (
     sign_in_as,
     upload,
 )
+from tests.integration.test_runs import STARTER_RUN
 
 SOURCE = b"print(sum(map(int, input().split())))\n"
 REGRADES = f"{CONTEST}/gradings/regrades"
@@ -113,7 +114,7 @@ async def test_an_observer_reads_only_their_tasks_regrades_and_dismisses_none(
     await _submit(client, entered, "key-0001-aaaa")
     await _report(client, "accepted")
     await sign_in_as(client, entered, 7)
-    await add_task(client, "product")
+    await add_task(client, entered, "product")
     rejudged = await client.post(f"{TASK}/rejudge", headers=ORIGIN)
     regrade = rejudged.json()["regrade"]
     entered.add_user(30, "dave")
@@ -349,6 +350,6 @@ async def test_a_saves_regrade_is_read_by_the_value_and_verdict_it_changed(
         ("score", "1", "0")
     ]
     assert changed["verdicts"] == [
-        {"run": "r1", "before": "accepted", "after": "wrong_answer", "runs": 1}
+        {"run": STARTER_RUN, "before": "accepted", "after": "wrong_answer", "runs": 1}
     ]
     assert (unknown.status_code, unknown.json()["code"]) == (404, "not_found")

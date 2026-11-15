@@ -37,8 +37,7 @@ async def test_a_task_is_made_and_listed(
     assert made.status_code == 201
     assert made.json() == {"name": "sum"}
     assert (await client.get(f"{CONTEST}/tasks")).json() == [{"name": "sum", "may_manage": True}]
-    settings = (await client.get(f"{TASK}/files/task.yaml")).json()
-    assert 'name: "Sum of Two"' in settings["content"]
+    assert (await read(client, f"{TASK}/request"))["request"]["name"] == "Sum of Two"
 
 
 async def test_a_new_task_is_an_unsaved_draft_with_nothing_wrong(
@@ -126,10 +125,11 @@ async def test_a_tasks_entry_sets_its_timeline_and_a_failed_save_shows_its_error
         },
         headers=ORIGIN,
     )
-    task = await read(client, f"{TASK}/files/task.yaml")
-    broken = await client.put(
-        f"{TASK}/files/task.yaml",
-        json={"content": task["content"] + "nonsense: [\n", "token": task["token"]},
+    task = await read(client, f"{TASK}/request")
+    task["request"]["runs"][0]["answer"] = "tests/2.ans"
+    broken = await client.post(
+        f"{TASK}/save",
+        json={"request": {"request": task["request"], "token": task["token"]}},
         headers=ORIGIN,
     )
 
@@ -212,15 +212,14 @@ async def test_the_workflow_form_gives_the_inputs_of_the_workflow_the_task_names
 async def test_a_task_naming_no_workflow_gets_a_form_saying_why(
     client: httpx.AsyncClient, sum_task: FakeForge
 ) -> None:
-    task = await read(client, f"{TASK}/files/task.yaml")
-    await client.put(
-        f"{TASK}/files/task.yaml",
-        json={
-            "content": task["content"].replace("workflow: unicon/classic@v6\n", ""),
-            "token": task["token"],
-        },
+    task = await read(client, f"{TASK}/request")
+    del task["request"]["workflow"]
+    saved = await client.post(
+        f"{TASK}/save",
+        json={"request": {"request": task["request"], "token": task["token"]}},
         headers=ORIGIN,
     )
+    assert saved.status_code == 200, saved.text
 
     form = await client.get(FORM)
 

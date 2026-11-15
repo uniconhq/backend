@@ -1,9 +1,8 @@
-"""A contest's and a task's settings as their form's values through the
-routes: read by an observer, a contest's saved by a manager with every
-comment of the file kept, a task's saved with the task, and the refusals a
-save meets: a stale token, an admin-only key changed by a manager, two
-entries with one name, and an observer's save; and the runs a task's draft
-makes.
+"""A contest's settings as their form's values through the routes, and a
+task's as its request: read by an observer, a contest's saved by a manager
+with every comment of the file kept, a task's saved with the task, and the
+refusals a save meets: a stale token, an admin-only key changed by a manager, two
+entries with one name, and an observer's save.
 """
 
 from typing import Any
@@ -51,25 +50,32 @@ async def test_saving_the_contests_values_keeps_every_comment(
     assert after["content"] == text + "description: Two hours\n"
 
 
-async def test_a_task_reads_its_values_and_saves_them_with_the_task(
+async def test_a_task_reads_its_request_and_saves_it_with_the_task(
     client: httpx.AsyncClient, sum_task: FakeForge
 ) -> None:
-    settings = await read(client, f"{TASK}/settings")
-    values = settings["values"]
-    assert values["scoring"]["values"][0]["name"] == "score"
-    values["name"] = "Sum of Three"
+    read_back = await read(client, f"{TASK}/request")
+    request = read_back["request"]
+    assert request["workflow"] == "unicon/classic@v6"
+    assert "score" in request["scoring"]["values"]
+    request["name"] = "Sum of Three"
 
     saved = await client.post(
         f"{TASK}/save",
-        json={"changes": [{"path": "task.yaml", "token": settings["token"], "values": values}]},
+        json={"request": {"request": request, "token": read_back["token"]}},
         headers=ORIGIN,
     )
     saved = await prepared(client, saved)
 
-    assert saved.status_code == 200
-    after = await read(client, f"{TASK}/files/task.yaml")
-    assert after["content"].startswith("# The task's settings.")
-    assert 'name: "Sum of Three"\n' in after["content"]
+    assert saved.status_code == 200, saved.text
+    after = await read(client, f"{TASK}/request")
+    assert after["request"]["name"] == "Sum of Three"
+    assert after["token"] != read_back["token"]
+    stale = await client.post(
+        f"{TASK}/save",
+        json={"request": {"request": request, "token": read_back["token"]}},
+        headers=ORIGIN,
+    )
+    assert (stale.status_code, stale.json()["code"]) == (409, "conflict")
 
 
 async def test_a_stale_token_is_a_conflict(client: httpx.AsyncClient, sum_task: FakeForge) -> None:
@@ -131,21 +137,3 @@ async def test_reading_the_settings_needs_a_role_there(
     refused = await client.get(f"{CONTEST}/settings")
 
     assert refused.status_code in (403, 404)
-
-
-async def test_a_drafts_runs_cross_its_axes(client: httpx.AsyncClient, sum_task: FakeForge) -> None:
-    repeat = [
-        {"inputs": ["input", "answer"], "tuples": [["a.in", "a.ans"], ["b.in", "b.ans"]]},
-        {"inputs": ["seed"], "tuples": [{"title": "One", "seed": 1}]},
-    ]
-
-    answer = await client.post(f"{TASK}/draft-runs", json={"repeat": repeat}, headers=ORIGIN)
-
-    assert answer.status_code == 200
-    body = answer.json()
-    assert body["count"] == 2
-    assert body["runs"] == [
-        {"titles": ["One"], "cells": {"input": "a.in", "answer": "a.ans", "seed": 1}},
-        {"titles": ["One"], "cells": {"input": "b.in", "answer": "b.ans", "seed": 1}},
-    ]
-    assert [len(axis) for axis in body["axes"]] == [2, 1]

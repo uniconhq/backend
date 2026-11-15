@@ -1,20 +1,15 @@
 """A grading that ends in `system_error` is tried again once by itself, over
-HTTP: the read that finds it failed starts the retry, and the organiser's
-list of the task's gradings marks the new attempt `automatic`.
+HTTP: the sweep that settles a stuck one starts the retry, and the
+organiser's list of the task's gradings marks the new attempt `automatic`.
 """
-
-from datetime import timedelta
 
 import httpx
 import pytest
-from forge.testing import APP_URL, FORGE_URL, FakeClock, FakeForge, Settings, Setup
+from forge.testing import APP_URL, FORGE_URL, FakeClock, FakeForge, Settings
 
-from tests.integration.conftest import ORIGIN, TASK, sign_in_as, upload
+from tests.integration.conftest import ORIGIN, TASK, sign_in_as, stuck, upload
 
 SOURCE = b"print(sum(map(int, input().split())))\n"
-STUCK = timedelta(hours=2)
-"""How long a dispatched grading waits for a machine before it reads as a
-system error."""
 
 
 @pytest.fixture
@@ -27,8 +22,8 @@ def settings(migrated_database_url: str) -> Settings:
     )
 
 
-async def test_a_read_that_finds_a_failure_retries_it_and_the_list_says_the_platform_did(
-    client: httpx.AsyncClient, entered: FakeForge, clock: FakeClock, held_setup: Setup
+async def test_the_sweep_retries_a_stuck_grading_and_the_list_says_the_platform_did(
+    client: httpx.AsyncClient, entered: FakeForge, clock: FakeClock
 ) -> None:
     made = await upload(client, entered, SOURCE)
     submitted = await client.post(
@@ -43,10 +38,9 @@ async def test_a_read_that_finds_a_failure_retries_it_and_the_list_says_the_plat
         headers=ORIGIN,
     )
     assert submitted.status_code == 201, submitted.text
-    clock.advance(STUCK)
+    await stuck(client, clock)
 
     read = await client.get(f"{TASK}/submissions/1")
-    await held_setup.settle()
     await sign_in_as(client, entered, 7)
     listed = await client.get(f"{TASK}/gradings")
 

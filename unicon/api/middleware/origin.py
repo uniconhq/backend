@@ -7,41 +7,22 @@ session is covered the day it exists. The platform's origin is asked of
 forge on the first request that is checked, not when the app is built, so an
 app forge was never started for can still be built.
 
-Three kinds of door are let through, each called by a machine with no
-browser and no session, so with no origin to claim: the one the forge pushes
-an org's events to, forge's `EVENTS_PATH` followed by the org's name; the
-CI's configuration extension at `CI_CONFIG_PATH`; and a step's door, its
-report at `STEP_PATH`, its upload list at `UPLOADS_PATH` and its done at
-`DONE_PATH`, each with one grading's id and one step's name. A signature or
-a token over the request is what admits each, and no cookie is read at any
-of them.
+One door is let through, called by a machine with no browser and no
+session, so with no origin to claim: the one the forge pushes an org's
+events to, forge's `EVENTS_PATH` followed by the org's name. A signature
+over the request is what admits it, and no cookie is read there.
 """
 
-import re
 from urllib.parse import urlsplit
 
 from forge.api import public_url
 from forge.api.errors import UniconError
 from forge.api.events import EVENTS_PATH
-from forge.api.runs import CI_CONFIG_PATH, DONE_PATH, STEP_PATH, UPLOADS_PATH
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 from unicon.api.errors import problem_for
 
 UNSAFE_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
-GRADING_ID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
-"""A grading's id as forge writes it into the door URLs it hands a step."""
-STEP = "[^/]+"
-"""One step's name, which forge checks against the grading's steps."""
-
-
-def _door(path: str) -> re.Pattern[str]:
-    """A machine door's path with its grading's id and step's name in it."""
-    escaped = re.escape(path).replace(re.escape("{grading}"), GRADING_ID)
-    return re.compile(escaped.replace(re.escape("{step}"), STEP))
-
-
-STEP_DOORS = (_door(STEP_PATH), _door(UPLOADS_PATH), _door(DONE_PATH))
 
 
 class OriginMismatch(UniconError):
@@ -77,15 +58,7 @@ def _is_checked(scope: Scope) -> bool:
     return (
         scope["type"] == "http"
         and scope["method"] in UNSAFE_METHODS
-        and not _is_machine_door(scope["path"])
-    )
-
-
-def _is_machine_door(path: str) -> bool:
-    return (
-        path == CI_CONFIG_PATH
-        or _is_forge_event(path)
-        or any(door.fullmatch(path) for door in STEP_DOORS)
+        and not _is_forge_event(scope["path"])
     )
 
 

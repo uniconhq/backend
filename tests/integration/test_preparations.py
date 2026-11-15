@@ -9,19 +9,16 @@ from tests.integration.conftest import ORIGIN, TASK, read
 async def test_the_saved_environment_prepares_and_publishes_through_the_task_routes(
     client: httpx.AsyncClient, sum_task: FakeForge, held_setup: Setup
 ) -> None:
-    before = await read(client, f"{TASK}/files/task.yaml")
+    before = await read(client, f"{TASK}/request")
+    environment = {"cpp": {"version": "16"}, "python": {"packages": ["numpy"]}}
     saved = await client.post(
         f"{TASK}/save",
         headers=ORIGIN,
         json={
-            "changes": [
-                {
-                    "path": "task.yaml",
-                    "token": before["token"],
-                    "content": before["content"]
-                    + '\nenvironment:\n  cpp: {version: "16"}\n  python:\n    packages: [numpy]\n',
-                }
-            ],
+            "request": {
+                "request": {**before["request"], "environment": environment},
+                "token": before["token"],
+            },
             "confirm": True,
         },
     )
@@ -33,8 +30,8 @@ async def test_the_saved_environment_prepares_and_publishes_through_the_task_rou
     assert ready.json()["id"] == saved.json()["preparation"]
     assert ready.json()["status"] == "ready", ready.text
     assert ready.json()["result"]["number"] == 1
-    lock = await read(client, f"{TASK}/files/environment.lock")
-    assert '"linux-aarch64"' in lock["content"] and '"linux-64"' in lock["content"]
+    data = await read(client, f"{TASK}/files/lock.json")
+    assert "linux-aarch64" in data["content"] and "linux-64" in data["content"]
 
     state = (await client.get(TASK)).json()
     assert state["toolchains"] == {

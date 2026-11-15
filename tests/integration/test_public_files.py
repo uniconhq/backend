@@ -16,7 +16,8 @@ from typing import Any
 
 import httpx
 import pytest
-from forge.testing import FakeForge
+import yaml
+from forge.testing import FakeForge, request_text
 
 from tests.integration.conftest import (
     ORIGIN,
@@ -36,9 +37,13 @@ MOST = 10 * 1024 * 1024
 STARTER_SHOW = (
     "  show:\n"
     "    always:\n"
-    "      values: [score]\n"
+    "      values:\n"
+    "      - score\n"
     "      runs:\n"
-    "        - {of: all, fields: [verdict, passed]}\n"
+    "      - of: all\n"
+    "        fields:\n"
+    "        - verdict\n"
+    "        - passed\n"
 )
 """The starter's `show`, which names no file: none ever does."""
 
@@ -58,12 +63,15 @@ async def _publish_public(client: httpx.AsyncClient, *, show: str = STARTER_SHOW
     once the contest has started, again with what it asked when it hides
     what entrants were shown, and its check run.
     """
-    task = await read(client, f"{TASK}/files/task.yaml")
-    assert STARTER_SHOW in task["content"]
-    settings = task["content"].replace(STARTER_SHOW, show)
+    task = await read(client, f"{TASK}/request")
+    text = request_text(task["request"]).decode()
+    assert STARTER_SHOW in text
     body = {
+        "request": {
+            "request": yaml.safe_load(text.replace(STARTER_SHOW, show)),
+            "token": task["token"],
+        },
         "changes": [
-            {**_typed("task.yaml", settings), "token": task["token"]},
             _binary("public/figure.png", PNG),
             _binary("public/Photo.JPG", PNG),
             _typed("public/diagram.svg", SVG),
